@@ -5,8 +5,6 @@
 
 **ML Ensemble is a Python library for building ensembles through Scikit-learn's API to allow for full parallelization and integration with sklearn's cross-validation, pipelining and diagnostics tools.**
 
-* Sebastian Flennerhag 2017 *
-
 
 ## Notes
 

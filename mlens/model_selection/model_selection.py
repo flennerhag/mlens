@@ -15,8 +15,8 @@ and all cases are accessibly stored in a summary attribute.
 from sklearn.base import clone
 import numpy as np
 from pandas import DataFrame
-from ..parallel import preprocess_folds
-from ..model_selection import cross_validate
+from ..parallel.preprocess import preprocess_folds
+from ..parallel.fit_predict import cross_validate
 from sklearn.pipeline import Pipeline
 from time import time
 

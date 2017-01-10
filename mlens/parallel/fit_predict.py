@@ -6,8 +6,9 @@ data: 10/01/2017
 Base functions for any parallel processing
 """
 
-from ..model_selection import fit_score
-from ..ensemble import _fit_and_predict, _construct_matrix, _fit_estimator
+from ..model_selection._cross_validate import fit_score
+from ..ensemble._fit_predict import _fit_and_predict, _construct_matrix,
+from ..ensemble._fit_predict import _fit_estimator
 from pandas import DataFrame
 from sklearn.externals.joblib import Parallel, delayed
 

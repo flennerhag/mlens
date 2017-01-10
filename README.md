@@ -2,9 +2,9 @@
 ### A library for ensemble learning
 
 
-<>[![Build Status](https://travis-ci.org/rasbt/mlxtend.svg?branch=master)](https://travis-ci.org/rasbt/mlxtend)
-<>![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)
-<>![License](https://img.shields.io/badge/license-MIT.svg)
+[![Build Status](https://travis-ci.org/rasbt/mlxtend.svg?branch=master)](https://travis-ci.org/rasbt/mlxtend)
+![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-red.svg)
 
 
 

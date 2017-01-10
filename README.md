@@ -1,20 +1,11 @@
-# ML Ensemble
-### A library for ensemble learning
-
-
-[![Build Status](https://travis-ci.org/rasbt/mlxtend.svg?branch=master)](https://travis-ci.org/rasbt/mlxtend)
 ![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-red.svg)
 
-
+# ML Ensemble - A library for ensemble learning
 
 **ML Ensemble is a Python library for building ensembles through Scikit-learn's API to allow for full parallelization and integration with sklearn's cross-validation, pipelining and diagnostics tools.**
 
-<br>
-
-Sebastian Flennerhag 2017
-
-<br>
+* Sebastian Flennerhag 2017 *
 
 
 ## Notes

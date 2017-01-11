@@ -52,7 +52,7 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         {'pipe-1', [('step-1', trans), (...)], [('est-1', est), (...)]}, where
         named each step is optional. Each transformation step and estimators
         must accept fit and transform / predict methods respectively
-    folds : int, default=10
+    folds : int, default=2
         number of folds to use for constructing meta estimator training set
     shuffle : bool, default=True
         whether to shuffle data for creating k-fold out of sample predictions
@@ -64,11 +64,11 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
             verbose = 0 prints minimum output
             verbose = 1 give prints for meta and base estimators
             verbose = 2 prints also for each stage (preprocessing, estimator)
-    n_jobs : int, default=10
+    n_jobs : int, default=-1
         number of CPU cores to use for fitting and prediction
     '''
 
-    def __init__(self, meta_estimator, base_pipelines, folds=10,
+    def __init__(self, meta_estimator, base_pipelines, folds=2,
                  shuffle=True, as_df=False, verbose=False, n_jobs=-1):
 
         self.base_pipelines = base_pipelines

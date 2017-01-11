@@ -7,7 +7,6 @@ Base functions for any parallel processing
 """
 from ._fit_predict_functions import _fit_score, _fit_and_predict, _predict
 from ._fit_predict_functions import _fit_estimator, _construct_matrix
-from ..utils import name_columns
 from pandas import DataFrame
 from sklearn.externals.joblib import Parallel, delayed
 
@@ -21,7 +20,7 @@ def _parallel_estimation(function, data, estimator_cases,
                    for est_name, est in estimator_cases[tup[-1]])
 
 
-def base_predict(data, estimator_cases, n, folded_preds, as_df=False,
+def base_predict(data, estimator_cases, n, folded_preds, columns, as_df=False,
                  n_jobs=-1, verbose=False):
     """ Function for parallelized function fitting """
     if folded_preds:
@@ -33,7 +32,6 @@ def base_predict(data, estimator_cases, n, folded_preds, as_df=False,
     out = _parallel_estimation(function, data, estimator_cases,
                                n_jobs=n_jobs, verbose=verbose)
 
-    columns = name_columns(estimator_cases)
     M = _construct_matrix(out, n, columns, folded_preds)
 
     if as_df:

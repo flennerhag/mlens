@@ -66,6 +66,8 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         test scores. The scorer should be a function that accepts an array of
         true values and an array of predictions: score = f(y_true, y_pred). The
         scoring function of an sklearn scorer can be retrieved by ._score_func
+    random_state : int, default=None
+        seed for creating folds during fitting
     verbose : bool, int, default=False
         level of verbosity of fitting:
             verbose = 0 prints minimum output
@@ -81,6 +83,10 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         named according as pipeline-estimator.
     base_estimators_ : list
         fitted base estimators
+    base_columns_ : list
+        ordered list of base estimators as they appear in the input matrix to
+        the meta estimators. Useful for mapping sklearn feature importances,
+        which comes as ordered ndarrays.
     preprocess_ : dict
         fitted preprocessing pipelines
 
@@ -95,7 +101,8 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
     '''
 
     def __init__(self, meta_estimator, base_pipelines, folds=2, shuffle=True,
-                 as_df=False, scorer=None, verbose=False, n_jobs=-1):
+                 as_df=False, scorer=None, random_state=None,
+                 verbose=False, n_jobs=-1):
 
         self.base_pipelines = base_pipelines
         self.meta_estimator = meta_estimator
@@ -117,6 +124,7 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.shuffle = shuffle
         self.as_df = as_df
         self.scorer = scorer
+        self.random_state = random_state
         self.verbose = verbose
         self.n_jobs = n_jobs
 
@@ -137,6 +145,7 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.meta_estimator_ = clone(self.meta_estimator)
         self.base_estimators_ = _clone_base_estimators(self.base_estimators)
         self.preprocess_ = _clone_preprocess_cases(self.preprocess)
+        self.base_columns_ = name_columns(self.base_estimators_)
 
         if self.verbose > 0:
             printout = sys.stdout if self.verbose > 50 else sys.stderr
@@ -171,8 +180,8 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
         data = self._preprocess(X, y, False)
         M = base_predict(data, self.base_estimators_, X.shape[0],
-                         folded_preds=False, as_df=False, n_jobs=self.n_jobs,
-                         verbose=False)
+                         folded_preds=False, columns=self.base_columns_,
+                         as_df=self.as_df, n_jobs=self.n_jobs, verbose=False)
 
         return self.meta_estimator_.predict(M)
 
@@ -190,15 +199,17 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
         data = preprocess_folds(_clone_preprocess_cases(self.preprocess),
                                 X, y, folds=self.folds, fit=True,
-                                shuffle=self.shuffle, n_jobs=self.n_jobs,
-                                verbose=self.verbose)
+                                shuffle=self.shuffle,
+                                random_state=self.random_state,
+                                n_jobs=self.n_jobs, verbose=self.verbose)
 
         # Parellelized k-fold predictions for meta estiamtor training set
         if self.verbose > 2:
             print('>> fitting base estimators', file=printout)
 
         M = base_predict(data, _clone_base_estimators(self.base_estimators),
-                         n=X.shape[0], folded_preds=True, as_df=self.as_df,
+                         n=X.shape[0], folded_preds=True,
+                         columns=self.base_columns_, as_df=self.as_df,
                          n_jobs=self.n_jobs, verbose=self.verbose)
 
         if self.scorer is not None:
@@ -250,6 +261,8 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
             out = {'folds': self.folds,
                    'shuffle': self.shuffle,
                    'as_df': self.as_df,
+                   'scorer': self.scorer,
+                   'random_state': self.random_state,
                    'verbose': self.verbose,
                    'n_jobs': self.n_jobs}
 

@@ -26,10 +26,11 @@ def preprocess_pipes(preprocessing, X, y=None, fit=True, dry_run=False,
 
 
 def preprocess_folds(preprocessing, X, y=None, folds=None, fit=True,
-                     shuffle=False, n_jobs=-1, verbose=False):
+                     shuffle=False, random_state=None,
+                     n_jobs=-1, verbose=False):
     """ Pre-make preprecessing cases over cv folds (incl no preprocessing)"""
 
-    kfold = KFold(folds, shuffle=shuffle)
+    kfold = KFold(folds, shuffle=shuffle, random_state=random_state)
 
     # Check if there is at least one preprocessing pipeline
     if len(list(preprocessing)) != 0:

@@ -142,6 +142,8 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
             printout = sys.stdout if self.verbose > 50 else sys.stderr
             print('Fitting ensemble\n', file=printout)
             ts = time()
+        else:
+            printout = None
 
         # ========== Fit meta estimator ==========
         self._fit_meta_estimator(X, y, printout)
@@ -169,7 +171,7 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
         data = self._preprocess(X, y, False)
         M = base_predict(data, self.base_estimators_, X.shape[0],
-                         folded_preds=False, as_df=False, n_jobs=-1,
+                         folded_preds=False, as_df=False, n_jobs=self.n_jobs,
                          verbose=False)
 
         return self.meta_estimator_.predict(M)

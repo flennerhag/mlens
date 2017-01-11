@@ -37,7 +37,8 @@ def name_base(base_pipelines):
                 pipe = pipe.steps
 
             for phase in pipe:
-                named_pipelines.update(name_estimators(phase, p_name + '-'))
+                name = p_name + '-' if len(p_name) > 0 else ''
+                named_pipelines.update(name_estimators(phase, name))
 
     return named_pipelines
 

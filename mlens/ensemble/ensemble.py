@@ -11,9 +11,8 @@ from sklearn.base import clone, BaseEstimator, TransformerMixin, RegressorMixin
 from ._setup import name_estimators, name_base, _check_names
 from ._clone import _clone_base_estimators, _clone_preprocess_cases
 from ..utils import print_time
-from ..parallel.preprocess import preprocess_folds, preprocess_pipes
-from ..parallel.preprocess import folded_predictions
-from ..parallel.fit_predict import fit_estimators
+from ..parallel import preprocess_folds, preprocess_pipes
+from ..parallel import fit_estimators, folded_predictions
 from sklearn.externals import six
 from time import time
 

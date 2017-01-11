@@ -6,6 +6,5 @@ date: 10/01/2017
 """
 
 from .model_selection import Evaluator
-from ._cross_validate import fit_score
 
-__all__ = ['Evaluator', 'fit_score']
+__all__ = ['Evaluator']

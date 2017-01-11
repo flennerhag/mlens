@@ -7,10 +7,8 @@ author: Sebastian Flennerhag
 date: 10/01/2017
 """
 
-from .preprocess import _preprocess_pipe, preprocess_pipes
-from .preprocess import _preprocess_fold, preprocess_folds
+from .preprocess import preprocess_pipes, preprocess_folds
 from .fit_predict import cross_validate, folded_predictions, fit_estimators
 
-__all__ = ['_preprocess_pipe', 'preprocess_pipes',
-           '_preprocess_fold', 'preprocess_folds',
+__all__ = ['preprocess_pipes', 'preprocess_folds',
            'cross_validate', 'folded_predictions', 'fit_estimators']

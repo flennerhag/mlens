@@ -5,10 +5,8 @@ author: Sebastian Flennerhag
 data: 10/01/2017
 Base functions for any parallel processing
 """
-
-from ..model_selection._cross_validate import fit_score
-from ..ensemble._fit_predict import _fit_and_predict, _construct_matrix,
-from ..ensemble._fit_predict import _fit_estimator
+from ._fit_predict_functions import _fit_score, _fit_and_predict
+from ._fit_predict_functions import _fit_estimator, _construct_matrix
 from pandas import DataFrame
 from sklearn.externals.joblib import Parallel, delayed
 
@@ -18,8 +16,8 @@ def cross_validate(estimators, param_sets, X, y, cv, scoring, dout=None,
     """ Run parallellized cross-validated grid search on premade folds """
 
     out = Parallel(n_jobs=n_jobs, verbose=verbose)(
-                   delayed(fit_score)(est, est_name, params, scoring,
-                                      *tup, i, True, True)
+                   delayed(_fit_score)(est, est_name, params, scoring,
+                                       *tup, i, True, True)
                    for tup in dout
                    for est_name, est in estimators.items()
                    for i, params in enumerate(param_sets[est_name]))

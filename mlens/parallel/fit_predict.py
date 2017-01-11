@@ -52,7 +52,7 @@ def fit_estimators(data, y, estimator_cases, n_jobs=-1, verbose=False):
     return fitted_estimators
 
 
-def cross_validate(estimators, param_sets, X, y, cv, scoring, dout=None,
+def cross_validate(estimators, param_sets, dout, cv, scoring,
                    n_jobs=-1, verbose=False):
     """ Run parallellized cross-validated grid search on premade folds """
 

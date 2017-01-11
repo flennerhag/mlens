@@ -8,27 +8,39 @@
 
 ## Notes
 
-The package is under construction and has not been tested yet for installationg. 
+The package is under construction and as such may not function properly. If you are interested in trying it out or to contribute, the package builds without issues. 
 
-## How to install (eventually)
+## How to install
 
 #### PyPI
 
+** global PyPI database (coming) **
 With bash, execute  
 
 ```bash
 pip install mlens  
 ```
 
-Alternatively, you could download the package manually and in the downloaded folder execute
+** manual download **
+
+The package can be installed by downloading the repo and using pip install:
+
+
 
 ```bash
-python setup.py install
+git clone https://flennerhag/mlens.git; cd mlens;
+pip install .
 ```
 
 #### Bleeding edge
 
-To ensure latest version is installed, fork the GitHub repository and install mlxtens using the second option above. Use git pull to get updates and follow the above step to install updates.
+To ensure latest version is installed, fork the GitHub repository and install mlxtens using the symlink options.
+
+```bash
+pip install -e .
+```
+
+To update the package, simply pull the latest changes from the github repo
 
 <br>
 <br>

@@ -14,14 +14,14 @@ The package is under construction and as such may not function properly. If you 
 
 #### PyPI
 
-** global PyPI database (coming) **
+**global PyPI database (coming)**
 With bash, execute  
 
 ```bash
 pip install mlens  
 ```
 
-** manual download **
+**manual download**
 
 The package can be installed by downloading the repo and using pip install:
 
@@ -42,8 +42,6 @@ pip install -e .
 
 To update the package, simply pull the latest changes from the github repo
 
-<br>
-<br>
 
 ## License
 

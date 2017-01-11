@@ -6,7 +6,7 @@ date: 10/01/2017
 Support functions for naming estimators to enable ensemble parameter mapping
 """
 
-from sklearn.pipeline import _name_estimators
+from sklearn.pipeline import Pipeline, _name_estimators
 
 
 def name_estimators(estimators, prefix='', suffix=''):
@@ -49,9 +49,15 @@ def check_estimators(estimators):
 
 def _check_names(estimators):
     """ Helper to ensure all estimators and transformers are named """
+    # Check if empty
     if len(estimators) is 0:
         return []
-    elif not isinstance(estimators[0], tuple):
-        return _name_estimators(estimators)
-    else:
+    # Check if pipeline, if so split up
+    elif isinstance(estimators, Pipeline):
+        return estimators.steps
+    # Check if named tuple
+    elif isinstance(estimators[0], tuple):
         return estimators
+    # Else assume list of unnamed estimators
+    else:
+        return _name_estimators(estimators)

@@ -10,15 +10,15 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 from sklearn.base import clone, BaseEstimator, TransformerMixin, RegressorMixin
 from ._setup import name_estimators, name_base, _check_names
 from ._clone import _clone_base_estimators, _clone_preprocess_cases
-from ..utils import print_time
+from ..utils import print_time, name_columns
+from ..metrics import score_matrix
 from ..parallel import preprocess_folds, preprocess_pipes
 from ..parallel import fit_estimators, folded_predictions
 from sklearn.externals import six
 from time import time
 import sys
 
-# TODO: add option to store base estimator cv test scores during fit
-# TODO: add option to pre-make folds
+# TODO: make the preprocessing of folds, pre-making can take a lot of memory
 
 
 class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
@@ -59,6 +59,13 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
     as_df : bool, default=False
         whether to fit meta_estimator on a dataframe. Useful if meta estimator
         allows feature importance analysis
+    scorer : func, default=None
+        scoring function. If a function is provided, base estimators will be
+        scored on the training set assembled for fitting the meta estimator.
+        Since those predictions are out-of-sample, the scores represent valid
+        test scores. The scorer should be a function that accepts an array of
+        true values and an array of predictions: score = f(y_true, y_pred). The
+        scoring function of an sklearn scorer can be retrieved by ._score_func
     verbose : bool, int, default=False
         level of verbosity of fitting:
             verbose = 0 prints minimum output
@@ -66,10 +73,29 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
             verbose = 2 prints also for each stage (preprocessing, estimator)
     n_jobs : int, default=-1
         number of CPU cores to use for fitting and prediction
+
+    Attributes
+    -----------
+    scores_ : dict
+        scored base of base estimators on the training set, estimators are
+        named according as pipeline-estimator.
+    base_estimators_ : list
+        fitted base estimators
+    preprocess_ : dict
+        fitted preprocessing pipelines
+
+    Methods
+    --------
+    fit : X, y=None
+        Fits ensemble on provided data
+    predict : X
+        Use fitted ensemble to predict on X
+    get_params : None
+        Method for generating mapping of parameters. Sklearn API
     '''
 
-    def __init__(self, meta_estimator, base_pipelines, folds=2,
-                 shuffle=True, as_df=False, verbose=False, n_jobs=-1):
+    def __init__(self, meta_estimator, base_pipelines, folds=2, shuffle=True,
+                 as_df=False, scorer=None, verbose=False, n_jobs=-1):
 
         self.base_pipelines = base_pipelines
         self.meta_estimator = meta_estimator
@@ -90,6 +116,7 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.folds = folds
         self.shuffle = shuffle
         self.as_df = as_df
+        self.scorer = scorer
         self.verbose = verbose
         self.n_jobs = n_jobs
 
@@ -138,6 +165,10 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
                                _clone_base_estimators(self.base_estimators),
                                n=X.shape[0], as_df=self.as_df,
                                n_jobs=self.n_jobs, verbose=self.verbose)
+
+        if self.scorer is not None:
+            cols = [] if self.as_df else name_columns(self.base_estimators_)
+            self.scores_ = score_matrix(M, y, self.scorer, cols)
 
         if self.verbose > 2:
             print('>> fitting meta estimator', file=printout)

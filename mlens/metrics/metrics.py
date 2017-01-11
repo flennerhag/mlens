@@ -9,7 +9,16 @@ Scoring functions not in the sklearn library
 """
 
 import numpy as np
+from pandas import DataFrame
 from sklearn.metrics import make_scorer
+
+
+def score_matrix(M, y, score, column_names=None):
+    """ Function for scoring a matrix """
+    if isinstance(M, DataFrame):
+        return dict(M.apply(lambda x: score(y, x)))
+    else:
+        return {col: score(y, M[:, i]) for i, col in enumerate(column_names)}
 
 
 # Root mean square error := sqrt(mse), mse := (1/n) * sum( (y-p)**2 )

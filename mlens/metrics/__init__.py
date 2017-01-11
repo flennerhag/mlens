@@ -7,6 +7,6 @@ author: Sebastian Flennerhag
 date: 11/01/2017
 """
 
-from .metrics import rmse
+from .metrics import score_matrix, rmse
 
-__all__ = ['rmse']
+__all__ = ['score_matrix', 'rmse']

@@ -22,7 +22,9 @@ def _preprocess_pipe(xtrain, ytrain, xtest, steps, fit, p_name=None,
         if xtest is not None:
             xtest = step.transform(xtest)
 
-    if not dry_run:
+    if dry_run:
+        return
+    else:
         if return_estimator:
             out = [steps, xtrain]
         else:

@@ -13,12 +13,12 @@ from ._clone import _clone_base_estimators, _clone_preprocess_cases
 from ..utils import print_time, name_columns
 from ..metrics import score_matrix
 from ..parallel import preprocess_folds, preprocess_pipes
-from ..parallel import fit_estimators, folded_predictions
+from ..parallel import fit_estimators, base_predict
 from sklearn.externals import six
 from time import time
 import sys
 
-# TODO: make the preprocessing of folds, pre-making can take a lot of memory
+# TODO: make the preprocessing of folds optional as it can take a lot of memory
 
 
 class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
@@ -128,6 +128,7 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
             input matrix to be used for prediction
         y : array-like, shape=[n_samples, ]
             output vector to trained estimators on
+
         Returns
         --------
         self : obj
@@ -143,6 +144,39 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
             ts = time()
 
         # ========== Fit meta estimator ==========
+        self._fit_meta_estimator(X, y, printout)
+
+        # ========== Fit preprocessing pipes and base estimators ==========
+        self._fit_base(X, y, printout)
+
+        if self.verbose > 0:
+            print_time(ts, '\nFit complete', file=printout)
+
+        return self
+
+    def predict(self, X, y=None):
+        '''
+        Parameters
+        ----------
+        X : array-like, shape=[n_samples, n_features]
+            input matrix to be used for prediction
+
+        Returns
+        --------
+        y : array-like, shape=[n_samples, ]
+            predictions for provided input array
+        '''
+
+        data = self._preprocess(X, y, False)
+        M = base_predict(data, self.base_estimators_, X.shape[0],
+                         folded_preds=False, as_df=False, n_jobs=-1,
+                         verbose=False)
+
+        return self.meta_estimator_.predict(M)
+
+    def _fit_meta_estimator(self, X, y, printout):
+        """ Temporarily trains base estimators on folds and create
+        out-of-sample predicted input matrix for fitting of meta estimator"""
         if self.verbose > 1:
             print('> fitting meta estimator', file=printout)
 
@@ -161,10 +195,9 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         if self.verbose > 2:
             print('>> fitting base estimators', file=printout)
 
-        M = folded_predictions(data,
-                               _clone_base_estimators(self.base_estimators),
-                               n=X.shape[0], as_df=self.as_df,
-                               n_jobs=self.n_jobs, verbose=self.verbose)
+        M = base_predict(data, _clone_base_estimators(self.base_estimators),
+                         n=X.shape[0], folded_preds=True, as_df=self.as_df,
+                         n_jobs=self.n_jobs, verbose=self.verbose)
 
         if self.scorer is not None:
             cols = [] if self.as_df else name_columns(self.base_estimators_)
@@ -175,7 +208,8 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
         self.meta_estimator_.fit(M, y)
 
-        # ========== Fit preprocessing and base estimator ==========
+    def _fit_base(self, X, y, printout):
+        """ Fits preprocessing pipelines nad base estimator on full dataset"""
         if self.verbose > 1:
             print('\n> fitting base estimators', file=printout)
 
@@ -183,45 +217,28 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         if self.verbose > 2:
             print('>> preprocessing data', file=printout)
 
-        out = preprocess_pipes(self.preprocess_, X, y, return_estimators=True,
-                               n_jobs=self.n_jobs, verbose=self.verbose)
-        pipes, Z, cases = zip(*out)
-
-        self.preprocess_ = [(case, pipe) for case, pipe in zip(cases, pipes)]
+        data = self._preprocess(X, y, True)
 
         # Parallelized fitting of base estimators (on full training data)
         if self.verbose > 2:
             print('>> fitting base estimators', file=printout)
 
-        data = [[z, case] for z, case in zip(Z, cases)]
         self.base_estimators_ = fit_estimators(data, y, self.base_estimators_,
                                                self.n_jobs, self.verbose)
 
-        if self.verbose > 0:
-            print_time(ts, '\nFit complete', file=printout)
+    def _preprocess(self, X, y, method_is_fit):
+        """ Method for generating predictions for inputs """
 
-        return self
-
-    def predict(self, X, y=None):
-        '''
-        Parameters
-        ----------
-        X : array-like, shape=[n_samples, n_features]
-            input matrix to be used for prediction
-        Returns
-        --------
-        y : array-like, shape=[n_samples, ]
-            predictions for provided input array
-        '''
-        if hasattr(self, 'base_estimators_'):
-            M = self.base_estimators_.predict(X)
+        out = preprocess_pipes(self.preprocess_, X, y, fit=method_is_fit,
+                               return_estimators=method_is_fit,
+                               n_jobs=self.n_jobs, verbose=self.verbose)
+        if method_is_fit:
+            pipes, Z, cases = zip(*out)
+            self.preprocess_ = [(case, pipe) for case, pipe in
+                                zip(cases, pipes)]
+            return [[z, case] for z, case in zip(Z, cases)]
         else:
-            M = None
-
-        if hasattr(self, 'base_feature_pipelines_'):
-            M = self._predict_pipeline(M, X, fitted=True)
-
-        return self.meta_estimator_.predict(M)
+            return [[z, case] for z, case in out]
 
     def get_params(self, deep=True):
         ''' Sklearn API for retrieveing all (also nested) model parameters'''

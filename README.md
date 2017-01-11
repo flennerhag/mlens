@@ -3,14 +3,13 @@
 
 # ML Ensemble - A library for ensemble learning
 
-**ML Ensemble is a Python library for building [stacked ensembles](http://mlwave.com/kaggle-ensembling-guide/) through Scikit-learn's API to allow for full parallelization and integration with sklearn's cross-validation, pipelining and diagnostics tools. **
+**ML Ensemble is a Python library for building [stacked ensembles](http://mlwave.com/kaggle-ensembling-guide/) through Scikit-learn's API to allow for full parallelization and integration with sklearn's cross-validation, pipelining and diagnostics tools.**
+
 
 The library comes with:
-    - the `Ensemble` class, a one-stop-shop for generating and training ensembles. See [here](mlens/test/example.ipynb) for an example**
-    - the `PredictionFeature` class, an sklearn compatibile class for generating a feature of out-of-sample predicitons. Coming soon.
-    - the `Evaluator` class, a one-stop-shop for model evaluation that allows you to compare in one table the
-    performance of any number of models, across any number of preprocessing pipelines. By fitting all estimators
-    in one go, grid search time is dramatically reduced as compared to grid search one pipelined model at a time. See [here](mlens/test/example_evaluator.ipynb) for an example.
+- `Ensemble`: a one-stop-shop for generating and training ensembles. See [here](mlens/test/example.ipynb) for an example.
+- `PredictionFeature`: an sklearn compatibile class for generating a feature of out-of-sample predicitons. Coming soon.
+- `Evaluator`: a one-stop-shop for model evaluation that allows you to compare in one table the performance of any number of models, across any number of preprocessing pipelines. By fitting all estimators in one go, grid search time is dramatically reduced as compared to grid search one pipelined model at a time. See [here](mlens/test/example_evaluator.ipynb) for an example.
 
 ## Notes
 

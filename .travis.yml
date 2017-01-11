@@ -1,16 +1,4 @@
 language: python
 python:
-  - "3.2"
-  - "3.3"
-  - "3.4"
   - "3.5"
-install: 
-    - sudo apt-get update
-    - source ci/.travis_install.sh
-
-notifications:
-    email:
-      recipients:
-          - sebastianflennerhag@hotmail.com
-    on_success: always
-    on_failure: always
+install: "pip install -r requirements.txt"

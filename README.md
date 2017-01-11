@@ -3,8 +3,8 @@
 
 # ML Ensemble - A library for ensemble learning
 
-**ML Ensemble is a Python library for building ensembles through Scikit-learn's API to allow for full parallelization and integration with sklearn's cross-validation, pipelining and diagnostics tools.**
-
+**ML Ensemble is a Python library for building [stacked ensembles](http://mlwave.com/kaggle-ensembling-guide/) through Scikit-learn's API to allow for full parallelization and integration with sklearn's cross-validation, pipelining and diagnostics tools. See [here](test/example.ipynb) for an example**
+ 
 
 ## Notes
 

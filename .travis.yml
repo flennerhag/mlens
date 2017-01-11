@@ -1,4 +1,5 @@
 language: python
 python:
   - "3.5"
-install: "pip install -r /mlens/requirements.txt"
+install:
+  - pip install -r /mlens/mlens/requirements.txt

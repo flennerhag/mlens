@@ -32,8 +32,13 @@ def name_base(base_pipelines):
     else:
         named_pipelines = {}
         for p_name, pipe in base_pipelines.items():
+
+            if isinstance(pipe, Pipeline):
+                pipe = pipe.steps
+
             for phase in pipe:
                 named_pipelines.update(name_estimators(phase, p_name + '-'))
+
     return named_pipelines
 
 

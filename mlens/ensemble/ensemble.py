@@ -15,6 +15,10 @@ from ..parallel import preprocess_folds, preprocess_pipes
 from ..parallel import fit_estimators, folded_predictions
 from sklearn.externals import six
 from time import time
+import sys
+
+# TODO: add option to store base estimator cv test scores during fit
+# TODO: add option to pre-make folds
 
 
 class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
@@ -56,7 +60,10 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         whether to fit meta_estimator on a dataframe. Useful if meta estimator
         allows feature importance analysis
     verbose : bool, int, default=False
-        level of verbosity of fitting
+        level of verbosity of fitting:
+            verbose = 0 prints minimum output
+            verbose = 1 give prints for meta and base estimators
+            verbose = 2 prints also for each stage (preprocessing, estimator)
     n_jobs : int, default=10
         number of CPU cores to use for fitting and prediction
     '''
@@ -81,7 +88,7 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
             self.base_estimators = [(case, p) for case, p in base_pipelines]
 
         self.folds = folds
-        self.shuffle = self.shuffle
+        self.shuffle = shuffle
         self.as_df = as_df
         self.verbose = verbose
         self.n_jobs = n_jobs
@@ -104,28 +111,47 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.preprocess_ = _clone_preprocess_cases(self.preprocess)
 
         if self.verbose > 0:
-            print('Fitting ensemble')
+            printout = sys.stdout if self.verbose > 50 else sys.stderr
+            print('Fitting ensemble\n', file=printout)
             ts = time()
 
         # ========== Fit meta estimator ==========
-        # Fit temporary base pipelines and make k-fold out of sample preds
+        if self.verbose > 1:
+            print('> fitting meta estimator', file=printout)
 
+        # Fit temporary base pipelines and make k-fold out of sample preds
         # Parellelized preprocessing for all folds
+
+        if self.verbose > 2:
+            print('>> preprocessing folds', file=printout)
+
         data = preprocess_folds(_clone_preprocess_cases(self.preprocess),
-                                X, y, self.folds, self.shuffle, True,
-                                self.n_jobs, self.verbose)
+                                X, y, folds=self.folds, fit=True,
+                                shuffle=self.shuffle, n_jobs=self.n_jobs,
+                                verbose=self.verbose)
 
         # Parellelized k-fold predictions for meta estiamtor training set
+        if self.verbose > 2:
+            print('>> fitting base estimators', file=printout)
+
         M = folded_predictions(data,
                                _clone_base_estimators(self.base_estimators),
-                               X.shape[0], self.as_df, self.n_jobs,
-                               self.verbose)
+                               n=X.shape[0], as_df=self.as_df,
+                               n_jobs=self.n_jobs, verbose=self.verbose)
+
+        if self.verbose > 2:
+            print('>> fitting meta estimator', file=printout)
 
         self.meta_estimator_.fit(M, y)
 
         # ========== Fit preprocessing and base estimator ==========
+        if self.verbose > 1:
+            print('\n> fitting base estimators', file=printout)
 
         # Parallelized fitting of preprocessing pipelines
+        if self.verbose > 2:
+            print('>> preprocessing data', file=printout)
+
         out = preprocess_pipes(self.preprocess_, X, y, return_estimators=True,
                                n_jobs=self.n_jobs, verbose=self.verbose)
         pipes, Z, cases = zip(*out)
@@ -133,12 +159,15 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.preprocess_ = [(case, pipe) for case, pipe in zip(cases, pipes)]
 
         # Parallelized fitting of base estimators (on full training data)
+        if self.verbose > 2:
+            print('>> fitting base estimators', file=printout)
+
         data = [[z, case] for z, case in zip(Z, cases)]
         self.base_estimators_ = fit_estimators(data, y, self.base_estimators_,
                                                self.n_jobs, self.verbose)
 
         if self.verbose > 0:
-            print_time(ts, 'Fit complete')
+            print_time(ts, '\nFit complete', file=printout)
 
         return self
 
@@ -168,15 +197,14 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         if not deep:
             return super(Ensemble, self).get_params(deep=False)
         else:
-            out = self.__dict__
+            out = {'folds': self.folds,
+                   'shuffle': self.shuffle,
+                   'as_df': self.as_df,
+                   'verbose': self.verbose,
+                   'n_jobs': self.n_jobs}
 
-            out.update(self.named_base_estimators.copy())
-            for name, step in six.iteritems(self.named_base_estimators):
-                for key, value in six.iteritems(step.get_params(deep=True)):
-                    out['%s__%s' % (name, key)] = value
-
-            out.update(self.named_base_feature_pipelines.copy())
-            for name, step in six.iteritems(self.named_base_feature_pipelines):
+            out.update(self.named_base_pipelines.copy())
+            for name, step in six.iteritems(self.named_base_pipelines):
                 for key, value in six.iteritems(step.get_params(deep=True)):
                     out['%s__%s' % (name, key)] = value
 
@@ -185,6 +213,7 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
                 for key, value in six.iteritems(step.get_params(deep=True)):
                     out['%s__%s' % (name, key)] = value
             return out
+
 
 class PredictionFeature(object):
     """ TBD """

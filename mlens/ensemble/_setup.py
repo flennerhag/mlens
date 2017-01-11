@@ -49,7 +49,9 @@ def check_estimators(estimators):
 
 def _check_names(estimators):
     """ Helper to ensure all estimators and transformers are named """
-    if not isinstance(estimators[0], tuple):
+    if len(estimators) is 0:
+        return []
+    elif not isinstance(estimators[0], tuple):
         return _name_estimators(estimators)
     else:
         return estimators

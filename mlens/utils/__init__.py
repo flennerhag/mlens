@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jan 10 22:55:56 2017
-
-author: Sebastian
+author: Sebastian Flenenrhag
+date: 10/01/2017
 """
 
 from .utils import _slice, pickle_save, pickle_load, print_time

@@ -35,11 +35,11 @@ def pickle_load(name):
         return pickle.load(f)
 
 
-def print_time(t0, message=''):
+def print_time(t0, message='', **kwargs):
     """ Utility function for printing time """
     if len(message) > 0:
         message += ' | '
 
     r, s = divmod(time() - t0, 60)  # get sec
     h, m = divmod(r, 60)  # get h, min
-    print(message + '%d:%02d:%02d\n' % (h, m, s))
+    print(message + '%02d:%02d:%02d\n' % (h, m, s), **kwargs)

@@ -14,22 +14,22 @@ The package is under construction and as such may not function properly. If you 
 
 #### PyPI
 
-**global PyPI database (coming)**
-With bash, execute  
+  - **global PyPI database (coming)**
+  With bash, execute  
 
-```bash
-pip install mlens  
-```
+  ```bash
+  pip install mlens  
+  ```
 
-**manual download**
+  - **manual download**
 
-The package can be installed by downloading the repo and using pip install:
+  The package can be installed by downloading the repo and using pip install:
 
 
 
-```bash
-git clone https://flennerhag/mlens.git; cd mlens;
-pip install .
+  ```bash
+  git clone https://flennerhag/mlens.git; cd mlens;
+  pip install .
 ```
 
 #### Bleeding edge

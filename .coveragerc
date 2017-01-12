@@ -1,0 +1,5 @@
+[run]
+source = mlens
+
+[report]
+omit = */tests/*

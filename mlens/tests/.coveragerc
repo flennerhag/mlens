@@ -1,8 +1,7 @@
 [run]
 source = mlens
 branch = True
-source = mlxtend
-include = */mlxtend/*
+include = */mlens/*
 omit =
     */tests/*
     */setup.py

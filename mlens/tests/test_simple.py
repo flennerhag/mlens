@@ -20,6 +20,8 @@ from mlens.metrics.metrics import rmse_scoring
 from mlens.ensemble._setup import name_estimators, name_base, _check_names
 from mlens.ensemble._clone import _clone_base_estimators
 from mlens.ensemble._clone import _clone_preprocess_cases
+from mlens.parallel._preprocess_functions import _preprocess_pipe
+from mlens.parallel._preprocess_functions import _preprocess_fold
 from mlens.utils.utils import name_columns
 from mlens.parallel import preprocess_folds
 # from mlens.metrics import score_matrix
@@ -174,6 +176,35 @@ class TestClass(object):
         assert isinstance(base_columns_, list)
         assert len(base_columns_) == 4
 
+    def test_preprocess_pipe_fun(self):
+        np.random.seed(100)
+        X, y = gen_data()
+
+        out = _preprocess_pipe(X, y, X, [StandardScaler()], fit=True)
+        assert out is not None
+        assert len(out) == 2
+        assert isinstance(out[0], np.ndarray)
+
+        assert all([(_preprocess_pipe(X, y, X, [], fit=True)[i] == X).all() for
+                    i in range(2)])
+        assert (_preprocess_pipe(X, y, X, [], fit=True)[1] == X).all()
+
+        out = _preprocess_pipe(X, y, None, [StandardScaler()], fit=True,
+                               p_name='test')
+        assert out[-1] == 'test'
+
+    def test_preprocess_fold_fun(self):
+        np.random.seed(100)
+        X, y = gen_data()
+
+        out = _preprocess_fold(X, y, (range(500), range(500, 1000)),
+                               ('test', [StandardScaler()]), fit=True)
+        assert out is not None
+        assert len(out) == 6
+        assert all([out[i].shape[1] == 10 for i in range(2)])
+        assert all([out[i].shape[0] == 500 for i in range(2, 4)])
+        assert out[5] == 'test'
+
     def test_preprocess_fold(self):
         np.random.seed(100)
         X, y = gen_data()
@@ -201,6 +232,8 @@ class TestClass(object):
                                 n_jobs=-1, verbose=False)
         assert data is not None
         assert len(data) != 0
+        assert (X[data[1][-1]] == data[0][0]).all()
+        assert (X[data[0][-1]] == data[1][0]).all()
 
     def test_grid_search(self):
         np.random.seed(100)

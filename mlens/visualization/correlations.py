@@ -60,7 +60,7 @@ def corrmat(corr, figsize=(11, 9), annotate=True,
 
 
 def clustered_corrmap(X, cls=None, label_attr_name='labels_',
-                      fig_size=(20, 20), title_fontsize=24,
+                      fig_size=(20, 20), title_fontsize=24, show=True,
                       title_name='Feature correlation heatmap', **kwargs):
     '''
     Function for plotting a clustered correlation heatmap
@@ -86,10 +86,11 @@ def clustered_corrmap(X, cls=None, label_attr_name='labels_',
     plt.figure(figsize=fig_size)
     heatmap(X.loc[:, corr_list].corr(), vmax=1.0, square=True)
     plt.title(title_name, fontsize=title_fontsize)
-    plt.show()
+    if show:
+        plt.show()
 
 
-def corr_X_y(X, y, top=25):
+def corr_X_y(X, y, top=5, show=True):
     '''
     Function for plotting how features in an input matrix X correlates with
     y. Output figure shows all correlations as well as top pos and neg.
@@ -129,7 +130,7 @@ def corr_X_y(X, y, top=25):
     ax2.set_xlim(-1, len(correls)+1)
     ax2.set_title('Pairwise correlation coefficients', fontsize=16)
 
-    plt.tight_layout()
-    plt.show()
+    if show:
+        plt.show()
 
     return f, gs

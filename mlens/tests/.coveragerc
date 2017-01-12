@@ -5,7 +5,3 @@ include = */mlens/*
 omit =
     */tests/*
     */setup.py
-
-[report]
-omit = */tests/*
-skip_covered = True

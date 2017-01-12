@@ -19,6 +19,8 @@ from time import time
 import sys
 
 # TODO: make the preprocessing of folds optional as it can take a lot of memory
+# TODO: modularize the fitting method so we can build blend and stacking from
+#       same class shell
 
 
 class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):

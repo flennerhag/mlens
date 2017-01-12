@@ -14,30 +14,14 @@ The library comes with:
 - `PredictionFeature`: an sklearn compatibile class for generating a feature of out-of-sample predicitons. Coming soon.
 - `Evaluator`: a one-stop-shop for model evaluation that allows you to compare in one table the performance of any number of models, across any number of preprocessing pipelines. By fitting all estimators in one go, grid search time is dramatically reduced as compared to grid search one pipelined model at a time. See [here](mlens/test/example_evaluator.ipynb) for an example.
 
-## Notes
-
-The package is under construction and as such may not function properly. If you are interested in trying it out or to contribute, the package builds without issues. 
-
 ## How to install
 
 #### PyPI
 
-  - **global PyPI database (coming)**
-  With bash, execute  
+Execute  
 
-  ```bash
-  pip install mlens  
-  ```
-
-  - **manual download**
-
-  The package can be installed by downloading the repo and using pip install:
-
-
-
-  ```bash
-  git clone https://flennerhag/mlens.git; cd mlens;
-  pip install .
+```bash
+pip install mlens  
 ```
 
 #### Bleeding edge
@@ -45,11 +29,11 @@ The package is under construction and as such may not function properly. If you 
 To ensure latest version is installed, fork the GitHub repository and install mlxtens using the symlink options.
 
 ```bash
+git clone https://flennerhag/mlens.git; cd mlens;
 pip install -e .
 ```
 
-To update the package, simply pull the latest changes from the github repo
-
+To update the package, pull the latest changes from the github repo
 
 ## License
 

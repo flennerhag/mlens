@@ -33,16 +33,10 @@ def preprocess_folds(preprocessing, X, y=None, folds=None, fit=True,
     kfold = KFold(folds, shuffle=shuffle, random_state=random_state)
 
     # Check if there is at least one preprocessing pipeline
-    if len(list(preprocessing)) != 0:
-        dout = Parallel(n_jobs=n_jobs, verbose=verbose)(
-                        delayed(_preprocess_fold)(X, y, train_idx, test_idx,
-                                                  process_case, pname, fit=fit,
-                                                  return_idx=return_idx)
-                        for train_idx, test_idx in kfold.split(X)
-                        for pname, process_case in preprocessing)
-    else:
-        dout = Parallel(n_jobs=n_jobs, verbose=verbose)(
-                        delayed(_preprocess_fold)(X, y, train_idx, test_idx,
-                                                  fit=fit)
-                        for train_idx, test_idx in kfold.split(X))
+    dout = Parallel(n_jobs=n_jobs, verbose=verbose)(
+                    delayed(_preprocess_fold)(X, y, indices,
+                                              process_case, fit=fit,
+                                              return_idx=return_idx)
+                    for indices in kfold.split(X)
+                    for process_case in preprocessing)
     return dout

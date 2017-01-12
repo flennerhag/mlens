@@ -2,14 +2,12 @@ language: python
 python:
   - "3.5"
 install:
-#  - git clone  --branch=master https://github.com/flennerhag/mlens.git
-#  - cd mlens
-#  - git checkout -qf 381959d266d15368b8e8a29d88b813e8020c2a3d
-  - pip install python-coveralls
+  - pip install coveralls
   - pip install -r requirements.txt
   - pip install .
 script:
   - python mlens/test/test.py
+  - coverage run --source=mlens mlens/test/test.py test
 
 after_success:
   - coverall

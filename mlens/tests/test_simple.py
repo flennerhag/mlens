@@ -18,11 +18,12 @@ from mlens.model_selection import Evaluator
 from mlens.metrics import rmse
 from mlens.metrics.metrics import rmse_scoring
 from mlens.ensemble._setup import name_estimators, name_base, _check_names
-from mlens.ensemble._clone import _clone_base_estimators, _clone_preprocess_cases
-from mlens.utils.utils import print_time, name_columns
-from mlens.metrics import score_matrix
-from mlens.parallel import preprocess_folds, preprocess_pipes
-from mlens.parallel import fit_estimators, base_predict
+from mlens.ensemble._clone import _clone_base_estimators
+from mlens.ensemble._clone import _clone_preprocess_cases
+from mlens.utils.utils import name_columns
+from mlens.parallel import preprocess_folds
+# from mlens.metrics import score_matrix
+# from mlens.parallel import fit_estimators, base_predict
 
 
 # Base Models
@@ -192,6 +193,12 @@ class TestClass(object):
         assert all([data[0][i].shape == (500, 10) for i in range(0, 2)])
         assert all([data[0][i].shape == (500,) for i in range(2, 5)])
         assert isinstance(data[0][-1], str)
+
+        data = preprocess_folds([],
+                                X, y, folds=2, fit=True,
+                                shuffle=False,
+                                random_state=100,
+                                n_jobs=-1, verbose=False)
 
     def test_grid_search(self):
         np.random.seed(100)

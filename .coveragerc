@@ -4,4 +4,5 @@ branch = True
 include = */mlens/*
 omit =
     */tests/*
+    */visalization/*
     */setup.py

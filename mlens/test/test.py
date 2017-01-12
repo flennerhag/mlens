@@ -11,6 +11,7 @@ from time import time
 
 # ML Ensemble
 from mlens.ensemble import Ensemble
+from mlens.model_selection import Evaluator
 from mlens.metrics import rmse
 
 # Base Models
@@ -92,6 +93,32 @@ def gen_params():
             'meta-svr__C': uniform(10, 20)}
 
 
+def gen_eval(X, y, scoring, jobs):
+
+    # A set of estimators to evaluate
+    ls = Lasso(random_state=100)
+    rf = RandomForestRegressor(random_state=100)
+
+    # Some parameter distributions that might work well
+    ls_p = {'alpha': uniform(0.0005, 10)}
+    rf_p = {'max_depth': randint(2, 7), 'max_features': randint(3, 10),
+            'min_samples_leaf': randint(2, 10)}
+
+    # Put it all in neat dictionaries. Note that the keys must match!
+    estimators = {'ls': ls, 'rf': rf}
+    parameters = {'ls': ls_p, 'rf': rf_p}
+
+    # A set of different preprocessing cases we want to try for each model
+    preprocessing = {'a': [StandardScaler()],
+                     'b': []}
+
+    evals = Evaluator(X, y, preprocessing, scoring, cv=2, verbose=0,
+                      shuffle=False, n_jobs_estimators=jobs,
+                      n_jobs_preprocessing=jobs, random_state=100)
+
+    return evals, estimators, parameters
+
+
 # ===================== Diagnostic functions =====================
 def test_grid_search(ensemble, ens_p, X, y, jobs):
 
@@ -125,6 +152,17 @@ def test_fit_predict(ensemble, X, y, jobs):
     assert str(score)[:16] == '-0.0522364178463'
 
 
+def test_evaluator(X, y, scoring, jobs):
+
+    evals, ests, params = gen_eval(X, y, scoring, jobs)
+
+    evals.preprocess()
+
+    evals.evaluate(ests, params, n_iter=2)
+
+    assert str(evals.summary_.iloc[0, 0]) == '-0.357428210976'
+
+
 def main(args):
     print('-'*30, '\nBuild test of ML-Ensemble')
     print('Commencing test...')
@@ -149,6 +187,10 @@ def main(args):
     for i, n in enumerate(cases):
         test_fit_predict(ensemble, X, y, n)
         print('Ensemble test [%i/%i]: ok' % (i + 1, len(cases)))
+
+    for i, n in enumerate(cases):
+        test_evaluator(X, y, rmse, n)
+        print('Evaluator test [%i/%i]: ok' % (i + 1, len(cases)))
 
     print('')
     print('Test completed in %.2f seconds' % (time() - t0))

@@ -211,7 +211,7 @@ class Evaluator(object):
     def _draw_params(self, est_name):
         params = {}
         for param, dist in self.param_dicts_[est_name].items():
-            params[param] = dist.rvs(1)[0]
+            params[param] = dist.rvs(1, random_state=self.random_state)[0]
         return params
 
     def _param_sets(self):

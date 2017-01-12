@@ -3,3 +3,4 @@ source = mlens
 
 [report]
 omit = */tests/*
+skip_covered = True

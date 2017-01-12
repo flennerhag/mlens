@@ -23,7 +23,7 @@ from mlens.ensemble._clone import _clone_preprocess_cases
 from mlens.parallel._preprocess_functions import _preprocess_pipe
 from mlens.parallel._preprocess_functions import _preprocess_fold
 from mlens.utils.utils import name_columns
-from mlens.parallel import preprocess_folds
+from mlens.parallel import preprocess_folds, preprocess_pipes
 # from mlens.metrics import score_matrix
 # from mlens.parallel import fit_estimators, base_predict
 
@@ -234,6 +234,25 @@ class TestClass(object):
         assert len(data) != 0
         assert (X[data[1][-1]] == data[0][0]).all()
         assert (X[data[0][-1]] == data[1][0]).all()
+
+    def test_preprocess_pipe(self):
+        np.random.seed(100)
+        X, y = gen_data()
+        preprocess = [('test',
+                       [StandardScaler(copy=True,
+                                       with_mean=True, with_std=True)])]
+
+        out = preprocess_pipes(preprocess, X, y, fit=True, dry_run=False,
+                               return_estimators=True)
+
+        pipes, Z, cases = zip(*out)
+        preprocess_ = [(case, pipe) for case, pipe in
+                       zip(cases, pipes)]
+
+        assert isinstance(preprocess_, list)
+        assert isinstance(preprocess_[0], tuple)
+        assert preprocess_[0][0] == 'test'
+        assert hasattr(preprocess_[0][1][0], 'mean_')
 
     def test_grid_search(self):
         np.random.seed(100)

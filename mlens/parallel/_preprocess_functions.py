@@ -45,7 +45,7 @@ def _preprocess_fold(X, y, train_idx, test_idx, preprocess_case=[],
 
     try:
         ytrain, ytest = _slice(y, train_idx), _slice(y, test_idx)
-    except:
+    except Exception:
         ytrain, ytest = None, None
 
     if len(preprocess_case) != 0:

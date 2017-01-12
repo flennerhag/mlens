@@ -226,17 +226,17 @@ class Evaluator(object):
         C = {}
         if len(self.preprocessing_) is 0:
             for est_name, est in self.estimators_.items():
-                    name = est_name
-                    C[name] = {}
-                    for i, params in enumerate(self.param_sets_[est_name]):
+                name = est_name
+                C[name] = {}
+                for i, params in enumerate(self.param_sets_[est_name]):
 
-                        # Generate full models and store
-                        e = clone(est)
-                        e.set_params(**params)
+                    # Generate full models and store
+                    e = clone(est)
+                    e.set_params(**params)
 
-                        C[name][i+1] = {'params': params, 'estimator': e}
-                        for metric in self._metrics:
-                            C[name][i+1][metric] = []
+                    C[name][i+1] = {'params': params, 'estimator': e}
+                    for metric in self._metrics:
+                        C[name][i+1][metric] = []
         else:
             for est_name, est in self.estimators_.items():
                 for p_name, process_case in self.preprocessing_:

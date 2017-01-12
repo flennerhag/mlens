@@ -13,9 +13,15 @@ from sklearn.base import clone
 from sklearn.exceptions import FitFailedWarning
 
 
-def _fit_score(est, est_name, params, scoring, xtrain, xtest, ytrain, ytest,
-               p_name=None, draw=None, ret_time=False, ret_train=False):
+def _fit_score(est, est_name, params, scoring, tup, draw=None, ret_time=False,
+               ret_train=False):
     """ Score an estimator with given parameters on train and test set """
+    try:
+        xtrain, xtest, ytrain, ytest, p_name = tup
+    except ValueError:
+        xtrain, xtest, ytrain, ytest = tup
+        p_name = None
+
     try:
         est = clone(est)
         est.set_params(**params)
@@ -43,9 +49,9 @@ def _fit_score(est, est_name, params, scoring, xtrain, xtest, ytrain, ytest,
     return out
 
 
-def _fit_estimator(tup, estimator, est_name, y):
+def _fit_estimator(tup):
     """ utlity function for fitting estimator and logging its information """
-    X, case = tup
+    y, (X, case), (est_name, estimator) = tup
     try:
         estimator.fit(X, y)
         return [case, est_name, estimator]
@@ -54,9 +60,9 @@ def _fit_estimator(tup, estimator, est_name, y):
         warnings.warn(msg % (est_name, e), FitFailedWarning)
 
 
-def _fit_and_predict(tup, estimator, est_name, y=None):
+def _fit_and_predict(tup):
     """ Fits ests on part of training set to predict out of sample"""
-    xtrain, xtest, ytrain, _, idx, case = tup
+    (xtrain, xtest, ytrain, _, idx, case), (est_name, estimator) = tup
 
     try:
         est = clone(estimator)
@@ -67,9 +73,9 @@ def _fit_and_predict(tup, estimator, est_name, y=None):
         warnings.warn(msg % (est_name, e), FitFailedWarning)
 
 
-def _predict(tup, estimator, est_name, y=None):
+def _predict(tup):
     """ Predicts on data using estimator """
-    X, case = tup
+    (X, case), (est_name, estimator) = tup
     p = estimator.predict(X)
     return [case + '-' + est_name, p]
 

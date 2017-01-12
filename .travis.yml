@@ -2,12 +2,14 @@ language: python
 python:
   - "3.5"
 install:
-  - pip install coveralls
-  - pip install pytest
+  - set -e
+  - sudo apt-get update
+  - pip install coverage coveralls
+  - pip install nose nose-exclude
   - pip install -r requirements.txt
   - pip install .
 script:
-  - cd mlens/tests/
-  - coverage run test_simple.py
+  - set -e
+  - nosetests -s -v --with-coverage
 after_success:
   coveralls

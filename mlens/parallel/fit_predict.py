@@ -28,7 +28,7 @@ def _parallel_estimation(function, data, estimator_cases,
             (xtrain, xtest, ytest, ytrain, p_name), (est, est_name) = tuple
     data : list
         a list of lists, where the last element in each list is a key
-        in the dictionary estimator_cases
+        in the dict estimator_cases: [Xtrain [, Xtest, ytrain, ytest], key]
     estimator_cases : dict
         dictionary that maps preprocessing cases to a list of estimators to be
         fitted on the generated data

@@ -192,7 +192,8 @@ class Evaluator(object):
         self.summary_ = self._summarize(stats)
         if self.summary_df:
             self.summary_dict_ = self.summary_
-            df = DataFrame(self.summary_).T.sort_values(by='best_test_score_mean',
+            sort_key = 'best_test_score_mean'
+            df = DataFrame(self.summary_).T.sort_values(by=sort_key,
                                                         ascending=False)
             self.summary_ = df.loc[:, ['best_test_score_mean',
                                        'best_test_score_std',

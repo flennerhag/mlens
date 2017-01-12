@@ -1,0 +1,12 @@
+[run]
+source = mlens
+branch = True
+source = mlxtend
+include = */mlxtend/*
+omit =
+    */tests/*
+    */setup.py
+
+[report]
+omit = */tests/*
+skip_covered = True

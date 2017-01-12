@@ -1,8 +1,8 @@
 ![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)
-[![Build Status](https://travis-ci.org/flennerhag/mlens.svg?branch=master)](https://travis-ci.org/flennerhag/mlens)
-[![Coverage Status](https://coveralls.io/repos/github/flennerhag/mlens/badge.svg?branch=master)](https://coveralls.io/github/flennerhag/mlens?branch=master)
 [![PyPI version](https://badge.fury.io/py/mlens.svg)](http://badge.fury.io/py/mlens)
+[![Build Status](https://travis-ci.org/flennerhag/mlens.svg?branch=master)](https://travis-ci.org/flennerhag/mlens)
 [![Code Health](https://landscape.io/github/flennerhag/mlens/master/landscape.svg?style=flat)](https://landscape.io/github/flennerhag/mlens/master)
+[![Coverage Status](https://coveralls.io/repos/github/flennerhag/mlens/badge.svg?branch=master)](https://coveralls.io/github/flennerhag/mlens?branch=master)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 # ML Ensemble - A library for ensemble learning

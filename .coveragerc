@@ -6,3 +6,7 @@ omit =
     */tests/*
     */visalization/*
     */setup.py
+
+[report]
+omit = */visualization/*
+skip_covered = True

@@ -5,11 +5,11 @@ install:
   - set -e
   - sudo apt-get update
   - pip install coverage coveralls
-  - pip install nose nose-exclude
+  - pip install nose nose-exclude 
   - pip install -r requirements.txt
   - pip install .
 script:
   - set -e
-  - nosetests -s -v --with-coverage
+  - nosetests -s -v --with-coverage --exclude mlens/visualization
 after_success:
   coveralls

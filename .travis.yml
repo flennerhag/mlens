@@ -6,7 +6,8 @@ install:
   - pip install -r requirements.txt
   - pip install .
 script:
-  coverage run --source=mlens mlens/test/test.py
-
+  - coverage run --source=mlens setup.py
+#  - coverage run --source=mlens mlens/test/test.py
+  - python mlens/test/test.py
 after_success:
   coveralls

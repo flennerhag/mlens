@@ -115,7 +115,7 @@ class Evaluator(object):
         self.preprocessing_ = _clone_preprocess_cases(self.preprocessing)
 
         self.dout = preprocess_folds(self.preprocessing_, self.X, self.y,
-                                     self.cv, fit=True,
+                                     self.cv, fit=True, return_idx=False,
                                      shuffle=self.shuffle,
                                      random_state=self.random_state,
                                      n_jobs=self.n_jobs_preprocessing,
@@ -172,7 +172,7 @@ class Evaluator(object):
             ttot = self._print_start(estimators)
 
         out = cross_validate(self.estimators_, self.param_sets_, self.dout,
-                             self.cv, self.scoring, self.n_jobs_estimators,
+                             self.scoring, self.n_jobs_estimators,
                              self.verbose)
 
         # ===== Create summary statistics =====
@@ -216,7 +216,7 @@ class Evaluator(object):
 
     def _param_sets(self):
         param_set = {}
-        for est_name, est in self.estimators_.items():
+        for est_name, _ in self.estimators_.items():
             param_set[est_name] = []
             for _ in range(self.n_iter):
                 param_set[est_name].append(self._draw_params(est_name))
@@ -324,7 +324,7 @@ class Evaluator(object):
         e = len(estimators)
         try:
             p = max(len(self.preprocessing_), 1)
-        except:
+        except Exception:
             p = 0
         tot = e * max(1, p) * self.n_iter * self.cv
         print(msg % (e, self.n_iter, p, self.cv, tot), file=self._printout)

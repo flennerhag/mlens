@@ -56,7 +56,7 @@ def corrmat(corr, figsize=(11, 9), annotate=True,
             annot=annot, fmt='2.0f',
             vmax=corr.max().max(), square=True, linewidths=linewidths,
             cbar_kws=cbar_kws, ax=ax, **kwargs)
-    return ax
+    return f, ax
 
 
 def clustered_corrmap(X, cls=None, label_attr_name='labels_',

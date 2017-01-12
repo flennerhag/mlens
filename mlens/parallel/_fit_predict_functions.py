@@ -14,8 +14,7 @@ from sklearn.exceptions import FitFailedWarning
 
 
 def _fit_score(est, est_name, params, scoring, xtrain, xtest, ytrain, ytest,
-               idx=None, p_name=None, draw=None, ret_time=False,
-               ret_train=False):
+               p_name=None, draw=None, ret_time=False, ret_train=False):
     """ Score an estimator with given parameters on train and test set """
     try:
         est = clone(est)

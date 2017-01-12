@@ -15,8 +15,8 @@ class StandardScalerDf(StandardScaler):
     def __init__(self, copy=True, with_mean=True, with_std=True):
         super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
 
-    def transform(self, X, y=None):
-        X.loc[:, :] = super().transform(X.values)
+    def transform(self, X, y=None, copy=None):
+        X.loc[:, :] = super().transform(X, y, copy)
         return X
 
 

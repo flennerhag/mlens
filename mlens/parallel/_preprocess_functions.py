@@ -38,7 +38,7 @@ def _preprocess_pipe(xtrain, ytrain, xtest, steps, fit, p_name=None,
 
 
 def _preprocess_fold(X, y, train_idx, test_idx, preprocess_case=[],
-                     p_name=None, fit=True):
+                     p_name=None, fit=True, return_idx=True):
     """ Function to fit and transform a fold with a preprocessing pipeline """
 
     xtrain, xtest = _slice(X, train_idx), _slice(X, test_idx)
@@ -53,6 +53,9 @@ def _preprocess_fold(X, y, train_idx, test_idx, preprocess_case=[],
     else:
         out = [xtrain, xtest]
 
-    out += [ytrain, ytest, test_idx, p_name]
+    out += [ytrain, ytest]
+    if return_idx:
+        out.append(test_idx)
+    out.append(p_name)
 
     return out

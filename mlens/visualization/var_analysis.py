@@ -13,7 +13,7 @@ from sklearn.decomposition import KernelPCA
 
 def IO_plot_comp(X, y, figsize=(10, 8)):
     '''
-    Function for comparing PCA analysis across 2 and 3 dimensions and 
+    Function for comparing PCA analysis across 2 and 3 dimensions and
     linear and rbf kernels. See IO_plot for details.
     '''
     comp = ['linear', 'rbf']
@@ -90,7 +90,7 @@ def exp_var_plot(X, estimator, figsize=(10, 8), show=True, ax=None):
     cum_var_exp = np.cumsum(ind_var_exp)
 
     if ax is None:
-        f, ax = plt.subplots(figsize=figsize)
+        _, ax = plt.subplots(figsize=figsize)
     ax.step(range(len(ind_var_exp)), cum_var_exp, where='mid')
     ax.set_ylim(0, 1)
     ax.set_xlim(0, len(ind_var_exp))

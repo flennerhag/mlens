@@ -26,7 +26,7 @@ def preprocess_pipes(preprocessing, X, y=None, fit=True, dry_run=False,
 
 
 def preprocess_folds(preprocessing, X, y=None, folds=None, fit=True,
-                     shuffle=False, random_state=None,
+                     shuffle=False, random_state=None, return_idx=True,
                      n_jobs=-1, verbose=False):
     """ Pre-make preprecessing cases over cv folds (incl no preprocessing)"""
 
@@ -36,7 +36,8 @@ def preprocess_folds(preprocessing, X, y=None, folds=None, fit=True,
     if len(list(preprocessing)) != 0:
         dout = Parallel(n_jobs=n_jobs, verbose=verbose)(
                         delayed(_preprocess_fold)(X, y, train_idx, test_idx,
-                                                  process_case, pname, fit=fit)
+                                                  process_case, pname, fit=fit,
+                                                  return_idx=return_idx)
                         for train_idx, test_idx in kfold.split(X)
                         for pname, process_case in preprocessing)
     else:

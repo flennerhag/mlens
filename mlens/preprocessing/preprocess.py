@@ -30,21 +30,28 @@ class Subset(BaseEstimator, TransformerMixin):
         list of columns indexes which can be either strings or integers
     """
 
-    def __init__(self, subset=[]):
+    def __init__(self, subset=None):
         self.subset = subset
 
     def fit(self, X, y=None):
 
         self.is_df_ = isinstance(X, (DataFrame, Series))
-        self.use_loc_ = any([isinstance(x, str) for x in self.subset])
+
+        if self.subset is not None:
+            self.use_loc_ = any([isinstance(x, str) for x in self.subset])
+
         return self
 
     def transform(self, X):
-        Xt = X.copy()
 
-        if self.is_df_ and self.use_loc_:
-            return Xt.loc[:, self.subset]
-        elif self.is_df_:
-            return Xt.iloc[:, self.subset]
+        if self.subset is None:
+            return X
         else:
-            return Xt[:, self.subset]
+            Xt = X.copy()
+            if self.is_df_ and self.use_loc_:
+                Xt = Xt.loc[:, self.subset]
+            elif self.is_df_:
+                Xt = Xt.iloc[:, self.subset]
+            else:
+                Xt = Xt[:, self.subset]
+            return Xt

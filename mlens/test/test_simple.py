@@ -16,6 +16,7 @@ import numpy as np
 from mlens.ensemble import Ensemble
 from mlens.model_selection import Evaluator
 from mlens.metrics import rmse
+from mlens.metrics.metrics import rmse_scoring
 
 # Base Models
 from sklearn.linear_model import Lasso
@@ -142,10 +143,12 @@ class TestClass(object):
 
         ensemble.fit(X[:900], y[:900])
 
-        score = rmse(ensemble, X[900:], y[900:])
+        score1 = rmse(ensemble, X[900:], y[900:])
+        score2 = rmse_scoring(y[900:], ensemble.predict(X[900:]))
 
-        assert ensemble.n_jobs == -1
-        assert str(score)[:16] == '-0.0522364178463'
+        assert score1 == -score2
+        assert ensemble.get_params()['n_jobs'] == -1
+        assert str(score1)[:16] == '-0.0522364178463'
 
     def test_evaluator(self):
         np.random.seed(100)

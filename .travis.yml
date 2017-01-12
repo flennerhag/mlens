@@ -3,10 +3,11 @@ python:
   - "3.5"
 install:
   - pip install coveralls
+  - pip install pytest
   - pip install -r requirements.txt
   - pip install .
 script:
-  - coverage run --source=mlens mlens/test/test.py
-  - python mlens/test/test.py
+  - cd mlens/test
+  - coverage run --source=mlens test_simple.py
 after_success:
   coveralls

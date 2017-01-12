@@ -7,4 +7,4 @@ install:
 #  - git checkout -qf 381959d266d15368b8e8a29d88b813e8020c2a3d
   - pip install -r requirements.txt
 script:
-  - python /mlens/test/test.py
+  - python mlens/test/test.py

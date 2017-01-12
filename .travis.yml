@@ -5,7 +5,11 @@ install:
 #  - git clone  --branch=master https://github.com/flennerhag/mlens.git
 #  - cd mlens
 #  - git checkout -qf 381959d266d15368b8e8a29d88b813e8020c2a3d
+  - pip install python-coveralls
   - pip install -r requirements.txt
   - pip install .
 script:
   - python mlens/test/test.py
+
+after_success:
+  - coverall

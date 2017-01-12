@@ -10,6 +10,8 @@ that the optimized estimator / ensemble gives the right score. Since the
 problem is deterministic, if the ensemble finds another score, the
 learning algorithm has changed.
 """
+import unittest
+
 import numpy as np
 
 # ML Ensemble
@@ -123,7 +125,7 @@ def gen_eval(X, y, jobs):
 
 
 # ===================== Test Class =====================
-class TestClass(object):
+class TestClass(unittest.TestCase):
 
     def test_naming(self):
         np.random.seed(100)
@@ -132,10 +134,10 @@ class TestClass(object):
         named_meta = name_estimators([meta], 'meta-')
         named_base = name_base(base)
 
-        assert isinstance(named_meta, dict)
-        assert isinstance(named_meta['meta-svr'], SVR)
-        assert isinstance(named_base, dict)
-        assert len(named_base) == 6
+        self.assertTrue(isinstance(named_meta, dict))
+        self.assertTrue(isinstance(named_meta['meta-svr'], SVR))
+        self.assertTrue(isinstance(named_base, dict))
+        self.assertTrue(len(named_base) == 6)
 
     def test_check_names(self):
         np.random.seed(100)
@@ -147,12 +149,12 @@ class TestClass(object):
         base_estimators = [(case, _check_names(p[1])) for case, p in
                            base.items()]
 
-        assert isinstance(base_estimators, list)
-        assert isinstance(preprocess, list)
-        assert len(base_estimators) == 3
-        assert len(preprocess) == 3
-        assert isinstance(base_estimators[0], tuple)
-        assert isinstance(preprocess[0], tuple)
+        self.assertTrue(isinstance(base_estimators, list))
+        self.assertTrue(isinstance(preprocess, list))
+        self.assertTrue(len(base_estimators) == 3)
+        self.assertTrue(len(preprocess) == 3)
+        self.assertTrue(isinstance(base_estimators[0], tuple))
+        self.assertTrue(isinstance(preprocess[0], tuple))
 
     def test_clone(self):
         np.random.seed(100)
@@ -167,31 +169,33 @@ class TestClass(object):
         preprocess_ = _clone_preprocess_cases(preprocess)
         base_columns_ = name_columns(base_)
 
-        assert isinstance(preprocess_, list)
-        assert isinstance(preprocess_[0], tuple)
-        assert isinstance(preprocess_[0][1], list)
-        assert isinstance(base_, dict)
-        assert isinstance(base_['mm'], list)
-        assert isinstance(base_['mm'][0], tuple)
-        assert isinstance(base_columns_, list)
-        assert len(base_columns_) == 4
+        self.assertTrue(isinstance(preprocess_, list))
+        self.assertTrue(isinstance(preprocess_[0], tuple))
+        self.assertTrue(isinstance(preprocess_[0][1], list))
+        self.assertTrue(isinstance(base_, dict))
+        self.assertTrue(isinstance(base_['mm'], list))
+        self.assertTrue(isinstance(base_['mm'][0], tuple))
+        self.assertTrue(isinstance(base_columns_, list))
+        self.assertTrue(len(base_columns_) == 4)
 
     def test_preprocess_pipe_fun(self):
         np.random.seed(100)
         X, y = gen_data()
 
         out = _preprocess_pipe(X, y, X, [StandardScaler()], fit=True)
-        assert out is not None
-        assert len(out) == 2
-        assert isinstance(out[0], np.ndarray)
+        self.assertTrue(out is not None)
+        self.assertTrue(len(out) == 2)
+        self.assertTrue(isinstance(out[0], np.ndarray))
 
-        assert all([(_preprocess_pipe(X, y, X, [], fit=True)[i] == X).all() for
-                    i in range(2)])
-        assert (_preprocess_pipe(X, y, X, [], fit=True)[1] == X).all()
+        self.assertTrue(all([(_preprocess_pipe(X, y, X, [],
+                                               fit=True)[i] == X).all() for
+                             i in range(2)]))
+        self.assertTrue((_preprocess_pipe(X, y, X, [],
+                                          fit=True)[1] == X).all())
 
         out = _preprocess_pipe(X, y, None, [StandardScaler()], fit=True,
                                p_name='test')
-        assert out[-1] == 'test'
+        self.assertTrue(out[-1] == 'test')
 
     def test_preprocess_fold_fun(self):
         np.random.seed(100)
@@ -199,11 +203,11 @@ class TestClass(object):
 
         out = _preprocess_fold(X, y, (range(500), range(500, 1000)),
                                ('test', [StandardScaler()]), fit=True)
-        assert out is not None
-        assert len(out) == 6
-        assert all([out[i].shape[1] == 10 for i in range(2)])
-        assert all([out[i].shape[0] == 500 for i in range(2, 4)])
-        assert out[5] == 'test'
+        self.assertTrue(out is not None)
+        self.assertTrue(len(out) == 6)
+        self.assertTrue(all([out[i].shape[1] == 10 for i in range(2)]))
+        self.assertTrue(all([out[i].shape[0] == 500 for i in range(2, 4)]))
+        self.assertTrue(out[5] == 'test')
 
     def test_preprocess_fold(self):
         np.random.seed(100)
@@ -218,22 +222,24 @@ class TestClass(object):
                                 shuffle=False,
                                 random_state=100,
                                 n_jobs=-1, verbose=False)
-        assert len(data) == 6
-        assert len(data[0]) == 6
-        assert all([isinstance(data[0][i], np.ndarray) for i in range(4)])
-        assert all([data[0][i].shape == (500, 10) for i in range(0, 2)])
-        assert all([data[0][i].shape == (500,) for i in range(2, 5)])
-        assert isinstance(data[0][-1], str)
+        self.assertTrue(len(data) == 6)
+        self.assertTrue(len(data[0]) == 6)
+        self.assertTrue(all([isinstance(data[0][i], np.ndarray) for i in
+                            range(4)]))
+        self.assertTrue(all([data[0][i].shape == (500, 10) for i in
+                            range(0, 2)]))
+        self.assertTrue(all([data[0][i].shape == (500,) for i in range(2, 5)]))
+        self.assertTrue(isinstance(data[0][-1], str))
 
         data = preprocess_folds([],
                                 X, y, folds=2, fit=True,
                                 shuffle=False,
                                 random_state=100,
                                 n_jobs=-1, verbose=False)
-        assert data is not None
-        assert len(data) != 0
-        assert (X[data[1][-1]] == data[0][0]).all()
-        assert (X[data[0][-1]] == data[1][0]).all()
+        self.assertTrue(data is not None)
+        self.assertTrue(len(data) != 0)
+        self.assertTrue((X[data[1][-1]] == data[0][0]).all())
+        self.assertTrue((X[data[0][-1]] == data[1][0]).all())
 
     def test_preprocess_pipe(self):
         np.random.seed(100)
@@ -249,10 +255,10 @@ class TestClass(object):
         preprocess_ = [(case, pipe) for case, pipe in
                        zip(cases, pipes)]
 
-        assert isinstance(preprocess_, list)
-        assert isinstance(preprocess_[0], tuple)
-        assert preprocess_[0][0] == 'test'
-        assert hasattr(preprocess_[0][1][0], 'mean_')
+        self.assertTrue(isinstance(preprocess_, list))
+        self.assertTrue(isinstance(preprocess_[0], tuple))
+        self.assertTrue(preprocess_[0][0] == 'test')
+        self.assertTrue(hasattr(preprocess_[0][1][0], 'mean_'))
 
     def test_grid_search(self):
         np.random.seed(100)
@@ -265,7 +271,7 @@ class TestClass(object):
                                   n_jobs=-1, random_state=100)
         grid.fit(X, y)
 
-        assert str(grid.best_score_)[:16] == '-0.0626352824626'
+        self.assertTrue(str(grid.best_score_)[:16] == '-0.0626352824626')
 
     def test_fit_predict(self):
         np.random.seed(100)
@@ -290,9 +296,9 @@ class TestClass(object):
         score1 = rmse(ensemble, X[900:], y[900:])
         score2 = rmse_scoring(y[900:], ensemble.predict(X[900:]))
 
-        assert score1 == -score2
-        assert ensemble.get_params()['n_jobs'] == -1
-        assert str(score1)[:16] == '-0.0522364178463'
+        self.assertTrue(score1 == -score2)
+        self.assertTrue(ensemble.get_params()['n_jobs'] == -1)
+        self.assertTrue(str(score1)[:16] == '-0.0522364178463')
 
     def test_evaluator(self):
         np.random.seed(100)
@@ -303,4 +309,4 @@ class TestClass(object):
 
         evals.evaluate(ests, params, n_iter=2)
 
-        assert str(evals.summary_.iloc[0, 0]) == '-0.357428210976'
+        self.assertTrue(str(evals.summary_.iloc[0, 0]) == '-0.357428210976')

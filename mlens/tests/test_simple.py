@@ -113,7 +113,7 @@ def gen_eval(X, y, jobs):
     preprocessing = {'a': [StandardScaler()],
                      'b': []}
 
-    evals = Evaluator(X, y, preprocessing, rmse, cv=2, verbose=0,
+    evals = Evaluator(X, y, rmse, preprocessing, cv=2, verbose=0,
                       shuffle=False, n_jobs_estimators=jobs,
                       n_jobs_preprocessing=jobs, random_state=100)
 
@@ -199,6 +199,8 @@ class TestClass(object):
                                 shuffle=False,
                                 random_state=100,
                                 n_jobs=-1, verbose=False)
+        assert data is not None
+        assert len(data) != 0
 
     def test_grid_search(self):
         np.random.seed(100)

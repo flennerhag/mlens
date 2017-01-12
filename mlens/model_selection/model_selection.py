@@ -43,7 +43,10 @@ class Evaluator(object):
         input data to train estimators on.
     y : array-like, shape=[n_samples,]
         output data to train estimators on.
-    preprocessing: dict, default={}
+    scoring : func
+        scoring function that follows sklearn API,
+        i.e. score = scoring(estimator, X, y)
+    preprocessing: dict, default=None
         dictionary of lists with preprocessing pipelines to fit models on.
         Each pipeline will be used to generate k folds that are stored, hence
         with large data running several cases with many cv folds can require
@@ -53,9 +56,6 @@ class Evaluator(object):
         cross validation folds to use. Currently standard kfold implemented
     shuffle : bool, default=True,
         whether to shuffle data before creating folds
-    scoring : func
-        scoring function that follows sklearn API,
-        i.e. score = scoring(estimator, X, y)
     summary_df : bool, default=True
         whether to return summary data in a pandas DataFrame, else as a dict
     random_state : int, default=None
@@ -89,7 +89,7 @@ class Evaluator(object):
         preprocessed data
     '''
 
-    def __init__(self, X, y, preprocessing, scoring, cv=10, shuffle=True,
+    def __init__(self, X, y, scoring, preprocessing=None, cv=10, shuffle=True,
                  summary_df=True, random_state=True, n_jobs_preprocessing=-1,
                  n_jobs_estimators=-1, verbose=0):
         self.X = X.copy()

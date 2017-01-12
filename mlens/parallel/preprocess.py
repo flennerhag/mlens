@@ -32,6 +32,10 @@ def preprocess_folds(preprocessing, X, y=None, folds=None, fit=True,
 
     kfold = KFold(folds, shuffle=shuffle, random_state=random_state)
 
+    # Safety check to ensure for loop for folds is run without preprocessing
+    if (len(preprocessing) == 0) or (preprocessing is None):
+        preprocessing = [None]
+
     # Check if there is at least one preprocessing pipeline
     dout = Parallel(n_jobs=n_jobs, verbose=verbose)(
                     delayed(_preprocess_fold)(X, y, indices,

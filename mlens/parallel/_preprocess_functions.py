@@ -41,13 +41,6 @@ def _preprocess_fold(X, y, indices, preprocessing, fit=True, return_idx=True):
     """ Function to fit and transform a fold with a preprocessing pipeline """
 
     train_idx, test_idx = indices
-
-    if len(preprocessing) == 2:
-        p_name, preprocess_case = preprocessing
-    else:
-        preprocess_case = preprocessing
-        p_name = ''
-
     xtrain, xtest = _slice(X, train_idx), _slice(X, test_idx)
 
     try:
@@ -55,14 +48,17 @@ def _preprocess_fold(X, y, indices, preprocessing, fit=True, return_idx=True):
     except Exception:
         ytrain, ytest = None, None
 
-    if len(preprocess_case) != 0:
+    if preprocessing is not None:
+        p_name, preprocess_case = preprocessing
         out = _preprocess_pipe(xtrain, ytrain, xtest, preprocess_case, fit)
     else:
+        p_name = None
         out = [xtrain, xtest]
 
     out += [ytrain, ytest]
     if return_idx:
         out.append(test_idx)
-    out.append(p_name)
+    if p_name is not None:
+        out.append(p_name)
 
     return out

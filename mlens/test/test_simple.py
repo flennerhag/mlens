@@ -17,6 +17,13 @@ from mlens.ensemble import Ensemble
 from mlens.model_selection import Evaluator
 from mlens.metrics import rmse
 from mlens.metrics.metrics import rmse_scoring
+from mlens.ensemble._setup import name_estimators, name_base, _check_names
+from mlens.ensemble._clone import _clone_base_estimators, _clone_preprocess_cases
+from mlens.utils.utils import print_time, name_columns
+from mlens.metrics import score_matrix
+from mlens.parallel import preprocess_folds, preprocess_pipes
+from mlens.parallel import fit_estimators, base_predict
+
 
 # Base Models
 from sklearn.linear_model import Lasso
@@ -52,8 +59,7 @@ def gen_data(size=1000):
     return X, y
 
 
-def gen_ensemble():
-
+def gen_base():
     # meta estimator
     meta = SVR()
 
@@ -65,6 +71,12 @@ def gen_ensemble():
                       ([MinMaxScaler()], [SVR()]),
                       'np':
                       ([], [('rf', RandomForestRegressor(random_state=100))])}
+    return meta, base_pipelines
+
+
+def gen_ensemble():
+
+    meta, base_pipelines = gen_base()
 
     ensemble = Ensemble(meta, base_pipelines, folds=10, shuffle=False,
                         scorer=rmse._score_func, n_jobs=1, random_state=100)
@@ -109,6 +121,77 @@ def gen_eval(X, y, jobs):
 
 # ===================== Test Class =====================
 class TestClass(object):
+
+    def test_naming(self):
+        np.random.seed(100)
+        meta, base = gen_base()
+
+        named_meta = name_estimators([meta], 'meta-')
+        named_base = name_base(base)
+
+        assert isinstance(named_meta, dict)
+        assert isinstance(named_meta['meta-svr'], SVR)
+        assert isinstance(named_base, dict)
+        assert len(named_base) == 6
+
+    def test_check_names(self):
+        np.random.seed(100)
+        meta, base = gen_base()
+
+        preprocess = [(case, _check_names(p[0])) for case, p in
+                      base.items()]
+
+        base_estimators = [(case, _check_names(p[1])) for case, p in
+                           base.items()]
+
+        assert isinstance(base_estimators, list)
+        assert isinstance(preprocess, list)
+        assert len(base_estimators) == 3
+        assert len(preprocess) == 3
+        assert isinstance(base_estimators[0], tuple)
+        assert isinstance(preprocess[0], tuple)
+
+    def test_clone(self):
+        np.random.seed(100)
+        meta, base = gen_base()
+
+        preprocess = [(case, _check_names(p[0])) for case, p in
+                      base.items()]
+        base_estimators = [(case, _check_names(p[1])) for case, p in
+                           base.items()]
+
+        base_ = _clone_base_estimators(base_estimators)
+        preprocess_ = _clone_preprocess_cases(preprocess)
+        base_columns_ = name_columns(base_)
+
+        assert isinstance(preprocess_, list)
+        assert isinstance(preprocess_[0], tuple)
+        assert isinstance(preprocess_[0][1], list)
+        assert isinstance(base_, dict)
+        assert isinstance(base_['mm'], list)
+        assert isinstance(base_['mm'][0], tuple)
+        assert isinstance(base_columns_, list)
+        assert len(base_columns_) == 4
+
+    def test_preprocess_fold(self):
+        np.random.seed(100)
+        X, y = gen_data()
+        meta, base = gen_base()
+
+        preprocess = [(case, _check_names(p[0])) for case, p in
+                      base.items()]
+
+        data = preprocess_folds(_clone_preprocess_cases(preprocess),
+                                X, y, folds=2, fit=True,
+                                shuffle=False,
+                                random_state=100,
+                                n_jobs=-1, verbose=False)
+        assert len(data) == 6
+        assert len(data[0]) == 6
+        assert all([isinstance(data[0][i], np.ndarray) for i in range(4)])
+        assert all([data[0][i].shape == (500, 10) for i in range(0, 2)])
+        assert all([data[0][i].shape == (500,) for i in range(2, 5)])
+        assert isinstance(data[0][-1], str)
 
     def test_grid_search(self):
         np.random.seed(100)

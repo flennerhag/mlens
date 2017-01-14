@@ -16,14 +16,14 @@ setup(name='mlens',
       version=VERSION,
       description='Machine Learning Ensemble Library',
       author='Sebastian Flennerhag',
-      author_email='sebastianflennerhag@gmail.com',
+      author_email='sebastianflennerhag@hotmail.com',
       url='https://github.com/flennerhag/mlens',
       packages=find_packages(),
       package_data={'': ['LICENSE.txt',
                          'README.md',
                          'requirements.txt']},
       include_package_data=True,
-      install_requires=['numpy>=1.11.0', 'scipy>=0.17', 'scikit-learn>=0.18.1'],
+      install_requires=['numpy>=1.11.0', 'scipy>=0.17', 'scikit-learn>=0.18.1', 'pandas>=0.18.0'],
       license='MIT',
       platforms='any',
       classifiers=['License :: OSI Approved :: MIT License',
@@ -43,8 +43,7 @@ A library for automated, paralellized Ensemble learning
 
 Contact
 =============
-If you have any questions or comments about mlens,
-do not hesitate to reach out!
-email: sebastianflennerhag@gmail.com
+If you have any questions or comments about mlens, feel free to reach out
+at sebastianflennerhag@hotmail.com.
 This project is hosted at https://github.com/flennerhag/mlens
 """)

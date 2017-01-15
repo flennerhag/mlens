@@ -26,7 +26,7 @@ def _fit_score(est, est_name, params, scoring, tup, draw=None, ret_time=False,
         est = clone(est)
         est.set_params(**params)
         t0 = time()
-        est.fit(xtrain, ytrain)
+        est = est.fit(xtrain, ytrain)
         t = time() - t0
     except KeyError as exc:
         msg = "Could not fit estimator [%s]. Details: \n%r"
@@ -53,7 +53,7 @@ def _fit_estimator(tup):
     """ utlity function for fitting estimator and logging its information """
     y, (X, case), (est_name, estimator) = tup
     try:
-        estimator.fit(X, y)
+        estimator = estimator.fit(X, y)
         return [case, est_name, estimator]
     except Exception as e:
         msg = "Estimator [%s] not fitted. Details: \n%r"

@@ -191,13 +191,13 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
     def _fit_meta_estimator(self, X, y, printout):
         """ Temporarily trains base estimators on folds and create
         out-of-sample predicted input matrix for fitting of meta estimator"""
-        if self.verbose > 1:
+        if self.verbose >= 1:
             print('> fitting meta estimator', file=printout)
 
         # Fit temporary base pipelines and make k-fold out of sample preds
         # Parellelized preprocessing for all folds
 
-        if self.verbose > 2:
+        if self.verbose >= 2:
             print('>> preprocessing folds', file=printout)
 
         data = preprocess_folds(_clone_preprocess_cases(self.preprocess),
@@ -207,7 +207,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
                                 n_jobs=self.n_jobs, verbose=self.verbose)
 
         # Parellelized k-fold predictions for meta estiamtor training set
-        if self.verbose > 2:
+        if self.verbose >= 2:
             print('>> fitting base estimators', file=printout)
 
         M = base_predict(data, _clone_base_estimators(self.base_estimators),
@@ -219,24 +219,24 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
             cols = [] if self.as_df else name_columns(self.base_estimators_)
             self.scores_ = score_matrix(M, y, self.scorer, cols)
 
-        if self.verbose > 2:
+        if self.verbose >= 2:
             print('>> fitting meta estimator', file=printout)
 
         self.meta_estimator_.fit(M, y)
 
     def _fit_base(self, X, y, printout):
-        """ Fits preprocessing pipelines nad base estimator on full dataset"""
-        if self.verbose > 1:
+        """ Fits preprocessing pipelines and base estimator on full dataset"""
+        if self.verbose >= 1:
             print('\n> fitting base estimators', file=printout)
 
         # Parallelized fitting of preprocessing pipelines
-        if self.verbose > 2:
+        if self.verbose >= 2:
             print('>> preprocessing data', file=printout)
 
         data = self._preprocess(X, y, True)
 
         # Parallelized fitting of base estimators (on full training data)
-        if self.verbose > 2:
+        if self.verbose >= 2:
             print('>> fitting base estimators', file=printout)
 
         self.base_estimators_ = fit_estimators(data, y, self.base_estimators_,

@@ -43,7 +43,7 @@ The library utilizes the Scikit-learn API. Specify a set of base estimators, eit
 from mlens.ensemble import StackingEnsemble
 from sklearn.linear_model import Lasso
 from sklearn.svm import SVR
-sklearn.datasets import load_boston
+from sklearn.datasets import load_boston
 
 # Some data
 X, y = load_boston(return_X_y=True)
@@ -55,17 +55,21 @@ meta = Lasso()
 # Ensemble
 ens = StackingEnsemble(meta, base)
 
-
 ens.fit(X, y)
-
 predictions = ens.predict(X)
 ```
 
-For more detailed examples that builds in differentiated preprocessing pipelines for base estimators, see [**here**](mlens/examples/example.ipynb).
+For more an example that builds in differentiated preprocessing pipelines for base estimators, see [**here**](mlens/examples/example.ipynb).
 
 ## Roadmap
 
-The project is rapidly progressing. The parallelized backend is in place so the coming taks is to develop the front-end API for different types of ensembles need to be built. This however is a relatively straightforward task so expect major additions soon. Stay tuned! 
+The project is rapidly progressing. The parallelized backend is in place so the coming taks is to develop the front-end API for different types of ensembles need to be built. This however is a relatively straightforward task so expect major additions soon. In the pipeline of Ensembles to be implemented are currently: 
+
+- Blending
+- Super Learner
+- Subsemble
+
+Stay tuned! 
 
 If you'd like to contribute, don't hesitate to reach out!
 

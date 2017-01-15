@@ -35,7 +35,7 @@ def _fit_score(est, est_name, params, scoring, tup, draw=None, ret_time=False,
     test_sc = scoring(est, xtest, ytest)
     train_sc = scoring(est, xtrain, ytrain)
 
-    if p_name is not None:
+    if p_name not in [None, '']:
         est_name += '_' + p_name
 
     out = [est_name, test_sc]
@@ -67,7 +67,9 @@ def _fit_and_predict(tup):
     try:
         est = clone(estimator)
         p = est.fit(xtrain, ytrain).predict(xtest)
-        return [case + '-' + est_name, idx, p]
+        out = [case + '-' + est_name] if case not in [None, ''] else [est_name]
+        out += [idx, p]
+        return out
     except Exception as e:
         msg = "Estimator [%s] not fitted. Details: \n%r"
         warnings.warn(msg % (est_name, e), FitFailedWarning)
@@ -77,7 +79,9 @@ def _predict(tup):
     """ Predicts on data using estimator """
     (X, case), (est_name, estimator) = tup
     p = estimator.predict(X)
-    return [case + '-' + est_name, p]
+    out = [case + '-' + est_name] if case not in [None, ''] else [est_name]
+    out.append(p)
+    return out
 
 
 def _construct_matrix(preds, n, columns, folds):

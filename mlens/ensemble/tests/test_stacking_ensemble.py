@@ -12,7 +12,6 @@ from mlens.ensemble._clone import _clone_preprocess_cases
 from mlens.utils.utils import name_columns
 from mlens.metrics import rmse
 from mlens.metrics.metrics import rmse_scoring
-import numpy as np
 from sklearn.linear_model import Lasso
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
@@ -20,6 +19,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import RandomizedSearchCV
 from scipy.stats import uniform, randint
+import numpy as np
+from pandas import DataFrame
 
 # training data
 np.random.seed(100)
@@ -60,20 +61,20 @@ params = {'sc-ls__alpha': uniform(0.0005, 0.005),
           'meta-svr__C': uniform(10, 20)}
 
 # Ensembles without preprocessing
-ens1 = StackingEnsemble(Lasso(),
+ens1 = StackingEnsemble(Lasso(alpha=0.001, random_state=100),
                         [('svr', SVR()),
                          ('rf', RandomForestRegressor(random_state=100))],
-                        random_state=100)
+                        random_state=100, n_jobs=-1)
 
-ens2 = StackingEnsemble(Lasso(),
+ens2 = StackingEnsemble(Lasso(alpha=0.001, random_state=100),
                         [SVR(), RandomForestRegressor(random_state=100)],
-                        random_state=100)
+                        random_state=100, n_jobs=-1)
 
-ens3 = StackingEnsemble(Lasso(),
+ens3 = StackingEnsemble(Lasso(alpha=0.001, random_state=100),
                         {'no_prep':
                          ([], [SVR(),
                                RandomForestRegressor(random_state=100)])},
-                        random_state=100)
+                        random_state=100, n_jobs=-1)
 
 
 def test_naming():
@@ -135,6 +136,13 @@ def test_no_preprocess_ensemble():
 
     assert (p1 == p2).all()
     assert (p1 == p3).all()
+
+    # Test that DataFrames runs through
+    ens1.set_params(**{'as_df': True, 'scorer': rmse._score_func})
+    ens1.fit(DataFrame(X), y)
+
+    assert str(ens1.scores_['rf'])[:16] == '0.171221793126'
+    assert str(ens1.scores_['svr'])[:16] == '0.171500953229'
 
 
 def test_preprocess_ensemble():

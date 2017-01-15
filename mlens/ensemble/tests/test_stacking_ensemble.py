@@ -155,7 +155,7 @@ def test_preprocess_ensemble():
                            'sc-ls__alpha': 0.0014284293508642438,
                            'np-rf__max_depth': 4,
                            'n_jobs': -1,
-                           'verbose': 0,
+                           'verbose': 2,
                            'shuffle': False,
                            'random_state': 100})
 

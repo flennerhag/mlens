@@ -214,6 +214,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
                          n=X.shape[0], folded_preds=True,
                          columns=self.base_columns_, as_df=self.as_df,
                          n_jobs=self.n_jobs, verbose=self.verbose)
+        data = None  # discard
 
         if self.scorer is not None:
             cols = [] if self.as_df else name_columns(self.base_estimators_)

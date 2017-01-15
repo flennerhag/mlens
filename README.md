@@ -5,14 +5,13 @@
 [![Coverage Status](https://coveralls.io/repos/github/flennerhag/mlens/badge.svg?branch=master)](https://coveralls.io/github/flennerhag/mlens?branch=master)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-# ML Ensemble - A library for ensemble learning
+# ML Ensemble - A library for parallelized ensemble learning
 
-**ML Ensemble is a Python library for building [stacked ensembles](http://mlwave.com/kaggle-ensembling-guide/) through Scikit-learn's API to allow for full parallelization and integration with sklearn's cross-validation, pipelining and diagnostics tools.**
+**ML Ensemble is a Python library for building fully parallelized ensembles with a Scikit-learn's API. It is fully compatible with Scikic-learn objects such as pipelines and grid search classes.**
 
-
-The library comes with:
-- `Ensemble`: a one-stop-shop for generating and training ensembles. See [here](mlens/test/example.ipynb) for an example.
-- `PredictionFeature`: an sklearn compatibile class for generating a feature of out-of-sample predicitons. Coming soon.
+The project is in development. Currently, the following classes are implemented:
+- `Ensemble`: a one-stop-shop for generating and training ensembles. See [here](mlens/examples/example.ipynb) for an example.
+- `PredictionFeature`: an sklearn compatibile class for generating a feature of out-of-sample predicitons. In pipeline, coming soon.
 - `Evaluator`: a one-stop-shop for model evaluation that allows you to compare in one table the performance of any number of models, across any number of preprocessing pipelines. By fitting all estimators in one go, grid search time is dramatically reduced as compared to grid search one pipelined model at a time. See [here](mlens/test/example_evaluator.ipynb) for an example.
 
 ## How to install
@@ -35,6 +34,33 @@ pip install -e .
 ```
 
 To update the package, pull the latest changes from the github repo
+
+## Usage
+
+The library utilized the Scikit-learn API. 
+
+```Python
+from mlens.ensemble import StackingEnsemble
+from sklearn.linear_model import Lasso
+from sklearn.svm import SVR
+sklearn.datasets import load_boston
+
+
+X, y = load_boston(return_X_y=True)
+
+ens = StackingEnsemble([SVR(), Lasso()])
+
+ens.fit(X, y)
+
+predictions = ens.predict(X)
+
+```
+
+## Roadmap
+
+The project is rapidly progressing. The parallelized backend is in place so the coming taks is to develop the front-end API for different types of ensembles need to be built. This however is a relatively straightforward task so expect major additions soon. Stay tuned! 
+
+If you'd like to contribute, don't hesitate to reach out!
 
 ## License
 

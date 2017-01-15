@@ -19,11 +19,11 @@ from time import time
 import sys
 
 # TODO: make the preprocessing of folds optional as it can take a lot of memory
-# TODO: modularize the fitting method so we can build blend and stacking from
+# TODO: Refactor the fitting method so we can build blend and stacking from
 #       same class shell
 
 
-class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
+class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
     '''
     Meta estimator class that blends a set of base estimators via a meta
     estimator. In difference to standard stacking, where the base estimators
@@ -112,15 +112,16 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.named_meta_estimator = name_estimators([meta_estimator], 'meta-')
         self.named_base_pipelines = name_base(base_pipelines)
 
-        # if preprocessing, seperate pipelines
+        # if preprocessing, seperate base estimators and preprocessing pipes
         if isinstance(base_pipelines, dict):
             self.preprocess = [(case, _check_names(p[0])) for case, p in
                                base_pipelines.items()]
             self.base_estimators = [(case, _check_names(p[1])) for case, p in
                                     base_pipelines.items()]
+        # else, ensure base_estimators are named
         else:
             self.preprocess = []
-            self.base_estimators = [(case, p) for case, p in base_pipelines]
+            self.base_estimators = _check_names(base_pipelines)
 
         self.folds = folds
         self.shuffle = shuffle
@@ -258,7 +259,7 @@ class Ensemble(BaseEstimator, RegressorMixin, TransformerMixin):
     def get_params(self, deep=True):
         ''' Sklearn API for retrieveing all (also nested) model parameters'''
         if not deep:
-            return super(Ensemble, self).get_params(deep=False)
+            return super(StackingEnsemble, self).get_params(deep=False)
         else:
             out = {'folds': self.folds,
                    'shuffle': self.shuffle,

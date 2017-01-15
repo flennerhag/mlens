@@ -10,7 +10,7 @@
 **ML Ensemble is a Python library for building fully parallelized ensembles with a Scikit-learn's API. It is fully compatible with Scikic-learn objects such as pipelines and grid search classes.**
 
 The project is in development. Currently, the following classes are implemented:
-- `Ensemble`: a one-stop-shop for generating and training ensembles. See [here](mlens/examples/example.ipynb) for an example.
+- `StackingEnsemble`: a one-stop-shop for generating and training ensembles. See [here](mlens/examples/example.ipynb) for an example.
 - `PredictionFeature`: an sklearn compatibile class for generating a feature of out-of-sample predicitons. In pipeline, coming soon.
 - `Evaluator`: a one-stop-shop for model evaluation that allows you to compare in one table the performance of any number of models, across any number of preprocessing pipelines. By fitting all estimators in one go, grid search time is dramatically reduced as compared to grid search one pipelined model at a time. See [here](mlens/test/example_evaluator.ipynb) for an example.
 
@@ -37,7 +37,7 @@ To update the package, pull the latest changes from the github repo
 
 ## Usage
 
-The library utilized the Scikit-learn API. 
+The library utilizes the Scikit-learn API. Specify a set of base estimators, either as a list of estimators or a dictionary of preprocessing cases with associated base estimators, along with a meta estimator. In the simplest case: 
 
 ```Python
 from mlens.ensemble import StackingEnsemble
@@ -45,16 +45,23 @@ from sklearn.linear_model import Lasso
 from sklearn.svm import SVR
 sklearn.datasets import load_boston
 
-
+# Some data
 X, y = load_boston(return_X_y=True)
 
-ens = StackingEnsemble([SVR(), Lasso()])
+# Base estimators and meta estimator
+base = [SVR(), RandomForest()]
+meta = Lasso()
+
+# Ensemble
+ens = StackingEnsemble(meta, base)
+
 
 ens.fit(X, y)
 
 predictions = ens.predict(X)
-
 ```
+
+For more detailed examples that builds in differentiated preprocessing pipelines for base estimators, see [**here**](mlens/examples/example.ipynb).
 
 ## Roadmap
 

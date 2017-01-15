@@ -24,8 +24,8 @@ def _slice(Z, idx):
 
 
 def name_columns(estimator_cases):
-    """ Utility func for naming a mapping of estimators on different cases"""
-    return [case + '-' + est_name
+    """ Utility func for naming a mapping of estimators on different cases """
+    return [case + '-' + est_name if case not in [None, ''] else est_name
             for case, estimators in estimator_cases.items()
             for est_name, _ in estimators]
 

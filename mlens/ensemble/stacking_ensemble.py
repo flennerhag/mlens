@@ -205,7 +205,6 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
                                 shuffle=self.shuffle,
                                 random_state=self.random_state,
                                 n_jobs=self.n_jobs, verbose=self.verbose)
-        self.data = data
 
         # Parellelized k-fold predictions for meta estiamtor training set
         if self.verbose > 2:

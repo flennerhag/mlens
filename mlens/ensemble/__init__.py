@@ -5,6 +5,6 @@ author: Sebastian Flennerhag
 date: 11/01/2017
 """
 
-from .ensemble import Ensemble, PredictionFeature
+from .stacking_ensemble import StackingEnsemble
 
-__all__ = ['Ensemble', 'PredictionFeature']
+__all__ = ['StackingEnsemble']

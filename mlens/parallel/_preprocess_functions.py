@@ -52,13 +52,13 @@ def _preprocess_fold(X, y, indices, preprocessing, fit=True, return_idx=True):
         p_name, preprocess_case = preprocessing
         out = _preprocess_pipe(xtrain, ytrain, xtest, preprocess_case, fit)
     else:
-        p_name = None
+        p_name = ''
         out = [xtrain, xtest]
 
     out += [ytrain, ytest]
     if return_idx:
         out.append(test_idx)
-    if p_name is not None:
-        out.append(p_name)
+
+    out.append(p_name)
 
     return out

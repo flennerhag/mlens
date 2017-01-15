@@ -5,7 +5,7 @@
 @date: 12/01/2017
 """
 
-from mlens.ensemble import Ensemble
+from mlens.ensemble import StackingEnsemble
 from mlens.ensemble._setup import name_estimators, name_base, _check_names
 from mlens.ensemble._clone import _clone_base_estimators
 from mlens.ensemble._clone import _clone_preprocess_cases
@@ -38,7 +38,7 @@ X[:, 4] /= 10
 # meta estimator
 meta = SVR()
 
-# Create base estimators, along with associated preprocessing pipelines
+# Create ensemble with preprocessing pipelines
 base_pipelines = {'sc':
                   ([StandardScaler()],
                    [('ls', Lasso()), ('kn', KNeighborsRegressor())]),
@@ -47,8 +47,9 @@ base_pipelines = {'sc':
                   'np':
                   ([], [('rf', RandomForestRegressor(random_state=100))])}
 
-ensemble = Ensemble(meta, base_pipelines, folds=10, shuffle=False,
-                    scorer=rmse._score_func, n_jobs=1, random_state=100)
+ensemble = StackingEnsemble(meta, base_pipelines, folds=10, shuffle=False,
+                            scorer=rmse._score_func, n_jobs=1,
+                            random_state=100)
 
 params = {'sc-ls__alpha': uniform(0.0005, 0.005),
           'np-rf__max_depth': randint(2, 6),
@@ -57,6 +58,22 @@ params = {'sc-ls__alpha': uniform(0.0005, 0.005),
           'sc-kn__n_neighbors': randint(6, 12),
           'mm-svr__C': uniform(10, 20),
           'meta-svr__C': uniform(10, 20)}
+
+# Ensembles without preprocessing
+ens1 = StackingEnsemble(Lasso(),
+                        [('svr', SVR()),
+                         ('rf', RandomForestRegressor(random_state=100))],
+                        random_state=100)
+
+ens2 = StackingEnsemble(Lasso(),
+                        [SVR(), RandomForestRegressor(random_state=100)],
+                        random_state=100)
+
+ens3 = StackingEnsemble(Lasso(),
+                        {'no_prep':
+                         ([], [SVR(),
+                               RandomForestRegressor(random_state=100)])},
+                        random_state=100)
 
 
 def test_naming():
@@ -107,7 +124,20 @@ def test_clone():
     assert len(base_columns_) == 4
 
 
-def test_ensemble():
+def test_no_preprocess_ensemble():
+    ens1.fit(X, y)
+    ens2.fit(X, y)
+    ens3.fit(X, y)
+
+    p1 = ens1.predict(X)
+    p2 = ens2.predict(X)
+    p3 = ens3.predict(X)
+
+    assert (p1 == p2).all()
+    assert (p1 == p3).all()
+
+
+def test_preprocess_ensemble():
 
     ensemble.set_params(**{'np-rf__min_samples_leaf': 9,
                            'meta-svr__C': 16.626146983723014,

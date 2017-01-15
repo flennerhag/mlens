@@ -121,7 +121,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         # else, ensure base_estimators are named
         else:
             self.preprocess = []
-            self.base_estimators = _check_names(base_pipelines)
+            self.base_estimators = [('', _check_names(base_pipelines))]
 
         self.folds = folds
         self.shuffle = shuffle
@@ -205,6 +205,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
                                 shuffle=self.shuffle,
                                 random_state=self.random_state,
                                 n_jobs=self.n_jobs, verbose=self.verbose)
+        self.data = data
 
         # Parellelized k-fold predictions for meta estiamtor training set
         if self.verbose > 2:
@@ -245,16 +246,20 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
     def _preprocess(self, X, y, method_is_fit):
         """ Method for generating predictions for inputs """
 
-        out = preprocess_pipes(self.preprocess_, X, y, fit=method_is_fit,
-                               return_estimators=method_is_fit,
-                               n_jobs=self.n_jobs, verbose=self.verbose)
-        if method_is_fit:
-            pipes, Z, cases = zip(*out)
-            self.preprocess_ = [(case, pipe) for case, pipe in
-                                zip(cases, pipes)]
-            return [[z, case] for z, case in zip(Z, cases)]
+        if len(self.preprocess_) == 0:
+            return [[X, '']]
         else:
-            return [[z, case] for z, case in out]
+
+            out = preprocess_pipes(self.preprocess_, X, y, fit=method_is_fit,
+                                   return_estimators=method_is_fit,
+                                   n_jobs=self.n_jobs, verbose=self.verbose)
+            if method_is_fit:
+                pipes, Z, cases = zip(*out)
+                self.preprocess_ = [(case, pipe) for case, pipe in
+                                    zip(cases, pipes)]
+                return [[z, case] for z, case in zip(Z, cases)]
+            else:
+                return [[z, case] for z, case in out]
 
     def get_params(self, deep=True):
         ''' Sklearn API for retrieveing all (also nested) model parameters'''
@@ -279,8 +284,3 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
                 for key, value in six.iteritems(step.get_params(deep=True)):
                     out['%s__%s' % (name, key)] = value
             return out
-
-
-class PredictionFeature(object):
-    """ TBD """
-    pass

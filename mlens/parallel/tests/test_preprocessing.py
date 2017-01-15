@@ -78,8 +78,9 @@ def test_preprocess_fold():
                             n_jobs=-1, verbose=False)
     assert data is not None
     assert len(data) != 0
-    assert (X[data[1][-1]] == data[0][0]).all()
-    assert (X[data[0][-1]] == data[1][0]).all()
+    assert (X[data[1][-2]] == data[0][0]).all()
+    assert (X[data[0][-2]] == data[1][0]).all()
+    assert all([data[i][-1] == '' for i in range(len(data))])
 
 
 def test_preprocess_pipe():

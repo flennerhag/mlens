@@ -6,5 +6,7 @@ date: 10/01/2017
 """
 
 from .preprocess import StandardScalerDf, Subset
+from .feature_engineering import PredictionFeature
 
-__all__ = ['StandardScalerDf', 'Subset']
+__all__ = ['StandardScalerDf', 'Subset',
+           'PredictionFeature']

@@ -10,4 +10,6 @@ The project is rapidly progressing. The parallelized backend is in place so the 
 
 ## Back end roadmap
 
-Currently, parallelization is maximized by pre-making the preprocessed folds / data. This however will not scale well to very large datasets, and an alternative is to cache fitted preprocessing pipelines, to avoid repeatedly fitting them. This should not be a hard task to accomplish, as it only requires storing the fitted pipelines and calling them when necessary.
+Currently, **parallelization** is maximized by pre-making the preprocessed folds / data. This however will not scale well to very large datasets, and an alternative is to cache fitted preprocessing pipelines, to avoid repeatedly fitting them. This should not be a hard task to accomplish, as it only requires storing the fitted pipelines and calling them when necessary.
+
+Finally, the current structure creates one hidden layer. Of course, by pipelining several ``Ensemble`` classes, a multi-layer ensemble can be created. This however must be done explicitly by the user, but implementing a ``add layer`` method to ensemble classes would make a more intuitive API.

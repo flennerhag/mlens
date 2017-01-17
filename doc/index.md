@@ -1,75 +1,21 @@
-![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)
-[![PyPI version](https://badge.fury.io/py/mlens.svg)](http://badge.fury.io/py/mlens)
-[![Build Status](https://travis-ci.org/flennerhag/mlens.svg?branch=master)](https://travis-ci.org/flennerhag/mlens)
-[![Code Health](https://landscape.io/github/flennerhag/mlens/master/landscape.svg?style=flat)](https://landscape.io/github/flennerhag/mlens/master)
-[![Coverage Status](https://coveralls.io/repos/github/flennerhag/mlens/badge.svg?branch=master)](https://coveralls.io/github/flennerhag/mlens?branch=master)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+#ML-Ensemble
 
-# ML Ensemble - A library for parallelized ensemble learning
+*ML Ensemble is a Python library for building fully parallelized ensembles with a Scikit-learn's API. It is fully compatible with Scikic-learn objects such as pipelines and grid search classes.**
 
-**ML Ensemble is a Python library for building fully parallelized ensembles with a Scikit-learn's API. It is fully compatible with Scikic-learn objects such as pipelines and grid search classes.**
+The package's ensemble classes are built to allow a highly flexible ensemble architecture, while easily integrated in a full stack prediction pipeline.
+A key feature of the ML-Ensemble is the use of *base pipelines* as inputs to the the basic ensemble class. This allows the user to specify which base estimators share a common preprocessing pipeline, to avoid preprocessing the data for each estimator. This can dramatically increase speed if 
+the dataset is large, preprocessing is heavy, or an expansive grid search needs to be perfomed. 
 
-The project is in development. Currently, the following classes are implemented:
+The backend of ML-Ensemble is built on [*joblibb*](https://pythonhosted.org/joblib/parallel.html) to maximize the parallelization of fitting and training base esimtators. Hence, ML-Ensemble is optimized for speed. 
+
+The project is currently in development, and currently the following front-end classes are implemented:
 - `StackingEnsemble`: a one-stop-shop for generating and training ensembles. See [here](mlens/examples/example.ipynb) for an example.
 - `PredictionFeature`: an sklearn compatibile class for generating a feature of out-of-sample predicitons. In pipeline, coming soon.
 - `Evaluator`: a one-stop-shop for model evaluation that allows you to compare in one table the performance of any number of models, across any number of preprocessing pipelines. By fitting all estimators in one go, grid search time is dramatically reduced as compared to grid search one pipelined model at a time. See [here](mlens/test/example_evaluator.ipynb) for an example.
 
-## How to install
+The current implementation foces on moderately sized datasets and achieves maximium parallelization by pre-making preprocessing pipelines and temporarily storing pre-made data during the ``fit`` call. With very large datasets, pre-making folds 
+may be overly costly from a memory point of view. A future version will allow the user to instead cache fitted estimator pipelines: this will avoid creating any excess data and minimize number of transformer ``fit`` calls, but will require a ``transform`` call for each estimator fitting.
 
-#### PyPI
-
-Execute  
-
-```bash
-pip install mlens  
-```
-
-#### Bleeding edge
-
-To ensure latest version is installed, fork the GitHub repository and install mlxtens using the symlink options.
-
-```bash
-git clone https://flennerhag/mlens.git; cd mlens;
-pip install -e .
-```
-
-To update the package, pull the latest changes from the github repo
-
-## Usage
-
-The library utilizes the Scikit-learn API. Specify a set of base estimators, either as a list of estimators or a dictionary of preprocessing cases with associated base estimators, along with a meta estimator. In the simplest case: 
-
-```Python
-from mlens.ensemble import StackingEnsemble
-from sklearn.linear_model import Lasso
-from sklearn.svm import SVR
-from sklearn.datasets import load_boston
-
-# Some data
-X, y = load_boston(return_X_y=True)
-
-# Base estimators and meta estimator
-base = [SVR(), RandomForest()]
-meta = Lasso()
-
-# Ensemble
-ens = StackingEnsemble(meta, base)
-
-ens.fit(X, y)
-predictions = ens.predict(X)
-```
-
-For more an example that builds in differentiated preprocessing pipelines for base estimators, see [**here**](mlens/examples/example.ipynb).
-
-## Roadmap
-
-The project is rapidly progressing. The parallelized backend is in place so the coming taks is to develop the front-end API for different types of ensembles need to be built. This however is a relatively straightforward task so expect major additions soon. In the pipeline of Ensembles to be implemented are currently: 
-
-- Blending
-- Super Learner
-- Subsemble
-
-Stay tuned! 
 
 If you'd like to contribute, don't hesitate to reach out!
 

@@ -1,4 +1,4 @@
-## Installation
+# Installation
 
 To install the package, you need the following dependencies: 
 
@@ -10,19 +10,18 @@ To install the package, you need the following dependencies:
 | scikit-learn | >= 0.18.1 |
 | matplotlib | >= 1.5.1    |
 | seaborn |>= 0.7.1        |
-| ------- | ---------------|
 
 You can install ``mlens`` either through PyPi or the ``python setyp.py install`` command:
 
-### PyPI
+# PyPI
 
-## Stable version
+### Stable version
 
 ```bash
 pip install mlens  
 ```
 
-## Bleeding edge
+### Bleeding edge
 
 To ensure latest version is installed, fork the GitHub repository and install mlxtens using the symlink options.
 
@@ -33,11 +32,11 @@ pip install -e .
 
 To update the package, pull the latest changes from the github repo
 
-### GitHub
+# Fork GitHub Repository
 
 ```bash
 git clone https://flennerhag/mlens.git; cd mlens;
 python setup.py install
 ```
 
-Repeat the command to update the package.
+Repeat to update package.

@@ -3,8 +3,11 @@
 """
 author: Sebastian Flennerhag
 date: 10/01/2017
+licence: MIT
 Correlation plots
 """
+
+from __future__ import division, print_function
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec

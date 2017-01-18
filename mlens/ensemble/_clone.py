@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
-data: 10/01/2017
+date: 10/01/2017
+licence: MIT
 Support functions for cloning ensemble estimators
 """
+
+from __future__ import division, print_function
 
 from ._setup import check_estimators
 from sklearn.base import clone

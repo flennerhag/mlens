@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-@author: Sebastian Flennerhag
-@date: 12/01/2017
+author: Sebastian Flennerhag
+date: 12/01/2017
 """
+
+from __future__ import division, print_function
 
 from mlens.model_selection import Evaluator
 from mlens.metrics import rmse

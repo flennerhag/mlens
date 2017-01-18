@@ -5,6 +5,8 @@
 @date: 12/01/2017
 """
 
+from __future__ import division, print_function
+
 from mlens.ensemble import StackingEnsemble
 from mlens.ensemble._setup import name_estimators, name_base, _check_names
 from mlens.ensemble._clone import _clone_base_estimators

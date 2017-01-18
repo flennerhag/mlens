@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jan 11 10:49:10 2017
-
-@author: Sebastian
+author: Sebastian Flennerhag
+date: 11/1/2017
+licence: MIT
+Support function for parallelized fitting and prediction of estimators
 """
+
+from __future__ import division, print_function
 
 from time import time
 import numpy as np

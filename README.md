@@ -1,4 +1,6 @@
 ![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)
+![Python 3](https://img.shields.io/badge/python-3-blue.svg)
+![Python 2.7](https://img.shields.io/badge/python-2.7-blue.svg)
 [![PyPI version](https://badge.fury.io/py/mlens.svg)](http://badge.fury.io/py/mlens)
 [![Build Status](https://travis-ci.org/flennerhag/mlens.svg?branch=master)](https://travis-ci.org/flennerhag/mlens)
 [![Code Health](https://landscape.io/github/flennerhag/mlens/master/landscape.svg?style=flat)](https://landscape.io/github/flennerhag/mlens/master)
@@ -14,6 +16,10 @@ The project is in development. Currently, the following classes are implemented:
 - `StackingEnsemble`: a one-stop-shop for generating and training ensembles. See [here](mlens/examples/example.ipynb) for an example.
 - `PredictionFeature`: an sklearn compatibile class for generating a feature of out-of-sample predicitons. In pipeline, coming soon.
 - `Evaluator`: a one-stop-shop for model evaluation that allows you to compare in one table the performance of any number of models, across any number of preprocessing pipelines. By fitting all estimators in one go, grid search time is dramatically reduced as compared to grid search one pipelined model at a time. See [here](mlens/test/example_evaluator.ipynb) for an example.
+
+## Documentation
+
+See the [*ML-Ensemble homepage*](http://mlens.readthedocs.io/en/latest/) for full documentation. Usecase examples can be found [here](mlens/examples/). Below follows short instructions on installation and usage.
 
 ## How to install
 

@@ -2,9 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 author: Sebastian Flennerhag
-data: 10/01/2017
+date: 10/01/2017
+licence: MIT
 Base functions for any parallel processing
 """
+
+from __future__ import division, print_function
+
 from ._fit_predict_functions import _fit_score, _fit_and_predict, _predict
 from ._fit_predict_functions import _fit_estimator, _construct_matrix
 from pandas import DataFrame

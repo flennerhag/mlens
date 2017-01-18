@@ -3,8 +3,11 @@
 """
 author: Sebastian Flennerhag
 date: 10/01/2017
+licence: MIT
 Support functions for naming estimators to enable ensemble parameter mapping
 """
+
+from __future__ import division, print_function
 
 from sklearn.pipeline import Pipeline, _name_estimators
 

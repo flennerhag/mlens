@@ -12,6 +12,8 @@ preprocessing cases to be evaluated. Tuning information for all estimators
 and all cases are accessibly stored in a summary attribute.
 """
 
+from __future__ import division, print_function
+
 from sklearn.base import clone
 import numpy as np
 from pandas import DataFrame

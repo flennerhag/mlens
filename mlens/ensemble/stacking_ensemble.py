@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 11/01/2017
+licence: MIT
 Stacked ensemble class for full control over the entire model's parameters.
 Scikit-learn API allows full integration, including grid search and pipelining.
 """
+
+from __future__ import division, print_function
 
 from sklearn.base import clone, BaseEstimator, TransformerMixin, RegressorMixin
 from ._setup import name_estimators, name_base, _check_names

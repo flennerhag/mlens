@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jan 10 23:01:02 2017
-
 author: Sebastian Flennerhag
 date: 10/01/2017
+licence: MIT
 Functions for parallelized preprocessing
 """
+
+from __future__ import division, print_function
 
 from ._preprocess_functions import _preprocess_pipe, _preprocess_fold
 from sklearn.externals.joblib import Parallel, delayed

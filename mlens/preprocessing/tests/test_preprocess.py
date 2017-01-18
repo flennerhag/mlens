@@ -5,6 +5,8 @@
 @date: 12/01/2017
 """
 
+from __future__ import division, print_function
+
 from mlens.preprocessing import Subset, StandardScalerDf
 import numpy as np
 from pandas import DataFrame

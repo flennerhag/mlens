@@ -3,7 +3,10 @@
 """
 author: Sebastian Flennerhag
 date: 10/01/2017
+licence: MIT
 """
+
+from __future__ import division, print_function
 
 import numpy as np
 from pandas import DataFrame

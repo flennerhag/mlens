@@ -3,7 +3,10 @@
 """
 author: Sebastian Flennerhag
 date: 10/01/2017
+licence: MIT
 """
+
+from __future__ import division, print_function
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D

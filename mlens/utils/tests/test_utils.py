@@ -3,7 +3,10 @@
 """
 author: Sebastian Flennerhag
 date: 15/01/2017
+licence: MIT
 """
+
+from __future__ import division, print_function
 
 from mlens.utils import utils
 from time import time, sleep

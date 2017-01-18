@@ -34,6 +34,7 @@ def _fit_score(est, est_name, params, scoring, tup, draw=None, ret_time=False,
     except KeyError as exc:
         msg = "Could not fit estimator [%s]. Details: \n%r"
         warnings.warn(msg % (est_name, exc), FitFailedWarning)
+        return
 
     test_sc = scoring(est, xtest, ytest)
     train_sc = scoring(est, xtrain, ytrain)
@@ -61,6 +62,7 @@ def _fit_estimator(tup):
     except Exception as e:
         msg = "Estimator [%s] not fitted. Details: \n%r"
         warnings.warn(msg % (est_name, e), FitFailedWarning)
+        return
 
 
 def _fit_and_predict(tup):
@@ -76,6 +78,7 @@ def _fit_and_predict(tup):
     except Exception as e:
         msg = "Estimator [%s] not fitted. Details: \n%r"
         warnings.warn(msg % (est_name, e), FitFailedWarning)
+        return
 
 
 def _predict(tup):

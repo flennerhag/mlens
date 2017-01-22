@@ -30,7 +30,8 @@ import sys
 
 class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
-    '''
+    '''Stacking Ensemble
+
     Meta estimator class that blends a set of base estimators via a meta
     estimator. In difference to standard stacking, where the base estimators
     predict the same data they were fitted on, this class uses k-fold splits of
@@ -140,7 +141,8 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.n_jobs = n_jobs
 
     def fit(self, X, y):
-        '''
+        '''Fit ensemble
+
         Parameters
         ----------
         X : array-like, shape=[n_samples, n_features]
@@ -177,7 +179,8 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         return self
 
     def predict(self, X, y=None):
-        '''
+        '''Predict with fitted ensemble
+
         Parameters
         ----------
         X : array-like, shape=[n_samples, n_features]
@@ -196,7 +199,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         return self.meta_estimator_.predict(M)
 
     def _fit_meta_estimator(self, X, y, printout):
-        """ Temporarily trains base estimators on folds and create
+        """Temporarily trains base estimators on folds and create
         out-of-sample predicted input matrix for fitting of meta estimator"""
         if self.verbose >= 1:
             print('> fitting meta estimator', file=printout)

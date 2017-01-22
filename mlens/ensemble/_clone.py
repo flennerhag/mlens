@@ -22,8 +22,8 @@ def _clone_base_estimators(base_estimators, as_dict=True):
                        estimators]
                 for case, estimators in base_estimators}
     else:
-        return [(case, [clone(est) for est in
-                        check_estimators(estimators)])
+        return [(case, [(est_name, clone(est)) for est_name, est in
+                        estimators])
                 for case, estimators in base_estimators]
 
 

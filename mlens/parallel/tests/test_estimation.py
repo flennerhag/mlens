@@ -8,7 +8,7 @@ date: 10/01/2017
 licence: MIT
 """
 
-from __future__ import division, print_function
+from __future__ import division, print_function, with_statement
 
 import numpy as np
 from pandas import DataFrame
@@ -21,7 +21,7 @@ from mlens.parallel._fit_predict_functions import _fit_score, _fit_estimator
 from mlens.parallel._fit_predict_functions import _fit_and_predict
 from mlens.parallel._fit_predict_functions import _predict, _construct_matrix
 from sklearn.linear_model import Lasso
-
+import warnings
 
 # training data
 np.random.seed(100)
@@ -38,6 +38,7 @@ X[:, 3] *= 3
 X[:, 4] /= 10
 
 estimator = Lasso(alpha=0.001, random_state=100)
+estimator_bad = Lasso(alpha='a', random_state=100)
 
 
 def test_fit_estimator_func():
@@ -108,13 +109,26 @@ def test_parallel_estimation():
 
 
 def test_base_predict():
-    estimator.fit(X, y)
-    tup = [(X, 'test')]
-    M = base_predict(tup, {'test': [('ls', estimator)]},
-                     100, False, ['test-ls'], as_df=True)
+
+    data = [[X[:50], X[50:], y[:50], y[50:], range(50, 100), 'test'],
+            [X[50:], X[:50], y[50:], y[:50], range(50), 'test']]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        (M, ests) = base_predict(data, {'test': [('ls', estimator),
+                                                 ('bad', estimator_bad)]},
+                                 100, True, ['test-ls', 'test-bad'],
+                                 as_df=True)
+
+    # Check that bad estimator was dropped
+    assert len(ests) == 1
+    assert ests[0] == 'test-ls'
+    assert (M.shape[0] == 100) & (M.shape[1] == 1)
+
+    # Check that base predict carried through as if there was no bad estimator
     assert isinstance(M, DataFrame)
     assert M.columns[0] == 'test-ls'
-    assert str(M.iloc[0, 0])[:16] == '0.751494071538'
+    assert str(M.iloc[0, 0])[:16] == '0.807841612421'
 
 
 def test_fit_estimators():

@@ -52,7 +52,7 @@ base_pipelines = {'sc':
                   ([], [('rf', RandomForestRegressor(random_state=100))])}
 
 ensemble = StackingEnsemble(meta, base_pipelines, folds=10, shuffle=False,
-                            scorer=rmse._score_func, n_jobs=1,
+                            scorer=None, n_jobs=1,
                             random_state=100)
 
 params = {'sc-ls__alpha': uniform(0.0005, 0.005),
@@ -173,6 +173,18 @@ def test_preprocess_ensemble():
     assert str(score1)[:16] == '-0.0522364178463'
 
 
+def test_grid_search():
+
+    ensemble.set_params(**{'n_jobs': 1})
+
+    grid = RandomizedSearchCV(ensemble, param_distributions=params,
+                              n_iter=2, cv=2, scoring=rmse,
+                              n_jobs=-1, random_state=100)
+    grid.fit(X, y)
+
+    assert str(grid.best_score_)[:16] == '-0.0626352824626'
+
+
 def test_ensemble_exception_handling():
     # Currently this test just ensures the ensemble runs through
     ensemble.set_params(**{'np-rf__min_samples_leaf': 1.01,  # will cause error
@@ -187,18 +199,6 @@ def test_ensemble_exception_handling():
                            'shuffle': False,
                            'random_state': 100})
 
-#    with warnings.catch_warnings():
-#        warnings.simplefilter("ignore")
-    ensemble.fit(X[:100], y[:100])
-
-
-def test_grid_search():
-
-    ensemble.set_params(**{'n_jobs': 1})
-
-    grid = RandomizedSearchCV(ensemble, param_distributions=params,
-                              n_iter=2, cv=2, scoring=rmse,
-                              n_jobs=-1, random_state=100)
-    grid.fit(X, y)
-
-    assert str(grid.best_score_)[:16] == '-0.0626352824626'
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ensemble.fit(X[:100], y[:100])

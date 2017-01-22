@@ -28,6 +28,11 @@ import sys
 #       same class shell
 
 
+def _check_estimators(est_list1, est_list2):
+    assert all([est in est_list2 for est in est_list1])
+    assert all([est in est_list1 for est in est_list2])
+
+
 class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
     """Stacking Ensemble
@@ -193,9 +198,12 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
             predictions for provided input array
         """
         data = self._preprocess(X, y, False)
-        M = base_predict(data, self.base_estimators_, X.shape[0],
-                         folded_preds=False, columns=self.base_columns_,
+        M, fitted_estimators = \
+            base_predict(data, self.base_estimators_, X.shape[0],
+                         folded_preds=False, columns=self.fitted_estimators_,
                          as_df=self.as_df, n_jobs=self.n_jobs, verbose=False)
+
+        _check_estimators(fitted_estimators, self.fitted_estimators_)
 
         return self.meta_estimator_.predict(M)
 
@@ -222,14 +230,15 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
             print('>> fitting base estimators', file=printout)
             printout.flush()
 
-        M = base_predict(data, _clone_base_estimators(self.base_estimators),
+        M, self.fitted_estimators_ = \
+            base_predict(data, _clone_base_estimators(self.base_estimators),
                          n=X.shape[0], folded_preds=True,
                          columns=self.base_columns_, as_df=self.as_df,
                          n_jobs=self.n_jobs, verbose=self.verbose)
-        data = None  # discard
+        del data  # discard
 
         if self.scorer is not None:
-            cols = [] if self.as_df else name_columns(self.base_estimators_)
+            cols = [] if self.as_df else self.fitted_estimators_
             self.scores_ = score_matrix(M, y, self.scorer, cols)
 
         if self.verbose >= 2:

@@ -17,6 +17,15 @@ from pandas import DataFrame
 from sklearn.externals.joblib import Parallel, delayed
 
 
+def _pre_check_estimators(out, case_est_base_columns):
+    try:
+        case_est_names, _, _ = zip(*out)
+    except ValueError:
+        case_est_names, _ = zip(*out)
+
+    return [ce for ce in case_est_base_columns if ce in case_est_names]
+
+
 def _parallel_estimation(function, data, estimator_cases,
                          const=None, n_jobs=-1, verbose=False):
     """Backend function for estimator evaluation.
@@ -66,11 +75,13 @@ def base_predict(data, estimator_cases, n, folded_preds, columns, as_df=False,
     out = _parallel_estimation(function, data, estimator_cases,
                                n_jobs=n_jobs, verbose=verbose)
 
-    M = _construct_matrix(out, n, columns, folded_preds)
+    fitted_estimators = _pre_check_estimators(out, columns)
+    M = _construct_matrix(out, n, fitted_estimators, folded_preds)
 
     if as_df:
-        M = DataFrame(M, columns=columns)
-    return M
+        M = DataFrame(M, columns=fitted_estimators)
+
+    return M, fitted_estimators
 
 
 def fit_estimators(data, y, estimator_cases, n_jobs=-1, verbose=False):
@@ -80,7 +91,7 @@ def fit_estimators(data, y, estimator_cases, n_jobs=-1, verbose=False):
 
     fitted_estimators = {}
     for case, est_name, est in out:
-        # Filter out unfitted models
+        # Filter out unfitted models - these have case, est_name, est = None
         if case is not None:
             # Instantiate list
             if case not in fitted_estimators:

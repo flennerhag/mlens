@@ -99,6 +99,7 @@ def _construct_matrix(preds, n, columns, folds):
                 M[i, j] = p
     else:
         for (col, p) in preds:
-            j = colmap[col]
-            M[:, j] = p
+            if col is not None:
+                j = colmap[col]
+                M[:, j] = p
     return M

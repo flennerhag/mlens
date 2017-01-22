@@ -78,7 +78,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         true values and an array of predictions: score = f(y_true, y_pred). The
         scoring function of an sklearn scorer can be retrieved by ._score_func
     random_state : int, default=None
-        seed for creating folds during fitting
+        seed for creating folds during fitting (if shuffle=True)
     verbose : bool, int, default=False
         level of verbosity of fitting:
             verbose = 0 prints minimum output

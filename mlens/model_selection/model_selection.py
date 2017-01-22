@@ -43,10 +43,6 @@ class Evaluator(object):
 
     Parameters
     -----------
-    X : array-like, shape=[n_samples, n_features]
-        input data to train estimators on.
-    y : array-like, shape=[n_samples,]
-        output data to train estimators on.
     scoring : func
         scoring function that follows sklearn API,
         i.e. score = scoring(estimator, X, y)
@@ -58,13 +54,13 @@ class Evaluator(object):
         with large data running several cases with many cv folds can require
         considerable memory. preprocess should be of the form:
             P = {'case-1': [step1, step2], ...}
-    cv : int, default=2
+    cv : int, obj, default=2
         cross validation folds to use. Either pass a KFold class object that
         accepts as ``split`` method, or the number of folds in standard KFold
     shuffle : bool, default=True,
         whether to shuffle data before creating folds
     random_state : int, default=None
-        seed for creating folds
+        seed for creating folds (if shuffled) and for parameter draws
     n_jobs_preprocessing : int, default=-1
         number of CPU cores to use for preprocessing of folds
     n_jobs_estimators : int, default=-1
@@ -89,7 +85,8 @@ class Evaluator(object):
         Preprocess data according to specified pipelines and cv folds.
         Preprocessed data is stored in class instance to allow for repeated
         evaluation of estimators
-    evaluate : estimators, param_dicts, n_iter, reset_preprocess
+    evaluate : estimators, param_dicts, n_iter, reset_preprocess,
+               flush_preprocess
         Method to run grid search on a set of estimators with given param_dicts
         for n_iter iterations. Set reset_preprocess to True to regenerate
         preprocessed data
@@ -116,6 +113,18 @@ class Evaluator(object):
         estimator fitting and flexibility is needed in evaluating
         estimators. Examples include fitting base estimators as part of
         preprocessing, to evaluate suitabe meta estimators in ensembles.
+
+        Parameters
+        -----------
+        X : array-like, shape=[n_samples, n_features]
+            input matrix to be used for prediction
+        y : array-like, shape=[n_samples, ]
+            output vector to trained estimators on
+
+        Returns
+        ----------
+        dout : list
+            list of lists with folds data. For internal use.
         """
         self.preprocessing_ = _clone_preprocess_cases(self.preprocessing)
 
@@ -153,9 +162,13 @@ class Evaluator(object):
 
         Parameters
         ----------
-        estimators, dict
+        X : array-like, shape=[n_samples, n_features]
+            input matrix to be used for prediction
+        y : array-like, shape=[n_samples, ]
+            output vector to trained estimators on
+        estimators : dict
             set of estimators to use: estimators={'est1': est(), ...}
-        param_dicts, dict
+        param_dicts : dict
             param_dicts for estimators. Current implementation only supports
             randomized grid search, where passed distributions accept the
             .rvs() method. See sklearn.model_selection.RandomizedSearchCV for
@@ -167,6 +180,7 @@ class Evaluator(object):
         flush_preprocess : bool, default=False
             set to True to drop preprocessed data. Useful if memory requirement
             is large.
+
         Returns
         ---------
         self : obj

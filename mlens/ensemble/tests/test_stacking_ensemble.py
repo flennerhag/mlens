@@ -5,13 +5,13 @@
 @date: 12/01/2017
 """
 
-from __future__ import division, print_function
+from __future__ import division, print_function, with_statement
 
 from mlens.ensemble import StackingEnsemble
 from mlens.ensemble._setup import name_estimators, name_base, _check_names
 from mlens.ensemble._clone import _clone_base_estimators
 from mlens.ensemble._clone import _clone_preprocess_cases
-from mlens.utils.utils import name_columns
+from mlens.ensemble._support import name_columns
 from mlens.metrics import rmse
 from mlens.metrics.metrics import rmse_scoring
 from sklearn.linear_model import Lasso

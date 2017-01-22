@@ -15,7 +15,8 @@ from __future__ import division, print_function
 from sklearn.base import clone, BaseEstimator, TransformerMixin, RegressorMixin
 from ._setup import name_estimators, name_base, _check_names
 from ._clone import _clone_base_estimators, _clone_preprocess_cases
-from ..utils import print_time, name_columns
+from ._support import _check_estimators, name_columns
+from ..utils import print_time
 from ..metrics import score_matrix
 from ..parallel import preprocess_folds, preprocess_pipes
 from ..parallel import fit_estimators, base_predict
@@ -26,11 +27,6 @@ import sys
 # TODO: make the preprocessing of folds optional as it can take a lot of memory
 # TODO: Refactor the fitting method so we can build blend and stacking from
 #       same class shell
-
-
-def _check_estimators(est_list1, est_list2):
-    assert all([est in est_list2 for est in est_list1])
-    assert all([est in est_list1 for est in est_list2])
 
 
 class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):

@@ -26,7 +26,7 @@ import sys
 
 class Evaluator(object):
 
-    '''Class for evaluating a set of estimators and preprocessing pipelines
+    """Class for evaluating a set of estimators and preprocessing pipelines
     Evaluator class that allows user to evaluate several models simoultanously
     across a set of pre-specified pipelines. The class is useful for comparing
     a set of estimators when several preprocessing pipelines have potential.
@@ -92,7 +92,7 @@ class Evaluator(object):
         Method to run grid search on a set of estimators with given param_dicts
         for n_iter iterations. Set reset_preprocess to True to regenerate
         preprocessed data
-    '''
+    """
 
     def __init__(self, scoring, preprocessing=None, cv=10, shuffle=True,
                  random_state=None, n_jobs_preprocessing=-1,
@@ -108,13 +108,13 @@ class Evaluator(object):
         self.preprocessing = preprocessing
 
     def preprocess(self, X, y):
-        '''Preprocess folds
+        """Preprocess folds
         Method for preprocessing data separately from estimator
         evaluation. Helpful if preprocessing is costly relative to
         estimator fitting and flexibility is needed in evaluating
         estimators. Examples include fitting base estimators as part of
         preprocessing, to evaluate suitabe meta estimators in ensembles.
-        '''
+        """
         self.preprocessing_ = _clone_preprocess_cases(self.preprocessing)
 
         if self.verbose > 0:
@@ -139,7 +139,7 @@ class Evaluator(object):
 
     def evaluate(self, X, y, estimators, param_dicts, n_iter=2,
                  reset_preprocess=False, flush_preprocess=False):
-        '''Evaluate estimators
+        """Evaluate estimators
         Function for evaluating a list of functions, potentially with various
         preprocessing pipelines. This method improves fit time of regular grid
         search of a list of estimators since preprocessing is done once
@@ -166,7 +166,7 @@ class Evaluator(object):
             is large.
         Returns
         ---------
-        '''
+        """
         self.n_iter = n_iter
         self.estimators_ = estimators
         self.param_dicts_ = param_dicts

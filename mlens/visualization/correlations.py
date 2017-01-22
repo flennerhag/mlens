@@ -20,8 +20,7 @@ from scipy.stats import pearsonr
 
 def corrmat(corr, figsize=(11, 9), annotate=True,
             linewidths=.5, cbar_kws={"shrink": .5}, **kwargs):
-    '''
-    Function for generating color-coded correlation triangle.
+    """Function for generating color-coded correlation triangle.
 
     Parameters
     ----------
@@ -41,7 +40,7 @@ def corrmat(corr, figsize=(11, 9), annotate=True,
     --------
     heatmap : obj
         Matplotlib figure containing heatmap
-    '''
+    """
     # Determine annotation
     do_annot = {True: corr*100, False: None}
     annot = do_annot[annotate]
@@ -67,8 +66,7 @@ def corrmat(corr, figsize=(11, 9), annotate=True,
 def clustered_corrmap(X, cls=None, label_attr_name='labels_',
                       fig_size=(20, 20), title_fontsize=24, show=True,
                       title_name='Feature correlation heatmap', **kwargs):
-    '''
-    Function for plotting a clustered correlation heatmap
+    """Function for plotting a clustered correlation heatmap
 
     Parameters
     ----------
@@ -78,7 +76,7 @@ def clustered_corrmap(X, cls=None, label_attr_name='labels_',
         cluster object that accepts fit and stores labels as attribute
     label_attr_name : str
         name of attribute that contains cluster label
-    '''
+    """
     # find closely associated features
     fa = cls(**kwargs)
     fa.fit(X.corr())
@@ -95,8 +93,7 @@ def clustered_corrmap(X, cls=None, label_attr_name='labels_',
 
 
 def corr_X_y(X, y, top=5, show=True):
-    '''
-    Function for plotting how features in an input matrix X correlates with
+    """Function for plotting how features in an input matrix X correlates with
     y. Output figure shows all correlations as well as top pos and neg.
 
     Parameters
@@ -108,7 +105,7 @@ def corr_X_y(X, y, top=5, show=True):
     -------
     f, gs : object, object
         figure, axis_grid
-    '''
+    """
     correls = X.apply(lambda x: pearsonr(x, y)[0]).sort_values(ascending=False)
 
     f = plt.figure(figsize=(12, 8))

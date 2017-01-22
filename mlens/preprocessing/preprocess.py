@@ -41,7 +41,7 @@ class Subset(BaseEstimator, TransformerMixin):
         self.subset = subset
 
     def fit(self, X, y=None):
-
+        """Fit method for learning datatype"""
         self.is_df_ = isinstance(X, (DataFrame, Series))
 
         if self.subset is not None:
@@ -50,7 +50,7 @@ class Subset(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-
+        """Return selected subset"""
         if self.subset is None:
             return X
         else:

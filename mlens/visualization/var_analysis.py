@@ -15,10 +15,10 @@ from sklearn.decomposition import KernelPCA
 
 
 def IO_plot_comp(X, y, figsize=(10, 8)):
-    '''
+    """
     Function for comparing PCA analysis across 2 and 3 dimensions and
     linear and rbf kernels. See IO_plot for details.
-    '''
+    """
     comp = ['linear', 'rbf']
     f = plt.figure(figsize=figsize)
     ax = []
@@ -35,7 +35,7 @@ def IO_plot_comp(X, y, figsize=(10, 8)):
 
 
 def IO_plot(X, y, estimator, figsize=(10, 8), show=True, ax=None):
-    '''
+    """
     Function to plot a PCA analysis of 1, 2, or 3 dims.
 
     Input:
@@ -51,7 +51,7 @@ def IO_plot(X, y, estimator, figsize=(10, 8), show=True, ax=None):
 
     Returns:
         shows figure
-    '''
+    """
 
     Z = estimator.fit_transform(X.values)
 
@@ -75,7 +75,7 @@ def IO_plot(X, y, estimator, figsize=(10, 8), show=True, ax=None):
 
 
 def exp_var_plot(X, estimator, figsize=(10, 8), show=True, ax=None):
-    '''
+    """
     Function to plot the explained variance using PCA.
 
     Input:
@@ -87,7 +87,7 @@ def exp_var_plot(X, estimator, figsize=(10, 8), show=True, ax=None):
 
     Returns:
         shows figure
-    '''
+    """
     estimator.set_params(**{'n_components': None})
     ind_var_exp = estimator.fit(X).explained_variance_ratio_
     cum_var_exp = np.cumsum(ind_var_exp)

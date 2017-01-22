@@ -19,8 +19,7 @@ from sklearn.externals.joblib import Parallel, delayed
 
 def _parallel_estimation(function, data, estimator_cases,
                          const=None, n_jobs=-1, verbose=False):
-    """
-    Backend function for estimator evaluation.
+    """Backend function for estimator evaluation.
     Functions used for parallel estimation must accept only on argument,
     that the function itself unpacks.
 

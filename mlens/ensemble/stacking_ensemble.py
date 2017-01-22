@@ -30,7 +30,7 @@ import sys
 
 class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
-    '''Stacking Ensemble
+    """Stacking Ensemble
 
     Meta estimator class that blends a set of base estimators via a meta
     estimator. In difference to standard stacking, where the base estimators
@@ -109,7 +109,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         Use fitted ensemble to predict on X
     get_params : None
         Method for generating mapping of parameters. Sklearn API
-    '''
+    """
 
     def __init__(self, meta_estimator, base_pipelines, folds=2, shuffle=True,
                  as_df=False, scorer=None, random_state=None,
@@ -141,7 +141,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.n_jobs = n_jobs
 
     def fit(self, X, y):
-        '''Fit ensemble
+        """Fit ensemble
 
         Parameters
         ----------
@@ -154,7 +154,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         --------
         self : obj
             class instance with fitted estimators
-        '''
+        """
         self.meta_estimator_ = clone(self.meta_estimator)
         self.base_estimators_ = _clone_base_estimators(self.base_estimators)
         self.preprocess_ = _clone_preprocess_cases(self.preprocess)
@@ -179,7 +179,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         return self
 
     def predict(self, X, y=None):
-        '''Predict with fitted ensemble
+        """Predict with fitted ensemble
 
         Parameters
         ----------
@@ -190,7 +190,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         --------
         y : array-like, shape=[n_samples, ]
             predictions for provided input array
-        '''
+        """
         data = self._preprocess(X, y, False)
         M = base_predict(data, self.base_estimators_, X.shape[0],
                          folded_preds=False, columns=self.base_columns_,

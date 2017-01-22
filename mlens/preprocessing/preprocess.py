@@ -26,7 +26,7 @@ class StandardScalerDf(StandardScaler):
 
     def __init__(self, copy=True, with_mean=True, with_std=True):
         super(StandardScalerDf, self).__init__(copy=copy, with_mean=with_mean,
-                                             with_std=with_std)
+                                               with_std=with_std)
 
     def transform(self, X, y=None, copy=None):
         """StandardScales data and assigns it to a copy of passed DataFrame"""

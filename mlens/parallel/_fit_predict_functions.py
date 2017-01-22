@@ -36,7 +36,7 @@ def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
         test_sc = scoring(est, xtest, ytest)
         train_sc = scoring(est, xtrain, ytrain)
 
-    except KeyError as e:
+    except Exception as e:
         msg = "Could not fit estimator [%s]. Score set to %s. Details: \n%r"
         warnings.warn(msg % (est_name, str(error_score), e), FitFailedWarning)
 

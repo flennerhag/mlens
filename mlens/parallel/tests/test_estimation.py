@@ -82,15 +82,15 @@ def test_construct_matrix_folds():
 
 def test_fit_score_func():
     tup = (X[:50], X[50:], y[:50], y[50:], 'test')
-    out = _fit_score(estimator, 'ls', {'alpha': 0.1}, rmse, tup, 1, True, True)
+    out = _fit_score(estimator, 'ls', {'alpha': 0.1}, rmse, tup, 1)
 
-    assert out[0] == 'ls_test'
+    assert out[0] == 'ls-test'
     assert str(out[1]) == '-0.33038563036'
     assert str(out[2])[:16] == '-0.248531764447'
     assert out[4] == 2
 
     tup = (X, X, y, y)
-    out = _fit_score(estimator, 'ls', {'alpha': 0.1}, rmse, tup, 1, True, True)
+    out = _fit_score(estimator, 'ls', {'alpha': 0.1}, rmse, tup, 1)
 
     assert out[0] == 'ls'
 
@@ -134,7 +134,7 @@ def test_cross_validate():
                                  {'alpha': 0.82931980191796162}]},
                          tup, rmse, n_jobs=1)
     assert len(out) == 2
-    assert all(out[i][0] == 'ls_test' for i in range(2))
+    assert all(out[i][0] == 'ls-test' for i in range(2))
     assert str(out[0][1]) == '-0.509895108976'
     assert str(out[0][2]) == '-0.442959652855'
     assert out[0][4] == 1

@@ -19,7 +19,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import RandomizedSearchCV, KFold
 from scipy.stats import uniform, randint
 import numpy as np
 from pandas import DataFrame
@@ -66,6 +66,7 @@ params = {'sc-ls__alpha': uniform(0.0005, 0.005),
 ens1 = StackingEnsemble(Lasso(alpha=0.001, random_state=100),
                         [('svr', SVR()),
                          ('rf', RandomForestRegressor(random_state=100))],
+                        folds=KFold(2, random_state=100, shuffle=True),
                         random_state=100, n_jobs=-1)
 
 ens2 = StackingEnsemble(Lasso(alpha=0.001, random_state=100),

@@ -58,8 +58,10 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         {'pipe-1', [('step-1', trans), (...)], [('est-1', est), (...)]}, where
         named each step is optional. Each transformation step and estimators
         must accept fit and transform / predict methods respectively
-    folds : int, default=2
-        number of folds to use for constructing meta estimator training set
+    folds : int, obj, default=2
+        number of folds to use for constructing meta estimator training set.
+        Either pass a KFold class object that accepts as ``split`` method,
+        or the number of folds in standard KFold
     shuffle : bool, default=True
         whether to shuffle data for creating k-fold out of sample predictions
     as_df : bool, default=False

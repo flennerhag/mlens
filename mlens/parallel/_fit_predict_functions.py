@@ -16,8 +16,7 @@ from sklearn.base import clone
 from sklearn.exceptions import FitFailedWarning
 
 
-def _fit_score(est, est_name, params, scoring, tup, draw=None, ret_time=False,
-               ret_train=False):
+def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
     """ Score an estimator with given parameters on train and test set """
     try:
         xtrain, xtest, ytrain, ytest, p_name = tup
@@ -30,26 +29,22 @@ def _fit_score(est, est_name, params, scoring, tup, draw=None, ret_time=False,
         est.set_params(**params)
         t0 = time()
         est = est.fit(xtrain, ytrain)
-        t = time() - t0
-    except KeyError as exc:
-        msg = "Could not fit estimator [%s]. Details: \n%r"
-        warnings.warn(msg % (est_name, exc), FitFailedWarning)
 
-    test_sc = scoring(est, xtest, ytest)
-    train_sc = scoring(est, xtrain, ytrain)
+        t = time() - t0
+        test_sc = scoring(est, xtest, ytest)
+        train_sc = scoring(est, xtrain, ytrain)
+
+    except KeyError as e:
+        msg = "Could not fit estimator [%s]. Score set to %s. Details: \n%r"
+        warnings.warn(msg % (est_name, str(error_score), e), FitFailedWarning)
+
+        t = 0
+        train_sc, test_sc = error_score, error_score
 
     if p_name not in [None, '']:
-        est_name += '_' + p_name
+        est_name += '-' + p_name
 
-    out = [est_name, test_sc]
-
-    if ret_train:
-        out.append(train_sc)
-    if ret_time:
-        out.append(t)
-    if draw is not None:
-        out.append(draw + 1)
-    return out
+    return [est_name, test_sc, train_sc, t, draw + 1, params]
 
 
 def _fit_estimator(tup):

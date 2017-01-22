@@ -16,7 +16,7 @@ from __future__ import division, print_function
 
 from sklearn.base import clone
 import numpy as np
-from pandas import DataFrame
+from pandas import DataFrame, Series
 from ..ensemble._clone import _clone_preprocess_cases
 from ..parallel import preprocess_folds, cross_validate
 from sklearn.pipeline import Pipeline
@@ -48,6 +48,8 @@ class Evaluator(object):
     scoring : func
         scoring function that follows sklearn API,
         i.e. score = scoring(estimator, X, y)
+    error_score : int,
+        score to assign when estimator fit fails
     preprocessing: dict, default=None
         dictionary of lists with preprocessing pipelines to fit models on.
         Each pipeline will be used to generate k folds that are stored, hence
@@ -55,7 +57,8 @@ class Evaluator(object):
         considerable memory. preprocess should be of the form:
             P = {'case-1': [step1, step2], ...}
     cv : int, default=2
-        cross validation folds to use. Currently standard kfold implemented
+        cross validation folds to use. Either pass a KFold class object that
+        accepts as ``split`` method, or the number of folds in standard KFold
     shuffle : bool, default=True,
         whether to shuffle data before creating folds
     summary_df : bool, default=True
@@ -71,18 +74,16 @@ class Evaluator(object):
 
     Attributes
     -----------
-    summary_ : dict, DataFrame
+    summary_ : DataFrame
         Summary output that shows best scores, times, params, estimators
-    summary_dict_ : dict, default=None,
-        if summary_df=True, the full summary dict is preserved in summary_dict_
-    cv_results_ : dict
-        dictionary containing all data for every fold, every param draw, and
-        every estimator
+    cv_results_ : list
+        a list of data from each fit. Includes test and train scores, fit time,
+        param draw index and parameters.
 
     Methods
     --------
-    preprocess :
-        Preprocess data according to specified pipeliens and cv folds.
+    preprocess : None
+        Preprocess data according to specified pipelines and cv folds.
         Preprocessed data is stored in class instance to allow for repeated
         evaluation of estimators
     evaluate : estimators, param_dicts, n_iter, reset_preprocess
@@ -91,23 +92,21 @@ class Evaluator(object):
         preprocessed data
     '''
 
-    def __init__(self, X, y, scoring, preprocessing=None, cv=10, shuffle=True,
-                 summary_df=True, random_state=True, n_jobs_preprocessing=-1,
-                 n_jobs_estimators=-1, verbose=0):
-        self.X = X.copy()
-        self.y = y.copy()
+    def __init__(self, scoring, preprocessing=None, cv=10, shuffle=True,
+                 summary_df=True, random_state=None, n_jobs_preprocessing=-1,
+                 error_score=-99, n_jobs_estimators=-1, verbose=0):
         self.cv = cv
         self.shuffle = shuffle
         self.summary_df = summary_df
         self.n_jobs_preprocessing = n_jobs_preprocessing
         self.n_jobs_estimators = n_jobs_estimators
+        self.error_score = error_score
         self.random_state = random_state
         self.scoring = scoring
         self.verbose = verbose
         self.preprocessing = preprocessing
-        self._printout = sys.stdout if self.verbose > 50 else sys.stderr
 
-    def preprocess(self):
+    def preprocess(self, X, y):
         ''' Method for preprocessing data separately from estimator
             evaluation. Helpful if preprocessing is costly relative to
             estimator fitting and flexibility is needed in evaluating
@@ -116,16 +115,28 @@ class Evaluator(object):
 
         self.preprocessing_ = _clone_preprocess_cases(self.preprocessing)
 
-        self.dout = preprocess_folds(self.preprocessing_, self.X, self.y,
+        if self.verbose > 0:
+            printout = sys.stdout if self.verbose > 50 else sys.stderr
+            ttot = self._print_prep_start(self.preprocessing_, printout)
+
+        self.dout = preprocess_folds(self.preprocessing_, X.copy(), y.copy(),
                                      self.cv, fit=True, return_idx=False,
                                      shuffle=self.shuffle,
                                      random_state=self.random_state,
                                      n_jobs=self.n_jobs_preprocessing,
                                      verbose=self.verbose)
+
+        if self.verbose > 0:
+            res, sec = divmod(time() - ttot, 60)
+            hrs, mins = divmod(res, 60)
+            print('Preprocessing done | %02d:%02d:%02d\n' % (hrs, mins, sec),
+                  file=printout)
+            printout.flush()
+
         return self
 
-    def evaluate(self, estimators, param_dicts, n_iter=2,
-                 reset_preprocess=False):
+    def evaluate(self, X, y, estimators, param_dicts, n_iter=2,
+                 reset_preprocess=False, flush_preprocess=False):
         '''
         Function for evaluating a list of functions, potentially with various
         preprocessing pipelines. This method improves fit time of regular grid
@@ -148,6 +159,9 @@ class Evaluator(object):
             number of parameter draws
         reset_preprocess : bool, default=False
             set to True to regenerate preprocessed folds
+        flush_preprocess : bool, default=False
+            set to True to drop preprocessed data. Useful if memory requirement
+            is large.
         Returns
         ---------
         '''
@@ -158,177 +172,122 @@ class Evaluator(object):
 
         # ===== Preprocess if necessary or requested =====
         if not hasattr(self, 'dout') or reset_preprocess:
-            self.preprocess()
-
-        # ===== Metric data to be stored for each fit =====
-        self._metrics = ['test_score', 'train_score', 'time']
+            self.preprocess(X, y)
 
         # ===== Generate n_iter param dictionaries for each estimator =====
-        self.param_sets_ = self._param_sets()
-
-        # ===== Set up cv results dictionary =====
-        self.cv_results_ = self._set_up_cv()
+        self.param_sets_, param_map = self._param_sets()
 
         # ===== Cross Validate =====
         if self.verbose > 0:
-            ttot = self._print_start(estimators)
+            printout = sys.stdout if self.verbose > 50 else sys.stderr
+            ttot = self._print_eval_start(estimators, self.preprocessing_,
+                                          printout)
 
         out = cross_validate(self.estimators_, self.param_sets_, self.dout,
-                             self.scoring, self.n_jobs_estimators,
-                             self.verbose)
+                             self.scoring, self.error_score,
+                             self.n_jobs_estimators, self.verbose)
 
         # ===== Create summary statistics =====
-        self._gen_summary(out)
+        self.cv_results_, self.summary_, self.best_idx_ = \
+            self._results(out, param_map)
 
         # ===== Job complete =====
+        if flush_preprocess:
+            del self.dout
+
         if self.verbose > 0:
             res, secs = divmod(time() - ttot, 60)
             hours, mins = divmod(res, 60)
             print('Evaluation done | %02d:%02d:%02d\n' % (hours, mins, secs),
-                  file=self._printout)
+                  file=printout)
+            printout.flush()
+
         return self
 
-    def _gen_summary(self, out):
-        self._store_cv(out)
-        stats = self._fold_stats()
-        self.summary_ = self._summarize(stats)
-        if self.summary_df:
-            self.summary_dict_ = self.summary_
-            sort_key = 'best_test_score_mean'
-            df = DataFrame(self.summary_).T.sort_values(by=sort_key,
-                                                        ascending=False)
-            self.summary_ = df.loc[:, ['best_test_score_mean',
-                                       'best_test_score_std',
-                                       'train_score_mean', 'train_score_std',
-                                       'score_time', 'best_params',
-                                       'best_estimator', 'best_draw_idx']]
-
-    def _store_cv(self, out):
-        for tup in out:
-            (est_name, test_score, train_score, time, draw) = tup
-
-            for key, val in zip(['test_score', 'train_score', 'time'],
-                                [test_score, train_score, time]):
-                self.cv_results_[est_name][draw][key].append(val)
-
+    # Auxilliary function for param draws and results mapping
     def _draw_params(self, est_name):
-        params = {}
+        """ Draw a list of param dictionaries for estimator """
+
+        # Set up empty list of parameter setting
+        param_draws = [{} for _ in range(self.n_iter)]
+
+        # Fill list of parameter settings by param
         for param, dist in self.param_dicts_[est_name].items():
-            params[param] = dist.rvs(1, random_state=self.random_state)[0]
-        return params
+
+            draws = dist.rvs(self.n_iter, random_state=self.random_state)
+
+            for i, draw in enumerate(draws):
+                param_draws[i][param] = draw
+
+        return param_draws
 
     def _param_sets(self):
-        param_set = {}
+        """ For each estimator, create a mapping of parameter draws """
+        param_sets = {}  # dict with list of param settings for each est
+        param_map = {}   # dict with param settings for each est_prep pair
+
+        # Create list of param settings for each estimator
         for est_name, _ in self.estimators_.items():
-            param_set[est_name] = []
-            for _ in range(self.n_iter):
-                param_set[est_name].append(self._draw_params(est_name))
-        return param_set
+            param_sets[est_name] = self._draw_params(est_name)
 
-    def _set_up_cv(self):
-        C = {}
-        if len(self.preprocessing_) is 0:
-            for est_name, est in self.estimators_.items():
-                name = est_name
-                C[name] = {}
-                for i, params in enumerate(self.param_sets_[est_name]):
+        # Flatten list to param draw mapping for each preprocessing case
+        for est_name, param_draws in param_sets.items():
+            for draw, params in enumerate(param_draws):
+                for case in self.preprocessing.keys():
+                    param_map[(est_name + '-' + case, draw + 1)] = params
 
-                    # Generate full models and store
-                    e = clone(est)
-                    e.set_params(**params)
+        return param_sets, param_map
 
-                    C[name][i+1] = {'params': params, 'estimator': e}
-                    for metric in self._metrics:
-                        C[name][i+1][metric] = []
-        else:
-            for est_name, est in self.estimators_.items():
-                for p_name, process_case in self.preprocessing_:
-                    name = est_name + '_' + p_name
-                    C[name] = {}
-                    for i, params in enumerate(self.param_sets_[est_name]):
+    def _results(self, out, param_map):
 
-                        # Generate full models and store
-                        e = clone(est)
-                        e.set_params(**params)
+        # Construct a results dataframe for each param draw
+        out = DataFrame(out, columns=['estimator', 'test_score',
+                                      'train_score', 'time',
+                                      'param_draw', 'params'])
 
-                        prep = [('prep_' + str(i+1), step)
-                                for i, step in enumerate(process_case)]
+        # Get mean scores for each param draw
+        cv_results = out.groupby(['estimator', 'param_draw']).mean()
 
-                        if isinstance(e, Pipeline):
-                            # add preprocessing steps to pipeline
-                            e = Pipeline(prep + e.steps)
-                        else:
-                            # create new pipeline
-                            e = Pipeline(prep + [('est', e)])
+        # Append param settings
+        param_map = Series(param_map)
+        param_map.index.names = ['estimator', 'param_draw']
+        cv_results['params'] = param_map.loc[cv_results.index]
 
-                            params_original = params
-                            params = {}
-                            for key, val in params_original.items():
-                                params['est__' + key] = val
+        # Create summary table of best scores
+        best_score = cv_results.groupby(level=0).test_score.apply(np.argmax)
+        best_idx = best_score.values
+        summary = cv_results.loc[best_idx].reset_index(1, drop=True)
 
-                        C[name][i+1] = {'params': params, 'estimator': e}
-                        for metric in self._metrics:
-                            C[name][i+1][metric] = []
-        return C
+        return cv_results, summary, best_idx
 
-    def _fold_stats(self):
-        statistics = {}
-        for est_name in self.cv_results_.keys():
-            statistics[est_name] = {'mean_test_score': [],
-                                    'mean_test_score_std': [],
-                                    'mean_train_score': [],
-                                    'mean_train_score_std': [],
-                                    'mean_time': [], 'params': [],
-                                    'estimator': []}
-            for draw, results in self.cv_results_[est_name].items():
-
-                t = np.mean(results['time'])
-                testm = np.mean(results['test_score'])
-                tests = np.std(results['test_score'])
-                trainm = np.mean(results['train_score'])
-                trains = np.std(results['train_score'])
-                p = self.cv_results_[est_name][draw]['params']
-                e = self.cv_results_[est_name][draw]['estimator']
-
-                statistics[est_name]['params'].append(p)
-                statistics[est_name]['estimator'].append(e)
-                for val, nm in zip([t, testm, tests, trainm, trains],
-                                   ['mean_time', 'mean_test_score',
-                                    'mean_test_score_std', 'mean_train_score',
-                                    'mean_train_score_std']):
-                    self.cv_results_[est_name][draw][nm] = val
-                    statistics[est_name][nm].append(val)
-        return statistics
-
-    def _summarize(self, stats):
-        S = {}
-        for model, model_stats in stats.items():
-            S[model] = {}
-
-            best_idx = np.argmax(model_stats['mean_test_score'])
-            S[model]['best_test_score_mean'] = \
-                model_stats['mean_test_score'][best_idx]
-            S[model]['best_test_score_std'] = \
-                model_stats['mean_test_score_std'][best_idx]
-            S[model]['train_score_mean'] = \
-                model_stats['mean_train_score'][best_idx]
-            S[model]['train_score_std'] = \
-                model_stats['mean_train_score_std'][best_idx]
-            S[model]['score_time'] = model_stats['mean_time'][best_idx]
-            S[model]['best_params'] = model_stats['params'][best_idx]
-            S[model]['best_estimator'] = model_stats['estimator'][best_idx]
-            S[model]['best_draw_idx'] = best_idx + 1
-        return S
-
-    def _print_start(self, estimators):
+    def _print_prep_start(self, preprocessing, printout):
         ttot = time()
-        msg = ('Evaluating %i models, with %i parameter draws and %i' +
-               ' preprocessing options, over %i CV folds, totalling fits %i.')
-        e = len(estimators)
+        msg = 'Preprocessing %i preprocessing pipelines over %i CV folds'
+
         try:
-            p = max(len(self.preprocessing_), 1)
+            p = max(len(preprocessing), 1)
         except Exception:
             p = 0
-        tot = e * max(1, p) * self.n_iter * self.cv
-        print(msg % (e, self.n_iter, p, self.cv, tot), file=self._printout)
+
+        c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
+
+        print(msg % (p, c), file=printout)
+        printout.flush()
+        return ttot
+
+    def _print_eval_start(self, estimators, preprocessing, printout):
+        ttot = time()
+        msg = ('Evaluating %i models for %i parameter draws over %i' +
+               ' preprocessing pipelines and %i CV folds, totalling %i fits')
+        e = len(estimators)
+        try:
+            p = max(len(preprocessing), 1)
+        except Exception:
+            p = 0
+
+        c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
+
+        tot = e * max(1, p) * self.n_iter * c
+        print(msg % (e, self.n_iter, p, c, tot), file=printout)
+        printout.flush()
         return ttot

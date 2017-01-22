@@ -9,10 +9,12 @@ from __future__ import division, print_function
 
 from mlens.model_selection import Evaluator
 from mlens.metrics import rmse
+from mlens.utils import pickle_save, pickle_load
 import numpy as np
 from sklearn.linear_model import Lasso
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import KFold
 from scipy.stats import uniform, randint
 
 # training data
@@ -34,7 +36,7 @@ ls = Lasso(random_state=100)
 rf = RandomForestRegressor(random_state=100)
 
 # Some parameter distributions that might work well
-ls_p = {'alpha': uniform(0.0005, 10)}
+ls_p = {'alpha': uniform(0.00001, 0.0005)}
 rf_p = {'max_depth': randint(2, 7), 'max_features': randint(3, 10),
         'min_samples_leaf': randint(2, 10)}
 
@@ -46,14 +48,37 @@ parameters = {'ls': ls_p, 'rf': rf_p}
 preprocessing = {'a': [StandardScaler()],
                  'b': []}
 
-evals = Evaluator(X, y, rmse, preprocessing, cv=2, verbose=0,
-                  shuffle=False, n_jobs_estimators=-1,
-                  n_jobs_preprocessing=-1, random_state=100)
+evals1 = Evaluator(rmse, preprocessing, cv=KFold(2, random_state=100),
+                   verbose=1, shuffle=False, n_jobs_estimators=-1,
+                   n_jobs_preprocessing=-1, random_state=100)
+
+evals2 = Evaluator(rmse, preprocessing, cv=2,
+                   verbose=1, shuffle=False, n_jobs_estimators=-1,
+                   n_jobs_preprocessing=-1, random_state=100)
+
+
+def check_scores(evals):
+    test_draws = []
+    for params in evals.cv_results_.loc[[('rf-a', 1),
+                                         ('rf-a', 2),
+                                         ('rf-a', 3)], 'params'].values:
+        test_draws.append(params['min_samples_leaf'])
+
+    assert all([test_val == comp_val for test_val, comp_val in
+                zip(test_draws, [2, 2, 5])])
+
+    assert str(evals.summary_.iloc[0][0])[:16] == '-0.127723982162'
 
 
 def test_evals():
 
-        evals.preprocess()
-        evals.evaluate(estimators, parameters, n_iter=2)
+        evals1.preprocess(X, y)
+        evals1.evaluate(X, y, estimators, parameters, 3, flush_preprocess=True)
+        evals1.evaluate(X, y, estimators, parameters, 3)
+        check_scores(evals1)
 
-        assert str(evals.summary_.iloc[0, 0]) == '-0.357428210976'
+        # Test pickling
+        evals2.evaluate(X, y, estimators, parameters, 3)
+        pickle_save(evals2, 'test')
+        pickled_eval = pickle_load('test')
+        check_scores(pickled_eval)

@@ -84,13 +84,13 @@ def fit_estimators(data, y, estimator_cases, n_jobs=-1, verbose=False):
     return fitted_estimators
 
 
-def cross_validate(estimators, param_sets, dout, scoring,
+def cross_validate(estimators, param_sets, dout, scoring, error_score=-99,
                    n_jobs=-1, verbose=False):
     """ Run parallellized cross-validated grid search on premade folds """
 
     out = Parallel(n_jobs=n_jobs, verbose=verbose)(
                    delayed(_fit_score)(est, est_name, params, scoring,
-                                       tup, i, True, True)
+                                       tup, i, error_score)
                    for tup in dout
                    for est_name, est in estimators.items()
                    for i, params in enumerate(param_sets[est_name]))

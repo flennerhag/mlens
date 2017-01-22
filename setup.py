@@ -43,9 +43,11 @@ setup(name='mlens',
       long_description="""
 A library for automated, paralellized Ensemble learning
 
+Full documentation available at http://mlens.readthedocs.io/en/latest/
+
 Contact
 =============
-If you have any questions or comments about mlens, feel free to reach out
-at sebastianflennerhag@hotmail.com.
+If you have any questions or comments about mlens, please to reach out
+to sebastianflennerhag@hotmail.com.
 This project is hosted at https://github.com/flennerhag/mlens
 """)

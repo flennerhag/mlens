@@ -6,11 +6,15 @@ date: 10/01/2017
 licence: MIT
 """
 
-from __future__ import division, print_function
+from __future__ import division, print_function, with_statement
 
 from time import time
-import pickle
 from pandas import DataFrame, Series
+
+try:
+    import cPickle as pickle
+except Exception:
+    import pickle
 
 
 def _slice(Z, idx):

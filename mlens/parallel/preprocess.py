@@ -31,7 +31,10 @@ def preprocess_folds(preprocessing, X, y=None, folds=None, fit=True,
                      n_jobs=-1, verbose=False):
     """ Pre-make preprecessing cases over cv folds (incl no preprocessing)"""
 
-    kfold = KFold(folds, shuffle=shuffle, random_state=random_state)
+    if isinstance(folds, int):
+        kfold = KFold(folds, shuffle=shuffle, random_state=random_state)
+    else:
+        kfold = folds
 
     # Safety check to ensure for loop for folds is run without preprocessing
     if (len(preprocessing) == 0) or (preprocessing is None):

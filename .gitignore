@@ -44,8 +44,7 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
-d.pkl
-mlens/d.pkl
+*.pkl
 
 # Translations
 *.mo

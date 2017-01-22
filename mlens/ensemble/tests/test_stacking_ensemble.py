@@ -23,6 +23,7 @@ from sklearn.model_selection import RandomizedSearchCV, KFold
 from scipy.stats import uniform, randint
 import numpy as np
 from pandas import DataFrame
+import warnings
 
 # training data
 np.random.seed(100)
@@ -170,6 +171,25 @@ def test_preprocess_ensemble():
     assert score1 == -score2
     assert ensemble.get_params()['n_jobs'] == -1
     assert str(score1)[:16] == '-0.0522364178463'
+
+
+def test_ensemble_exception_handling():
+    # Currently this test just ensures the ensemble runs through
+    ensemble.set_params(**{'np-rf__min_samples_leaf': 1.01,  # will cause error
+                           'meta-svr__C': 1,
+                           'sc-kn__n_neighbors': 2,
+                           'np-rf__max_features': 1.01,  # will cause error
+                           'mm-svr__C': 11.834807428701293,
+                           'sc-ls__alpha': 0.0014284293508642438,
+                           'np-rf__max_depth': 4,
+                           'n_jobs': -1,
+                           'verbose': 0,
+                           'shuffle': False,
+                           'random_state': 100})
+
+#    with warnings.catch_warnings():
+#        warnings.simplefilter("ignore")
+    ensemble.fit(X[:100], y[:100])
 
 
 def test_grid_search():

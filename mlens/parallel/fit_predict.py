@@ -78,9 +78,15 @@ def fit_estimators(data, y, estimator_cases, n_jobs=-1, verbose=False):
     out = _parallel_estimation(_fit_estimator, data, estimator_cases, (y,),
                                n_jobs, verbose)
 
-    fitted_estimators = {case: [] for case in estimator_cases.keys()}
+    fitted_estimators = {}
     for case, est_name, est in out:
-        fitted_estimators[case].append((est_name, est))
+        # Filter out unfitted models
+        if case is not None:
+            # Instantiate list
+            if case not in fitted_estimators:
+                fitted_estimators[case] = []
+
+            fitted_estimators[case].append((est_name, est))
 
     return fitted_estimators
 

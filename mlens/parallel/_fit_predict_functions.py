@@ -58,6 +58,7 @@ def _fit_estimator(tup):
     except Exception as e:
         msg = "Estimator [%s] not fitted. Details: \n%r"
         warnings.warn(msg % (est_name, e), FitFailedWarning)
+        return [None, None, None]
 
 
 def _fit_and_predict(tup):
@@ -73,6 +74,7 @@ def _fit_and_predict(tup):
     except Exception as e:
         msg = "Estimator [%s] not fitted. Details: \n%r"
         warnings.warn(msg % (est_name, e), FitFailedWarning)
+        return [None, None, None]
 
 
 def _predict(tup):
@@ -92,8 +94,9 @@ def _construct_matrix(preds, n, columns, folds):
 
     if folds:
         for (col, i, p) in preds:
-            j = colmap[col]
-            M[i, j] = p
+            if col is not None:
+                j = colmap[col]
+                M[i, j] = p
     else:
         for (col, p) in preds:
             j = colmap[col]

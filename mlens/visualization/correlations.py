@@ -93,8 +93,9 @@ def clustered_corrmap(X, cls=None, label_attr_name='labels_',
 
 
 def corr_X_y(X, y, top=5, show=True):
-    """Function for plotting how features in an input matrix X correlates with
-    y. Output figure shows all correlations as well as top pos and neg.
+    """Function for plotting input feature correlations with output.
+
+    Output figure shows all correlations as well as top pos and neg.
 
     Parameters
     ----------

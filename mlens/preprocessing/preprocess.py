@@ -19,6 +19,7 @@ from sklearn.preprocessing import StandardScaler
 class StandardScalerDf(StandardScaler):
 
     """Standard Scale a DataFrame
+
     Wrapper around StandardScaler to preserve DataFrame representation.
     See original StandardScaler for documentation
     """

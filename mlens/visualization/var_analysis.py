@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+
+"""ML-ENSEMBLE
+
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence: MIT
@@ -15,8 +17,9 @@ from sklearn.decomposition import KernelPCA
 
 
 def IO_plot_comp(X, y, figsize=(10, 8)):
-    """
-    Function for comparing PCA analysis across 2 and 3 dimensions and
+    """Function for comparing PCA analysis
+
+    Function compares across 2 and 3 dimensions and
     linear and rbf kernels. See IO_plot for details.
     """
     comp = ['linear', 'rbf']
@@ -35,8 +38,7 @@ def IO_plot_comp(X, y, figsize=(10, 8)):
 
 
 def IO_plot(X, y, estimator, figsize=(10, 8), show=True, ax=None):
-    """
-    Function to plot a PCA analysis of 1, 2, or 3 dims.
+    """Function to plot a PCA analysis of 1, 2, or 3 dims.
 
     Input:
     ---------
@@ -52,7 +54,6 @@ def IO_plot(X, y, estimator, figsize=(10, 8), show=True, ax=None):
     Returns:
         shows figure
     """
-
     Z = estimator.fit_transform(X.values)
 
     # prep figure if no axis supplied

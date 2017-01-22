@@ -26,7 +26,7 @@ import sys
 
 class Evaluator(object):
 
-    '''
+    '''Class for evaluating a set of estimators and preprocessing pipelines
     Evaluator class that allows user to evaluate several models simoultanously
     across a set of pre-specified pipelines. The class is useful for comparing
     a set of estimators when several preprocessing pipelines have potential.
@@ -62,8 +62,6 @@ class Evaluator(object):
         accepts as ``split`` method, or the number of folds in standard KFold
     shuffle : bool, default=True,
         whether to shuffle data before creating folds
-    summary_df : bool, default=True
-        whether to return summary data in a pandas DataFrame, else as a dict
     random_state : int, default=None
         seed for creating folds
     n_jobs_preprocessing : int, default=-1
@@ -76,10 +74,13 @@ class Evaluator(object):
     Attributes
     -----------
     summary_ : DataFrame
-        Summary output that shows best scores, times, params, estimators
-    cv_results_ : list
-        a list of data from each fit. Includes test and train scores, fit time,
-        param draw index and parameters.
+        Summary output that shows data for best mean test scores, such as
+        test and train scores, std, fit times, and params
+    cv_results_ : DataFrame
+        a table of data from each fit. Includes mean and std of test and train
+        scores and fit times, as well as param draw index and parameters.
+    best_index : ndarray,
+        an array of index keys for best estimator in ``cv_results_``
 
     Methods
     --------
@@ -94,11 +95,10 @@ class Evaluator(object):
     '''
 
     def __init__(self, scoring, preprocessing=None, cv=10, shuffle=True,
-                 summary_df=True, random_state=None, n_jobs_preprocessing=-1,
+                 random_state=None, n_jobs_preprocessing=-1,
                  error_score=-99, n_jobs_estimators=-1, verbose=0):
         self.cv = cv
         self.shuffle = shuffle
-        self.summary_df = summary_df
         self.n_jobs_preprocessing = n_jobs_preprocessing
         self.n_jobs_estimators = n_jobs_estimators
         self.error_score = error_score
@@ -108,7 +108,6 @@ class Evaluator(object):
         self.preprocessing = preprocessing
 
     def preprocess(self, X, y):
-
         '''
         Method for preprocessing data separately from estimator
         evaluation. Helpful if preprocessing is costly relative to
@@ -116,7 +115,6 @@ class Evaluator(object):
         estimators. Examples include fitting base estimators as part of
         preprocessing, to evaluate suitabe meta estimators in ensembles.
         '''
-
         self.preprocessing_ = _clone_preprocess_cases(self.preprocessing)
 
         if self.verbose > 0:
@@ -141,7 +139,6 @@ class Evaluator(object):
 
     def evaluate(self, X, y, estimators, param_dicts, n_iter=2,
                  reset_preprocess=False, flush_preprocess=False):
-
         '''
         Function for evaluating a list of functions, potentially with various
         preprocessing pipelines. This method improves fit time of regular grid
@@ -170,7 +167,6 @@ class Evaluator(object):
         Returns
         ---------
         '''
-
         self.n_iter = n_iter
         self.estimators_ = estimators
         self.param_dicts_ = param_dicts
@@ -249,7 +245,8 @@ class Evaluator(object):
                                       'param_draw', 'params'])
 
         # Get mean scores for each param draw
-        cv_results = out.groupby(['estimator', 'param_draw']).mean()
+        cv_results = out.groupby(['estimator', 'param_draw']).agg(['mean',
+                                                                   'std'])
 
         # Append param settings
         param_map = Series(param_map)
@@ -257,7 +254,8 @@ class Evaluator(object):
         cv_results['params'] = param_map.loc[cv_results.index]
 
         # Create summary table of best scores
-        best_score = cv_results.groupby(level=0).test_score.apply(np.argmax)
+        ts_id = ('test_score', 'mean')
+        best_score = cv_results.loc[:, ts_id].groupby(level=0).apply(np.argmax)
         best_idx = best_score.values
         summary = cv_results.loc[best_idx].reset_index(1, drop=True)
 

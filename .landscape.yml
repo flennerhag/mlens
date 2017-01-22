@@ -1,0 +1,9 @@
+doc-warnings: yes
+
+ignore-paths:
+  - doc/examples
+
+pylint:
+  disable:
+    - too-many-local-variables
+    - too-many-arguments

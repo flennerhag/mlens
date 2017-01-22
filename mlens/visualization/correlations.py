@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence: MIT
@@ -77,7 +79,6 @@ def clustered_corrmap(X, cls=None, label_attr_name='labels_',
     label_attr_name : str
         name of attribute that contains cluster label
     '''
-
     # find closely associated features
     fa = cls(**kwargs)
     fa.fit(X.corr())
@@ -108,7 +109,6 @@ def corr_X_y(X, y, top=5, show=True):
     f, gs : object, object
         figure, axis_grid
     '''
-
     correls = X.apply(lambda x: pearsonr(x, y)[0]).sort_values(ascending=False)
 
     f = plt.figure(figsize=(12, 8))

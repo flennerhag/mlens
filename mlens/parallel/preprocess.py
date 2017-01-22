@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence: MIT
@@ -16,8 +18,7 @@ from sklearn.model_selection import KFold
 
 def preprocess_pipes(preprocessing, X, y=None, fit=True, dry_run=False,
                      return_estimators=False, n_jobs=-1, verbose=False):
-    """ Pre-make preprocessing cases for all data (no folds)"""
-
+    """Pre-make preprocessing cases for all data (no folds)"""
     dout = Parallel(n_jobs=n_jobs, verbose=verbose)(
                     delayed(_preprocess_pipe)(X, y, None, process_case,
                                               fit, p_name, dry_run,
@@ -29,8 +30,7 @@ def preprocess_pipes(preprocessing, X, y=None, fit=True, dry_run=False,
 def preprocess_folds(preprocessing, X, y=None, folds=None, fit=True,
                      shuffle=False, random_state=None, return_idx=True,
                      n_jobs=-1, verbose=False):
-    """ Pre-make preprecessing cases over cv folds (incl no preprocessing)"""
-
+    """Pre-make preprecessing cases over cv folds (incl no preprocessing)"""
     if isinstance(folds, int):
         kfold = KFold(folds, shuffle=shuffle, random_state=random_state)
     else:

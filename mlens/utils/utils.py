@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence: MIT
@@ -18,7 +20,7 @@ except Exception:
 
 
 def _slice(Z, idx):
-    """ Utility function for slicing either a DataFrame or an ndarray """
+    """Utility function for slicing either a DataFrame or an ndarray"""
     # determine training set
     if idx is None:
         z = Z.copy()
@@ -31,26 +33,26 @@ def _slice(Z, idx):
 
 
 def name_columns(estimator_cases):
-    """ Utility func for naming a mapping of estimators on different cases """
+    """Utility func for naming a mapping of estimators on different cases"""
     return [case + '-' + est_name if case not in [None, ''] else est_name
             for case, estimators in estimator_cases.items()
             for est_name, _ in estimators]
 
 
 def pickle_save(obj, name):
-    """ Utility function for pickling an object """
+    """Utility function for pickling an object"""
     with open(name + '.pkl', 'wb') as f:
         pickle.dump(obj, f)
 
 
 def pickle_load(name):
-    """ Utility function for loading pickled object """
+    """Utility function for loading pickled object"""
     with open(name + '.pkl', 'rb') as f:
         return pickle.load(f)
 
 
 def print_time(t0, message='', **kwargs):
-    """ Utility function for printing time """
+    """Utility function for printing time"""
     if len(message) > 0:
         message += ' | '
 

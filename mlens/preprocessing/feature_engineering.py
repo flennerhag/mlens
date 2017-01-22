@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 11/01/2017
 licence: MIT
@@ -13,5 +14,5 @@ from __future__ import division, print_function
 
 
 class PredictionFeature(object):
-    """ TBD """
+    """TBD"""
     pass

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 ML-ENSEMBLE
 author: Sebastian Flennerhag
@@ -15,7 +16,7 @@ from sklearn.base import clone
 
 
 def _clone_base_estimators(base_estimators, as_dict=True):
-    """ Created named clones of base estimators for fitting """
+    """Created named clones of base estimators for fitting"""
     if as_dict:
         return {case: [(est_name, clone(est)) for est_name, est in
                        estimators]
@@ -27,7 +28,7 @@ def _clone_base_estimators(base_estimators, as_dict=True):
 
 
 def _clone_preprocess_cases(preprocess):
-    """ Created named clones of base preprocessing pipes for fitting """
+    """Created named clones of base preprocessing pipes for fitting"""
     if isinstance(preprocess, dict):
         return [(case, [clone(trans) for trans in
                 check_estimators(process_pipe)])

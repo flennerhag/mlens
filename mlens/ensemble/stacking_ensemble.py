@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 ML-ENSEMBLE
 author: Sebastian Flennerhag
@@ -28,6 +29,7 @@ import sys
 
 
 class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
+
     '''
     Meta estimator class that blends a set of base estimators via a meta
     estimator. In difference to standard stacking, where the base estimators
@@ -186,7 +188,6 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         y : array-like, shape=[n_samples, ]
             predictions for provided input array
         '''
-
         data = self._preprocess(X, y, False)
         M = base_predict(data, self.base_estimators_, X.shape[0],
                          folded_preds=False, columns=self.base_columns_,
@@ -202,7 +203,6 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
         # Fit temporary base pipelines and make k-fold out of sample preds
         # Parellelized preprocessing for all folds
-
         if self.verbose >= 2:
             print('>> preprocessing folds', file=printout)
 
@@ -232,7 +232,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.meta_estimator_.fit(M, y)
 
     def _fit_base(self, X, y, printout):
-        """ Fits preprocessing pipelines and base estimator on full dataset"""
+        """Fits preprocessing pipelines and base estimator on full dataset"""
         if self.verbose >= 1:
             print('\n> fitting base estimators', file=printout)
 
@@ -250,7 +250,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
                                                self.n_jobs, self.verbose)
 
     def _preprocess(self, X, y, method_is_fit):
-        """ Method for generating predictions for inputs """
+        """Method for generating predictions for inputs"""
 
         if len(self.preprocess_) == 0:
             return [[X, '']]
@@ -268,7 +268,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
                 return [[z, case] for z, case in out]
 
     def get_params(self, deep=True):
-        ''' Sklearn API for retrieveing all (also nested) model parameters'''
+        """Sklearn API for retrieveing all (also nested) model parameters"""
         if not deep:
             return super(StackingEnsemble, self).get_params(deep=False)
         else:

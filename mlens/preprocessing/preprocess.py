@@ -1,5 +1,8 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence: MIT
@@ -14,7 +17,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 class StandardScalerDf(StandardScaler):
-    """ Wrapper around StandardScaler to preserve DataFrame representation"""
+    """Wrapper around StandardScaler to preserve DataFrame representation"""
     def __init__(self, copy=True, with_mean=True, with_std=True):
         super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
 
@@ -24,6 +27,7 @@ class StandardScalerDf(StandardScaler):
 
 
 class Subset(BaseEstimator, TransformerMixin):
+
     """
     Class for manually selecting a subset
 

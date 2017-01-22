@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence: MIT
@@ -23,6 +25,7 @@ import sys
 
 
 class Evaluator(object):
+
     '''
     Evaluator class that allows user to evaluate several models simoultanously
     across a set of pre-specified pipelines. The class is useful for comparing
@@ -105,11 +108,14 @@ class Evaluator(object):
         self.preprocessing = preprocessing
 
     def preprocess(self, X, y):
-        ''' Method for preprocessing data separately from estimator
-            evaluation. Helpful if preprocessing is costly relative to
-            estimator fitting and flexibility is needed in evaluating
-            estimators. Examples include fitting base estimators as part of
-            preprocessing, to evaluate suitabe meta estimators in ensembles.'''
+
+        '''
+        Method for preprocessing data separately from estimator
+        evaluation. Helpful if preprocessing is costly relative to
+        estimator fitting and flexibility is needed in evaluating
+        estimators. Examples include fitting base estimators as part of
+        preprocessing, to evaluate suitabe meta estimators in ensembles.
+        '''
 
         self.preprocessing_ = _clone_preprocess_cases(self.preprocessing)
 
@@ -135,6 +141,7 @@ class Evaluator(object):
 
     def evaluate(self, X, y, estimators, param_dicts, n_iter=2,
                  reset_preprocess=False, flush_preprocess=False):
+
         '''
         Function for evaluating a list of functions, potentially with various
         preprocessing pipelines. This method improves fit time of regular grid
@@ -204,8 +211,7 @@ class Evaluator(object):
 
     # Auxilliary function for param draws and results mapping
     def _draw_params(self, est_name):
-        """ Draw a list of param dictionaries for estimator """
-
+        """Draw a list of param dictionaries for estimator"""
         # Set up empty list of parameter setting
         param_draws = [{} for _ in range(self.n_iter)]
 
@@ -220,7 +226,7 @@ class Evaluator(object):
         return param_draws
 
     def _param_sets(self):
-        """ For each estimator, create a mapping of parameter draws """
+        """For each estimator, create a mapping of parameter draws"""
         param_sets = {}  # dict with list of param settings for each est
         param_map = {}   # dict with param settings for each est_prep pair
 
@@ -237,7 +243,6 @@ class Evaluator(object):
         return param_sets, param_map
 
     def _results(self, out, param_map):
-
         # Construct a results dataframe for each param draw
         out = DataFrame(out, columns=['estimator', 'test_score',
                                       'train_score', 'time',

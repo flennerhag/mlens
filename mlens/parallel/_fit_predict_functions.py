@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 11/1/2017
 licence: MIT
@@ -17,7 +19,7 @@ from sklearn.exceptions import FitFailedWarning
 
 
 def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
-    """ Score an estimator with given parameters on train and test set """
+    """Score an estimator with given parameters on train and test set"""
     try:
         xtrain, xtest, ytrain, ytest, p_name = tup
     except ValueError:
@@ -48,7 +50,7 @@ def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
 
 
 def _fit_estimator(tup):
-    """ utlity function for fitting estimator and logging its information """
+    """utlity function for fitting estimator and logging its information"""
     y, (X, case), (est_name, estimator) = tup
     try:
         estimator = estimator.fit(X, y)
@@ -59,7 +61,7 @@ def _fit_estimator(tup):
 
 
 def _fit_and_predict(tup):
-    """ Fits ests on part of training set to predict out of sample"""
+    """Fits ests on part of training set to predict out of sample"""
     (xtrain, xtest, ytrain, _, idx, case), (est_name, estimator) = tup
 
     try:
@@ -74,7 +76,7 @@ def _fit_and_predict(tup):
 
 
 def _predict(tup):
-    """ Predicts on data using estimator """
+    """Predicts on data using estimator"""
     (X, case), (est_name, estimator) = tup
     p = estimator.predict(X)
     out = [case + '-' + est_name] if case not in [None, ''] else [est_name]
@@ -83,7 +85,7 @@ def _predict(tup):
 
 
 def _construct_matrix(preds, n, columns, folds):
-    """ Helper function to assemble prediction matrix from prediction output"""
+    """Helper function to assemble prediction matrix from prediction output"""
     colmap = {col: i for i, col in enumerate(columns)}
 
     M = np.empty((n, len(columns)))

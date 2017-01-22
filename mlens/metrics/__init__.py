@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Jan 10 22:59:37 2017
 
+"""
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 11/01/2017
 """

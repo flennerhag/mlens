@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence: MIT
@@ -17,9 +19,10 @@ from sklearn.externals.joblib import Parallel, delayed
 
 def _parallel_estimation(function, data, estimator_cases,
                          const=None, n_jobs=-1, verbose=False):
-    """ Backend function for estimator evaluation.
-        Functions used for parallel estimation must accept only on argument,
-        that the function itself unpacks.
+    """
+    Backend function for estimator evaluation.
+    Functions used for parallel estimation must accept only on argument,
+    that the function itself unpacks.
 
     Parameters
     ----------
@@ -43,7 +46,6 @@ def _parallel_estimation(function, data, estimator_cases,
     verbose : int
         verbosity of paralellization process
     """
-
     inp = const if const is not None else tuple()
 
     return Parallel(n_jobs=n_jobs, verbose=verbose)(
@@ -54,7 +56,7 @@ def _parallel_estimation(function, data, estimator_cases,
 
 def base_predict(data, estimator_cases, n, folded_preds, columns, as_df=False,
                  n_jobs=-1, verbose=False):
-    """ Function for parallelized function fitting """
+    """Function for parallelized function fitting"""
     if folded_preds:
         # we only call folded prediction when fitting, so run fit_and_predict
         function = _fit_and_predict
@@ -72,8 +74,7 @@ def base_predict(data, estimator_cases, n, folded_preds, columns, as_df=False,
 
 
 def fit_estimators(data, y, estimator_cases, n_jobs=-1, verbose=False):
-    """ Function for parallelized estimator fitting """
-
+    """Function for parallelized estimator fitting"""
     out = _parallel_estimation(_fit_estimator, data, estimator_cases, (y,),
                                n_jobs, verbose)
 
@@ -86,8 +87,7 @@ def fit_estimators(data, y, estimator_cases, n_jobs=-1, verbose=False):
 
 def cross_validate(estimators, param_sets, dout, scoring, error_score=-99,
                    n_jobs=-1, verbose=False):
-    """ Run parallellized cross-validated grid search on premade folds """
-
+    """Run parallellized cross-validated grid search on premade folds"""
     out = Parallel(n_jobs=n_jobs, verbose=verbose)(
                    delayed(_fit_score)(est, est_name, params, scoring,
                                        tup, i, error_score)

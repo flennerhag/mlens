@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence: MIT
@@ -8,12 +10,11 @@ Support functions for naming estimators to enable ensemble parameter mapping
 """
 
 from __future__ import division, print_function
-
 from sklearn.pipeline import Pipeline, _name_estimators
 
 
 def name_estimators(estimators, prefix='', suffix=''):
-    """ Function for creating dict with named estimators for get_params """
+    """Function for creating dict with named estimators for get_params"""
     if len(estimators) == 0:
         return {}
     else:
@@ -27,7 +28,7 @@ def name_estimators(estimators, prefix='', suffix=''):
 
 
 def name_base(base_pipelines):
-    """ Function for naming estimators and transformers for base pipelines """
+    """Function for naming estimators and transformers for base pipelines"""
     # if a list is passed, assume it is a list of base estimators
     # i.e. no preprocessing
     if isinstance(base_pipelines, list):
@@ -47,7 +48,7 @@ def name_base(base_pipelines):
 
 
 def check_estimators(estimators):
-    """ Remove potential names from passed list of estimators """
+    """Remove potential names from passed list of estimators"""
     if len(estimators) == 0:
         return []
     else:
@@ -57,7 +58,7 @@ def check_estimators(estimators):
 
 
 def _check_names(estimators):
-    """ Helper to ensure all estimators and transformers are named """
+    """Helper to ensure all estimators and transformers are named"""
     # Check if empty
     if len(estimators) is 0:
         return []

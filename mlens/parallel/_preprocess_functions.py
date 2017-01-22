@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+ML-ENSEMBLE
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence:MIT
@@ -14,8 +16,7 @@ from ..utils import _slice
 
 def _preprocess_pipe(xtrain, ytrain, xtest, steps, fit, p_name=None,
                      dry_run=False, return_estimator=False):
-    """ Function to fit and transform all data with preprocessing pipeline """
-
+    """Function to fit and transform all data with preprocessing pipeline"""
     for step in steps:
         if fit:
             step.fit(xtrain, ytrain)
@@ -39,8 +40,7 @@ def _preprocess_pipe(xtrain, ytrain, xtest, steps, fit, p_name=None,
 
 
 def _preprocess_fold(X, y, indices, preprocessing, fit=True, return_idx=True):
-    """ Function to fit and transform a fold with a preprocessing pipeline """
-
+    """Function to fit and transform a fold with a preprocessing pipeline"""
     train_idx, test_idx = indices
     xtrain, xtest = _slice(X, train_idx), _slice(X, test_idx)
 

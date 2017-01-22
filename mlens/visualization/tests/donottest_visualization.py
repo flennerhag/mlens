@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
-@author: Sebastian Flennerhag
-@date: 13/01/2017
+ML-ENSEMBLE
+author: Sebastian Flennerhag
+date: 13/01/2017
 """
 
 import numpy as np

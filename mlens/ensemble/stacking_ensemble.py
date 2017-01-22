@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-ML-ENSEMBLE
+"""ML-ENSEMBLE
+
 author: Sebastian Flennerhag
 date: 11/01/2017
 licence: MIT
@@ -199,8 +199,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         return self.meta_estimator_.predict(M)
 
     def _fit_meta_estimator(self, X, y, printout):
-        """Temporarily trains base estimators on folds and create
-        out-of-sample predicted input matrix for fitting of meta estimator"""
+        """Create K-fold predicts as meta estimator training data"""
         if self.verbose >= 1:
             print('> fitting meta estimator', file=printout)
 

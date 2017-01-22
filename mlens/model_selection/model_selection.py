@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-ML-ENSEMBLE
+"""ML-ENSEMBLE
+
 author: Sebastian Flennerhag
 date: 10/01/2017
 licence: MIT
@@ -108,7 +108,7 @@ class Evaluator(object):
         self.preprocessing = preprocessing
 
     def preprocess(self, X, y):
-        '''
+        '''Preprocess folds
         Method for preprocessing data separately from estimator
         evaluation. Helpful if preprocessing is costly relative to
         estimator fitting and flexibility is needed in evaluating
@@ -139,7 +139,7 @@ class Evaluator(object):
 
     def evaluate(self, X, y, estimators, param_dicts, n_iter=2,
                  reset_preprocess=False, flush_preprocess=False):
-        '''
+        '''Evaluate estimators
         Function for evaluating a list of functions, potentially with various
         preprocessing pipelines. This method improves fit time of regular grid
         search of a list of estimators since preprocessing is done once

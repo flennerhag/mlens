@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-ML-ENSEMBLE
+"""ML-ENSEMBLE
+
 author: Sebastian Flennerhag
 date: 11/01/2017
 Scoring functions not in the sklearn library
@@ -24,14 +24,14 @@ def score_matrix(M, y, score, column_names=None):
 
 
 def rmse_scoring(y, p):
-    """Root Mean Square Error := sqrt(mse), mse := (1/n) * sum( (y-p)**2 )"""
+    """Root Mean Square Error := sqrt(mse), mse := (1/n) * sum((y-p)**2)"""
     return np.mean((y-p)**2)**(1/2)
 
 rmse = make_scorer(rmse_scoring, greater_is_better=False)
 
 
 def mape_scoring(y, p):
-    """Mean Average Percentage Error := mean( abs( (y - p) / y) )"""
+    """Mean Average Percentage Error := mean(abs((y - p) / y))"""
     return np.mean(np.abs((y-p)/y))
 
 
@@ -44,7 +44,7 @@ mape_log = make_scorer(mape_log_rescaled_scoring, greater_is_better=False)
 
 
 def wape_scoring(y, p):
-    """Weighted Mean Average Percentage Error := mean( abs( (y - p) / y) )"""
+    """Weighted Mean Average Percentage Error := sum(abs(y - p)) / sum(y)"""
     return np.sum(np.abs(y-p)) / np.sum(y)
 
 

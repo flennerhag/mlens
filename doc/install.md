@@ -2,14 +2,14 @@
 
 To install the package, you need the following dependencies: 
 
-| Package | Version        |
-| ------- | -------------- |
-| scipy   | >= 0.17        |
-| numpy   | >= 1.11.0      |
-| pandas  | >= 0.19.0      |
-| scikit-learn | >= 0.18.1 |
-| matplotlib | >= 1.5.1    |
-| seaborn |>= 0.7.1        |
+| Package | Version        | Module          |
+| ------- | -------------- | --------------- |
+| scipy   | >= 0.17        | All             |
+| numpy   | >= 1.11.0      | All             |
+| pandas  | >= 0.19.0      | Model Selection |
+| scikit-learn | >= 0.18.1 |                 |
+| matplotlib | >= 1.5.1    | Visualization   |
+| seaborn |>= 0.7.1        | Visualization   |
 
 You can install ``mlens`` either through PyPi or the ``python setyp.py install`` command:
 

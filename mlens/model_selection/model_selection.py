@@ -14,12 +14,10 @@ and all cases are accessibly stored in a summary attribute.
 
 from __future__ import division, print_function
 
-from sklearn.base import clone
 import numpy as np
 from pandas import DataFrame, Series
 from ..ensemble._clone import _clone_preprocess_cases
 from ..parallel import preprocess_folds, cross_validate
-from sklearn.pipeline import Pipeline
 from time import time
 import sys
 

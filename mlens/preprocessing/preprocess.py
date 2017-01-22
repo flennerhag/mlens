@@ -17,11 +17,17 @@ from sklearn.preprocessing import StandardScaler
 
 
 class StandardScalerDf(StandardScaler):
-    """Wrapper around StandardScaler to preserve DataFrame representation"""
+
+    """Standard Scale a DataFrame
+    Wrapper around StandardScaler to preserve DataFrame representation.
+    See original StandardScaler for documentation
+    """
+
     def __init__(self, copy=True, with_mean=True, with_std=True):
         super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
 
     def transform(self, X, y=None, copy=None):
+        """StandardScales data and assigns it to a copy of passed DataFrame"""
         X.loc[:, :] = super().transform(X, y, copy)
         return X
 

@@ -166,6 +166,8 @@ class Evaluator(object):
             is large.
         Returns
         ---------
+        self : obj
+            class instance with stored evaluation data
         """
         self.n_iter = n_iter
         self.estimators_ = estimators

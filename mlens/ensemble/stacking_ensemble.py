@@ -253,7 +253,6 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
     def _preprocess(self, X, y, method_is_fit):
         """Method for generating predictions for inputs"""
-
         if len(self.preprocess_) == 0:
             return [[X, '']]
         else:

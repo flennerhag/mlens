@@ -23,7 +23,8 @@ setup(name='mlens',
                          'README.md',
                          'requirements.txt']},
       include_package_data=True,
-      install_requires=['numpy>=1.11.0', 'scipy>=0.17', 'scikit-learn>=0.18.1', 'pandas>=0.18.0'],
+      install_requires=['numpy>=1.11.0', 'scipy>=0.17',
+                        'scikit-learn>=0.18.1', 'pandas>=0.18.0'],
       license='MIT',
       platforms='any',
       classifiers=['License :: OSI Approved :: MIT License',
@@ -32,6 +33,7 @@ setup(name='mlens',
                    'Operating System :: POSIX',
                    'Operating System :: Unix',
                    'Operating System :: MacOS',
+                   'Programming Language :: Python :: 2.7',
                    'Programming Language :: Python :: 3',
                    'Programming Language :: Python :: 3.3',
                    'Programming Language :: Python :: 3.4',
@@ -41,9 +43,11 @@ setup(name='mlens',
       long_description="""
 A library for automated, paralellized Ensemble learning
 
+Full documentation available at http://mlens.readthedocs.io/en/latest/
+
 Contact
 =============
-If you have any questions or comments about mlens, feel free to reach out
-at sebastianflennerhag@hotmail.com.
+If you have any questions or comments about mlens, please to reach out
+to sebastianflennerhag@hotmail.com.
 This project is hosted at https://github.com/flennerhag/mlens
 """)

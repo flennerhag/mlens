@@ -71,3 +71,18 @@ def _check_names(estimators):
     # Else assume list of unnamed estimators
     else:
         return _name_estimators(estimators)
+
+
+def _split_base(base_pipelines):
+    """Utility function for splitting the base pipeline"""
+    # if preprocessing pipes, seperate base estimators and preprocessing
+    if isinstance(base_pipelines, dict):
+        preprocess = [(case, _check_names(p[0])) for case, p in
+                      base_pipelines.items()]
+        base_estimators = [(case, _check_names(p[1])) for case, p in
+                           base_pipelines.items()]
+    # else, ensure base_estimators are named
+    else:
+        preprocess = []
+        base_estimators = [('', _check_names(base_pipelines))]
+    return preprocess, base_estimators

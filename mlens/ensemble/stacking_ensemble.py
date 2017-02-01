@@ -13,20 +13,124 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 from __future__ import division, print_function
 
 from sklearn.base import clone, BaseEstimator, TransformerMixin, RegressorMixin
-from ._setup import name_estimators, name_base, _check_names
+from ._setup import name_estimators, name_base, _split_base
 from ._clone import _clone_base_estimators, _clone_preprocess_cases
 from ._support import _check_estimators, name_columns
 from ..utils import print_time
 from ..metrics import score_matrix
-from ..parallel import preprocess_folds, preprocess_pipes
-from ..parallel import fit_estimators, base_predict
+from ..parallel import (preprocess_folds, preprocess_pipes,
+                        fit_estimators, base_predict)
 from sklearn.externals import six
 from time import time
 import sys
 
 # TODO: make the preprocessing of folds optional as it can take a lot of memory
-# TODO: Refactor the fitting method so we can build blend and stacking from
-#       same class shell
+
+
+def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
+                  folded_preds, n_jobs, printout, verbose, layer_msg='layer'):
+    """Generate training data layer
+
+    Function for generating training data for next layer from an ingoing layer
+    """
+    if verbose >= 1:
+        print('> fitting %s' % layer_msg, file=printout)
+        printout.flush()
+
+    preprocess, estimators, columns = layer
+
+    # Fit temporary base pipelines and make k-fold out of sample preds
+    # Parellelized preprocessing for all folds
+    if verbose >= 2:
+        print('>> preprocessing folds', file=printout)
+        printout.flush()
+
+    Min = preprocess_folds(_clone_preprocess_cases(preprocess),
+                           X, y, folds=folds, fit=True, shuffle=shuffle,
+                           random_state=random_state, n_jobs=n_jobs,
+                           verbose=verbose)
+
+    # Parellelized k-fold predictions for meta estimator training set
+    if verbose >= 2:
+        print('>> fitting ingoing layer', file=printout)
+        printout.flush()
+
+    M, fitted_estimator_names = \
+        base_predict(Min, _clone_base_estimators(estimators), n=X.shape[0],
+                     folded_preds=folded_preds, columns=columns, as_df=as_df,
+                     n_jobs=n_jobs, verbose=verbose)
+    del Min
+
+    if scorer is not None:
+        cols = [] if as_df else fitted_estimator_names
+        scores = score_matrix(M, y, scorer, cols)
+    else:
+        scores = None
+
+    if verbose >= 2:
+        print('>> fit complete.', file=printout)
+        printout.flush()
+
+    return M, scores, fitted_estimator_names
+
+
+def fit_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
+              folded_preds, n_jobs, printout, verbose, layer_msg='layer'):
+    """Fit ensemble layer
+
+    Function for fitting a layer and generating training data for next layer
+    """
+    out = _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer,
+                        as_df, folded_preds, n_jobs, printout, verbose,
+                        layer_msg)
+
+    fitted_estimators, fitted_preprocessing = \
+        _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose)
+
+    return out + (fitted_estimators, fitted_preprocessing)
+
+
+def _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose):
+    """Fits preprocessing pipelines and layer estimator on full dataset"""
+    if verbose >= 1:
+        print('> fitting layer estimators', file=printout)
+
+    # Parallelized fitting of preprocessing pipelines
+    if verbose >= 2:
+        print('>> preprocessing layer training data', file=printout)
+        printout.flush()
+
+    preprocess, estimators, _ = layer
+
+    Min, preprocessing = \
+        _layer_preprocess(X, y, _clone_preprocess_cases(preprocess), True,
+                          n_jobs, verbose)
+
+    # Parallelized fitting of base estimators (on full training data)
+    if verbose >= 2:
+        print('>> fitting base estimators', file=printout)
+        printout.flush()
+
+    return (fit_estimators(Min, y,  _clone_base_estimators(estimators), n_jobs,
+                           verbose), preprocessing)
+
+
+def _layer_preprocess(X, y, layer_preprocess, method_is_fit, n_jobs, verbose):
+    """Method for generating predictions for inputs"""
+    if (layer_preprocess is None) or (len(layer_preprocess) == 0):
+        return [[X, '']], None
+    else:
+
+        out = preprocess_pipes(layer_preprocess, X, y, fit=method_is_fit,
+                               return_estimators=method_is_fit,
+                               n_jobs=n_jobs, verbose=verbose)
+        if method_is_fit:
+            pipes, Z, cases = zip(*out)
+            fitted_prep = [(case, pipe) for case, pipe in
+                           zip(cases, pipes)]
+            return [[z, case] for z, case in zip(Z, cases)], fitted_prep
+        else:
+            return [[z, case] for z, case in out], None
 
 
 class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
@@ -118,20 +222,10 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
         self.base_pipelines = base_pipelines
         self.meta_estimator = meta_estimator
-
         self.named_meta_estimator = name_estimators([meta_estimator], 'meta-')
         self.named_base_pipelines = name_base(base_pipelines)
 
-        # if preprocessing, seperate base estimators and preprocessing pipes
-        if isinstance(base_pipelines, dict):
-            self.preprocess = [(case, _check_names(p[0])) for case, p in
-                               base_pipelines.items()]
-            self.base_estimators = [(case, _check_names(p[1])) for case, p in
-                                    base_pipelines.items()]
-        # else, ensure base_estimators are named
-        else:
-            self.preprocess = []
-            self.base_estimators = [('', _check_names(base_pipelines))]
+        self.preprocess, self.base_estimators = _split_base(base_pipelines)
 
         self.folds = folds
         self.shuffle = shuffle
@@ -170,13 +264,21 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
             printout = None
 
         # ========== Fit meta estimator ==========
-        self._fit_meta_estimator(X, y, printout)
+        layer = (self.preprocess, self.base_estimators, self.base_columns_)
 
-        # ========== Fit preprocessing pipes and base estimators ==========
-        self._fit_base(X, y, printout)
+        (M, scores, self._fitted_estimators_,
+         self.base_estimators_, self.preprocess_) = \
+            fit_layer(layer, X, y, self.folds, self.shuffle, self.random_state,
+                      self.scorer, self.as_df, True, self.n_jobs, printout,
+                      self.verbose, layer_msg='layer')
+
+        if self.scorer is not None:
+            self.scores_ = scores
+
+        self.meta_estimator_.fit(M, y)
 
         if self.verbose > 0:
-            print_time(ts, '\nFit complete', file=printout)
+            print_time(ts, 'Fit complete', file=printout)
 
         return self
 
@@ -193,92 +295,17 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         y : array-like, shape=[n_samples, ]
             predictions for provided input array
         """
-        data = self._preprocess(X, y, False)
-        M, fitted_estimators = \
-            base_predict(data, self.base_estimators_, X.shape[0],
-                         folded_preds=False, columns=self.fitted_estimators_,
+        Min, _ = _layer_preprocess(X, y, self.preprocess_, False, self.n_jobs,
+                                   self.verbose)
+
+        M, fitted_estimator_names = \
+            base_predict(Min, self.base_estimators_, X.shape[0],
+                         folded_preds=False, columns=self._fitted_estimators_,
                          as_df=self.as_df, n_jobs=self.n_jobs, verbose=False)
 
-        _check_estimators(fitted_estimators, self.fitted_estimators_)
+        _check_estimators(fitted_estimator_names, self._fitted_estimators_)
 
         return self.meta_estimator_.predict(M)
-
-    def _fit_meta_estimator(self, X, y, printout):
-        """Create K-fold predicts as meta estimator training data"""
-        if self.verbose >= 1:
-            print('> fitting meta estimator', file=printout)
-            printout.flush()
-
-        # Fit temporary base pipelines and make k-fold out of sample preds
-        # Parellelized preprocessing for all folds
-        if self.verbose >= 2:
-            print('>> preprocessing folds', file=printout)
-            printout.flush()
-
-        data = preprocess_folds(_clone_preprocess_cases(self.preprocess),
-                                X, y, folds=self.folds, fit=True,
-                                shuffle=self.shuffle,
-                                random_state=self.random_state,
-                                n_jobs=self.n_jobs, verbose=self.verbose)
-
-        # Parellelized k-fold predictions for meta estiamtor training set
-        if self.verbose >= 2:
-            print('>> fitting base estimators', file=printout)
-            printout.flush()
-
-        M, self.fitted_estimators_ = \
-            base_predict(data, _clone_base_estimators(self.base_estimators),
-                         n=X.shape[0], folded_preds=True,
-                         columns=self.base_columns_, as_df=self.as_df,
-                         n_jobs=self.n_jobs, verbose=self.verbose)
-        del data  # discard
-
-        if self.scorer is not None:
-            cols = [] if self.as_df else self.fitted_estimators_
-            self.scores_ = score_matrix(M, y, self.scorer, cols)
-
-        if self.verbose >= 2:
-            print('>> fitting meta estimator', file=printout)
-            printout.flush()
-
-        self.meta_estimator_.fit(M, y)
-
-    def _fit_base(self, X, y, printout):
-        """Fits preprocessing pipelines and base estimator on full dataset"""
-        if self.verbose >= 1:
-            print('\n> fitting base estimators', file=printout)
-
-        # Parallelized fitting of preprocessing pipelines
-        if self.verbose >= 2:
-            print('>> preprocessing data', file=printout)
-            printout.flush()
-
-        data = self._preprocess(X, y, True)
-
-        # Parallelized fitting of base estimators (on full training data)
-        if self.verbose >= 2:
-            print('>> fitting base estimators', file=printout)
-            printout.flush()
-
-        self.base_estimators_ = fit_estimators(data, y, self.base_estimators_,
-                                               self.n_jobs, self.verbose)
-
-    def _preprocess(self, X, y, method_is_fit):
-        """Method for generating predictions for inputs"""
-        if len(self.preprocess_) == 0:
-            return [[X, '']]
-        else:
-
-            out = preprocess_pipes(self.preprocess_, X, y, fit=method_is_fit,
-                                   return_estimators=method_is_fit,
-                                   n_jobs=self.n_jobs, verbose=self.verbose)
-            if method_is_fit:
-                pipes, Z, cases = zip(*out)
-                self.preprocess_ = [(case, pipe) for case, pipe in
-                                    zip(cases, pipes)]
-                return [[z, case] for z, case in zip(Z, cases)]
-            else:
-                return [[z, case] for z, case in out]
 
     def get_params(self, deep=True):
         """Sklearn API for retrieveing all (also nested) model parameters"""

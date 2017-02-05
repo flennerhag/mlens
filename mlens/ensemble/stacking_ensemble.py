@@ -20,7 +20,7 @@ from ..utils import print_time
 from ..metrics import score_matrix
 from ..parallel import (preprocess_folds, preprocess_pipes,
                         fit_estimators, base_predict)
-from sklearn.externals import six
+from ..externals import six
 from time import time
 import sys
 

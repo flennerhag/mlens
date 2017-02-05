@@ -39,8 +39,6 @@ def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
 
     preprocess, estimators, columns = layer
 
-    # Fit temporary base pipelines and make k-fold out of sample preds
-    # Parellelized preprocessing for all folds
     if verbose >= 2:
         print('>> preprocessing folds', file=printout)
         printout.flush()
@@ -50,7 +48,6 @@ def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
                            random_state=random_state, n_jobs=n_jobs,
                            verbose=verbose)
 
-    # Parellelized k-fold predictions for meta estimator training set
     if verbose >= 2:
         print('>> fitting ingoing layer', file=printout)
         printout.flush()
@@ -95,7 +92,6 @@ def _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose):
     if verbose >= 1:
         print('> fitting layer estimators', file=printout)
 
-    # Parallelized fitting of preprocessing pipelines
     if verbose >= 2:
         print('>> preprocessing layer training data', file=printout)
         printout.flush()
@@ -106,7 +102,6 @@ def _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose):
         _layer_preprocess(X, y, _clone_preprocess_cases(preprocess), True,
                           n_jobs, verbose)
 
-    # Parallelized fitting of base estimators (on full training data)
     if verbose >= 2:
         print('>> fitting base estimators', file=printout)
         printout.flush()
@@ -115,6 +110,7 @@ def _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose):
                            verbose), preprocessing)
 
 
+# TODO: merge with preprocess_pipes
 def _layer_preprocess(X, y, layer_preprocess, method_is_fit, n_jobs, verbose):
     """Method for generating predictions for inputs"""
     if (layer_preprocess is None) or (len(layer_preprocess) == 0):
@@ -263,7 +259,6 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         else:
             printout = None
 
-        # ========== Fit meta estimator ==========
         layer = (self.preprocess, self.base_estimators, self.base_columns_)
 
         (M, scores, self._fitted_estimators_,

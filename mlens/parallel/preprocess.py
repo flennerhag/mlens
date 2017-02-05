@@ -12,7 +12,7 @@ Functions for parallelized preprocessing
 from __future__ import division, print_function
 
 from ._preprocess_functions import _preprocess_pipe, _preprocess_fold
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 from sklearn.model_selection import KFold
 
 

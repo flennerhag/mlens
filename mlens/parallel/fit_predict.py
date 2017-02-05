@@ -14,7 +14,7 @@ from __future__ import division, print_function
 from ._fit_predict_functions import _fit_score, _fit_and_predict, _predict
 from ._fit_predict_functions import _fit_estimator, _construct_matrix
 from pandas import DataFrame
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 
 
 def _parallel_estimation(function, data, estimator_cases,

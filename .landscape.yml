@@ -2,6 +2,7 @@ doc-warnings: yes
 
 ignore-paths:
   - doc/examples
+  - mlens/externals
 
 ignore-patterns:
     - ^example/doc_.*\.py$

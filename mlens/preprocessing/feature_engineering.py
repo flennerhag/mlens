@@ -16,9 +16,9 @@ from pandas import DataFrame, concat
 from numpy import hstack
 
 from sklearn.base import BaseEstimator, TransformerMixin
-from ._setup import name_estimators
-from ._clone import _clone_base_estimators
-from ._support import _check_estimators
+from ..base import name_estimators
+from ..base import _clone_base_estimators
+from ..base import _check_estimators
 from ..utils import print_time
 from ..parallel import preprocess_folds, fit_estimators, base_predict
 from ..externals import six

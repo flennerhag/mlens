@@ -8,8 +8,9 @@ date: 15/01/2017
 from __future__ import division, print_function
 
 from mlens.preprocessing.feature_engineering import PredictionFeature
+from sklearn.linear_model import Lasso
 
-pf = PredictionFeature()
+pf = PredictionFeature([Lasso()])
 
 
 def test_prediction_feature():

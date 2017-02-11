@@ -18,7 +18,7 @@ from __future__ import division, print_function
 
 import numpy as np
 from pandas import DataFrame, Series
-from ..ensemble._clone import _clone_preprocess_cases
+from ..base import _clone_preprocess_cases
 from ..parallel import preprocess_folds, cross_validate
 from time import time
 import sys

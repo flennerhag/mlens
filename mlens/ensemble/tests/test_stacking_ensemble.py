@@ -8,10 +8,6 @@
 from __future__ import division, print_function, with_statement
 
 from mlens.ensemble import StackingEnsemble
-from mlens.ensemble._setup import name_estimators, name_base, _check_names
-from mlens.ensemble._clone import _clone_base_estimators
-from mlens.ensemble._clone import _clone_preprocess_cases
-from mlens.ensemble._support import name_columns
 from mlens.metrics import rmse
 from mlens.metrics.metrics import rmse_scoring
 from sklearn.linear_model import Lasso
@@ -79,54 +75,6 @@ ens3 = StackingEnsemble(Lasso(alpha=0.001, random_state=100),
                          ([], [SVR(),
                                RandomForestRegressor(random_state=100)])},
                         random_state=100, n_jobs=-1)
-
-
-def test_naming():
-
-    named_meta = name_estimators([meta], 'meta-')
-    named_base = name_base(base_pipelines)
-
-    assert isinstance(named_meta, dict)
-    assert isinstance(named_meta['meta-svr'], SVR)
-    assert isinstance(named_base, dict)
-    assert len(named_base) == 6
-
-
-def test_check_names():
-
-    preprocess = [(case, _check_names(p[0])) for case, p in
-                  base_pipelines.items()]
-
-    base_estimators = [(case, _check_names(p[1])) for case, p in
-                       base_pipelines.items()]
-
-    assert isinstance(base_estimators, list)
-    assert isinstance(preprocess, list)
-    assert len(base_estimators) == 3
-    assert len(preprocess) == 3
-    assert isinstance(base_estimators[0], tuple)
-    assert isinstance(preprocess[0], tuple)
-
-
-def test_clone():
-
-    preprocess = [(case, _check_names(p[0])) for case, p in
-                  base_pipelines.items()]
-    base_estimators = [(case, _check_names(p[1])) for case, p in
-                       base_pipelines.items()]
-
-    base_ = _clone_base_estimators(base_estimators)
-    preprocess_ = _clone_preprocess_cases(preprocess)
-    base_columns_ = name_columns(base_)
-
-    assert isinstance(preprocess_, list)
-    assert isinstance(preprocess_[0], tuple)
-    assert isinstance(preprocess_[0][1], list)
-    assert isinstance(base_, dict)
-    assert isinstance(base_['mm'], list)
-    assert isinstance(base_['mm'][0], tuple)
-    assert isinstance(base_columns_, list)
-    assert len(base_columns_) == 4
 
 
 def test_no_preprocess_ensemble():

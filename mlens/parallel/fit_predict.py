@@ -11,13 +11,15 @@ Base functions for any parallel processing
 
 from __future__ import division, print_function
 
-from ._fit_predict_functions import _fit_score, _fit_and_predict, _predict
-from ._fit_predict_functions import _fit_estimator, _construct_matrix
+from ._fit_predict_functions import (_fit_score, _fit_predict_base,
+                                     _predict_base, _predict, _fit_estimator,
+                                     _construct_matrix)
 from pandas import DataFrame
 from joblib import Parallel, delayed
 
 
 def _pre_check_estimators(out, case_est_base_columns):
+    """Returns ordered list of the names of successfully fittest estimators"""
     try:
         case_est_names, _, _ = zip(*out)
     except ValueError:
@@ -27,7 +29,7 @@ def _pre_check_estimators(out, case_est_base_columns):
 
 
 def _parallel_estimation(function, data, estimator_cases,
-                         const=None, n_jobs=-1, verbose=False):
+                         optional_args=None, n_jobs=-1, verbose=False):
     """Backend function for estimator evaluation.
 
     Functions used for parallel estimation must accept only on argument,
@@ -48,28 +50,34 @@ def _parallel_estimation(function, data, estimator_cases,
     estimator_cases : dict
         dictionary that maps preprocessing cases to a list of estimators to be
         fitted on the generated data
-    const : tuple
+    optional_args : tuple
         a tuple of optional arguments to be passed to function
     n_jobs : int
         level of parallellization
     verbose : int
         verbosity of paralellization process
     """
-    inp = const if const is not None else tuple()
+    add_input = optional_args if optional_args is not None else tuple()
 
     return Parallel(n_jobs=n_jobs, verbose=verbose)(
-                   delayed(function)(inp + (tup, est))
+                   delayed(function)(add_input + (tup, est))
                    for tup in data
                    for est in estimator_cases[tup[-1]])
 
 
-def base_predict(data, estimator_cases, n, folded_preds, columns, as_df=False,
-                 n_jobs=-1, verbose=False):
+def base_predict(data, estimator_cases, n, folded_preds, fit, columns,
+                 as_df=False, n_jobs=-1, verbose=False):
     """Function for parallelized function fitting"""
+    # Determine prediction case
     if folded_preds:
-        # we only call folded prediction when fitting, so run fit_and_predict
-        function = _fit_and_predict
+        if fit:
+            # Predicting the base in ensembles may require fitting estimators
+            function = _fit_predict_base
+        else:
+            # Use already fitted estimators to make predictions on folds
+            function = _predict_base
     else:
+        # Use estimators fitted on full training set to predict test set
         function = _predict
 
     out = _parallel_estimation(function, data, estimator_cases,
@@ -92,7 +100,7 @@ def fit_estimators(data, y, estimator_cases, n_jobs=-1, verbose=False):
     fitted_estimators = {}
     for case, est_name, est in out:
         # Filter out unfitted models - these have case, est_name, est = None
-        if case is not None:
+        if est_name is not None:
             # Instantiate list
             if case not in fitted_estimators:
                 fitted_estimators[case] = []

@@ -11,9 +11,9 @@ Base functions for any parallel processing
 
 from __future__ import division, print_function
 
-from ._fit_predict_functions import (_fit_score, _fit_predict_base,
-                                     _predict_base, _predict, _fit_estimator,
-                                     _construct_matrix)
+from ._fit_predict_functions import (_fit_score, _fit_estimator,
+                                     _construct_matrix, _predict,
+                                     _predict_folds_decorator)
 from pandas import DataFrame
 from joblib import Parallel, delayed
 
@@ -70,12 +70,8 @@ def base_predict(data, estimator_cases, n, folded_preds, fit, columns,
     """Function for parallelized function fitting"""
     # Determine prediction case
     if folded_preds:
-        if fit:
-            # Predicting the base in ensembles may require fitting estimators
-            function = _fit_predict_base
-        else:
-            # Use already fitted estimators to make predictions on folds
-            function = _predict_base
+        # If folds, use decorator to get prediction function with fit on/off
+        function = _predict_folds_decorator(fit)
     else:
         # Use estimators fitted on full training set to predict test set
         function = _predict

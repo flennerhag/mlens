@@ -13,7 +13,7 @@ from __future__ import division, print_function
 
 from ._fit_predict_functions import (_fit_score, _fit_estimator,
                                      _construct_matrix, _predict,
-                                     _predict_folds_decorator)
+                                     _predict_folds)
 from pandas import DataFrame
 from joblib import Parallel, delayed
 
@@ -70,13 +70,12 @@ def base_predict(data, estimator_cases, n, folded_preds, fit, columns,
     """Function for parallelized function fitting"""
     # Determine prediction case
     if folded_preds:
-        # If folds, use decorator to get prediction function with fit on/off
-        function = _predict_folds_decorator(fit)
+        function = _predict_folds
     else:
         # Use estimators fitted on full training set to predict test set
         function = _predict
 
-    out = _parallel_estimation(function, data, estimator_cases,
+    out = _parallel_estimation(function, data, estimator_cases, (fit,),
                                n_jobs=n_jobs, verbose=verbose)
 
     fitted_estimators = _pre_check_estimators(out, columns)

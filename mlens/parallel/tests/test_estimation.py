@@ -18,7 +18,7 @@ from mlens.metrics import rmse
 from mlens.parallel.fit_predict import _parallel_estimation, base_predict
 from mlens.parallel.fit_predict import fit_estimators, cross_validate
 from mlens.parallel._fit_predict_functions import _fit_score, _fit_estimator
-from mlens.parallel._fit_predict_functions import _fit_and_predict
+from mlens.parallel._fit_predict_functions import _predict_folds
 from mlens.parallel._fit_predict_functions import _predict, _construct_matrix
 from sklearn.linear_model import Lasso
 import warnings
@@ -52,7 +52,7 @@ def test_fit_estimator_func():
 
 def test_fit_and_predict_func():
     tup = (X, X, y, y, [i for i in range(100)], 'test'), ('ls', estimator)
-    out = _fit_and_predict(tup)
+    out = _predict_folds((True,) + tup)
 
     assert out[0] == 'test-ls'
     assert str(out[-1][0])[:16] == '0.751494071538'
@@ -61,7 +61,7 @@ def test_fit_and_predict_func():
 def test_predict_func():
     estimator.fit(X, y)
     tup = ((X, 'test'), ('ls', estimator))
-    out = _predict(tup)
+    out = _predict((None,) + tup)
     assert out[0] == 'test-ls'
     assert str(out[-1][0])[:16] == '0.751494071538'
 
@@ -101,9 +101,9 @@ def test_fit_score_func():
 def test_parallel_estimation():
     tup = [(X, X, y, y, [i for i in range(100)], 'test')]
 
-    out = _parallel_estimation(_fit_and_predict, tup,
+    out = _parallel_estimation(_predict_folds, tup,
                                {'test': [('ls', estimator)]},
-                               const=None, n_jobs=1, verbose=False)
+                               optional_args=(True,), n_jobs=1, verbose=False)
     assert out[0][0] == 'test-ls'
     assert str(out[0][2][0])[:16] == '0.751494071538'
 
@@ -117,7 +117,7 @@ def test_base_predict():
         warnings.simplefilter('ignore')
         (M, ests) = base_predict(data, {'test': [('ls', estimator),
                                                  ('bad', estimator_bad)]},
-                                 100, True, ['test-ls', 'test-bad'],
+                                 100, True, True, ['test-ls', 'test-bad'],
                                  as_df=True)
 
     # Check that bad estimator was dropped

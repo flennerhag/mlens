@@ -11,7 +11,6 @@ Support function for parallelized fitting and prediction of estimators
 
 from __future__ import division, print_function
 
-from functools import wraps
 from time import time
 import numpy as np
 import warnings
@@ -62,9 +61,9 @@ def _fit_estimator(tup):
         return [None, None, None]
 
 
-def _predict_folds(tup, fit):
+def _predict_folds(tup):
     """Fits ests on part of training set to predict out of sample"""
-    (xtrain, xtest, ytrain, _, idx, case), (est_name, estimator) = tup
+    fit, (xtrain, xtest, ytrain, _, idx, case), (est_name, estimator) = tup
 
     try:
         est = clone(estimator)
@@ -80,16 +79,9 @@ def _predict_folds(tup, fit):
         return [None, None, None]
 
 
-def _predict_folds_decorator(fit):
-    """Decorator for _predict_folds to alter fit argument"""
-    def wrapper(tup):
-        return _predict_folds(tup, fit)
-    return wrapper
-
-
 def _predict(tup):
     """Predicts on data using estimator"""
-    (X, case), (est_name, estimator) = tup
+    _, (X, case), (est_name, estimator) = tup
     p = estimator.predict(X)
     out = [case + '-' + est_name] if case not in [None, ''] else [est_name]
     out.append(p)

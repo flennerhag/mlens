@@ -54,7 +54,8 @@ def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
 
     M, fitted_estimator_names = \
         base_predict(Min, _clone_base_estimators(estimators), n=X.shape[0],
-                     folded_preds=folded_preds, fit=True, columns=columns,
+                     folded_preds=folded_preds, fit=True,
+                     columns=columns, combine_keys=True,
                      as_df=as_df, n_jobs=n_jobs, verbose=verbose)
 
     if scorer is not None:
@@ -105,7 +106,7 @@ def _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose):
         print('>> fitting base estimators', file=printout)
         printout.flush()
 
-    return (fit_estimators(Min, y,  _clone_base_estimators(estimators), n_jobs,
+    return (fit_estimators(Min, _clone_base_estimators(estimators), y, n_jobs,
                            verbose), preprocessing)
 
 
@@ -295,7 +296,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         M, fitted_estimator_names = \
             base_predict(Min, self.base_estimators_, X.shape[0],
                          folded_preds=False, fit=False,
-                         columns=self._fitted_estimators_,
+                         columns=self._fitted_estimators_, combine_keys=True,
                          as_df=self.as_df, n_jobs=self.n_jobs, verbose=False)
 
         _check_estimators(fitted_estimator_names, self._fitted_estimators_)

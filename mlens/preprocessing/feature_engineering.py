@@ -75,7 +75,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
     def __init__(self, estimators, folds=2, shuffle=True, scorer=None,
                  random_state=None, verbose=False, n_jobs=-1):
 
-        self.estimators = estimators
+        self.estimators = [('', estimators)]
         self.named_estimator = name_estimators(estimators)
 
         self.folds = folds
@@ -118,21 +118,19 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
                                random_state=self.random_state,
                                n_jobs=self.n_jobs, verbose=self.verbose)
 
-        self.train_ests_ = \
-            fit_estimators(Min, y,
-                           {'': _clone_base_estimators(self.estimators)},
-                           self.n_jobs, self.verbose)
-        fitted_train_ests = [est_name for est_name, _ in self.train_ests]
+        # >> Generate mapping between folds and estimators
+        Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
+        ests_ = {i: _clone_base_estimators(self.estimators)['']
+                 for i in range(len(Min))}
+        self.train_ests_ = fit_estimators(Min, ests_, None,
+                                          self.n_jobs, self.verbose)
 
         # Fit estimators for test set
         self.test_ests_ = \
-            fit_estimators([[X, '']], y,
-                           {'': _clone_base_estimators(self.estimators)},
-                           self.n_jobs, self.verbose)
-        fitted_test_ests = [est_name for est_name, _ in self.test_ests]
+            fit_estimators([[X, '']], _clone_base_estimators(self.estimators),
+                           y, self.n_jobs, self.verbose)
 
-        # Safety checks
-        _check_estimators(fitted_test_ests, fitted_train_ests)
+        fitted_test_ests = [est_name for est_name, _ in self.test_ests_['']]
         self._fitted_ests = fitted_test_ests
 
         if self.verbose > 0:
@@ -162,6 +160,8 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
                                    shuffle=self.shuffle,
                                    random_state=self.random_state,
                                    n_jobs=self.n_jobs, verbose=self.verbose)
+
+            Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
             folded_preds = True
             estimators = self.train_ests_
         else:
@@ -174,7 +174,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         M, fitted_estimator_names = \
             base_predict(Min, estimators, n=X.shape[0],
                          folded_preds=folded_preds, fit=False,
-                         columns=self._fitted_ests,
+                         columns=self._fitted_ests, combine_keys=False,
                          as_df=as_df, n_jobs=self.n_jobs,
                          verbose=self.verbose)
         _check_estimators(self._fitted_ests, fitted_estimator_names)

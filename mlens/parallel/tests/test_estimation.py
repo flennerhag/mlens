@@ -17,7 +17,7 @@ from pandas import DataFrame
 from mlens.metrics import rmse
 from mlens.parallel.fit_predict import _parallel_estimation, base_predict
 from mlens.parallel.fit_predict import fit_estimators, cross_validate
-from mlens.parallel._fit_predict_functions import _fit_score, _fit_estimator
+from mlens.parallel._fit_predict_functions import _fit_score, _fit_ests
 from mlens.parallel._fit_predict_functions import _predict_folds
 from mlens.parallel._fit_predict_functions import _predict, _construct_matrix
 from sklearn.linear_model import Lasso
@@ -43,7 +43,7 @@ estimator_bad = Lasso(alpha='a', random_state=100)
 
 def test_fit_estimator_func():
     tup = (y, (X, 'test'), ('ls', estimator))
-    out = _fit_estimator(tup)
+    out = _fit_ests(tup)
 
     assert out[0] == 'test'
     assert out[1] == 'ls'
@@ -52,7 +52,7 @@ def test_fit_estimator_func():
 
 def test_fit_and_predict_func():
     tup = (X, X, y, y, [i for i in range(100)], 'test'), ('ls', estimator)
-    out = _predict_folds((True,) + tup)
+    out = _predict_folds((True, True) + tup)
 
     assert out[0] == 'test-ls'
     assert str(out[-1][0])[:16] == '0.751494071538'
@@ -61,7 +61,7 @@ def test_fit_and_predict_func():
 def test_predict_func():
     estimator.fit(X, y)
     tup = ((X, 'test'), ('ls', estimator))
-    out = _predict((None,) + tup)
+    out = _predict((None, True) + tup)
     assert out[0] == 'test-ls'
     assert str(out[-1][0])[:16] == '0.751494071538'
 
@@ -103,7 +103,8 @@ def test_parallel_estimation():
 
     out = _parallel_estimation(_predict_folds, tup,
                                {'test': [('ls', estimator)]},
-                               optional_args=(True,), n_jobs=1, verbose=False)
+                               optional_args=(True, True),
+                               n_jobs=1, verbose=False)
     assert out[0][0] == 'test-ls'
     assert str(out[0][2][0])[:16] == '0.751494071538'
 
@@ -118,7 +119,7 @@ def test_base_predict():
         (M, ests) = base_predict(data, {'test': [('ls', estimator),
                                                  ('bad', estimator_bad)]},
                                  100, True, True, ['test-ls', 'test-bad'],
-                                 as_df=True)
+                                 True, as_df=True)
 
     # Check that bad estimator was dropped
     assert len(ests) == 1
@@ -135,7 +136,7 @@ def test_fit_estimators():
 
     tup = [(X, 'test')]
 
-    out = fit_estimators(tup, y, {'test': [('ls', Lasso(alpha=0.001))]})
+    out = fit_estimators(tup, {'test': [('ls', Lasso(alpha=0.001))]}, y)
 
     assert isinstance(out, dict)
     assert isinstance(out['test'], list)

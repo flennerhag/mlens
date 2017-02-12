@@ -50,7 +50,7 @@ def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
 
 
 def _fit_ests(tup):
-    """Function for fitting estimators and logging its information"""
+    """Function for fitting estimators on full training set"""
     y, (X, case), (est_name, estimator) = tup
     try:
         estimator = estimator.fit(X, y)
@@ -62,7 +62,7 @@ def _fit_ests(tup):
 
 
 def _fit_ests_folds(tup):
-    """Function for fitting estimators on folds and logging its information"""
+    """Function for fitting estimators on folds"""
     (xtrain, _, ytrain, _, _, fold_num), (est_name, estimator) = tup
     try:
         estimator = estimator.fit(xtrain, ytrain)
@@ -101,7 +101,7 @@ def _predict_folds(tup):
 
 def _predict(tup):
     """Predicts on data using estimator"""
-    _, keys, (X, case), (est_name, estimator) = tup
+    keys, (X, case), (est_name, estimator) = tup
 
     try:
         p = estimator.predict(X)

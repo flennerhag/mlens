@@ -61,7 +61,7 @@ def test_fit_and_predict_func():
 def test_predict_func():
     estimator.fit(X, y)
     tup = ((X, 'test'), ('ls', estimator))
-    out = _predict((None, True) + tup)
+    out = _predict((True,) + tup)
     assert out[0] == 'test-ls'
     assert str(out[-1][0])[:16] == '0.751494071538'
 
@@ -118,8 +118,8 @@ def test_base_predict():
         warnings.simplefilter('ignore')
         (M, ests) = base_predict(data, {'test': [('ls', estimator),
                                                  ('bad', estimator_bad)]},
-                                 100, True, True, ['test-ls', 'test-bad'],
-                                 True, as_df=True)
+                                 (True, True), True, 100,
+                                 ['test-ls', 'test-bad'], True)
 
     # Check that bad estimator was dropped
     assert len(ests) == 1

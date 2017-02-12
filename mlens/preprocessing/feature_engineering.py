@@ -173,10 +173,10 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         # Generate predictions matrix
         M, fitted_estimator_names = \
             base_predict(Min, estimators, n=X.shape[0],
-                         folded_preds=folded_preds, fit=False,
-                         columns=self._fitted_ests, combine_keys=False,
-                         as_df=as_df, n_jobs=self.n_jobs,
-                         verbose=self.verbose)
+                         folded_preds=folded_preds,
+                         function_args=(False, False),
+                         columns=self._fitted_ests, as_df=as_df,
+                         n_jobs=self.n_jobs, verbose=self.verbose)
         _check_estimators(self._fitted_ests, fitted_estimator_names)
         return M
 

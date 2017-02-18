@@ -5,22 +5,25 @@
 
 author: Sebastian Flennerhag
 date: 11/01/2017
-Scoring functions not in the sklearn library
+Scoring functions
 """
 
 from __future__ import division, print_function
 
 import numpy as np
 from pandas import DataFrame
-from sklearn.metrics import make_scorer
+from ..externals import make_scorer
 
 
-def score_matrix(M, y, score, column_names=None):
+def score_matrix(M, y, score, column_names=None, prefix=None):
     """Function for scoring a matrix"""
-    if isinstance(M, DataFrame):
-        return dict(M.apply(lambda x: score(y, x)))
+    X = M if not isinstance(M, DataFrame) else M.values
+
+    if prefix is None:
+        return {col: score(y, X[:, i]) for i, col in enumerate(column_names)}
     else:
-        return {col: score(y, M[:, i]) for i, col in enumerate(column_names)}
+        return {prefix + '-' + col: score(y, X[:, i]) for i, col in
+                enumerate(column_names)}
 
 
 def rmse_scoring(y, p):

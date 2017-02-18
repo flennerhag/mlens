@@ -12,6 +12,9 @@ from __future__ import division, print_function, with_statement
 
 from time import time
 from pandas import DataFrame, Series
+from numpy import array_equal
+from numpy.random import permutation
+
 
 try:
     import cPickle as pickle
@@ -52,3 +55,67 @@ def print_time(t0, message='', **kwargs):
     r, s = divmod(time() - t0, 60)  # get sec
     h, m = divmod(r, 60)  # get h, min
     print(message + '%02d:%02d:%02d\n' % (h, m, s), **kwargs)
+
+
+class IdTrain(object):
+    """Container to identify training set
+
+    Samples a random subset from set passed to the `fit` method, to allow
+    identification of the training set in a `transform` or `predict` method.
+
+    Parameters
+    ----------
+    size : int
+        size to sample. A random subset of size [size, size] will be stored
+        in the instance
+    """
+    def __init__(self, size):
+        self.size = size
+
+    def fit(self, X):
+        """Sample a training set
+
+        Parameters
+        ----------
+        X: array-like
+            training set to sample observations from.
+
+        Returns
+        ----------
+        self: obj
+            fitted instance with stored sample
+        """
+        sample_idx = {}
+        for i in range(2):
+            dim_size = min(X.shape[i], self.size)
+            sample_idx[i] = permutation(X.shape[i])[:dim_size]
+
+        if isinstance(X, DataFrame):
+            sample = X.iloc[sample_idx[0], sample_idx[1]]
+        else:
+            sample = X[sample_idx[0], sample_idx[1]]
+
+        self.sample_idx_ = sample_idx
+        self.sample_ = sample
+
+        return self
+
+    def is_train(self, X):
+        """Check if an array is the training set
+
+        Parameters
+        ----------
+        X: array-like
+            training set to sample observations from.
+
+        Returns
+        ----------
+        self: obj
+            fitted instance with stored sample
+        """
+        if isinstance(X, DataFrame):
+            sample = X.iloc[self.sample_idx_[0], self.sample_idx_[1]].values
+        else:
+            sample = X[self.sample_idx_[0], self.sample_idx_[1]]
+
+        return array_equal(sample == self.sample_)

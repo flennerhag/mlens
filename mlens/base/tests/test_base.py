@@ -12,9 +12,9 @@ from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from mlens.base import (_clone_base_estimators, _clone_preprocess_cases,
-                        name_estimators, name_base, check_estimators,
+                        name_estimators, name_layer, check_estimators,
                         _check_names, _split_base, _check_estimators,
-                        name_columns)
+                        _name_columns)
 
 # meta estimator
 meta = SVR()
@@ -32,7 +32,7 @@ base_pipelines = {'sc':
 def test_naming():
 
     named_meta = name_estimators([meta], 'meta-')
-    named_base = name_base(base_pipelines)
+    named_base = name_layer(base_pipelines)
 
     assert isinstance(named_meta, dict)
     assert isinstance(named_meta['meta-svr'], SVR)
@@ -65,7 +65,7 @@ def test_clone():
 
     base_ = _clone_base_estimators(base_estimators)
     preprocess_ = _clone_preprocess_cases(preprocess)
-    base_columns_ = name_columns(base_)
+    base_columns_ = _name_columns(base_)
 
     assert isinstance(preprocess_, list)
     assert isinstance(preprocess_[0], tuple)

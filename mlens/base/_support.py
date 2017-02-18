@@ -25,7 +25,7 @@ def _check_estimators(full_fit_est, fold_fit_est):
         \nFitted estimators on folds: %r' % (full_fit_est, fold_fit_est))
 
 
-def name_columns(estimator_cases):
+def _name_columns(estimator_cases):
     """Utility func for naming a mapping of estimators on different cases"""
     return [case + '-' + est_name if case not in [None, ''] else est_name
             for case, estimators in estimator_cases.items()

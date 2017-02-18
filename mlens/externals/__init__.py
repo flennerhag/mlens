@@ -3,10 +3,11 @@
 
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
 date: 05/02/2017
+External dependencies linked directly to source code.
 """
 
 import six
+from .scorer import make_scorer
 
-__all__ = ['six']
+__all__ = ['six', 'make_scorer']

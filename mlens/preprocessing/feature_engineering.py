@@ -14,12 +14,11 @@ from __future__ import division, print_function
 
 from pandas import DataFrame, concat
 from numpy import hstack
-
 from sklearn.base import BaseEstimator, TransformerMixin
 from ..base import name_estimators
 from ..base import _clone_base_estimators
 from ..base import _check_estimators
-from ..utils import print_time
+from ..utils import print_time, IdTrain
 from ..parallel import preprocess_folds, fit_estimators, base_predict
 from ..externals import six
 from time import time
@@ -46,6 +45,10 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         whether to shuffle data for creating k-fold out of sample predictions
     random_state : int, default=None
         seed for creating folds during fitting (if shuffle=True)
+    sample_size : int,
+        subset size to sample from training set for check during `transform`
+        call. Datasets with low variation need larger subsets to ensure
+        a random subset was polled.
     verbose : bool, int, default=False
         level of verbosity of fitting:
             verbose = 0 prints minimum output
@@ -73,7 +76,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
     """
 
     def __init__(self, estimators, folds=2, shuffle=True, scorer=None,
-                 random_state=None, verbose=False, n_jobs=-1):
+                 random_state=None, sample_size=10, verbose=False, n_jobs=-1):
 
         self.estimators = [('', estimators)]
         self.named_estimator = name_estimators(estimators)
@@ -82,6 +85,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         self.shuffle = shuffle
         self.scorer = scorer
         self.random_state = random_state
+        self.check = IdTrain(sample_size)
         self.verbose = verbose
         self.n_jobs = n_jobs
 
@@ -100,9 +104,8 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         self : obj
             class instance with fitted estimators
         """
-
         # Store training set id
-        self._train_id_ = id(X)
+        self.check.fit(X)
 
         if self.verbose > 0:
             printout = sys.stdout if self.verbose > 50 else sys.stderr
@@ -151,10 +154,9 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         y : array-like, shape=[n_samples, ]
             predictions for provided input array
         """
-
         as_df = isinstance(X, DataFrame)
 
-        if id(X) == self._train_id_:
+        if self.check.is_train(X):
             # Use cv folds to generate predictions
             Min = preprocess_folds(None, X, y, folds=self.folds, fit=False,
                                    shuffle=self.shuffle,
@@ -181,7 +183,18 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         return M
 
     def transform(self, X, y=None):
+        """Transform input array X by concatenting prediction features
 
+        Parameters
+        ----------
+        X : array-like, shape=[n_samples, n_features]
+            input matrix to be used for prediction
+
+        Returns
+        --------
+        Concatenated : array-like, shape=[n_samples, n_features + n_estimators]
+            Full matrix X concatenated by `n_estimators` columns of predictions
+        """
         M = self.predict(X, y)
 
         if isinstance(X, DataFrame):

@@ -19,32 +19,43 @@ def name_estimators(estimators, prefix='', suffix=''):
         return {}
     else:
         if isinstance(estimators[0], tuple):
+            # if first item is a tuple, assumed list of named tuple was passed
             named_estimators = {prefix + est_name + suffix: est for
                                 est_name, est in estimators}
         else:
+            # assume a list of unnamed estimators was passed
             named_estimators = {prefix + est_name + suffix: est for
                                 est_name, est in _name_estimators(estimators)}
         return named_estimators
 
 
-def name_base(base_pipelines):
-    """Function for naming estimators and transformers for base pipelines"""
-    # if a list is passed, assume it is a list of base estimators
-    # i.e. no preprocessing
-    if isinstance(base_pipelines, list):
-        return name_estimators(base_pipelines)
+def name_layer(layer, layer_prefix=''):
+    """Function for naming estimators and transformers for parameter setting"""
+    if isinstance(layer, list):
+        # if a list is passed, assume it is a list of base estimators
+        return name_estimators(layer)
     else:
-        named_pipelines = {}
-        for p_name, pipe in base_pipelines.items():
-
+        # Assume preprocessing cases are specified
+        named_layer = {}
+        for p_name, pipe in layer.items():
             if isinstance(pipe, Pipeline):
+                # If pipeline is passed, get the list of steps
                 pipe = pipe.steps
 
-            for phase in pipe:
-                name = p_name + '-' if len(p_name) > 0 else ''
-                named_pipelines.update(name_estimators(phase, name))
+            # Add prefix to estimators to uniquely define each layer and
+            # preprocessing case
+            if len(p_name) > 0:
+                if len(layer_prefix) > 0:
+                    prefix = layer_prefix + '-' + p_name + '-'
+                else:
+                    prefix = p_name + '-'
+            else:
+                prefix = layer_prefix
 
-    return named_pipelines
+            for phase in pipe:
+                named_layer.update(name_estimators(phase, prefix))
+
+    return named_layer
 
 
 def check_estimators(estimators):

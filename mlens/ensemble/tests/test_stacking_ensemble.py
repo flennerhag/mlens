@@ -48,7 +48,7 @@ base_pipelines = {'sc':
                   ([], [('rf', RandomForestRegressor(random_state=100))])}
 
 ensemble = StackingEnsemble(folds=10, shuffle=False,
-                            scorer=None, n_jobs=1,
+                            scorer=rmse._score_func, n_jobs=1,
                             random_state=100)
 ensemble.add(base_pipelines)
 ensemble.add_meta(meta)

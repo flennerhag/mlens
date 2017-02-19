@@ -11,7 +11,7 @@ Support functions for cloning ensemble estimators
 
 from __future__ import division, print_function
 
-from ._setup import check_estimators
+from ._setup import check_estimators, _check_names
 from sklearn.base import clone
 
 
@@ -19,11 +19,11 @@ def _clone_base_estimators(base_estimators, as_dict=True):
     """Created named clones of base estimators for fitting"""
     if as_dict:
         return {case: [(est_name, clone(est)) for est_name, est in
-                       estimators]
+                       _check_names(estimators)]
                 for case, estimators in base_estimators}
     else:
         return [(case, [(est_name, clone(est)) for est_name, est in
-                        estimators])
+                        _check_names(estimators)])
                 for case, estimators in base_estimators]
 
 

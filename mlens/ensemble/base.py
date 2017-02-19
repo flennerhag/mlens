@@ -13,8 +13,7 @@ instances.
 from __future__ import division, print_function
 
 from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin
-from ..base import name_layer, _split_base
-from ..base import _check_estimators
+from ..base import _split_base, _check_estimators
 from ..utils import check_is_fitted, check_inputs
 from ._layer import fit_layer, predict_layer
 

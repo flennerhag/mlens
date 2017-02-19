@@ -69,7 +69,7 @@ class IdTrain(object):
         size to sample. A random subset of size [size, size] will be stored
         in the instance
     """
-    def __init__(self, size):
+    def __init__(self, size=10):
         self.size = size
 
     def fit(self, X):
@@ -113,9 +113,14 @@ class IdTrain(object):
         self: obj
             fitted instance with stored sample
         """
-        if isinstance(X, DataFrame):
-            sample = X.iloc[self.sample_idx_[0], self.sample_idx_[1]].values
-        else:
-            sample = X[self.sample_idx_[0], self.sample_idx_[1]]
-
-        return array_equal(sample == self.sample_)
+        idx = self.sample_idx_
+        try:
+            # Grab sample from `X`
+            if isinstance(X, DataFrame):
+                sample = X.iloc[idx[0], idx[1]].values
+            else:
+                sample = X[idx[0], idx[1]]
+            return array_equal(sample, self.sample_)
+        except IndexError:
+            # X is not of the same shape as the training set > not training set
+            return False

@@ -17,7 +17,6 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.base import clone
-from scipy.stats import uniform, randint
 import numpy as np
 from pandas import DataFrame
 import warnings

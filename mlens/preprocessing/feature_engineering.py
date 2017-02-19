@@ -15,12 +15,12 @@ from __future__ import division, print_function
 from pandas import DataFrame, concat
 from numpy import hstack
 from sklearn.base import BaseEstimator, TransformerMixin
-from ..base import name_estimators
-from ..base import _clone_base_estimators
-from ..base import _check_estimators
-from ..utils import print_time, IdTrain
-from ..parallel import preprocess_folds, fit_estimators, base_predict
-from ..externals import six
+from mlens.base import name_estimators
+from mlens.base import _clone_base_estimators
+from mlens.base import _check_estimators
+from mlens.utils import print_time, IdTrain
+from mlens.parallel import preprocess_folds, fit_estimators, base_predict
+from mlens.externals import six
 from time import time
 import sys
 
@@ -76,16 +76,17 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
     """
 
     def __init__(self, estimators, folds=2, shuffle=True, scorer=None,
-                 random_state=None, sample_size=10, verbose=False, n_jobs=-1):
+                 random_state=None, sample_size=10, verbose=False, n_jobs=1):
 
-        self.estimators = [('', estimators)]
-        self.named_estimator = name_estimators(estimators)
+        self.estimators = estimators
+        self.named_estimators = name_estimators(estimators)
 
         self.folds = folds
         self.shuffle = shuffle
         self.scorer = scorer
         self.random_state = random_state
-        self.check = IdTrain(sample_size)
+        self.sample_size = sample_size
+        self.check = IdTrain(self.sample_size)
         self.verbose = verbose
         self.n_jobs = n_jobs
 
@@ -105,7 +106,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
             class instance with fitted estimators
         """
         # Store training set id
-        self.check.fit(X)
+        self.check = self.check.fit(X)
 
         if self.verbose > 0:
             printout = sys.stdout if self.verbose > 50 else sys.stderr
@@ -123,14 +124,16 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
 
         # >> Generate mapping between folds and estimators
         Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
-        ests_ = {i: _clone_base_estimators(self.estimators)['']
+        ests_ = {i: _clone_base_estimators([('', self.estimators)])['']
                  for i in range(len(Min))}
+        self.ests_ = ests_
         self.train_ests_ = fit_estimators(Min, ests_, None,
                                           self.n_jobs, self.verbose)
 
         # Fit estimators for test set
         self.test_ests_ = \
-            fit_estimators([[X, '']], _clone_base_estimators(self.estimators),
+            fit_estimators([[X, '']],
+                           _clone_base_estimators([('', self.estimators)]),
                            y, self.n_jobs, self.verbose)
 
         fitted_test_ests = [est_name for est_name, _ in self.test_ests_['']]
@@ -166,17 +169,19 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
             Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
             folded_preds = True
             estimators = self.train_ests_
+            function_args = (False, False)
         else:
             # Predict using estimators fitted on full training data
             Min = [[X, '']]
             folded_preds = False
             estimators = self.test_ests_
+            function_args = (False,)
 
         # Generate predictions matrix
         M, fitted_estimator_names = \
             base_predict(Min, estimators, n=X.shape[0],
                          folded_preds=folded_preds,
-                         function_args=(False, False),
+                         function_args=function_args,
                          columns=self._fitted_ests, as_df=as_df,
                          n_jobs=self.n_jobs, verbose=self.verbose)
         _check_estimators(self._fitted_ests, fitted_estimator_names)
@@ -198,6 +203,8 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         M = self.predict(X, y)
 
         if isinstance(X, DataFrame):
+            # Avoid pulling out the underlying ndarray in case it's sparse
+            M.set_index(X.index, inplace=True)
             return concat((X, M), 1)
         else:
             return hstack((X, M))
@@ -210,11 +217,12 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
             out = {'folds': self.folds,
                    'shuffle': self.shuffle,
                    'random_state': self.random_state,
+                   'sample_size': self.check.size,
                    'verbose': self.verbose,
                    'n_jobs': self.n_jobs}
 
             out.update(self.named_estimators.copy())
-            for name, step in six.iteritems(self.named_base_pipelines):
+            for name, step in six.iteritems(self.named_estimators):
                 for key, value in six.iteritems(step.get_params(deep=True)):
                     out['%s__%s' % (name, key)] = value
             return out

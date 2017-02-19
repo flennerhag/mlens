@@ -129,6 +129,7 @@ def test_grid_search():
                               n_jobs=-1, random_state=100)
     grid.fit(X, y)
     print(grid.best_score_)
+    print(grid.best_params_)
     assert str(grid.best_score_)[:16] == '-0.0626352824626'
 
 

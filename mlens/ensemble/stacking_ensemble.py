@@ -244,13 +244,15 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         """Sklearn API for retrieveing all (also nested) model parameters"""
 
         # Ensemble parameters
-        out = {'folds': self.folds,
+        out = {  # Instantiated settings
+               'folds': self.folds,
                'shuffle': self.shuffle,
                'as_df': self.as_df,
                'scorer': self.scorer,
                'random_state': self.random_state,
                'verbose': self.verbose,
                'n_jobs': self.n_jobs,
+                 # Layers
                'layers': self.layers,
                'named_layers': self.named_layers,
                'meta_estimator': self.meta_estimator,
@@ -269,7 +271,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
                         out['%s__%s' % (name, key)] = val
 
             # Meta estimator parameters
-            out.update(self.named_meta_estimator)
+            out.update(self.named_meta_estimator.copy())
             for name, step in six.iteritems(self.named_meta_estimator):
                 for key, value in six.iteritems(step.get_params(deep=True)):
                     out['%s__%s' % (name, key)] = value

@@ -129,7 +129,7 @@ class Evaluator(object):
         self.preprocessing_ = _clone_preprocess_cases(self.preprocessing)
 
         if self.verbose > 0:
-            printout = sys.stdout if self.verbose > 50 else sys.stderr
+            printout = sys.stdout if self.verbose >= 50 else sys.stderr
             ttot = self._print_prep_start(self.preprocessing_, printout)
 
         self.dout = preprocess_folds(self.preprocessing_, X.copy(), y.copy(),
@@ -199,7 +199,7 @@ class Evaluator(object):
 
         # ===== Cross Validate =====
         if self.verbose > 0:
-            printout = sys.stdout if self.verbose > 50 else sys.stderr
+            printout = sys.stdout if self.verbose >= 50 else sys.stderr
             ttot = self._print_eval_start(estimators, self.preprocessing_,
                                           printout)
 

@@ -14,6 +14,7 @@ from __future__ import division, print_function
 from ._fit_predict_functions import (_fit_score, _fit_ests,
                                      _construct_matrix, _predict,
                                      _predict_folds, _fit_ests_folds)
+from numpy import nan
 from pandas import DataFrame
 from joblib import Parallel, delayed
 
@@ -178,7 +179,7 @@ def fit_estimators(data, estimator_cases, y, n_jobs=-1, verbose=False):
     return _construct_estimator_dict(out)
 
 
-def cross_validate(estimators, param_sets, dout, scoring, error_score=-99,
+def cross_validate(estimators, param_sets, dout, scoring, error_score=nan,
                    n_jobs=-1, verbose=False):
     """Run parallellized cross-validated grid search on premade folds
 

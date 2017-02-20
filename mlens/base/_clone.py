@@ -29,6 +29,9 @@ def _clone_base_estimators(base_estimators, as_dict=True):
 
 def _clone_preprocess_cases(preprocess):
     """Created named clones of base preprocessing pipes for fitting"""
+    if preprocess is None:
+        return
+
     if isinstance(preprocess, dict):
         return [(case, [clone(trans) for trans in
                 check_estimators(process_pipe)])

@@ -136,7 +136,7 @@ class LayerMixin(BaseEstimator, RegressorMixin, TransformerMixin):
         self : obj
             class instance with fitted estimators
         """
-        X, y, self.random_state = check_inputs(X, y, self.random_state)
+        self.random_state = check_inputs(X, y, self.random_state)
 
         self.layers_ = {}
         if self.scorer is not None:
@@ -171,7 +171,8 @@ class LayerMixin(BaseEstimator, RegressorMixin, TransformerMixin):
             predictions for provided input array
         """
         check_is_fitted(self, 'layers_')
-        X, y, _ = check_inputs(X, y, None)
+        
+        check_inputs(X, y, None)
 
         for layer_name, layer in self.layers_.items():
 

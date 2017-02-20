@@ -13,8 +13,6 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 from __future__ import division, print_function
 
 from .base import LayerMixin
-
-from ..base import name_estimators
 from ..utils import print_time
 from ..externals.six import iteritems
 

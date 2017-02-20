@@ -74,7 +74,7 @@ def check_inputs(X, y, random_state):
                         ensure_min_features=1,  # Do not impose minimum feats
                         warn_on_dtype=False     # Mute as `dtype` is `None`
                         )
-    return X, y, r
+    return r
 
 
 class NotFittedError(ValueError, AttributeError):

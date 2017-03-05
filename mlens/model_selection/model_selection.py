@@ -18,8 +18,11 @@ from __future__ import division, print_function
 
 import numpy as np
 from pandas import DataFrame, Series
+
 from ..base import _clone_preprocess_cases
 from ..parallel import preprocess_folds, cross_validate
+from ..ensemble.base import BaseEnsemble
+
 from time import time
 import sys
 
@@ -195,7 +198,7 @@ class Evaluator(object):
             self.preprocess(X, y)
 
         # ===== Generate n_iter param dictionaries for each estimator =====
-        self.param_sets_, param_map = self._param_sets()
+        self.param_sets_, self.param_map = self._param_sets()
 
         # ===== Cross Validate =====
         if self.verbose > 0:
@@ -209,7 +212,7 @@ class Evaluator(object):
 
         # ===== Create summary statistics =====
         self.cv_results_, self.summary_, self.best_idx_ = \
-            self._results(out, param_map)
+            self._results(out, self.param_map)
 
         # ===== Job complete =====
         if flush_preprocess:
@@ -266,6 +269,8 @@ class Evaluator(object):
         # Get mean scores for each param draw
         cv_results = out.groupby(['estimator', 'param_draw']).agg(['mean',
                                                                    'std'])
+        cv_results.columns = [tup[0] + '_' + tup[1] for tup in
+                              cv_results.columns]
 
         # Append param settings
         param_map = Series(param_map)
@@ -273,10 +278,11 @@ class Evaluator(object):
         cv_results['params'] = param_map.loc[cv_results.index]
 
         # Create summary table of best scores
-        ts_id = ('test_score', 'mean')
+        ts_id = 'test_score_mean'
         best_score = cv_results.loc[:, ts_id].groupby(level=0).apply(np.argmax)
         best_idx = best_score.values
         summary = cv_results.loc[best_idx].reset_index(1, drop=True)
+        summary.sort_values(by=ts_id, ascending=False, inplace=True)
 
         return cv_results, summary, best_idx
 
@@ -311,3 +317,107 @@ class Evaluator(object):
         print(msg % (e, self.n_iter, p, c, tot), file=printout)
         printout.flush()
         return ttot
+
+
+class EnsembleLayers(BaseEnsemble):
+
+    """Transformer for creating ensemble layer predictions
+
+    The `EnsembleLayers` is a transformer that generates hidden layer
+    predictions used by ensembles to fit a final estimator. The transformer can
+    be used as a preprocessing pipeline to generate folds with hidden layer
+    predictions as in an ensemble, for selection of meta estimator evaluation.
+
+    Parameters
+    -----------
+    folds : int, obj, default=2
+        number of folds to use for constructing meta estimator training set.
+        Either pass a KFold class object that accepts as ``split`` method,
+        or the number of folds in standard KFold
+    shuffle : bool, default=True
+        whether to shuffle data for creating k-fold out of sample predictions
+    as_df : bool, default=False
+        whether to fit meta_estimator on a dataframe. Useful if meta estimator
+        allows feature importance analysis
+    scorer : func, default=None
+        scoring function. If a function is provided, base estimators will be
+        scored on the training set assembled for fitting the meta estimator.
+        Since those predictions are out-of-sample, the scores represent valid
+        test scores. The scorer should be a function that accepts an array of
+        true values and an array of predictions: score = f(y_true, y_pred). The
+        scoring function of an sklearn scorer can be retrieved by ._score_func
+    random_state : int, default=None
+        seed for creating folds during fitting (if shuffle=True)
+    verbose : bool, int, default=False
+        level of verbosity of fitting:
+            verbose = 0 prints minimum output
+            verbose = 1 give prints for meta and base estimators
+            verbose = 2 prints also for each stage (preprocessing, estimator)
+    n_jobs : int, default=-1
+        number of CPU cores to use for fitting and prediction
+
+    Attributes
+    -----------
+    scores_ : dict
+        scored base of base estimators on the training set, estimators are
+        named according as pipeline-estimator.
+    layers_ : list
+        fitted layers
+
+    Methods
+    --------
+    fit : X, y=None
+        Fits layers on provided data
+    transform : X
+        Use fitted layers to generate prediction matrix
+    get_params : None
+        Method for generating mapping of parameters. Sklearn API
+    """
+
+    def __init__(self, folds=2, shuffle=True, as_df=False, scorer=None,
+                 random_state=None, verbose=False, n_jobs=-1,
+                 layers=None):
+
+        self.folds = folds
+        self.shuffle = shuffle
+        self.as_df = as_df
+        self.scorer = scorer
+        self.random_state = random_state
+        self.verbose = verbose
+        self.n_jobs = n_jobs
+        self.layers = layers
+
+    def fit(self, X, y):
+        """Fit hidden layers of ensemble
+
+        Parameters
+        ----------
+        X : array-like, shape=[n_samples, n_features]
+            input matrix to be used for prediction
+        y : array-like, shape=[n_samples, ]
+            output vector to trained estimators on
+
+        Returns
+        --------
+        self : obj
+            class instance with fitted estimators
+        """
+        self.printout = sys.stdout if self.verbose > 50 else sys.stderr
+        self.fit_layers(X, y)
+
+        return self
+
+    def transform(self, X, y=None):
+        """Generate matrix of predictions by processing fitted layers
+
+        Parameters
+        ----------
+        X : array-like, shape=[n_samples, n_features]
+            input matrix to be used for prediction
+
+        Returns
+        --------
+        y : array-like, shape=[n_samples, ]
+            predictions for provided input array
+        """
+        return self.predict_layers(X, y)

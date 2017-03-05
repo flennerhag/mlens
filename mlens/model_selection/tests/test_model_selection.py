@@ -6,7 +6,7 @@ date: 12/01/2017
 
 from __future__ import division, print_function
 
-from mlens.model_selection import Evaluator
+from mlens.model_selection import Evaluator, EnsembleLayers
 from mlens.metrics import rmse
 from mlens.utils import pickle_save, pickle_load
 import numpy as np
@@ -58,6 +58,8 @@ evals2 = Evaluator(rmse, preprocessing, cv=2,
                    verbose=1, shuffle=False, n_jobs_estimators=-1,
                    n_jobs_preprocessing=-1, random_state=100)
 
+ens_base = EnsembleLayers()
+ens_base.add([(key, val) for key, val in estimators.items()])
 
 def check_scores(evals):
     test_draws = []
@@ -92,3 +94,10 @@ def test_exception_handling_evals():
         warnings.simplefilter("ignore")
         evals1.evaluate(X, y, estimators, parameters_exception, 3)
         assert str(evals1.summary_.iloc[-1][0])[:3] == '-99'
+
+
+def test_ensemble_layers():
+    ens_base.fit(X, y)
+    out = ens_base.transform(X)
+
+    assert out.shape[1] == 2

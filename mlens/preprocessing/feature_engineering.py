@@ -223,7 +223,11 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
                    'random_state': self.random_state,
                    'sample_size': self.check.size,
                    'verbose': self.verbose,
-                   'n_jobs': self.n_jobs}
+                   'n_jobs': self.n_jobs,
+                   'scorer': self.scorer,
+                   'concat': self.concat,
+                   'random_state': self.random_state,
+                   'sample_size': self.sample_size}
 
             out.update(self.named_estimators.copy())
             for name, step in six.iteritems(self.named_estimators):

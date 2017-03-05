@@ -175,7 +175,6 @@ class StackingEnsemble(BaseEnsemble):
 
     def get_params(self, deep=True):
         """Sklearn API for retrieving all (also nested) model parameters"""
-
         # Ensemble parameters
         out = {  # Instantiated settings
                'folds': self.folds,

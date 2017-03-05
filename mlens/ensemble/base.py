@@ -9,7 +9,6 @@ instances.
 
 from __future__ import division, print_function
 from collections import OrderedDict as Odict
-import sys
 
 from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin
 from ..base import _split_base, _check_estimators

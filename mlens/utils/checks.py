@@ -78,6 +78,7 @@ def check_inputs(X, y, random_state):
 
 
 class NotFittedError(ValueError, AttributeError):
+
     """Error class for not fitted ensembles"""
 
 
@@ -86,7 +87,7 @@ def check_is_fitted(estimator, attr):
 
     Parameters
     ----------
-    ensemble : ensemble instance
+    estimator : estimator instance
         ensemble instance to check.
     attr : str
         attribute to assert existence of. Default is the 'layer_' attribute

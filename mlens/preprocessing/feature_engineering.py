@@ -76,7 +76,8 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
     """
 
     def __init__(self, estimators, folds=2, shuffle=True, scorer=None,
-                 random_state=None, sample_size=10, verbose=False, n_jobs=1):
+                 concat=True, random_state=None, sample_size=10,
+                 verbose=False, n_jobs=1):
 
         self.estimators = estimators
         self.named_estimators = name_estimators(estimators)
@@ -84,6 +85,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         self.folds = folds
         self.shuffle = shuffle
         self.scorer = scorer
+        self.concat = concat
         self.random_state = random_state
         self.sample_size = sample_size
         self.check = IdTrain(self.sample_size)
@@ -126,7 +128,6 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
         ests_ = {i: _clone_base_estimators([('', self.estimators)])['']
                  for i in range(len(Min))}
-        self.ests_ = ests_
         self.train_ests_ = fit_estimators(Min, ests_, None,
                                           self.n_jobs, self.verbose)
 
@@ -201,6 +202,9 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
             Full matrix X concatenated by `n_estimators` columns of predictions
         """
         M = self.predict(X, y)
+
+        if not self.concat:
+            return M
 
         if isinstance(X, DataFrame):
             # Avoid pulling out the underlying ndarray in case it's sparse

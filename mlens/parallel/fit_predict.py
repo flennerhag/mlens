@@ -119,11 +119,9 @@ def base_predict(data, estimator_cases, function_args, folded_preds, n,
     Returns
     ---------
     M: array-like, shape=[n_samples, n_estimators]
-        Matrix of estimator preditions. Either a numpy array of a pandas
-        Dataframe.
+        Matrix of estimator predations. Either a numpy array of a pandas dataframe.
     fitted_estimator_names: list
-        list of estimator names for estimators with successfull predictions
-        runs
+        list of estimator names for estimators with successful predictions runs
     """
     if folded_preds:
         function = _predict_folds

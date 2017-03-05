@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
 author: Sebastian Flennerhag
@@ -12,7 +9,7 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 
 from __future__ import division, print_function
 
-from .base import LayerMixin
+from .base import BaseEnsemble
 from ..utils import print_time
 from ..externals.six import iteritems
 
@@ -22,8 +19,7 @@ from time import time
 import sys
 
 
-# TODO: make the preprocessing of folds optional as it can take a lot of memory
-class StackingEnsemble(LayerMixin):
+class StackingEnsemble(BaseEnsemble):
 
     """Stacking Ensemble
 
@@ -73,20 +69,18 @@ class StackingEnsemble(LayerMixin):
     scores_ : dict
         scored base of base estimators on the training set, estimators are
         named according as pipeline-estimator.
-    base_estimators_ : list
-        fitted base estimators
-    base_columns_ : list
-        ordered list of base estimators as they appear in the input matrix to
-        the meta estimators. Useful for mapping sklearn feature importances,
-        which comes as ordered ndarrays.
-    preprocess_ : dict
-        fitted preprocessing pipelines
+    layers_ : list
+        fitted ensemble layers
 
     Methods
     --------
-    fit : X, y=None
+    add : tuple
+        Method for adding a layer. Layers are added sequentially
+    add_meta : obj
+        Method for adding the final meta estimator. Can be added at any time.
+    fit : data, labels=None
         Fits ensemble on provided data
-    predict : X
+    predict : data
         Use fitted ensemble to predict on X
     get_params : None
         Method for generating mapping of parameters. Sklearn API
@@ -119,19 +113,19 @@ class StackingEnsemble(LayerMixin):
         Returns
         -----------
         self : obj,
-            ensemble instance with meta estimaor initiated
+            ensemble instance with meta estimator initiated
         """
         self.meta_estimator = meta_estimator
         return self
 
-    def fit(self, X, y):
+    def fit(self, data, labels):
         """Fit ensemble
 
         Parameters
         ----------
-        X : array-like, shape=[n_samples, n_features]
+        data : array-like, shape=[n_samples, n_features]
             input matrix to be used for prediction
-        y : array-like, shape=[n_samples, ]
+        labels : array-like, shape=[n_samples, ]
             output vector to trained estimators on
 
         Returns
@@ -141,30 +135,32 @@ class StackingEnsemble(LayerMixin):
         """
         ts = self._print_start()
 
-        X = self.fit_layers(X, y)
+        data = self.fit_layers(data, labels)
 
-        self.meta_estimator_ = clone(self.meta_estimator).fit(X, y)
+        self.meta_estimator_ = clone(self.meta_estimator).fit(data, labels)
 
         if self.verbose > 0:
             print_time(ts, 'Fit complete', file=self.printout)
 
         return self
 
-    def predict(self, X, y=None):
+    def predict(self, data, labels=None):
         """Predict with fitted ensemble
 
         Parameters
         ----------
-        X : array-like, shape=[n_samples, n_features]
+        data : array-like, shape=[n_samples, n_features]
             input matrix to be used for prediction
+        labels : array-like, None
+            pass through for scikit-learn compatability
 
         Returns
         --------
-        y : array-like, shape=[n_samples, ]
+        labels : array-like, shape=[n_samples, ]
             predictions for provided input array
         """
-        X = self.predict_layers(X, y)
-        return self.meta_estimator_.predict(X)
+        data = self.predict_layers(data, labels)
+        return self.meta_estimator_.predict(data)
 
     def _print_start(self):
         if self.verbose > 0:
@@ -178,7 +174,7 @@ class StackingEnsemble(LayerMixin):
             return
 
     def get_params(self, deep=True):
-        """Sklearn API for retrieveing all (also nested) model parameters"""
+        """Sklearn API for retrieving all (also nested) model parameters"""
 
         # Ensemble parameters
         out = {  # Instantiated settings

@@ -92,15 +92,18 @@ def fit_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
     return out + (fitted_estimators, fitted_preprocessing)
 
 
-def predict_layer(X, y, layer, as_df, n_jobs, verbose):
+def predict_layer(data, labels, layer, as_df, n_jobs, verbose, printout=None, layer_msg=None):
     """Predict ensemble layer
 
     Function for predicting a layer and generating training data for next
     layer. Predict layer wraps a preprocessing step and a prediction step into
-    a single function call, and returns the prediciton matrix M.
+    a single function call, and returns the prediction matrix M.
     """
-    Min, _ = _layer_preprocess(X, y, layer[0], False, n_jobs, verbose)
+    if verbose:
+        print('Processing layer %s' % layer_msg, file=printout)
+        printout.flush()
 
-    return base_predict(Min, layer[1], n=X.shape[0], folded_preds=False,
-                        function_args=(True,), columns=layer[2], as_df=as_df,
-                        n_jobs=n_jobs, verbose=verbose)
+    out, _ = _layer_preprocess(data, labels, layer[0], False, n_jobs, verbose)
+
+    return base_predict(out, layer[1], n=data.shape[0], folded_preds=False, function_args=(True,),
+                        columns=layer[2], as_df=as_df, n_jobs=n_jobs, verbose=verbose)

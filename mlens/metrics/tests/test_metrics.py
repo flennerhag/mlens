@@ -7,6 +7,8 @@ date: 03/03/2017
 from __future__ import division, print_function
 
 import mlens.metrics as metrics
+from sklearn.linear_model import Lasso
+
 import numpy as np
 
 SEED = 100
@@ -17,20 +19,32 @@ y = np.random.random(100)
 p = np.random.random(100)
 z = np.random.random(100)
 
+X = np.vstack([p, z]).T
+
+ls = Lasso(alpha=0.01, random_state=SEED)
 
 def test_score_matrix():
-    out = metrics.score_matrix(np.vstack([p, z]).T, y, metrics.metrics.rmse_scoring, column_names=None, prefix=None)
+    out = metrics.score_matrix(X, y, metrics.metrics.rmse_scoring, column_names=None, prefix=None)
 
-    assert set(out.keys()) == ['pred_0', 'pred_1']
-    assert out['pred_0'] == '0.421034921019'
-    assert out['pred_1'] == '0.429606386793'
+    out = sorted(out)
+    for i in range(len(out)):
+        assert out[i] == 'preds_%i' % (i + 1)
 
 
 def test_score_matrix_prefix():
     out = metrics.score_matrix(np.vstack([p, z]).T, y, metrics.metrics.rmse_scoring, prefix='test')
 
-    assert isinstance(out, dict)
-    assert set(out.keys()) == set(['test-pred_0', 'test-pred_1'])
+    out = sorted(out)
+    for i in range(len(out)):
+        assert out[i] == 'test-preds_%i' % (i + 1)
 
-test_score_matrix()
-test_score_matrix_prefix()
+
+def test_scoring():
+    ls.fit(X, y)
+
+    scores = []
+    for scorer in [metrics.rmse, metrics.wape, metrics.mape]:
+        scores.append(scorer(ls, X, y))
+
+    for score, test in zip(scores, ['-0.289228279782', '-0.534121890877', '-3.31044721206']):
+        assert str(score) == test

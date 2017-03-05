@@ -20,7 +20,7 @@ def score_matrix(y_preds, y_true, scorer, column_names=None, prefix=None):
     y_preds = y_preds if not isinstance(y_preds, DataFrame) else y_preds.values
 
     if column_names is None:
-        column_names = ['preds_%i' % i for i in range(y_preds.shape[1])]
+        column_names = ['preds_%i' % (i + 1) for i in range(y_preds.shape[1])]
 
     if prefix is None:
         return {col: scorer(y_true, y_preds[:, i]) for i, col in enumerate(column_names)}

@@ -62,19 +62,13 @@ class BaseEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         Method for generating mapping of parameters. Sklearn API
     """
 
-    def __init__(self, folds=2, shuffle=True, as_df=False, scorer=None,
-                 random_state=None, verbose=False, n_jobs=-1, layers=None):
-
-        self.folds = folds
-        self.shuffle = shuffle
-        self.as_df = as_df
-        self.scorer = scorer
-        self.random_state = random_state
-        self.verbose = verbose
-        self.n_jobs = n_jobs
-
-        self.layers = layers
-        self.printout = sys.stdout if verbose >= 50 else sys.stderr
+    def _init_layers(self, layers):
+        """Set up empty layer dictionary and layer counter"""
+        if layers is None:
+            self._n_layers = 0
+            self.layers = Odict()
+        else:
+            self.layers = layers
 
     def add(self, layer):
         """Add a layer of base estimator pipelines to the ensemble
@@ -98,15 +92,8 @@ class BaseEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self : obj,
             ensemble instance with layer initiated
         """
-        if self.layers is None:
-            # Initiate counter
-            self._n_layers = 1
-            self.layers = Odict()
-        else:
-            self._n_layers += 1
-
+        self._n_layers += 1
         self.layers['layer-' + str(self._n_layers)] = _split_base(layer)
-
         return self
 
     def fit_layers(self, data, labels):
@@ -125,14 +112,12 @@ class BaseEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
             class instance with fitted estimators
         """
         self.random_state = check_inputs(data, labels, self.random_state)
-
         self.layers_ = Odict()
 
         if self.scorer is not None:
             self.scores_ = {}
 
         for layer_name, layer in self.layers.items():
-
             data = self._partial_fit(data, labels, layer, layer_name)
 
         return data
@@ -153,11 +138,9 @@ class BaseEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
             predictions from final layer
         """
         check_is_fitted(self, 'layers_')
-
         check_inputs(data, labels, None)
 
         for layer_name, layer in self.layers_.items():
-
             data = self._partial_predict(data, labels, layer, layer_name)
 
         return data

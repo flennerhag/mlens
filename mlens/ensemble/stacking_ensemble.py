@@ -98,7 +98,7 @@ class StackingEnsemble(BaseEnsemble):
         self.verbose = verbose
         self.n_jobs = n_jobs
 
-        self.layers = layers
+        self._init_layers(layers)
         self.meta_estimator = meta_estimator
 
     def add_meta(self, meta_estimator):

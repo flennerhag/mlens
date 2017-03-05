@@ -58,6 +58,7 @@ def print_time(t0, message='', **kwargs):
 
 
 class IdTrain(object):
+
     """Container to identify training set
 
     Samples a random subset from set passed to the `fit` method, to allow
@@ -69,6 +70,7 @@ class IdTrain(object):
         size to sample. A random subset of size [size, size] will be stored
         in the instance
     """
+
     def __init__(self, size=10):
         self.size = size
 

@@ -8,6 +8,8 @@ licence: MIT
 Functions for processing an ensemble layer
 """
 
+from __future__ import division, print_function
+
 from ..base import _clone_base_estimators, _clone_preprocess_cases
 from ..base import _name_columns
 from ..metrics import score_matrix

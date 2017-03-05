@@ -17,7 +17,7 @@ from pandas import DataFrame
 from mlens.metrics import rmse
 from mlens.parallel.fit_predict import _parallel_estimation, base_predict
 from mlens.parallel.fit_predict import fit_estimators, cross_validate
-from mlens.parallel._fit_predict_functions import _fit_score, _fit_ests
+from mlens.parallel._fit_predict_functions import _fit_score, _fit_ests, _fit_ests_folds
 from mlens.parallel._fit_predict_functions import _predict_folds
 from mlens.parallel._fit_predict_functions import _predict, _construct_matrix
 from sklearn.linear_model import Lasso
@@ -50,12 +50,27 @@ def test_fit_estimator_func():
     assert hasattr(out[2], 'coef_')
 
 
+def test_fit_estimator_func_exception_handling():
+    tup = (y, (X, 'test'), ('ls', estimator_bad))
+    out = _fit_ests(tup)
+
+    for key in out:
+        assert key is None
+
+
 def test_fit_and_predict_func():
     tup = (X, X, y, y, [i for i in range(100)], 'test'), ('ls', estimator)
     out = _predict_folds((True, True) + tup)
 
     assert out[0] == 'test-ls'
     assert str(out[-1][0])[:16] == '0.751494071538'
+
+
+def test_fit_and_predict_func_exception_handling():
+    tup = (X, X, y, y, [i for i in range(100)], 'test'), ('ls', estimator_bad)
+    out = _predict_folds((True, True) + tup)
+    for entry in out:
+        assert entry is None
 
 
 def test_predict_func():
@@ -66,6 +81,13 @@ def test_predict_func():
     assert str(out[-1][0])[:16] == '0.751494071538'
 
 
+def test_predict_func_exception_handling():
+    tup = ((X, 'test'), ('ls', estimator_bad))
+    out = _predict((True,) + tup)
+    for entry in out:
+        assert entry is None
+
+
 def test_construct_matrix_no_folds():
     M = _construct_matrix([('a', X[:, 0]),
                            ('b', X[:, 1])], 100, ['a', 'b'], False)
@@ -74,7 +96,6 @@ def test_construct_matrix_no_folds():
 
 
 def test_construct_matrix_folds():
-
     d = [('a', [i for i in range(50)], X[range(50), 0]),
          ('a', [i for i in range(50, 100)], X[range(50, 100), 0]),
          ('b', [i for i in range(50)], X[range(50), 1]),
@@ -96,6 +117,16 @@ def test_fit_score_func():
     out = _fit_score(estimator, 'ls', {'alpha': 0.1}, rmse, tup, 1)
 
     assert out[0] == 'ls'
+
+
+def test_fit_score_func_exception_handling():
+    tup = (X[:50], X[50:], y[:50], y[50:], 'test')
+    out = _fit_score(estimator_bad, 'ls', {'alpha': 'b'}, rmse, tup, 1)
+
+    assert out[0] == 'ls-test'
+    assert str(out[1]) == '-99'
+    assert str(out[2])== '-99'
+    assert out[4] == 2
 
 
 def test_parallel_estimation():
@@ -158,3 +189,20 @@ def test_cross_validate():
     assert str(out[1][1]) == '-0.514710787178'
     assert str(out[1][2]) == '-0.449490990214'
     assert out[1][4] == 2
+
+
+def test_fit_ests_folds():
+    tup = [(X[:50], None, y[:50], None, None, 1), ('est', estimator)]
+    out = _fit_ests_folds(tup)
+
+    assert out[0] == 1
+    assert out[1] == 'est'
+    assert str(rmse(out[2], X[50:], y[50:])) == '-0.183772704162'
+
+
+def test_fit_ests_folds_exception_handlding():
+    tup = [(X[:50], None, y[:50], None, None, 1), ('est', estimator_bad)]
+    out = _fit_ests_folds(tup)
+
+    for key in out:
+        assert key is None

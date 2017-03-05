@@ -104,3 +104,6 @@ def test_preprocess_pipe():
     assert isinstance(preprocess_[0], tuple)
     assert preprocess_[0][0] == 'test'
     assert hasattr(preprocess_[0][1][0], 'mean_')
+
+def test_preprocess_exception_handling():
+    pass

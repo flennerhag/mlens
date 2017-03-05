@@ -385,7 +385,7 @@ class EnsembleLayers(BaseEnsemble):
         self.random_state = random_state
         self.verbose = verbose
         self.n_jobs = n_jobs
-        self.layers = layers
+        self._init_layers(layers)
 
     def fit(self, X, y):
         """Fit hidden layers of ensemble

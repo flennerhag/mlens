@@ -64,9 +64,14 @@ def test_clone():
                        base_pipelines.items()]
 
     base_ = _clone_base_estimators(base_estimators)
+    base_list = _clone_base_estimators(base_estimators, as_dict=False)
+
     preprocess_ = _clone_preprocess_cases(preprocess)
+    preprocess_list = _clone_preprocess_cases(None)
+
     base_columns_ = _name_columns(base_)
 
+    assert preprocess_list is None
     assert isinstance(preprocess_, list)
     assert isinstance(preprocess_[0], tuple)
     assert isinstance(preprocess_[0][1], list)
@@ -75,6 +80,10 @@ def test_clone():
     assert isinstance(base_['mm'][0], tuple)
     assert isinstance(base_columns_, list)
     assert len(base_columns_) == 4
+
+    key_list = [tup[0] for tup in base_list]
+    for key in base_:
+        assert key in key_list
 
 
 def test_check_estimators():

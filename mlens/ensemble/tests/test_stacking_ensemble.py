@@ -5,13 +5,9 @@
 @date: 12/01/2017
 """
 
-from __future__ import division, print_function
+from __future__ import division, print_function, with_statement
 
 from mlens.ensemble import StackingEnsemble
-from mlens.ensemble._setup import name_estimators, name_base, _check_names
-from mlens.ensemble._clone import _clone_base_estimators
-from mlens.ensemble._clone import _clone_preprocess_cases
-from mlens.utils.utils import name_columns
 from mlens.metrics import rmse
 from mlens.metrics.metrics import rmse_scoring
 from sklearn.linear_model import Lasso
@@ -19,16 +15,17 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.model_selection import RandomizedSearchCV, KFold
-from scipy.stats import uniform, randint
+from sklearn.model_selection import GridSearchCV, KFold
+from sklearn.base import clone
 import numpy as np
 from pandas import DataFrame
+import warnings
 
-# training data
+# Training data
 np.random.seed(100)
 X = np.random.random((1000, 10))
 
-# noisy output, y = x0 * x1 + x2^2 + x3 - x4^(1/4) + e
+# Noisy output, y = x0 * x1 + x2^2 + x3 - x4^(1/4) + e
 y = X[:, 0] * X[:, 1] + X[:, 2] ** 2 + X[:, 3] - X[:, 4] ** (1 / 4)
 
 # Change scales
@@ -38,10 +35,23 @@ X[:, 2] *= 5
 X[:, 3] *= 3
 X[:, 4] /= 10
 
-# meta estimator
-meta = SVR()
+fit_params = {'layer-1-np-rf__min_samples_leaf': 9,
+              'meta-svr__C': 16.626146983723014,
+              'layer-1-sc-kn__n_neighbors': 9,
+              'layer-1-np-rf__max_features': 4,
+              'layer-1-mm-svr__C': 11.834807428701293,
+              'layer-1-sc-ls__alpha': 0.0014284293508642438,
+              'layer-1-np-rf__max_depth': 4,
+              'n_jobs': -1,
+              'verbose': 2,
+              'shuffle': False,
+              'random_state': 100}
 
-# Create ensemble with preprocessing pipelines
+grid_params = {'layer-1-mm-svr__C': [3, 5],
+               'meta-svr__C': [1, 2]}
+
+# Complex ensemble
+meta = SVR()
 base_pipelines = {'sc':
                   ([StandardScaler()],
                    [('ls', Lasso()), ('kn', KNeighborsRegressor())]),
@@ -50,82 +60,37 @@ base_pipelines = {'sc':
                   'np':
                   ([], [('rf', RandomForestRegressor(random_state=100))])}
 
-ensemble = StackingEnsemble(meta, base_pipelines, folds=10, shuffle=False,
+ensemble = StackingEnsemble(folds=10, shuffle=False,
                             scorer=rmse._score_func, n_jobs=1,
                             random_state=100)
-
-params = {'sc-ls__alpha': uniform(0.0005, 0.005),
-          'np-rf__max_depth': randint(2, 6),
-          'np-rf__max_features': randint(2, 5),
-          'np-rf__min_samples_leaf': randint(5, 12),
-          'sc-kn__n_neighbors': randint(6, 12),
-          'mm-svr__C': uniform(10, 20),
-          'meta-svr__C': uniform(10, 20)}
-
-# Ensembles without preprocessing
-ens1 = StackingEnsemble(Lasso(alpha=0.001, random_state=100),
-                        [('svr', SVR()),
-                         ('rf', RandomForestRegressor(random_state=100))],
-                        folds=KFold(2, random_state=100, shuffle=True),
-                        random_state=100, n_jobs=-1)
-
-ens2 = StackingEnsemble(Lasso(alpha=0.001, random_state=100),
-                        [SVR(), RandomForestRegressor(random_state=100)],
-                        random_state=100, n_jobs=-1)
-
-ens3 = StackingEnsemble(Lasso(alpha=0.001, random_state=100),
-                        {'no_prep':
-                         ([], [SVR(),
-                               RandomForestRegressor(random_state=100)])},
-                        random_state=100, n_jobs=-1)
+ensemble.add(base_pipelines)
+ensemble.add_meta(meta)
 
 
-def test_naming():
+# Ensembles without preprocessing to check case handling and estimator perf
+# Named estimator tuples, implicit lack of preprocessing
+ens1 = StackingEnsemble(folds=KFold(2, random_state=100, shuffle=True),
+                        random_state=100, n_jobs=-1, scorer=rmse_scoring)
+ens1.add([('svr', SVR()), ('rf', RandomForestRegressor(random_state=100))],)
+ens1.add_meta(Lasso(alpha=0.001, random_state=100))
 
-    named_meta = name_estimators([meta], 'meta-')
-    named_base = name_base(base_pipelines)
+# Ensemble without named tuples, implicit lack of preprocessing
+ens2 = StackingEnsemble(random_state=100, n_jobs=-1)
+ens2.add_meta(Lasso(alpha=0.001, random_state=100))
+ens2.add([SVR(), RandomForestRegressor(random_state=100)])
 
-    assert isinstance(named_meta, dict)
-    assert isinstance(named_meta['meta-svr'], SVR)
-    assert isinstance(named_base, dict)
-    assert len(named_base) == 6
+# Ensemble with explicit no prep pipelines
+ens3 = StackingEnsemble(random_state=100, n_jobs=-1)
+ens3.add({'no_prep': ([], [SVR(), RandomForestRegressor(random_state=100)])})
+ens3.add_meta(Lasso(alpha=0.001, random_state=100))
 
+# Simple ensemble for grid search
 
-def test_check_names():
-
-    preprocess = [(case, _check_names(p[0])) for case, p in
-                  base_pipelines.items()]
-
-    base_estimators = [(case, _check_names(p[1])) for case, p in
-                       base_pipelines.items()]
-
-    assert isinstance(base_estimators, list)
-    assert isinstance(preprocess, list)
-    assert len(base_estimators) == 3
-    assert len(preprocess) == 3
-    assert isinstance(base_estimators[0], tuple)
-    assert isinstance(preprocess[0], tuple)
-
-
-def test_clone():
-
-    preprocess = [(case, _check_names(p[0])) for case, p in
-                  base_pipelines.items()]
-    base_estimators = [(case, _check_names(p[1])) for case, p in
-                       base_pipelines.items()]
-
-    base_ = _clone_base_estimators(base_estimators)
-    preprocess_ = _clone_preprocess_cases(preprocess)
-    base_columns_ = name_columns(base_)
-
-    assert isinstance(preprocess_, list)
-    assert isinstance(preprocess_[0], tuple)
-    assert isinstance(preprocess_[0][1], list)
-    assert isinstance(base_, dict)
-    assert isinstance(base_['mm'], list)
-    assert isinstance(base_['mm'][0], tuple)
-    assert isinstance(base_columns_, list)
-    assert len(base_columns_) == 4
+grid_ens = StackingEnsemble(folds=5, shuffle=False,
+                            scorer=rmse_scoring, n_jobs=1,
+                            random_state=100)
+grid_ens.add({'mm': ([MinMaxScaler()], [SVR(C=1)])})
+grid_ens.add_meta(SVR())
 
 
 def test_no_preprocess_ensemble():
@@ -144,31 +109,25 @@ def test_no_preprocess_ensemble():
     ens1.set_params(**{'as_df': True, 'scorer': rmse._score_func})
     ens1.fit(DataFrame(X), y)
 
-    assert str(ens1.scores_['rf'])[:16] == '0.171221793126'
-    assert str(ens1.scores_['svr'])[:16] == '0.171500953229'
+    assert str(ens1.scores_['layer-1-rf'])[:16] == '0.171221793126'
+    assert str(ens1.scores_['layer-1-svr'])[:16] == '0.171500953229'
 
 
 def test_preprocess_ensemble():
 
-    ensemble.set_params(**{'np-rf__min_samples_leaf': 9,
-                           'meta-svr__C': 16.626146983723014,
-                           'sc-kn__n_neighbors': 9,
-                           'np-rf__max_features': 4,
-                           'mm-svr__C': 11.834807428701293,
-                           'sc-ls__alpha': 0.0014284293508642438,
-                           'np-rf__max_depth': 4,
-                           'n_jobs': -1,
-                           'verbose': 2,
-                           'shuffle': False,
-                           'random_state': 100})
+    # Check that cloning and set params work
+    ens = clone(ensemble).set_params(**fit_params)
 
+    ensemble.set_params(**fit_params)
+
+    ens.fit(X[:900], y[:900])
     ensemble.fit(X[:900], y[:900])
 
-    score1 = rmse(ensemble, X[900:], y[900:])
-    score2 = rmse_scoring(y[900:], ensemble.predict(X[900:]))
+    score1 = rmse(ens, X[900:], y[900:])
+    score2 = rmse_scoring(y[900:], ens.predict(X[900:]))
 
     assert score1 == -score2
-    assert ensemble.get_params()['n_jobs'] == -1
+    assert ens.get_params()['n_jobs'] == -1
     assert str(score1)[:16] == '-0.0522364178463'
 
 
@@ -176,9 +135,28 @@ def test_grid_search():
 
     ensemble.set_params(**{'n_jobs': 1})
 
-    grid = RandomizedSearchCV(ensemble, param_distributions=params,
-                              n_iter=2, cv=2, scoring=rmse,
-                              n_jobs=-1, random_state=100)
+    grid = GridSearchCV(grid_ens, param_grid=grid_params,
+                        cv=2, scoring=rmse, n_jobs=1)
     grid.fit(X, y)
+    assert str(grid.best_score_)[:16] == '-0.0739108130567'
 
-    assert str(grid.best_score_)[:16] == '-0.0626352824626'
+
+def test_ensemble_exception_handling():
+    # Currently this test just ensures the ensemble runs through
+    ensemble.set_params(**{  # will cause error
+                           'layer-1-np-rf__min_samples_leaf': 1.01,
+                           'meta-svr__C': 1,
+                           'layer-1-sc-kn__n_neighbors': 2,
+                             # will cause error
+                           'layer-1-np-rf__max_features': 1.01,
+                           'layer-1-mm-svr__C': 11.834807428701293,
+                           'layer-1-sc-ls__alpha': 0.0014284293508642438,
+                           'layer-1-np-rf__max_depth': 4,
+                           'n_jobs': -1,
+                           'verbose': 0,
+                           'shuffle': False,
+                           'random_state': 100})
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ensemble.fit(X[:100], y[:100])

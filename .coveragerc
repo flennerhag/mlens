@@ -5,8 +5,14 @@ include = */mlens/*
 omit =
     */tests/*
     */visalization/*
+    */externals/*
     */setup.py
 
 [report]
-omit = */visualization/*
+omit =
+    */tests/*
+    */visualization/*
+    */externals/*
+    */setup.py
+
 skip_covered = True

@@ -5,26 +5,45 @@
 
 author: Sebastian Flennerhag
 date: 11/01/2017
-Scoring functions not in the sklearn library
+Scoring functions
 """
 
 from __future__ import division, print_function
 
 import numpy as np
 from pandas import DataFrame
-from sklearn.metrics import make_scorer
+from ..externals import make_scorer
 
 
-def score_matrix(M, y, score, column_names=None):
+def score_matrix(y_preds, y_true, scorer, column_names=None, prefix=None):
     """Function for scoring a matrix"""
-    if isinstance(M, DataFrame):
-        return dict(M.apply(lambda x: score(y, x)))
+    y_preds = y_preds if not isinstance(y_preds, DataFrame) else y_preds.values
+
+    if column_names is None:
+        column_names = ['preds_%i' % (i + 1) for i in range(y_preds.shape[1])]
+
+    if prefix is None:
+        return {col: scorer(y_true, y_preds[:, i]) for i, col in enumerate(column_names)}
     else:
-        return {col: score(y, M[:, i]) for i, col in enumerate(column_names)}
+        return {prefix + '-' + col: scorer(y_true, y_preds[:, i]) for i, col in
+                enumerate(column_names)}
 
 
 def rmse_scoring(y, p):
-    """Root Mean Square Error := sqrt(mse), mse := (1/n) * sum((y-p)**2)"""
+    """Root Mean Square Error := sqrt(mse), mse := (1/n) * sum((y-p)**2)
+
+    Parameters
+    ----------
+    y : array-like
+        ground truth
+    p : array-like
+        predicted labels
+
+    Returns
+    ---------
+    z: float
+        root mean squared error
+    """
     return np.mean((y-p)**2)**(1/2)
 
 rmse = make_scorer(rmse_scoring, greater_is_better=False)

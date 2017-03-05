@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
 author: Sebastian Flennerhag
@@ -12,23 +9,17 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 
 from __future__ import division, print_function
 
-from sklearn.base import clone, BaseEstimator, TransformerMixin, RegressorMixin
-from ._setup import name_estimators, name_base, _check_names
-from ._clone import _clone_base_estimators, _clone_preprocess_cases
-from ..utils import print_time, name_columns
-from ..metrics import score_matrix
-from ..parallel import preprocess_folds, preprocess_pipes
-from ..parallel import fit_estimators, base_predict
-from ..externals import six
+from .base import BaseEnsemble
+from ..utils import print_time
+from ..externals.six import iteritems
+
+from sklearn.base import clone
+from sklearn.pipeline import _name_estimators
 from time import time
 import sys
 
-# TODO: make the preprocessing of folds optional as it can take a lot of memory
-# TODO: Refactor the fitting method so we can build blend and stacking from
-#       same class shell
 
-
-class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
+class StackingEnsemble(BaseEnsemble):
 
     """Stacking Ensemble
 
@@ -47,20 +38,6 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
 
     Parameters
     -----------
-    meta_estimator : obj
-        estimator to fit on base_estimator predictions. Must accept fit and
-        predict method.
-    base_pipelines : dict, list
-        base estimator pipelines. If no preprocessing, pass a list of
-        estimators, possible as named tuples [('est-1', est), (...)]. If
-        preprocessing is desired, pass a dictionary with pipeline keys:
-        {'pipe-1': [preprocessing], [estimators]}, where
-        [preprocessing] should be a list of transformers, possible as named
-        tuples, and estimators should be a list of estimators to fit on
-        preprocesssed data, possibly as named tuples. General format should be
-        {'pipe-1', [('step-1', trans), (...)], [('est-1', est), (...)]}, where
-        named each step is optional. Each transformation step and estimators
-        must accept fit and transform / predict methods respectively
     folds : int, obj, default=2
         number of folds to use for constructing meta estimator training set.
         Either pass a KFold class object that accepts as ``split`` method,
@@ -78,7 +55,7 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         true values and an array of predictions: score = f(y_true, y_pred). The
         scoring function of an sklearn scorer can be retrieved by ._score_func
     random_state : int, default=None
-        seed for creating folds during fitting
+        seed for creating folds during fitting (if shuffle=True)
     verbose : bool, int, default=False
         level of verbosity of fitting:
             verbose = 0 prints minimum output
@@ -92,45 +69,26 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
     scores_ : dict
         scored base of base estimators on the training set, estimators are
         named according as pipeline-estimator.
-    base_estimators_ : list
-        fitted base estimators
-    base_columns_ : list
-        ordered list of base estimators as they appear in the input matrix to
-        the meta estimators. Useful for mapping sklearn feature importances,
-        which comes as ordered ndarrays.
-    preprocess_ : dict
-        fitted preprocessing pipelines
+    layers_ : list
+        fitted ensemble layers
 
     Methods
     --------
-    fit : X, y=None
+    add : tuple
+        Method for adding a layer. Layers are added sequentially
+    add_meta : obj
+        Method for adding the final meta estimator. Can be added at any time.
+    fit : data, labels=None
         Fits ensemble on provided data
-    predict : X
+    predict : data
         Use fitted ensemble to predict on X
     get_params : None
         Method for generating mapping of parameters. Sklearn API
     """
 
-    def __init__(self, meta_estimator, base_pipelines, folds=2, shuffle=True,
-                 as_df=False, scorer=None, random_state=None,
-                 verbose=False, n_jobs=-1):
-
-        self.base_pipelines = base_pipelines
-        self.meta_estimator = meta_estimator
-
-        self.named_meta_estimator = name_estimators([meta_estimator], 'meta-')
-        self.named_base_pipelines = name_base(base_pipelines)
-
-        # if preprocessing, seperate base estimators and preprocessing pipes
-        if isinstance(base_pipelines, dict):
-            self.preprocess = [(case, _check_names(p[0])) for case, p in
-                               base_pipelines.items()]
-            self.base_estimators = [(case, _check_names(p[1])) for case, p in
-                                    base_pipelines.items()]
-        # else, ensure base_estimators are named
-        else:
-            self.preprocess = []
-            self.base_estimators = [('', _check_names(base_pipelines))]
+    def __init__(self, folds=2, shuffle=True, as_df=False, scorer=None,
+                 random_state=None, verbose=False, n_jobs=-1,
+                 layers=None, meta_estimator=None):
 
         self.folds = folds
         self.shuffle = shuffle
@@ -140,14 +98,34 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self.verbose = verbose
         self.n_jobs = n_jobs
 
-    def fit(self, X, y):
+        self._init_layers(layers)
+        self.meta_estimator = meta_estimator
+
+    def add_meta(self, meta_estimator):
+        """Add final estimator used to combine last layer's predictions
+
+        Parameters
+        -----------
+        meta_estimator : obj
+            estimator to fit on base_estimator predictions. Must accept fit and
+            predict method.
+
+        Returns
+        -----------
+        self : obj,
+            ensemble instance with meta estimator initiated
+        """
+        self.meta_estimator = meta_estimator
+        return self
+
+    def fit(self, data, labels):
         """Fit ensemble
 
         Parameters
         ----------
-        X : array-like, shape=[n_samples, n_features]
+        data : array-like, shape=[n_samples, n_features]
             input matrix to be used for prediction
-        y : array-like, shape=[n_samples, ]
+        labels : array-like, shape=[n_samples, ]
             output vector to trained estimators on
 
         Returns
@@ -155,146 +133,80 @@ class StackingEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         self : obj
             class instance with fitted estimators
         """
-        self.meta_estimator_ = clone(self.meta_estimator)
-        self.base_estimators_ = _clone_base_estimators(self.base_estimators)
-        self.preprocess_ = _clone_preprocess_cases(self.preprocess)
-        self.base_columns_ = name_columns(self.base_estimators_)
+        ts = self._print_start()
+
+        data = self.fit_layers(data, labels)
+
+        self.meta_estimator_ = clone(self.meta_estimator).fit(data, labels)
 
         if self.verbose > 0:
-            printout = sys.stdout if self.verbose > 50 else sys.stderr
-            print('Fitting ensemble\n', file=printout)
-            printout.flush()
-            ts = time()
-        else:
-            printout = None
-
-        # ========== Fit meta estimator ==========
-        self._fit_meta_estimator(X, y, printout)
-
-        # ========== Fit preprocessing pipes and base estimators ==========
-        self._fit_base(X, y, printout)
-
-        if self.verbose > 0:
-            print_time(ts, '\nFit complete', file=printout)
+            print_time(ts, 'Fit complete', file=self.printout)
 
         return self
 
-    def predict(self, X, y=None):
+    def predict(self, data, labels=None):
         """Predict with fitted ensemble
 
         Parameters
         ----------
-        X : array-like, shape=[n_samples, n_features]
+        data : array-like, shape=[n_samples, n_features]
             input matrix to be used for prediction
+        labels : array-like, None
+            pass through for scikit-learn compatability
 
         Returns
         --------
-        y : array-like, shape=[n_samples, ]
+        labels : array-like, shape=[n_samples, ]
             predictions for provided input array
         """
-        data = self._preprocess(X, y, False)
-        M = base_predict(data, self.base_estimators_, X.shape[0],
-                         folded_preds=False, columns=self.base_columns_,
-                         as_df=self.as_df, n_jobs=self.n_jobs, verbose=False)
+        data = self.predict_layers(data, labels)
+        return self.meta_estimator_.predict(data)
 
-        return self.meta_estimator_.predict(M)
-
-    def _fit_meta_estimator(self, X, y, printout):
-        """Create K-fold predicts as meta estimator training data"""
-        if self.verbose >= 1:
-            print('> fitting meta estimator', file=printout)
-            printout.flush()
-
-        # Fit temporary base pipelines and make k-fold out of sample preds
-        # Parellelized preprocessing for all folds
-        if self.verbose >= 2:
-            print('>> preprocessing folds', file=printout)
-            printout.flush()
-
-        data = preprocess_folds(_clone_preprocess_cases(self.preprocess),
-                                X, y, folds=self.folds, fit=True,
-                                shuffle=self.shuffle,
-                                random_state=self.random_state,
-                                n_jobs=self.n_jobs, verbose=self.verbose)
-
-        # Parellelized k-fold predictions for meta estiamtor training set
-        if self.verbose >= 2:
-            print('>> fitting base estimators', file=printout)
-            printout.flush()
-
-        M = base_predict(data, _clone_base_estimators(self.base_estimators),
-                         n=X.shape[0], folded_preds=True,
-                         columns=self.base_columns_, as_df=self.as_df,
-                         n_jobs=self.n_jobs, verbose=self.verbose)
-        data = None  # discard
-
-        if self.scorer is not None:
-            cols = [] if self.as_df else name_columns(self.base_estimators_)
-            self.scores_ = score_matrix(M, y, self.scorer, cols)
-
-        if self.verbose >= 2:
-            print('>> fitting meta estimator', file=printout)
-            printout.flush()
-
-        self.meta_estimator_.fit(M, y)
-
-    def _fit_base(self, X, y, printout):
-        """Fits preprocessing pipelines and base estimator on full dataset"""
-        if self.verbose >= 1:
-            print('\n> fitting base estimators', file=printout)
-
-        # Parallelized fitting of preprocessing pipelines
-        if self.verbose >= 2:
-            print('>> preprocessing data', file=printout)
-            printout.flush()
-
-        data = self._preprocess(X, y, True)
-
-        # Parallelized fitting of base estimators (on full training data)
-        if self.verbose >= 2:
-            print('>> fitting base estimators', file=printout)
-            printout.flush()
-
-        self.base_estimators_ = fit_estimators(data, y, self.base_estimators_,
-                                               self.n_jobs, self.verbose)
-
-    def _preprocess(self, X, y, method_is_fit):
-        """Method for generating predictions for inputs"""
-        if len(self.preprocess_) == 0:
-            return [[X, '']]
+    def _print_start(self):
+        if self.verbose > 0:
+            self.printout = sys.stdout if self.verbose > 50 else sys.stderr
+            print('Fitting ensemble\n', file=self.printout)
+            self.printout.flush()
+            ts = time()
+            return ts
         else:
-
-            out = preprocess_pipes(self.preprocess_, X, y, fit=method_is_fit,
-                                   return_estimators=method_is_fit,
-                                   n_jobs=self.n_jobs, verbose=self.verbose)
-            if method_is_fit:
-                pipes, Z, cases = zip(*out)
-                self.preprocess_ = [(case, pipe) for case, pipe in
-                                    zip(cases, pipes)]
-                return [[z, case] for z, case in zip(Z, cases)]
-            else:
-                return [[z, case] for z, case in out]
+            self.printout = None
+            return
 
     def get_params(self, deep=True):
-        """Sklearn API for retrieveing all (also nested) model parameters"""
-        if not deep:
-            return super(StackingEnsemble, self).get_params(deep=False)
+        """Sklearn API for retrieving all (also nested) model parameters"""
+        # Ensemble parameters
+        out = {  # Instantiated settings
+               'folds': self.folds,
+               'shuffle': self.shuffle,
+               'as_df': self.as_df,
+               'scorer': self.scorer,
+               'random_state': self.random_state,
+               'verbose': self.verbose,
+               'n_jobs': self.n_jobs,
+                 # Layers
+               'layers': self.layers,
+               'meta_estimator': self.meta_estimator}
+
+        if deep is False:
+            return out
         else:
-            out = {'folds': self.folds,
-                   'shuffle': self.shuffle,
-                   'as_df': self.as_df,
-                   'scorer': self.scorer,
-                   'random_state': self.random_state,
-                   'verbose': self.verbose,
-                   'n_jobs': self.n_jobs}
+            # Get parameters of the estimators in each layer
+            for layer_nm, layer in iteritems(self.layers):
+                for meta_step in layer:
+                    for step_nm, step in meta_step:
+                        for nm, est in step:
+                            # Register the estimator
+                            out['%s-%s-%s' % (layer_nm, step_nm, nm)] = est
+                            for k, v in iteritems(est.get_params(deep=True)):
+                                # Register the estimator parameters
+                                out['%s-%s-%s__%s' % (layer_nm,
+                                                      step_nm,
+                                                      nm, k)] = v
 
-            out.update(self.named_base_pipelines.copy())
-            for name, step in six.iteritems(self.named_base_pipelines):
-                for key, value in six.iteritems(step.get_params(deep=True)):
-                    out['%s__%s' % (name, key)] = value
-
-            out.update(self.named_meta_estimator.copy())
-            for name, step in six.iteritems(self.named_meta_estimator):
-                for key, value in six.iteritems(step.get_params(deep=True)):
-                    out['%s__%s' % (name, key)] = value
+            # Get meta estimator parameters
+            for name, est in _name_estimators([self.meta_estimator]):
+                out['meta-%s' % name] = est
+                for key, value in iteritems(est.get_params(deep=True)):
+                    out['meta-%s__%s' % (name, key)] = value
             return out

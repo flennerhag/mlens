@@ -36,7 +36,7 @@ def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
         test_sc = scoring(est, xtest, ytest)
         train_sc = scoring(est, xtrain, ytrain)
 
-    except KeyError as e:
+    except Exception as e:
         msg = "Could not fit estimator [%s]. Score set to %s. Details: \n%r"
         warnings.warn(msg % (est_name, str(error_score), e), FitFailedWarning)
 
@@ -49,8 +49,8 @@ def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
     return [est_name, test_sc, train_sc, t, draw + 1, params]
 
 
-def _fit_estimator(tup):
-    """utlity function for fitting estimator and logging its information"""
+def _fit_ests(tup):
+    """Function for fitting estimators on full training set"""
     y, (X, case), (est_name, estimator) = tup
     try:
         estimator = estimator.fit(X, y)
@@ -58,30 +58,67 @@ def _fit_estimator(tup):
     except Exception as e:
         msg = "Estimator [%s] not fitted. Details: \n%r"
         warnings.warn(msg % (est_name, e), FitFailedWarning)
+        return [None, None, None]
 
 
-def _fit_and_predict(tup):
-    """Fits ests on part of training set to predict out of sample"""
-    (xtrain, xtest, ytrain, _, idx, case), (est_name, estimator) = tup
-
+def _fit_ests_folds(tup):
+    """Function for fitting estimators on folds"""
+    (xtrain, _, ytrain, _, _, fold_num), (est_name, estimator) = tup
     try:
-        est = clone(estimator)
-        p = est.fit(xtrain, ytrain).predict(xtest)
-        out = [case + '-' + est_name] if case not in [None, ''] else [est_name]
-        out += [idx, p]
-        return out
+        estimator = estimator.fit(xtrain, ytrain)
+        return [fold_num, est_name, estimator]
     except Exception as e:
         msg = "Estimator [%s] not fitted. Details: \n%r"
         warnings.warn(msg % (est_name, e), FitFailedWarning)
+        return [None, None, None, None]
+
+
+def _predict_folds(tup):
+    """Fits ests on part of training set to predict out of sample"""
+    fit, keys, (xtrain, xtest, ytrain, _, idx, case), (est_name, est) = tup
+    est_name = str(est_name)
+
+    try:
+        if fit:
+            est = clone(est)
+            est.fit(xtrain, ytrain)
+        p = est.predict(xtest)
+
+        if keys:
+            case = str(case)
+            empty = [None, '']
+            out = [case + '-' + est_name] if case not in empty else [est_name]
+        else:
+            out = [est_name]
+
+        out += [idx, p]
+        return out
+    except Exception as e:
+        msg = "Could not fit/predict with estimator [%s]. Details: \n%r"
+        warnings.warn(msg % (est_name, e), FitFailedWarning)
+        return [None, None, None]
 
 
 def _predict(tup):
     """Predicts on data using estimator"""
-    (X, case), (est_name, estimator) = tup
-    p = estimator.predict(X)
-    out = [case + '-' + est_name] if case not in [None, ''] else [est_name]
-    out.append(p)
-    return out
+    keys, (X, case), (est_name, estimator) = tup
+
+    try:
+        p = estimator.predict(X)
+
+        if keys:
+            case = str(case)
+            empty = [None, '']
+            out = [case + '-' + est_name] if case not in empty else [est_name]
+        else:
+            out = [est_name]
+
+        out.append(p)
+        return out
+    except Exception as e:
+        msg = "Could not predict with estimator [%s]. Details: \n%r"
+        warnings.warn(msg % (est_name, e), FitFailedWarning)
+        return [None, None]
 
 
 def _construct_matrix(preds, n, columns, folds):
@@ -92,10 +129,12 @@ def _construct_matrix(preds, n, columns, folds):
 
     if folds:
         for (col, i, p) in preds:
-            j = colmap[col]
-            M[i, j] = p
+            if col is not None:
+                j = colmap[col]
+                M[i, j] = p
     else:
         for (col, p) in preds:
-            j = colmap[col]
-            M[:, j] = p
+            if col is not None:
+                j = colmap[col]
+                M[:, j] = p
     return M

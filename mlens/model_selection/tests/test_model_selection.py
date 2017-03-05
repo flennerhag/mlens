@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
 author: Sebastian Flennerhag
@@ -9,7 +6,7 @@ date: 12/01/2017
 
 from __future__ import division, print_function
 
-from mlens.model_selection import Evaluator
+from mlens.model_selection import Evaluator, EnsembleLayers
 from mlens.metrics import rmse
 from mlens.utils import pickle_save, pickle_load
 import numpy as np
@@ -18,6 +15,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
 from scipy.stats import uniform, randint
+import warnings
 
 # training data
 np.random.seed(100)
@@ -41,10 +39,12 @@ rf = RandomForestRegressor(random_state=100)
 ls_p = {'alpha': uniform(0.00001, 0.0005)}
 rf_p = {'max_depth': randint(2, 7), 'max_features': randint(3, 10),
         'min_samples_leaf': randint(2, 10)}
+rf_p_e = {'min_samples_leaf': uniform(1.01, 1.05)}
 
 # Put it all in neat dictionaries. Note that the keys must match!
 estimators = {'ls': ls, 'rf': rf}
 parameters = {'ls': ls_p, 'rf': rf_p}
+parameters_exception = {'ls': ls_p, 'rf': rf_p_e}
 
 # A set of different preprocessing cases we want to try for each model
 preprocessing = {'a': [StandardScaler()],
@@ -58,6 +58,8 @@ evals2 = Evaluator(rmse, preprocessing, cv=2,
                    verbose=1, shuffle=False, n_jobs_estimators=-1,
                    n_jobs_preprocessing=-1, random_state=100)
 
+ens_base = EnsembleLayers()
+ens_base.add([(key, val) for key, val in estimators.items()])
 
 def check_scores(evals):
     test_draws = []
@@ -73,14 +75,29 @@ def check_scores(evals):
 
 
 def test_evals():
-
         evals1.preprocess(X, y)
         evals1.evaluate(X, y, estimators, parameters, 3, flush_preprocess=True)
         evals1.evaluate(X, y, estimators, parameters, 3)
         check_scores(evals1)
 
-        # Test pickling
+
+def test_pickling_evals():
         evals2.evaluate(X, y, estimators, parameters, 3)
         pickle_save(evals2, 'test')
         pickled_eval = pickle_load('test')
         check_scores(pickled_eval)
+
+
+def test_exception_handling_evals():
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        evals1.evaluate(X, y, estimators, parameters_exception, 3)
+        assert str(evals1.summary_.iloc[-1][0])[:3] == '-99'
+
+
+def test_ensemble_layers():
+    ens_base.fit(X, y)
+    out = ens_base.transform(X)
+
+    assert out.shape[1] == 2

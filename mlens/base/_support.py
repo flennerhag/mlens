@@ -10,19 +10,19 @@ Support function for ensemble classes
 """
 
 
-def _check_estimators(full_fit_est, fold_fit_est):
+def _check_estimators(full_fit_est, fold_fit_est, layer):
     """Helper function to check that fitted estimators overlap"""
     if not all([est in full_fit_est for est in fold_fit_est]):
-        raise ValueError('Not all estimators successfully fitted on the full\
-        dataset were fitted during fold predictions. Meta estimator will be\
-        biased or incorrect. Aborting.\nFitted estimators on full data: %r\
-        \nFitted estimators on folds: %r' % (full_fit_est, fold_fit_est))
+        raise ValueError('[%s] Not all estimators successfully fitted on the full '
+                         'dataset were fitted during fold predictions. Aborting.'
+                         '\n[%s] Fitted estimators on full data: %r'
+                         '\n[%s] Fitted estimators on folds: %r' % (layer, layer, full_fit_est, layer, fold_fit_est))
 
     if not all([est in fold_fit_est for est in full_fit_est]):
-        raise ValueError('Not all estimators successfully fitted on the fold\
-        data were successfully fitted on the full data. Meta estimator will be\
-        biased or incorrect. Aborting.\nFitted estimators on full data: %r\
-        \nFitted estimators on folds: %r' % (full_fit_est, fold_fit_est))
+        raise ValueError('[%s] Not all estimators successfully fitted on the fold '
+                         'data were successfully fitted on the full data. Aborting.'
+                         '\n[%s] Fitted estimators on full data: %r'
+                         '\n[%s] Fitted estimators on folds: %r' % (layer, layer, full_fit_est, layer, fold_fit_est))
 
 
 def _name_columns(estimator_cases):

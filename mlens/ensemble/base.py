@@ -163,6 +163,6 @@ class BaseEnsemble(BaseEstimator, RegressorMixin, TransformerMixin):
         data, est_names_ = predict_layer(data, labels, layer, as_df=self.as_df, n_jobs=self.n_jobs,
                                          verbose=self.verbose, layer_msg=layer_name, printout=self.printout)
 
-        _check_estimators(est_names_, layer[2])
+        _check_estimators(est_names_, layer[2], layer_name)
 
         return data

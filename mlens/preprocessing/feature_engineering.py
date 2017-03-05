@@ -185,7 +185,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
                          function_args=function_args,
                          columns=self._fitted_ests, as_df=as_df,
                          n_jobs=self.n_jobs, verbose=self.verbose)
-        _check_estimators(self._fitted_ests, fitted_estimator_names)
+        _check_estimators(self._fitted_ests, fitted_estimator_names, 'prediction_feature')
         return M
 
     def transform(self, X, y=None):

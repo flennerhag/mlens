@@ -75,3 +75,29 @@ def test_clone():
     assert isinstance(base_['mm'][0], tuple)
     assert isinstance(base_columns_, list)
     assert len(base_columns_) == 4
+
+
+def test_check_estimators():
+    fold_fit_incomplete = ['a']
+    fold_fit_complete = ['a', 'b']
+
+    full_fit_incomplete = ['a']
+    full_fit_complete = ['a', 'b']
+
+    _check_estimators(fold_fit_complete, full_fit_complete, 'layer-1')
+
+    try:
+        _check_estimators(fold_fit_incomplete, full_fit_complete, 'layer-1')
+    except ValueError as e:
+        print(e)
+
+    try:
+        _check_estimators(fold_fit_complete, full_fit_incomplete, 'layer-1')
+    except ValueError as e:
+        print(e)
+
+def test_column_naming():
+    cols = _name_columns({'case-1': [('est-1', SVR()), ('est-2', Lasso())]})
+
+    for i, key  in enumerate(cols):
+        assert key == 'case-1-est-%i' % (i + 1)

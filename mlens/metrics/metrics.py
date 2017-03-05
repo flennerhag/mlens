@@ -30,7 +30,20 @@ def score_matrix(y_preds, y_true, scorer, column_names=None, prefix=None):
 
 
 def rmse_scoring(y, p):
-    """Root Mean Square Error := sqrt(mse), mse := (1/n) * sum((y-p)**2)"""
+    """Root Mean Square Error := sqrt(mse), mse := (1/n) * sum((y-p)**2)
+
+    Parameters
+    ----------
+    y : array-like
+        ground truth
+    p : array-like
+        predicted labels
+
+    Returns
+    ---------
+    z: float
+        root mean squared error
+    """
     return np.mean((y-p)**2)**(1/2)
 
 rmse = make_scorer(rmse_scoring, greater_is_better=False)

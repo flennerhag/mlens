@@ -15,14 +15,17 @@ from pandas import DataFrame
 from ..externals import make_scorer
 
 
-def score_matrix(M, y, score, column_names=None, prefix=None):
+def score_matrix(y_preds, y_true, scorer, column_names=None, prefix=None):
     """Function for scoring a matrix"""
-    X = M if not isinstance(M, DataFrame) else M.values
+    y_preds = y_preds if not isinstance(y_preds, DataFrame) else y_preds.values
+
+    if column_names is None:
+        column_names = ['preds_%i' % i for i in range(y_preds.shape[1])]
 
     if prefix is None:
-        return {col: score(y, X[:, i]) for i, col in enumerate(column_names)}
+        return {col: scorer(y_true, y_preds[:, i]) for i, col in enumerate(column_names)}
     else:
-        return {prefix + '-' + col: score(y, X[:, i]) for i, col in
+        return {prefix + '-' + col: scorer(y_true, y_preds[:, i]) for i, col in
                 enumerate(column_names)}
 
 

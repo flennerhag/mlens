@@ -210,6 +210,6 @@ def cross_validate(estimators, param_sets, dout, scoring, error_score=nan,
                    delayed(_fit_score)(est, est_name, params, scoring,
                                        tup, i, error_score)
                    for tup in dout
-                   for est_name, est in estimators.items()
+                   for est_name, est in estimators
                    for i, params in enumerate(param_sets[est_name]))
     return out

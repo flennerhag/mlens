@@ -177,7 +177,7 @@ def test_fit_estimators():
 
 def test_cross_validate():
     tup = [[X[:50], X[50:], y[:50], y[50:], 'test']]
-    out = cross_validate({'ls': Lasso()},
+    out = cross_validate([('ls', Lasso())],
                          {'ls': [{'alpha': 0.31512612017405128},
                                  {'alpha': 0.82931980191796162}]},
                          tup, rmse, n_jobs=1)

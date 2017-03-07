@@ -15,7 +15,7 @@ from __future__ import division, print_function
 from pandas import DataFrame, concat
 from numpy import hstack
 from sklearn.base import BaseEstimator, TransformerMixin
-from mlens.base import name_estimators, IdTrain
+from mlens.base import name_estimators, IdTrain, check_instances
 from mlens.base import clone_base_estimators
 from mlens.base import check_fit_overlap
 from mlens.utils import print_time
@@ -126,7 +126,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
 
         # >> Generate mapping between folds and estimators
         Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
-        ests_ = {i: clone_base_estimators([('', self.estimators)])['']
+        ests_ = {i: clone_base_estimators(check_instances(self.estimators))['']
                  for i in range(len(Min))}
         self.train_ests_ = fit_estimators(Min, ests_, None,
                                           self.n_jobs, self.verbose)
@@ -134,7 +134,8 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         # Fit estimators for test set
         self.test_ests_ = \
             fit_estimators([[X, '']],
-                           clone_base_estimators([('', self.estimators)]),
+                           clone_base_estimators(check_instances(
+                                   self.estimators)),
                            y, self.n_jobs, self.verbose)
 
         fitted_test_ests = [est_name for est_name, _ in self.test_ests_['']]

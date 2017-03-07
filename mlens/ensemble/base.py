@@ -608,7 +608,7 @@ class BaseEnsemble(BaseEstimator):
     -------
     add : estimators, preprocessing (default = [])
         add a layer consisting of a mapping of estimators and preprocessing
-        pipelines. See 'Layer’ for documentation on format of estimators and
+        pipelines. See 'Layer' for documentation on format of estimators and
         preprocessing.
 
     get_params : None

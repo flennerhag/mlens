@@ -12,11 +12,11 @@ from __future__ import division
 from .base import BaseEnsemble
 from ._layer import fit_layer, predict_layer
 from ..utils import print_time, safe_print
+from ..utils.checks import check_ensemble_build
 from ..metrics import set_scores
 
 from sklearn.base import clone
 from time import time
-import sys
 
 
 class StackingEnsemble(BaseEnsemble):
@@ -59,6 +59,10 @@ class StackingEnsemble(BaseEnsemble):
 
     random_state : int (default = None)
         seed for creating folds during fitting (if shuffle = True).
+        
+    raise_on_exception : bool (default = False)
+        flag for whether to issue warning on soft exceptions or raise error.
+        Examples include lack of layers and failed fit of estimator.
 
     verbose : bool or int (default = False)
         level of verbosity of fitting:
@@ -112,6 +116,7 @@ class StackingEnsemble(BaseEnsemble):
                  as_df=False,
                  scorer=None,
                  random_state=None,
+                 raise_on_exception=False,
                  verbose=False,
                  n_jobs=-1,
                  layers=None,
@@ -122,14 +127,13 @@ class StackingEnsemble(BaseEnsemble):
         self.as_df = as_df
         self.scorer = scorer
         self.random_state = random_state
+        self.raise_on_exception = raise_on_exception
         self.verbose = verbose
         self.n_jobs = n_jobs
-
+        self.layers = layers
+        self.meta_estimator = meta_estimator
         self.printout = 'stdout' if self.verbose >= 50 else 'stderr'
 
-        self._init_layers(layers)
-        self.meta_estimator = meta_estimator
-        
     def add(self, estimators, preprocessing=None):
         """Add layer to ensemble.
         
@@ -196,6 +200,7 @@ class StackingEnsemble(BaseEnsemble):
         self : instance
             ensemble instance with layer instantiated.
         """
+        
         fit_params = {'folds': self.folds,
                       'shuffle': self.shuffle,
                       'random_state': self.random_state,
@@ -251,6 +256,9 @@ class StackingEnsemble(BaseEnsemble):
         self : instance
             class instance with fitted estimators.
         """
+
+        check_ensemble_build(self)
+        
         ts = self._print_start()
 
         out, X = \
@@ -281,6 +289,9 @@ class StackingEnsemble(BaseEnsemble):
         y_pred : array-like, shape=[n_samples, ]
             predictions for provided input array.
         """
+        
+        check_ensemble_build(self)
+
         X = self._predict_layers(X, y, verbose=self.verbose)
         return self.meta_estimator_.predict(X)
         

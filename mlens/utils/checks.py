@@ -8,8 +8,29 @@ conditions for estimation before making estimator function calls in parallel
 jobs.
 """
 
+
 from sklearn.utils.validation import (check_random_state, check_X_y,
                                       check_array)
+
+
+def check_ensemble_build(inst, attr='layers'):
+    """Check that layers have been instantiated."""
+    
+    if not hasattr(inst, attr):
+        # No layer container. This should not happen!
+
+        msg = ("No layer class attached to instance (%s). (Cannot find a "
+               "'LayerContainer' class instance as attribute [%s].)")
+
+        raise AttributeError(msg % (inst.__class__.__name__, attr))
+    
+    if getattr(inst, attr) is None:
+        # No layers instantiated.
+        
+        msg = ("No Layers in instance (%s). Add layers before calling "
+               "'fit' and 'predict'.")
+
+        raise LayerSpecificationError(msg % inst.__class__.__name__)
 
 
 def assert_correct_layer_format(estimators, preprocessing):

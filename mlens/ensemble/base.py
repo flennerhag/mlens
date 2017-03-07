@@ -17,7 +17,6 @@ from ..utils.checks import (LayerSpecificationWarning, LayerSpecificationError,
                             assert_correct_layer_format, NotFittedError)
 
 import warnings
-import sys
 from time import time
 
 
@@ -42,6 +41,9 @@ class LayerContainer(BaseEstimator):
      n_layers : int (default = None)
         number of layers instantiated. Automatically set, normally there is no
         reason to fiddle with this parameter.
+        
+    raise_on_exception : bool (default = False)
+        raise error on soft exceptions. Otherwise issue warning.
         
     Methods
     ----------
@@ -74,9 +76,10 @@ class LayerContainer(BaseEstimator):
         Method for adding a layer to the container.
     """
 
-    def __init__(self, layers=None, n_layers=None):
+    def __init__(self, layers=None, n_layers=0, raise_on_exception=False):
         self.layers = self._init_layers(layers)
         self.n_layers = self._check_n_layers(n_layers)
+        self.raise_on_exception = raise_on_exception
 
     def add(self, fit_function, predict_function, estimators,
             preprocessing=None, fit_params=None, predict_params=None,
@@ -181,13 +184,16 @@ class LayerContainer(BaseEstimator):
             if in_place = True, returns the instance with the instantiated
             layer.
         """
+        
         # Instantiate layer
         lyr = Layer(estimators=estimators,
                     preprocessing=preprocessing,
                     fit_function=fit_function,
                     fit_params=fit_params,
                     predict_function=predict_function,
-                    predict_params=predict_params)
+                    predict_params=predict_params,
+                    raise_on_exception=self.raise_on_exception)
+        
         self.n_layers += 1
 
         # Attached to ordered dictionary
@@ -286,6 +292,7 @@ class LayerContainer(BaseEstimator):
         X_pred : array-like of shape = [n_samples, n_fitted_estimators]
             prediction matrix from final layer.
         """
+        
         if verbose:
             pout = "stdout" if verbose >= 3 else "stderr"
             safe_print("Predicting through all layers (%d)" % self.n_layers,
@@ -322,7 +329,7 @@ class LayerContainer(BaseEstimator):
     def _check_n_layers(self, n_layers):
         """Check that n_layers match to dictionary length."""
         n = len(self.layers)
-        if n_layers is not None and (n_layers != n):
+        if (n_layers != 0) and (n_layers != n):
             warnings.warn("Specified 'n_layers' [%d] does not correspond to "
                           "length of the 'layers' dictionary [%d]. Will "
                           "proceed with 'n_layers = len(layers)' "
@@ -450,6 +457,9 @@ class Layer(BaseEstimator):
         
     predict_params : dict, tuple or None (default = None)
         optional arguments passed to 'predict_function'.
+        
+    raise_on_exception : bool (default = False)
+        whether to raise an error on soft exceptions, else issue warning.
          
     Attributes
     -----------
@@ -489,7 +499,8 @@ class Layer(BaseEstimator):
     """
 
     def __init__(self, estimators, fit_function, predict_function,
-                 preprocessing=None, fit_params=None, predict_params=None):
+                 preprocessing=None, fit_params=None, predict_params=None,
+                 raise_on_exception=False):
         
         assert_correct_layer_format(estimators, preprocessing)
         
@@ -499,6 +510,7 @@ class Layer(BaseEstimator):
         self.predict_function = predict_function
         self.fit_params = self._format_params(fit_params)
         self.predict_params = self._format_params(predict_params)
+        self.raise_on_exception = raise_on_exception
         
     def fit(self, X, y):
         """Generic method for fitting and storing layer.
@@ -546,20 +558,32 @@ class Layer(BaseEstimator):
         check_is_fitted(self, "estimators_")
         
         # Check that there is at least one fitted estimator
-        if len(self.estimators_) == 0:
+        if isinstance(self.estimators_, (list, tuple, set)):
+            empty = len(self.estimators_) == 0
+        elif isinstance(self.estimators_, dict):
+            empty = any([len(e) == 0 for e in self.estimators_.values()])
+        else:
+            # Cannot determine shape of estimators, skip check
+            return
+
+        if empty:
             raise NotFittedError("Cannot predict as no estimators were"
                                  "successfully fitted.")
         
     @staticmethod
     def _format_params(params):
         """Check that a fit or predict parameters are formatted as kwargs."""
+        
         if params is None:
             return {}
         elif not isinstance(params, dict):
+        
             msg = ("Wrong optional params type. 'fit_params' "
                    " and 'predict_params' must de type 'dict' "
                    "(type: %s).")
+        
             raise LayerSpecificationError(msg % type(params))
+        
         return params if params is not None else {}
 
     def get_params(self, deep=True):
@@ -575,6 +599,7 @@ class Layer(BaseEstimator):
         -------
         params : mapping of parameter names mapped to their values.
         """
+        
         if not deep:
             return super(Layer, self).get_params()
 
@@ -610,27 +635,19 @@ class BaseEnsemble(BaseEstimator):
     get_params : None
         Method for generating mapping of parameters. Sklearn API.
     """
-    def _init_layers(self, layers):
-        """Set up empty LayerContainer and layer counter, or attach clone."""
-        if layers is None:
-            self.layers = LayerContainer()
-        else:
-            self.layers = layers
-
+    
     def _add(self, estimators, fit_function, predict_function,
-             fit_params=None, predict_params=None, preprocessing=None,):
+             fit_params=None, predict_params=None, preprocessing=None):
         """Method for adding a layer.
 
         Parameters
         -----------
         fit_function : function
             The fit_function determines the type of layer and must have the
-            following API:
+            following API::
 
-            '''
-            (estimators_, preprocessing_, fitted_estimators_, out) = \
-                fit_function(layer_instance, X, y, *args, **kwargs)
-            '''
+                (estimators_, preprocessing_, fitted_estimators_,
+                 out) = fit_function(layer_instance, X, y)
 
             where estimators_ and preprocessing_ are generic containers of
             fitted  instances, such as lists or dicts. These will be passed
@@ -715,6 +732,11 @@ class BaseEnsemble(BaseEstimator):
         self : instance
             The instance with the instantiated layer.
         """
+        
+        if self.layers is None:
+            raise_on_exception = getattr(self, 'raise_on_exception', False)
+            self.layers = LayerContainer(raise_on_exception=raise_on_exception)
+        
         self.layers.add(estimators=estimators,
                         preprocessing=preprocessing,
                         fit_function=fit_function,
@@ -768,7 +790,6 @@ class BaseEnsemble(BaseEstimator):
 
         verbose : int or bool (default = False)
             level of verbosity of 'LayerContainer' instance:
-            
                 - verbose = 0 : silent (same as verbose = False)
                 - verbose = 1 : times full prediction (same as verbose = True)
                 - verbose = 2 : times all layer predictions

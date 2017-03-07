@@ -8,6 +8,7 @@ from __future__ import division, print_function
 
 from mlens.utils import utils
 from time import time, sleep
+import subprocess
 
 # An object to pickle
 d = {'entry1': 'test', 'entry2': 'also_test'}
@@ -43,6 +44,8 @@ def test_pickle():
     utils.pickle_save(d, 'd')
     test = utils.pickle_load('d')
 
+    subprocess.check_call(['rm', 'd.pkl'])
+    
     assert isinstance(d, dict)
     assert test['entry1'] == 'test'
     assert test['entry2'] == 'also_test'

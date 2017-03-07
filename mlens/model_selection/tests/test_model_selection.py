@@ -15,6 +15,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
 from scipy.stats import uniform, randint
 import warnings
+import subprocess
 
 # training data
 np.random.seed(100)
@@ -80,8 +81,12 @@ def test_evals():
 
 def test_pickling_evals():
         evals2.evaluate(X, y, estimators, parameters, 3)
-        pickle_save(evals2, 'test')
-        pickled_eval = pickle_load('test')
+
+        pickle_save(evals2, 'evals_test_pickle')
+        pickled_eval = pickle_load('evals_test_pickle')
+
+        subprocess.check_call(['rm', 'evals_test_pickle.pkl'])
+
         check_scores(pickled_eval)
 
 

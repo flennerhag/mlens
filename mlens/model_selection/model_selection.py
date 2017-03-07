@@ -19,7 +19,7 @@ from __future__ import division, print_function
 import numpy as np
 from pandas import DataFrame, Series
 
-from ..base import _clone_preprocess_cases
+from ..base import clone_preprocess_cases
 from ..parallel import preprocess_folds, cross_validate
 from ..ensemble.base import BaseEnsemble
 
@@ -129,7 +129,7 @@ class Evaluator(object):
         dout : list
             list of lists with folds data. For internal use.
         """
-        self.preprocessing_ = _clone_preprocess_cases(self.preprocessing)
+        self.preprocessing_ = clone_preprocess_cases(self.preprocessing)
 
         if self.verbose > 0:
             printout = sys.stdout if self.verbose >= 50 else sys.stderr

@@ -7,6 +7,6 @@ author: Sebastian Flennerhag
 date: 11/01/2017
 """
 
-from .metrics import score_matrix, rmse, mape, wape
+from .metrics import score_matrix, set_scores, rmse, mape, wape
 
-__all__ = ['score_matrix', 'rmse', 'mape', 'wape']
+__all__ = ['score_matrix', 'set_scores', 'rmse', 'mape', 'wape']

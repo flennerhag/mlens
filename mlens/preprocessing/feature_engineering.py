@@ -15,10 +15,10 @@ from __future__ import division, print_function
 from pandas import DataFrame, concat
 from numpy import hstack
 from sklearn.base import BaseEstimator, TransformerMixin
-from mlens.base import name_estimators
-from mlens.base import _clone_base_estimators
-from mlens.base import _check_estimators
-from mlens.utils import print_time, IdTrain
+from mlens.base import name_estimators, IdTrain
+from mlens.base import clone_base_estimators
+from mlens.base import check_fit_overlap
+from mlens.utils import print_time
 from mlens.parallel import preprocess_folds, fit_estimators, base_predict
 from mlens.externals import six
 from time import time
@@ -126,7 +126,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
 
         # >> Generate mapping between folds and estimators
         Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
-        ests_ = {i: _clone_base_estimators([('', self.estimators)])['']
+        ests_ = {i: clone_base_estimators([('', self.estimators)])['']
                  for i in range(len(Min))}
         self.train_ests_ = fit_estimators(Min, ests_, None,
                                           self.n_jobs, self.verbose)
@@ -134,7 +134,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         # Fit estimators for test set
         self.test_ests_ = \
             fit_estimators([[X, '']],
-                           _clone_base_estimators([('', self.estimators)]),
+                           clone_base_estimators([('', self.estimators)]),
                            y, self.n_jobs, self.verbose)
 
         fitted_test_ests = [est_name for est_name, _ in self.test_ests_['']]
@@ -185,7 +185,8 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
                          function_args=function_args,
                          columns=self._fitted_ests, as_df=as_df,
                          n_jobs=self.n_jobs, verbose=self.verbose)
-        _check_estimators(self._fitted_ests, fitted_estimator_names, 'prediction_feature')
+        check_fit_overlap(self._fitted_ests, fitted_estimator_names,
+                          'prediction_feature')
         return M
 
     def transform(self, X, y=None):

@@ -15,7 +15,7 @@ from time import time
 import numpy as np
 import warnings
 from sklearn.base import clone
-from sklearn.exceptions import FitFailedWarning
+from ..utils.checks import FitFailedWarning
 
 
 def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):

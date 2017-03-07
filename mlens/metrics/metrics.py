@@ -23,10 +23,45 @@ def score_matrix(y_preds, y_true, scorer, column_names=None, prefix=None):
         column_names = ['preds_%i' % (i + 1) for i in range(y_preds.shape[1])]
 
     if prefix is None:
-        return {col: scorer(y_true, y_preds[:, i]) for i, col in enumerate(column_names)}
+        return {col: scorer(y_true, y_preds[:, i]) for i, col in
+                enumerate(column_names)}
     else:
         return {prefix + '-' + col: scorer(y_true, y_preds[:, i]) for i, col in
                 enumerate(column_names)}
+
+
+def set_scores(inst, layer_output, scorer_attribute_name='scorer'):
+    """Utility function for generating score dict if a scorer was provided.
+    
+    Parameters
+    ----------
+    inst : instance
+        instance to check for scorer attribute.
+        
+    layer_output : dict
+        the dictionary output from a `fit` call of a `LayerContainer` class.
+        
+    scorer_attribute_name : str (default = 'scorer')
+        name of the attribute holding the scorer.
+        
+    Returns
+    ----------
+    score_dict: dict
+        a flattened dictionary of cross-validated scores across layers with
+        keys formatted as 'layer-n-est_name'.
+    """
+    if getattr(inst, scorer_attribute_name, None) is None:
+        return
+
+    score_dict = {}
+    for layer, out in layer_output.items():
+        if out[0] is None:
+            continue
+    
+        for key, score in out[0].items():
+            score_dict['%s-%s' % (layer, key)] = score
+            
+    return score_dict
 
 
 def rmse_scoring(y, p):

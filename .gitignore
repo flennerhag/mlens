@@ -93,5 +93,8 @@ ENV/
 # Github pages
 _site/
 
-# PyCharm
+# PyCharm project settings
 .idea/*
+
+# Development
+dev/

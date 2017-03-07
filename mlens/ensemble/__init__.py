@@ -1,10 +1,7 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
 author: Sebastian Flennerhag
-date: 11/01/2017
+licence: MIT
 """
 
 from .stacking_ensemble import StackingEnsemble

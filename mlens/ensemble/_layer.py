@@ -1,20 +1,19 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """ML-ENSEMBLE
 
 author: Sebastian Flennerhag
-date: 11/01/2017
 licence: MIT
 Functions for processing an ensemble layer
 """
 
 from __future__ import division, print_function
 
-from ..base import _clone_base_estimators, _clone_preprocess_cases
-from ..base import _name_columns
+from ..base import check_fit_overlap
+from ..base import clone_base_estimators, clone_preprocess_cases
+from ..base import name_columns
 from ..metrics import score_matrix
 from ..parallel import (preprocess_folds, preprocess_pipes,
                         fit_estimators, base_predict)
+import sys
 
 
 def _layer_preprocess(X, y, layer_preprocess, method_is_fit, n_jobs, verbose):
@@ -41,9 +40,9 @@ def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
 
     Function for generating training data for next layer from an ingoing layer
     """
-    preprocess = _clone_preprocess_cases(layer[0])
-    estimators = _clone_base_estimators(layer[1])
-    columns = _name_columns(estimators)
+    preprocess = clone_preprocess_cases(layer.preprocessing)
+    estimators = clone_base_estimators(layer.estimators)
+    columns = name_columns(estimators)
 
     Min = preprocess_folds(preprocess, X, y, folds=folds, fit=True,
                            shuffle=shuffle, random_state=random_state,
@@ -60,18 +59,18 @@ def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
     else:
         scores = None
 
-    return (M, scores, est_names)
+    return M, scores, est_names
 
 
 def _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose):
-    """Fits preprocessing pipelines and layer estimator on full dataset"""
-    preprocess, estimators = layer
+    """Fits preprocessing pipelines and layer estimator on full data set"""
+    preprocess, estimators = layer.preprocessing, layer.estimators
 
     Min, preprocessing = \
-        _layer_preprocess(X, y, _clone_preprocess_cases(preprocess), True,
+        _layer_preprocess(X, y, clone_preprocess_cases(preprocess), True,
                           n_jobs, verbose)
 
-    return (fit_estimators(Min, _clone_base_estimators(estimators), y, n_jobs,
+    return (fit_estimators(Min, clone_base_estimators(estimators), y, n_jobs,
                            verbose), preprocessing)
 
 
@@ -84,28 +83,40 @@ def fit_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
     fitting the layer's preprocessing pipes and estimators on folds. It then
     fits the final preprocessing pipes and estimators on the full training set.
     """
-    out = _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer,
-                        as_df, folded_preds, n_jobs, printout, verbose,
-                        layer_msg)
+    M, scores, est_names = \
+        _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer,
+                      as_df, folded_preds, n_jobs, printout, verbose,
+                      layer_msg)
 
     fitted_estimators, fitted_preprocessing = \
         _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose)
+    
+    # Check that success in folded fits overlap with success in full fit
+    fitted_est_names = name_columns(fitted_estimators)
+    check_fit_overlap(fitted_est_names, est_names, layer_msg)
 
-    return out + (fitted_estimators, fitted_preprocessing)
+    return fitted_estimators, fitted_preprocessing, (M, scores)
 
 
-def predict_layer(data, labels, layer, as_df, n_jobs, verbose, printout=None, layer_msg=None):
+def predict_layer(layer, X, y, as_df, n_jobs, verbose, printout=None,
+                  layer_msg=None):
     """Predict ensemble layer
 
     Function for predicting a layer and generating training data for next
     layer. Predict layer wraps a preprocessing step and a prediction step into
     a single function call, and returns the prediction matrix M.
     """
+    columns = name_columns(layer.estimators_)
+
     if verbose:
-        print('Processing layer %s' % layer_msg, file=printout)
-        printout.flush()
+        print('Processing layer %s' % layer_msg, file=getattr(sys, printout))
+        getattr(sys, printout).flush()
 
-    out, _ = _layer_preprocess(data, labels, layer[0], False, n_jobs, verbose)
+    out, _ = _layer_preprocess(X, y, layer.preprocessing_,
+                               False, n_jobs, verbose)
 
-    return base_predict(out, layer[1], n=data.shape[0], folded_preds=False, function_args=(True,),
-                        columns=layer[2], as_df=as_df, n_jobs=n_jobs, verbose=verbose)
+    out = base_predict(out, layer.estimators_, n=X.shape[0],
+                       folded_preds=False, function_args=(True,),
+                       columns=columns, as_df=as_df, n_jobs=n_jobs,
+                       verbose=verbose)
+    return out[0]

@@ -12,7 +12,7 @@ from collections import OrderedDict as Odict
 
 from sklearn.base import BaseEstimator
 from ..base import check_instances
-from ..utils import check_is_fitted, print_time
+from ..utils import check_is_fitted, print_time, safe_print
 from ..utils.checks import (LayerSpecificationWarning, LayerSpecificationError,
                             assert_correct_layer_format, NotFittedError)
 
@@ -233,8 +233,8 @@ class LayerContainer(BaseEstimator):
         """
         if verbose:
             pout = "stdout" if verbose >= 3 else "stderr"
-            print("Fitting all layers (%d)" % self.n_layers,
-                  file=getattr(sys, pout), flush=True)
+            safe_print("Fitting all layers (%d)" % self.n_layers,
+                       file=pout, flush=True)
             t0 = time()
 
         fit_tup = (X,)  # initiate a tuple of fit outputs for first layer
@@ -242,19 +242,17 @@ class LayerContainer(BaseEstimator):
         for layer_name, layer in self.layers.items():
             
             if verbose > 1:
-                print("[%s] fitting" % layer_name,
-                      file=getattr(sys, pout), flush=True)
+                safe_print("[%s] fitting" % layer_name, file=pout, flush=True)
                 ti = time()
 
             fit_tup = layer.fit(fit_tup[0], y)
             out[layer_name] = fit_tup[1:]
             
             if verbose > 1:
-                print_time(ti, "[%s] done" % layer_name,
-                           file=getattr(sys, pout), flush=True)
+                print_time(ti, "[%s] done" % layer_name, file=pout, flush=True)
 
         if verbose:
-            print_time(t0, "Fit complete", file=getattr(sys, pout), flush=True)
+            print_time(t0, "Fit complete", file=pout, flush=True)
             
         if return_final:
             return out, fit_tup[0]
@@ -290,26 +288,24 @@ class LayerContainer(BaseEstimator):
         """
         if verbose:
             pout = "stdout" if verbose >= 3 else "stderr"
-            print("Predicting through all layers (%d)" % self.n_layers,
-                  file=getattr(sys, pout), flush=True)
+            safe_print("Predicting through all layers (%d)" % self.n_layers,
+                       file=pout, flush=True)
             t0 = time()
     
         for layer_name, layer in self.layers.items():
         
             if verbose > 1:
-                print("[%s] predicting" % layer_name,
-                      file=getattr(sys, pout), flush=True)
+                safe_print("[%s] predicting" % layer_name, file=pout,
+                           flush=True)
                 ti = time()
         
             X = layer.predict(X, y)
         
             if verbose > 1:
-                print_time(ti, "[%s] done" % layer_name,
-                           file=getattr(sys, pout), flush=True)
+                print_time(ti, "[%s] done" % layer_name, file=pout, flush=True)
     
         if verbose:
-            print_time(t0, "prediction complete",
-                       file=getattr(sys, pout), flush=True)
+            print_time(t0, "prediction complete", file=pout, flush=True)
     
         return X
     

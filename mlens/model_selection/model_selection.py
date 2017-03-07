@@ -18,7 +18,7 @@ from pandas import DataFrame, Series
 
 from ..base import clone_preprocess_cases, check_instances
 from ..parallel import preprocess_folds, cross_validate
-from ..utils import print_time
+from ..utils import print_time, safe_print
 
 from time import time
 import sys
@@ -212,11 +212,7 @@ class Evaluator(object):
             del self.dout
 
         if self.verbose > 0:
-            res, secs = divmod(time() - ttot, 60)
-            hours, mins = divmod(res, 60)
-            print('Evaluation done | %02d:%02d:%02d\n' % (hours, mins, secs),
-                  file=printout)
-            printout.flush()
+            print_time(time() - ttot, 'Evaluation done', file=printout)
 
         return self
 
@@ -290,8 +286,7 @@ class Evaluator(object):
 
         c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
 
-        print(msg % (p, c), file=printout)
-        printout.flush()
+        safe_print(msg % (p, c), file=printout)
         return ttot
 
     def _print_eval_start(self, estimators, preprocessing, printout):
@@ -307,6 +302,5 @@ class Evaluator(object):
         c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
 
         tot = e * max(1, p) * self.n_iter * c
-        print(msg % (e, self.n_iter, p, c, tot), file=printout)
-        printout.flush()
+        safe_print(msg % (e, self.n_iter, p, c, tot), file=printout)
         return ttot

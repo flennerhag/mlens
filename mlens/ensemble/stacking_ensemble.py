@@ -7,11 +7,11 @@ Stacked ensemble class for full control over the entire model's parameters.
 Scikit-learn API allows full integration, including grid search and pipelining.
 """
 
-from __future__ import division, print_function
+from __future__ import division
 
 from .base import BaseEnsemble
 from ._layer import fit_layer, predict_layer
-from ..utils import print_time
+from ..utils import print_time, safe_print
 from ..metrics import set_scores
 
 from sklearn.base import clone
@@ -261,7 +261,7 @@ class StackingEnsemble(BaseEnsemble):
         self.meta_estimator_ = clone(self.meta_estimator).fit(X, y)
 
         if self.verbose > 0:
-            print_time(ts, 'Ensemble fitted', file=getattr(sys, self.printout))
+            print_time(ts, 'Ensemble fitted', file=self.printout)
 
         return self
 
@@ -286,8 +286,8 @@ class StackingEnsemble(BaseEnsemble):
         
     def _print_start(self):
         if self.verbose > 0:
-            print('Fitting ensemble\n', file=getattr(sys, self.printout))
-            getattr(sys, self.printout).flush()
+            safe_print('Fitting ensemble\n', file=self.printout,
+                       flush=True)
             ts = time()
             return ts
         return

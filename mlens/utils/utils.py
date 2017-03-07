@@ -29,14 +29,21 @@ def pickle_load(name):
 
 
 ###############################################################################
-def safe_print(*objects, sep='', end='\n', file=sys.stdout, flush=False):
+def safe_print(*objects, **kwargs):
     """Safe print function for backwards compatibility."""
+    # Get stream
+    file = kwargs.pop('file', sys.stdout)
     if isinstance(file, str):
         file = getattr(sys, file)
     
-    print(*objects, sep=sep, end=end, file=file)
+    # Get flush
+    flush = kwargs.pop('flush', False)
+
+    # Print
+    print(*objects, file=file, **kwargs)
+    
+    # Need to flush outside print function for python2 compatibility
     if flush:
-        # Need manual flush for Python 2
         file.flush()
     
     
@@ -44,9 +51,6 @@ def print_time(t0, message='', **kwargs):
     """Utility function for printing time"""
     if len(message) > 0:
         message += ' | '
-
-    if 'file' in kwargs and isinstance(kwargs['file'], str):
-            kwargs['file'] = getattr(sys, kwargs['file'])
 
     m, s = divmod(time() - t0, 60)
     h, m = divmod(m, 60)

@@ -45,7 +45,7 @@ def test_pickle():
     test = utils.pickle_load('d')
 
     subprocess.check_call(['rm', 'd.pkl'])
-    
+
     assert isinstance(d, dict)
     assert test['entry1'] == 'test'
     assert test['entry2'] == 'also_test'

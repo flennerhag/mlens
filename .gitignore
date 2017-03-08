@@ -96,5 +96,6 @@ _site/
 # PyCharm project settings
 .idea/*
 
-# Development
+# Local development items
 dev/
+commit

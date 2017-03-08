@@ -11,15 +11,16 @@ Correlation plots
 
 from __future__ import division, print_function
 
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-from seaborn import diverging_palette, heatmap
 import numpy as np
 from scipy.stats import pearsonr
 
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+from seaborn import diverging_palette, heatmap
+
 
 def corrmat(corr, figsize=(11, 9), annotate=True,
-            linewidths=.5, cbar_kws={"shrink": .5}, **kwargs):
+            linewidths=.5, cbar_kws='default', **kwargs):
     """Function for generating color-coded correlation triangle.
 
     Parameters
@@ -30,9 +31,9 @@ def corrmat(corr, figsize=(11, 9), annotate=True,
         Size of figure
     linewidths : float
         with of line separating color points
-    cbar_kws : dict
-        Optional arguments to color bar. Shrink is preset to fit standard
-        figure frame.
+    cbar_kws : dict, str (default = 'default')
+        Optional arguments to color bar. The default options, 'default',
+        passes the ``shrink`` parameter to fit colorbar standard figure frame.
     kwargs : kwargs
         Other pptional arguments to sns heatmap
 
@@ -41,6 +42,10 @@ def corrmat(corr, figsize=(11, 9), annotate=True,
     heatmap : obj
         Matplotlib figure containing heatmap
     """
+
+    if cbar_kws == "default":
+        cbar_kws = {"shrink": .5}
+
     # Determine annotation
     do_annot = {True: corr*100, False: None}
     annot = do_annot[annotate]

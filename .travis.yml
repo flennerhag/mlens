@@ -1,5 +1,9 @@
 language: python
 
+os:
+  - linux
+  - osx
+
 matrix:
     include:
         - python: 3.5
@@ -13,8 +17,11 @@ install:
   - pip install nose nose-exclude 
   - pip install -r requirements.txt
   - pip install .
+
 script:
   - set -e
-  - nosetests -s -v --with-coverage --exclude mlens/visualization --exclude mlens/externals
+  - nosetests -s -v --with-coverage --exclude */visualization --exclude */externals --exclude */dev
+  - flake8 --exclude [*/visualization, */externals, */dev]
+
 after_success:
   coveralls

@@ -29,7 +29,7 @@ setup(name='mlens',
                         'scipy>=0.17',
                         'scikit-learn>=0.18.1',
                         'pandas>=0.18.0',
-			'joblib>=0.9',
+                        'joblib>=0.9'
                         ],
       license='MIT',
       platforms='any',

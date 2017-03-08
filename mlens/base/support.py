@@ -15,7 +15,7 @@ from sklearn.pipeline import Pipeline, _name_estimators
 
 ###############################################################################
 def safe_slice(X, row_slice=None, column_slice=None, layer_name=None):
-    """Safe slice of X irrespective of whether X is DataFrame or ndarray"""
+    """Safe slice of X irrespective of whether X is DataFrame or ndarray."""
     if (row_slice is None) and (column_slice is None):
         # No slice specified return original
         return X
@@ -55,7 +55,7 @@ def safe_slice(X, row_slice=None, column_slice=None, layer_name=None):
 
 ###############################################################################
 def check_fit_overlap(full_fit_est, fold_fit_est, layer):
-    """Helper function to check that fitted estimators overlap"""
+    """Helper function to check that fitted estimators overlap."""
     if not all([est in full_fit_est for est in fold_fit_est]):
         raise ValueError('[%s] Not all estimators successfully fitted on the '
                          'full data set were fitted during fold predictions. '
@@ -76,7 +76,7 @@ def check_fit_overlap(full_fit_est, fold_fit_est, layer):
 
 
 def name_columns(estimator_cases):
-    """Utility func for naming a mapping of estimators on different cases"""
+    """Utility func for naming a mapping of estimators on different cases."""
     return [case + '-' + est_name if case not in [None, ''] else est_name
             for case, estimators in estimator_cases.items()
             for est_name, _ in estimators]

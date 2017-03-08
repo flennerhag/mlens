@@ -10,8 +10,7 @@ from sklearn.base import clone
 
 
 def clone_base_estimators(base_estimators, as_dict=True):
-    """Created named clones of base estimators for fitting"""
-
+    """Created named clones of base estimators for fitting."""
     if isinstance(base_estimators, list):
         base_estimators = [('', base_estimators)]
     else:
@@ -29,7 +28,7 @@ def clone_base_estimators(base_estimators, as_dict=True):
 
 
 def clone_preprocess_cases(preprocess):
-    """Created named clones of base preprocessing pipes for fitting"""
+    """Created named clones of base preprocessing pipes for fitting."""
     if preprocess is None:
         return
 

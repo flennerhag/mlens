@@ -17,7 +17,7 @@ import sys
 
 
 def _layer_preprocess(X, y, layer_preprocess, method_is_fit, n_jobs, verbose):
-    """Method for generating predictions for inputs"""
+    """Method for generating predictions for inputs."""
     if (layer_preprocess is None) or (len(layer_preprocess) == 0):
         return [[X, '']], None
     else:
@@ -36,9 +36,9 @@ def _layer_preprocess(X, y, layer_preprocess, method_is_fit, n_jobs, verbose):
 
 def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
                   folded_preds, n_jobs, printout, verbose, layer_msg=''):
-    """Generate training data layer
+    """Generate training data layer.
 
-    Function for generating training data for next layer from an ingoing layer
+    Function for generating training data for next layer from an ingoing layer.
     """
     preprocess = clone_preprocess_cases(layer.preprocessing)
     estimators = clone_base_estimators(layer.estimators)
@@ -63,7 +63,7 @@ def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
 
 
 def _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose):
-    """Fits preprocessing pipelines and layer estimator on full data set"""
+    """Fits preprocessing pipelines and layer estimator on full data set."""
     preprocess, estimators = layer.preprocessing, layer.estimators
 
     Min, preprocessing = \
@@ -76,7 +76,7 @@ def _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose):
 
 def fit_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
               folded_preds, n_jobs, printout, verbose, layer_msg=''):
-    """Fit ensemble layer
+    """Fit ensemble layer.
 
     Function for fitting a layer and generating training data for next layer.
     `fit_layer` starts by generating the layer's predictions, M, by temporarily
@@ -100,7 +100,7 @@ def fit_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
 
 def predict_layer(layer, X, y, as_df, n_jobs, verbose, printout=None,
                   layer_msg=None):
-    """Predict ensemble layer
+    """Predict ensemble layer.
 
     Function for predicting a layer and generating training data for next
     layer. Predict layer wraps a preprocessing step and a prediction step into

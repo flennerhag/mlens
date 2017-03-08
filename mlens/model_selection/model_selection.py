@@ -3,7 +3,7 @@
 author: Sebastian Flennerhag
 licence: MIT
 
-Class for paralell tuning a set of estimators that share a common
+Class for parallel tuning a set of estimators that share a common
 preprocessing pipeline that must be fitted on each training fold. This
 implementation improves on standard grid search by avoiding fitting the
 preprocessing pipeline for every estimators, and allowing several alternative
@@ -76,7 +76,7 @@ class Evaluator(object):
     cv_results_ : DataFrame
         a table of data from each fit. Includes mean and std of test and train
         scores and fit times, as well as param draw index and parameters.
-    best_index : ndarray,
+    best_idx_ : ndarray,
         an array of index keys for best estimator in ``cv_results_``
 
     Methods
@@ -130,7 +130,7 @@ class Evaluator(object):
 
         if self.verbose > 0:
             printout = sys.stdout if self.verbose >= 50 else sys.stderr
-            ttot = self._print_prep_start(self.preprocessing_, printout)
+            t0 = self._print_prep_start(self.preprocessing_, printout)
 
         self.dout = preprocess_folds(self.preprocessing_, X.copy(), y.copy(),
                                      self.cv, fit=True, return_idx=False,
@@ -140,13 +140,13 @@ class Evaluator(object):
                                      verbose=self.verbose)
 
         if self.verbose > 0:
-            print_time(time() - ttot, 'Preprocessing done', file=printout)
+            print_time(time() - t0, 'Preprocessing done', file=printout)
 
         return self
 
     def evaluate(self, X, y, estimators, param_dicts, n_iter=2,
                  reset_preprocess=False, flush_preprocess=False):
-        """Evaluate estimators
+        """Evaluate estimators.
 
         Function for evaluating a list of functions, potentially with various
         preprocessing pipelines. This method improves fit time of regular grid
@@ -169,7 +169,7 @@ class Evaluator(object):
             randomized grid search, where passed distributions accept the
             .rvs() method. See sklearn.model_selection.RandomizedSearchCV for
             details.Form: param_dicts={'est1': {'param1': dist}, ...}
-        n_ier : int
+        n_iter : int
             number of parameter draws
         reset_preprocess : bool, default=False
             set to True to regenerate preprocessed folds
@@ -180,7 +180,7 @@ class Evaluator(object):
         Returns
         ---------
         self : obj
-            class instance with stored evaluation data
+            class instance with stored evaluation data.
         """
         self.n_iter = n_iter
         self.estimators_ = check_instances(estimators)
@@ -196,8 +196,8 @@ class Evaluator(object):
         # ===== Cross Validate =====
         if self.verbose > 0:
             printout = sys.stdout if self.verbose >= 50 else sys.stderr
-            ttot = self._print_eval_start(estimators, self.preprocessing_,
-                                          printout)
+            t0 = self._print_eval_start(estimators, self.preprocessing_,
+                                        printout)
 
         out = cross_validate(self.estimators_, self.param_sets_, self.dout,
                              self.scoring, self.error_score,
@@ -212,13 +212,13 @@ class Evaluator(object):
             del self.dout
 
         if self.verbose > 0:
-            print_time(time() - ttot, 'Evaluation done', file=printout)
+            print_time(time() - t0, 'Evaluation done', file=printout)
 
         return self
 
-    # Auxilliary function for param draws and results mapping
+    # Auxiliary function for param draws and results mapping
     def _draw_params(self, est_name):
-        """Draw a list of param dictionaries for estimator"""
+        """Draw a list of param dictionaries for estimator."""
         # Set up empty list of parameter setting
         param_draws = [{} for _ in range(self.n_iter)]
 
@@ -233,7 +233,7 @@ class Evaluator(object):
         return param_draws
 
     def _param_sets(self):
-        """For each estimator, create a mapping of parameter draws"""
+        """For each estimator, create a mapping of parameter draws."""
         param_sets = {}  # dict with list of param settings for each est
         param_map = {}   # dict with param settings for each est_prep pair
 
@@ -249,8 +249,19 @@ class Evaluator(object):
 
         return param_sets, param_map
 
-    def _results(self, out, param_map):
-        # Construct a results dataframe for each param draw
+    @staticmethod
+    def _results(out, param_map):
+        """Format results into readable DataFrames.
+
+        Parameters
+        ----------
+        out : list
+            list of outputs from ``cross_validate`` call
+
+        param_map : dict
+            dictionary of param draws for each estimator.
+        """
+        # Construct a results DataFrame for each param draw
         out = DataFrame(out, columns=['estimator', 'test_score',
                                       'train_score', 'time',
                                       'param_draw', 'params'])
@@ -276,7 +287,8 @@ class Evaluator(object):
         return cv_results, summary, best_idx
 
     def _print_prep_start(self, preprocessing, printout):
-        ttot = time()
+        """Print preprocessing start and return timer."""
+        t0 = time()
         msg = 'Preprocessing %i preprocessing pipelines over %i CV folds'
 
         try:
@@ -287,10 +299,11 @@ class Evaluator(object):
         c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
 
         safe_print(msg % (p, c), file=printout)
-        return ttot
+        return t0
 
     def _print_eval_start(self, estimators, preprocessing, printout):
-        ttot = time()
+        """Print initiation message and return timer."""
+        t0 = time()
         msg = ('Evaluating %i models for %i parameter draws over %i' +
                ' preprocessing pipelines and %i CV folds, totalling %i fits')
         e = len(estimators)
@@ -303,4 +316,4 @@ class Evaluator(object):
 
         tot = e * max(1, p) * self.n_iter * c
         safe_print(msg % (e, self.n_iter, p, c, tot), file=printout)
-        return ttot
+        return t0

@@ -19,7 +19,7 @@ from numpy.random import permutation
 
 class IdTrain(object):
 
-    """Container to identify training set
+    """Container to identify training set.
 
     Samples a random subset from set passed to the `fit` method, to allow
     identification of the training set in a `transform` or `predict` method.
@@ -28,14 +28,14 @@ class IdTrain(object):
     ----------
     size : int
         size to sample. A random subset of size [size, size] will be stored
-        in the instance
+        in the instance.
     """
 
     def __init__(self, size=10):
         self.size = size
 
     def fit(self, X):
-        """Sample a training set
+        """Sample a training set.
 
         Parameters
         ----------
@@ -45,7 +45,7 @@ class IdTrain(object):
         Returns
         ----------
         self: obj
-            fitted instance with stored sample
+            fitted instance with stored sample.
         """
         sample_idx = {}
         for i in range(2):
@@ -60,7 +60,7 @@ class IdTrain(object):
         return self
 
     def is_train(self, X):
-        """Check if an array is the training set
+        """Check if an array is the training set.
 
         Parameters
         ----------
@@ -70,7 +70,7 @@ class IdTrain(object):
         Returns
         ----------
         self: obj
-            fitted instance with stored sample
+            fitted instance with stored sample.
         """
         idx = self.sample_idx_
 

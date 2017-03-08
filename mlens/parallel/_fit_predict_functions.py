@@ -1,10 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
 author: Sebastian Flennerhag
-date: 11/1/2017
 licence: MIT
 Support function for parallelized fitting and prediction of estimators
 """
@@ -19,7 +15,7 @@ from ..utils.checks import FitFailedWarning
 
 
 def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
-    """Score an estimator with given parameters on train and test set"""
+    """Score an estimator with given parameters on train and test set."""
     try:
         xtrain, xtest, ytrain, ytest, p_name = tup
     except ValueError:
@@ -50,7 +46,7 @@ def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
 
 
 def _fit_ests(tup):
-    """Function for fitting estimators on full training set"""
+    """Function for fitting estimators on full training set."""
     y, (X, case), (est_name, estimator) = tup
     try:
         estimator = estimator.fit(X, y)
@@ -62,7 +58,7 @@ def _fit_ests(tup):
 
 
 def _fit_ests_folds(tup):
-    """Function for fitting estimators on folds"""
+    """Function for fitting estimators on folds."""
     (xtrain, _, ytrain, _, _, fold_num), (est_name, estimator) = tup
     try:
         estimator = estimator.fit(xtrain, ytrain)
@@ -74,7 +70,7 @@ def _fit_ests_folds(tup):
 
 
 def _predict_folds(tup):
-    """Fits ests on part of training set to predict out of sample"""
+    """Fits ests on part of training set to predict out of sample."""
     fit, keys, (xtrain, xtest, ytrain, _, idx, case), (est_name, est) = tup
     est_name = str(est_name)
 
@@ -100,7 +96,7 @@ def _predict_folds(tup):
 
 
 def _predict(tup):
-    """Predicts on data using estimator"""
+    """Predicts on data using estimator."""
     keys, (X, case), (est_name, estimator) = tup
 
     try:
@@ -122,7 +118,7 @@ def _predict(tup):
 
 
 def _construct_matrix(preds, n, columns, folds):
-    """Helper function to assemble prediction matrix from prediction output"""
+    """Helper function to assemble prediction matrix from prediction output."""
     colmap = {col: i for i, col in enumerate(columns)}
 
     M = np.empty((n, len(columns)))

@@ -200,7 +200,6 @@ class StackingEnsemble(BaseEnsemble):
         self : instance
             ensemble instance with layer instantiated.
         """
-
         fit_params = {'folds': self.folds,
                       'shuffle': self.shuffle,
                       'random_state': self.random_state,
@@ -256,7 +255,6 @@ class StackingEnsemble(BaseEnsemble):
         self : instance
             class instance with fitted estimators.
         """
-
         check_ensemble_build(self)
 
         ts = self._print_start()
@@ -289,13 +287,13 @@ class StackingEnsemble(BaseEnsemble):
         y_pred : array-like, shape=[n_samples, ]
             predictions for provided input array.
         """
-
         check_ensemble_build(self)
 
         X = self._predict_layers(X, y, verbose=self.verbose)
         return self.meta_estimator_.predict(X)
 
     def _print_start(self):
+        """Utility for printing initial message and launching timer."""
         if self.verbose > 0:
             safe_print('Fitting ensemble\n', file=self.printout,
                        flush=True)

@@ -3,5 +3,3 @@ numpy>=1.11
 pandas>=0.17
 joblib>=0.9
 scikit-learn>=0.18
-matplotlib>=1.5
-seaborn>=0.7

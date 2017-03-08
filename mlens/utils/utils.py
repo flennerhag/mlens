@@ -35,18 +35,18 @@ def safe_print(*objects, **kwargs):
     file = kwargs.pop('file', sys.stdout)
     if isinstance(file, str):
         file = getattr(sys, file)
-    
+
     # Get flush
     flush = kwargs.pop('flush', False)
 
     # Print
     print(*objects, file=file, **kwargs)
-    
+
     # Need to flush outside print function for python2 compatibility
     if flush:
         file.flush()
-    
-    
+
+
 def print_time(t0, message='', **kwargs):
     """Utility function for printing time"""
     if len(message) > 0:
@@ -54,5 +54,5 @@ def print_time(t0, message='', **kwargs):
 
     m, s = divmod(time() - t0, 60)
     h, m = divmod(m, 60)
-   
+
     safe_print(message + '%02d:%02d:%02d\n' % (h, m, s), **kwargs)

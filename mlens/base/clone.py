@@ -11,13 +11,13 @@ from sklearn.base import clone
 
 def clone_base_estimators(base_estimators, as_dict=True):
     """Created named clones of base estimators for fitting"""
-    
+
     if isinstance(base_estimators, list):
         base_estimators = [('', base_estimators)]
     else:
         base_estimators = [(case, ests) for case, ests in
                            base_estimators.items()]
-    
+
     if as_dict:
         return {case: [(est_name, clone(est)) for est_name, est in
                        estimators]

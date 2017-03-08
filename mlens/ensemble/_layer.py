@@ -90,7 +90,7 @@ def fit_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
 
     fitted_estimators, fitted_preprocessing = \
         _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose)
-    
+
     # Check that success in folded fits overlap with success in full fit
     fitted_est_names = name_columns(fitted_estimators)
     check_fit_overlap(fitted_est_names, est_names, layer_msg)

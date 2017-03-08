@@ -59,7 +59,7 @@ class StackingEnsemble(BaseEnsemble):
 
     random_state : int (default = None)
         seed for creating folds during fitting (if shuffle = True).
-        
+
     raise_on_exception : bool (default = False)
         flag for whether to issue warning on soft exceptions or raise error.
         Examples include lack of layers and failed fit of estimator.
@@ -89,12 +89,12 @@ class StackingEnsemble(BaseEnsemble):
         same preprocessing applies to all estimators in a layer, both
         `estimators` and `preprocessing` can be lists of instances, or
         lists of named tuples of instances (i..e [('name', est), ...].
-        
+
         If a preprocessing mapping is desired, both `estimators` and
         `preprocessing` must be dictionaries with overlapping keys, where the
         value for each key is a list of instances (possibly as named tuples)
         belonging to that preprocessing case.
-        
+
         Layers are connected sequentially in the order they are added.
 
     add_meta : instance
@@ -136,7 +136,7 @@ class StackingEnsemble(BaseEnsemble):
 
     def add(self, estimators, preprocessing=None):
         """Add layer to ensemble.
-        
+
         Parameters
         ----------
         preprocessing: dict of lists or list, optional (default = [])
@@ -194,13 +194,13 @@ class StackingEnsemble(BaseEnsemble):
              The lists for each dictionary entry can be both a list of
              estimators and a list of named tuples of estimators,
              as in `option_1` and `option_2` respectively.
-                  
+
         Returns
         ----------
         self : instance
             ensemble instance with layer instantiated.
         """
-        
+
         fit_params = {'folds': self.folds,
                       'shuffle': self.shuffle,
                       'random_state': self.random_state,
@@ -210,12 +210,12 @@ class StackingEnsemble(BaseEnsemble):
                       'n_jobs': self.n_jobs,
                       'printout': self.printout,
                       'verbose': self.verbose}
-        
+
         predict_params = {'as_df': self.as_df,
                           'n_jobs': self.n_jobs,
                           'verbose': self.verbose,
                           'printout': self.printout}
-        
+
         return self._add(estimators=estimators,
                          preprocessing=preprocessing,
                          fit_function=fit_layer,
@@ -258,14 +258,14 @@ class StackingEnsemble(BaseEnsemble):
         """
 
         check_ensemble_build(self)
-        
+
         ts = self._print_start()
 
         out, X = \
             self._fit_layers(X, y, return_final=True, verbose=self.verbose)
 
         self.scores_ = set_scores(self, out)
-        
+
         self.meta_estimator_ = clone(self.meta_estimator).fit(X, y)
 
         if self.verbose > 0:
@@ -289,12 +289,12 @@ class StackingEnsemble(BaseEnsemble):
         y_pred : array-like, shape=[n_samples, ]
             predictions for provided input array.
         """
-        
+
         check_ensemble_build(self)
 
         X = self._predict_layers(X, y, verbose=self.verbose)
         return self.meta_estimator_.predict(X)
-        
+
     def _print_start(self):
         if self.verbose > 0:
             safe_print('Fitting ensemble\n', file=self.printout,

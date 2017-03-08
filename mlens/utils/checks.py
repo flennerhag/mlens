@@ -15,7 +15,7 @@ from sklearn.utils.validation import (check_random_state, check_X_y,
 
 def check_ensemble_build(inst, attr='layers'):
     """Check that layers have been instantiated."""
-    
+
     if not hasattr(inst, attr):
         # No layer container. This should not happen!
 
@@ -23,10 +23,10 @@ def check_ensemble_build(inst, attr='layers'):
                "'LayerContainer' class instance as attribute [%s].)")
 
         raise AttributeError(msg % (inst.__class__.__name__, attr))
-    
+
     if getattr(inst, attr) is None:
         # No layers instantiated.
-        
+
         msg = ("No Layers in instance (%s). Add layers before calling "
                "'fit' and 'predict'.")
 
@@ -41,7 +41,7 @@ def assert_correct_layer_format(estimators, preprocessing):
             msg = ("Preprocessing is either 'None' or 'list': 'estimators' "
                    "must be of type 'list' (%s type passed).")
             raise LayerSpecificationError(msg % type(estimators))
-    
+
     else:
         # Check that both estimators and preprocessing are dicts
         if not isinstance(preprocessing, dict):
@@ -53,11 +53,11 @@ def assert_correct_layer_format(estimators, preprocessing):
             msg = ("Unexpected format of 'estimators'. Needs to be "
                    "'dict' when preprocessing is 'dict' (%s type passed).")
             raise LayerSpecificationError(msg % type(estimators))
-        
+
         # Check that keys overlap
         prep_check = [key in preprocessing for key in estimators]
         est_check = [key in estimators for key in preprocessing]
-        
+
         if not all(est_check):
             msg = ("Too few estimator cases to match preprocessing cases:\n"
                    "estimator cases:     %r\npreprocessing cases: %r")
@@ -68,7 +68,7 @@ def assert_correct_layer_format(estimators, preprocessing):
                    "preprocessing cases: %r\nestimator cases:     %r")
             raise LayerSpecificationError(msg % (list(preprocessing),
                                                  list(estimators)))
-        
+
 
 def check_inputs(X, y, random_state):
     """Permissive pre-check that an estimator is ready for fitting.
@@ -151,8 +151,8 @@ class SliceError(TypeError, IndexError, ValueError, AttributeError):
 class LayerSpecificationError(TypeError, ValueError):
 
     """Error class for incorrectly specified layers."""
-    
-    
+
+
 class LayerSpecificationWarning(UserWarning):
 
     """Error class for incorrectly specified layers."""

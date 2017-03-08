@@ -41,37 +41,37 @@ class LayerContainer(BaseEstimator):
      n_layers : int (default = None)
         number of layers instantiated. Automatically set, normally there is no
         reason to fiddle with this parameter.
-        
+
     raise_on_exception : bool (default = False)
         raise error on soft exceptions. Otherwise issue warning.
-        
+
     Methods
     ----------
     fit : X, y, fit_function, verbose, args, kwargs
         Generic fit method for fitting and storing all layers in the
         container The 'fit_function' must have the following API:
-        
+
         '''
         (estimators_, preprocessing_, fitted_estimators_) = \
             fit_function(layer_instance, X, y, *args, **kwargs)
         '''
-        
+
         where estimators_ and preprocessing_ is a generic container of fitted
         instances, such as a list or dict. These will be stored in the
         layer class and passed to a user-specified 'predict_function' in the
         layer"s 'predict' method.
-                
+
     predict : X, y, predict_function, args, kwargs
         Generic function for generating predictions through all layers. The
         'predict_function' must have the following  API:
-        
+
         '''
         X_preds = predict_function(layer_instance, X, y, *args, **kwargs)
         '''
-        
+
         The predictions of each layer is passed as input to the subsequent
         layer.
-        
+
     add : estimators, preprocessing
         Method for adding a layer to the container.
     """
@@ -85,7 +85,7 @@ class LayerContainer(BaseEstimator):
             preprocessing=None, fit_params=None, predict_params=None,
             in_place=True):
         """Method for adding a layer.
-        
+
         Parameters
         -----------
         fit_function : function
@@ -111,80 +111,80 @@ class LayerContainer(BaseEstimator):
             '''
             for each layer, its predictions will be passed as input for the
             subsequent layer.
-            
-            
+
+
         preprocessing: dict of lists or list, optional (default = [])
             preprocessing pipelines for given layer. If
             the same preprocessing applies to all estimators, 'preprocessing'
             can be a list of transformer instances. The list can contain the
             instances directly, or named tuples of transformers:
-    
+
             '''
             option_1 = [transformer_1, transformer_2]
             option_2 = [("trans-1", transformer_1), ("trans-2", transformer_2)]
             '''
-    
+
              If different preprocessing pipelines are desired, a dictionary
              that maps preprocessing pipelines must be passed. The names of the
              preprocessing dictionary must correspond to the names of the
              estimator dictionary.
-    
+
              '''
              preprocessing_cases = {"case-1": [trans_1, trans_2].
                                     "case-2": [alt_trans_1, alt_trans_2]}
-    
+
              estimators = {"case-1": [est_a, est_b].
                            "case-2": [est_c, est_d]}
              '''
-    
+
              The lists for each dictionary entry can be both a list of
              transformers and a list of named tuples of transformers,
              as in 'option_1' and 'option_2' respectively.
-    
+
         estimators: dict of lists or list
             estimators constituting the layer. If no preprocessing,
             or preprocessing applies to all estimators, a list of estimators
             can be passed. The list can either contain estimator instances,
             or named tuples of estimator instances:
-    
+
             '''
             option_1 = [estimator_1, estimator_2]
             option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
             '''
-    
+
              If different preprocessing pipelines are desired, a dictionary
              that maps estimators to preprocessing pipelines must be passed.
              The names of the estimator dictionary must correspond to the
              names of the estimator dictionary:
-    
+
              '''
              preprocessing_cases = {"case-1": [trans_1, trans_2].
                                     "case-2": [alt_trans_1, alt_trans_2]}
-    
+
              estimators = {"case-1": [est_a, est_b].
                            "case-2": [est_c, est_d]}
              '''
-    
+
              The lists for each dictionary entry can be both a list of
              estimators and a list of named tuples of estimators,
              as in 'option_1' and 'option_2' respectively.
-                          
+
         fit_params : dict, tuple or None (default = None)
             optional arguments passed to 'fit_function'.
-            
+
         predict_params : dict, tuple or None (default = None)
             optional arguments passed to 'predict_function'.
-             
+
         in_place: bool (default = True)
             whether to return the instance (i.e. 'self').
-            
+
         Returns
         ----------
         lc : instance, None (default = None)
             if in_place = True, returns the instance with the instantiated
             layer.
         """
-        
+
         # Instantiate layer
         lyr = Layer(estimators=estimators,
                     preprocessing=preprocessing,
@@ -193,7 +193,7 @@ class LayerContainer(BaseEstimator):
                     predict_function=predict_function,
                     predict_params=predict_params,
                     raise_on_exception=self.raise_on_exception)
-        
+
         self.n_layers += 1
 
         # Attached to ordered dictionary
@@ -201,7 +201,7 @@ class LayerContainer(BaseEstimator):
 
         if not in_place:
             return self
-        
+
     def fit(self, X, y, return_final, verbose):
         """Generic method for fitting all layers in the container.
 
@@ -212,7 +212,7 @@ class LayerContainer(BaseEstimator):
 
         y : array-like of shape = [n_samples, ]
             output vector to trained estimators on.
-            
+
         return_final : bool (default = True)
             whether to return the final training input. In this case,
             the output of the 'fit' method is a tuple '(out, X)'.
@@ -223,7 +223,7 @@ class LayerContainer(BaseEstimator):
                 - verbose = 0 : silent (same as verbose = False)
                 - verbose = 1 : times full fitting (same as verbose = True)
                 - verbose = 2 : times all layer fittings
-                
+
             If verbose >= prints to sys.stdout, else sys.stderr.
             For verbose layers, use kwargs for the 'fit_function'
 
@@ -246,20 +246,20 @@ class LayerContainer(BaseEstimator):
         fit_tup = (X,)  # initiate a tuple of fit outputs for first layer
         out = {}
         for layer_name, layer in self.layers.items():
-            
+
             if verbose > 1:
                 safe_print("[%s] fitting" % layer_name, file=pout, flush=True)
                 ti = time()
 
             fit_tup = layer.fit(fit_tup[0], y)
             out[layer_name] = fit_tup[1:]
-            
+
             if verbose > 1:
                 print_time(ti, "[%s] done" % layer_name, file=pout, flush=True)
 
         if verbose:
             print_time(t0, "Fit complete", file=pout, flush=True)
-            
+
         if return_final:
             return out, fit_tup[0]
         else:
@@ -275,47 +275,47 @@ class LayerContainer(BaseEstimator):
 
         y : array-like of shape = [n_samples, ]
             output vector to trained estimators on.
-        
+
         verbose : int or bool (default = False)
             level of verbosity of 'LayerContainer' instance:
-            
+
                 - verbose = 0 : silent (same as verbose = False)
                 - verbose = 1 : times full prediction (same as verbose = True)
                 - verbose = 2 : times all layer predictions
-                
+
             If verbose >= prints to sys.stdout, else sys.stderr.
 
             For verbose layers, use kwargs for the 'predict_function'
-            
+
         Returns
         -----------
         X_pred : array-like of shape = [n_samples, n_fitted_estimators]
             prediction matrix from final layer.
         """
-        
+
         if verbose:
             pout = "stdout" if verbose >= 3 else "stderr"
             safe_print("Predicting through all layers (%d)" % self.n_layers,
                        file=pout, flush=True)
             t0 = time()
-    
+
         for layer_name, layer in self.layers.items():
-        
+
             if verbose > 1:
                 safe_print("[%s] predicting" % layer_name, file=pout,
                            flush=True)
                 ti = time()
-        
+
             X = layer.predict(X, y)
-        
+
             if verbose > 1:
                 print_time(ti, "[%s] done" % layer_name, file=pout, flush=True)
-    
+
         if verbose:
             print_time(t0, "prediction complete", file=pout, flush=True)
-    
+
         return X
-    
+
     @staticmethod
     def _init_layers(layers):
         """Return a clean ordered dictionary or copy the passed dictionary."""
@@ -325,7 +325,7 @@ class LayerContainer(BaseEstimator):
             return layers
         else:
             return layers
-        
+
     def _check_n_layers(self, n_layers):
         """Check that n_layers match to dictionary length."""
         n = len(self.layers)
@@ -335,7 +335,7 @@ class LayerContainer(BaseEstimator):
                           "proceed with 'n_layers = len(layers)' "
                           "(%d)." % (n_layers, n, n),
                           LayerSpecificationWarning)
-        
+
         return n
 
     def get_params(self, deep=True):
@@ -431,68 +431,68 @@ class Layer(BaseEstimator):
          The lists for each dictionary entry can be both a list of estimators
          and a list of named tuples of estimators, as in 'option_1' and
          'option_2' respectively.
-         
+
     fit_function : function
         The fit_function must have the following API:
-        
+
         '''
         (estimators_, preprocessing_, fitted_estimators_, out) = \
             fit_function(layer_instance, X, y, *args, **kwargs)
         '''
-        
+
         where estimators_ and preprocessing_ is a generic container of
         fitted  instances, such as a list or dict. These will be passed
         to a user-specified 'predict_function' in the 'predict' call.
         'out' is a (possibly empty) generic return object.
-         
+
     predict_function : function
         The predict_function must have the following API:
 
         '''
         y_pred = predict_function(layer_instance, X, y, *args, **kwargs)
         '''
-        
+
     fit_params : dict, tuple or None (default = None)
         optional arguments passed to 'fit_function'.
-        
+
     predict_params : dict, tuple or None (default = None)
         optional arguments passed to 'predict_function'.
-        
+
     raise_on_exception : bool (default = False)
         whether to raise an error on soft exceptions, else issue warning.
-         
+
     Attributes
     -----------
     estimators_ : OrderedDict, list
         container for fitted estimators, possibly mapped to preprocessing
         cases and / or folds.
-        
+
     preprocessing_ : OrderedDict, list
         container for fitted preprocessing pipelines, possibly mapped to
         preprocessing cases and / or folds.
-                        
+
     fitted_estimators_ : list
         list of fitted estimator names.
-                                   
+
     Methods
     ----------
     fit : X, y, fit_function, args, kwargs
         Generic fit function for storing fitted estimators and preprocessing
         pipelines. The 'fit_function' must have the following API:
-        
+
         '''
         (estimators_, preprocessing_, fitted_estimators_) = \
             fit_function(layer_instance, X, y, *args, **kwargs)
         '''
-        
+
         where estimators_ and preprocessing_ is a generic container of fitted
         instances, such as a list or dict. These will be passed to a user-
         specified 'predict_function' in the 'predict' call.
-                
+
     predict : X, y, predict_function, args, kwargs
         Generic predict function for predicting using fitted layer. The
         'predict_function' must have the following  API:
-        
+
         '''
         y_preds = predict_function(layer_instance, X, y, *args, **kwargs)
         '''
@@ -501,9 +501,9 @@ class Layer(BaseEstimator):
     def __init__(self, estimators, fit_function, predict_function,
                  preprocessing=None, fit_params=None, predict_params=None,
                  raise_on_exception=False):
-        
+
         assert_correct_layer_format(estimators, preprocessing)
-        
+
         self.estimators = check_instances(estimators)
         self.preprocessing = check_instances(preprocessing)
         self.fit_function = fit_function
@@ -511,10 +511,10 @@ class Layer(BaseEstimator):
         self.fit_params = self._format_params(fit_params)
         self.predict_params = self._format_params(predict_params)
         self.raise_on_exception = raise_on_exception
-        
+
     def fit(self, X, y):
         """Generic method for fitting and storing layer.
-        
+
         Parameters
         -----------
         X : array-like of shape = [n_samples, n_features]
@@ -522,7 +522,7 @@ class Layer(BaseEstimator):
 
         y : array-like of shape = [n_samples, ]
             output vector to trained estimators on.
-            
+
         Returns
         -----------
         out : tuple
@@ -533,7 +533,7 @@ class Layer(BaseEstimator):
         self.estimators_, self.preprocessing_, out = \
             self.fit_function(self, X, y, **self.fit_params)
         return out
-        
+
     def predict(self, X, y):
         """Generic method for predicting with fitted layer.
 
@@ -556,7 +556,7 @@ class Layer(BaseEstimator):
     def _check_fitted(self):
         """Utility function for checking that fitted estimators exist."""
         check_is_fitted(self, "estimators_")
-        
+
         # Check that there is at least one fitted estimator
         if isinstance(self.estimators_, (list, tuple, set)):
             empty = len(self.estimators_) == 0
@@ -569,21 +569,21 @@ class Layer(BaseEstimator):
         if empty:
             raise NotFittedError("Cannot predict as no estimators were"
                                  "successfully fitted.")
-        
+
     @staticmethod
     def _format_params(params):
         """Check that a fit or predict parameters are formatted as kwargs."""
-        
+
         if params is None:
             return {}
         elif not isinstance(params, dict):
-        
+
             msg = ("Wrong optional params type. 'fit_params' "
                    " and 'predict_params' must de type 'dict' "
                    "(type: %s).")
-        
+
             raise LayerSpecificationError(msg % type(params))
-        
+
         return params if params is not None else {}
 
     def get_params(self, deep=True):
@@ -599,7 +599,7 @@ class Layer(BaseEstimator):
         -------
         params : mapping of parameter names mapped to their values.
         """
-        
+
         if not deep:
             return super(Layer, self).get_params()
 
@@ -635,7 +635,7 @@ class BaseEnsemble(BaseEstimator):
     get_params : None
         Method for generating mapping of parameters. Sklearn API.
     """
-    
+
     def _add(self, estimators, fit_function, predict_function,
              fit_params=None, predict_params=None, preprocessing=None):
         """Method for adding a layer.
@@ -732,11 +732,11 @@ class BaseEnsemble(BaseEstimator):
         self : instance
             The instance with the instantiated layer.
         """
-        
+
         if self.layers is None:
             raise_on_exception = getattr(self, 'raise_on_exception', False)
             self.layers = LayerContainer(raise_on_exception=raise_on_exception)
-        
+
         self.layers.add(estimators=estimators,
                         preprocessing=preprocessing,
                         fit_function=fit_function,
@@ -755,7 +755,7 @@ class BaseEnsemble(BaseEstimator):
 
         y : array-like, shape=[n_samples, ]
             output vector to trained estimators on.
-            
+
         return_final : bool (default = True)
             whether to return the final training input. In this case,
             the output of the 'fit' method is a tuple '(out, X)'.
@@ -766,7 +766,7 @@ class BaseEnsemble(BaseEstimator):
                 - verbose = 0 : silent (same as verbose = False)
                 - verbose = 1 : times full fitting (same as verbose = True)
                 - verbose = 2 : times all layer fittings
-                
+
             If verbose >= prints to sys.stdout, else sys.stderr.
             For verbose layers, use kwargs for the 'fit_function'
 
@@ -776,7 +776,7 @@ class BaseEnsemble(BaseEstimator):
             dict of fit data as specified by each layer"s 'fit_function'.
         """
         return self.layers.fit(X, y, return_final, verbose)
-        
+
     def _predict_layers(self, X, y, verbose):
         """Predict with fitted ensemble.
 
@@ -793,11 +793,11 @@ class BaseEnsemble(BaseEstimator):
                 - verbose = 0 : silent (same as verbose = False)
                 - verbose = 1 : times full prediction (same as verbose = True)
                 - verbose = 2 : times all layer predictions
-                
+
             If verbose >= prints to sys.stdout, else sys.stderr.
 
             For verbose layers, use kwargs for the 'predict_function'
-            
+
         Returns
         -----------
         X_pred : array-like of shape = [n_samples, n_fitted_estimators]

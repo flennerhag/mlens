@@ -52,7 +52,7 @@ def safe_slice(X, row_slice=None, column_slice=None, layer_name=None):
                 raise SliceError('Slicing array failed. Aborting. '
                                  'Details:\n%r\nX: %s\n%r' % (e, type(X), X))
 
-          
+
 ###############################################################################
 def check_fit_overlap(full_fit_est, fold_fit_est, layer):
     """Helper function to check that fitted estimators overlap"""
@@ -110,7 +110,7 @@ def name_layer(layer, layer_prefix=''):
             if isinstance(pipe, Pipeline):
                 # If pipeline is passed, get the list of steps
                 pipe = pipe.steps
-            
+
             # Add prefix to estimators to uniquely define each layer and
             # preprocessing case
             if len(p_name) > 0:
@@ -120,10 +120,10 @@ def name_layer(layer, layer_prefix=''):
                     prefix = p_name + '-'
             else:
                 prefix = layer_prefix
-            
+
             for phase in pipe:
                 named_layer.update(name_estimators(phase, prefix))
-    
+
     return named_layer
 
 
@@ -142,13 +142,13 @@ def _format_instances(instances):
             instance = val[-1]
             has_get_params = hasattr(instance, 'get_params')
             has_fit = hasattr(instance, 'fit')
-        
+
         if not has_get_params:
             raise TypeError('[%s] does not appear to be a valid'
                             ' estimator. as it does not implement a '
                             '`get_params` method. Type: '
                             '%s' % (instance, type(instance)))
-        
+
         if not has_fit:
             raise TypeError('[%s] does not appear to be a valid'
                             ' estimator. as it does not implement a '
@@ -156,16 +156,16 @@ def _format_instances(instances):
                             '%s' % (instance, type(instance)))
         try:
             # Name instance
-            
+
             # We keep the tuple as a list to change possible duplicate names
             # before switching to tuple
             if instance == val:
                 tup = _name_estimators([instance])[0]
             else:
                 tup = (val[0].lower(), val[-1])
-            
+
             named_instances.append(tup)
-        
+
         except Exception as e:
             msg = ('Layer instantiation failed due to incorrectly '
                    'specification. Check that estimators and preprocessing '
@@ -176,14 +176,14 @@ def _format_instances(instances):
                    'See documentation for further information.\n'
                    'Instance failure:\n%r\nError details: %r')
             raise LayerSpecificationError(msg % (instance, e))
-    
+
     # Check and correct duplicate names
     duplicates = Counter([tup[0] for tup in named_instances])
     duplicates = {key: val for key, val in duplicates.items() if
                   val > 1}
-    
+
     out = []  # final named_instances list
-    
+
     name_count = {key: 1 for key in duplicates}
     for name, instance in named_instances:
         if name in duplicates:
@@ -191,7 +191,7 @@ def _format_instances(instances):
             name_count[name] += 1
             name += '-%d' % current_name_count  # rename
         out.append((name, instance))
-    
+
     return out
 
 
@@ -200,30 +200,30 @@ def _check_format(instance_list):
     # Assert list instance
     if not isinstance(instance_list, list):
         return False
-    
+
     # If empty list, no preprocessing case
     if len(instance_list) == 0:
         return True
-    
+
     # Check if each element in instance_list is a named instance tuple
     for element in instance_list:
-        
+
         # Check that element is a tuple
         if not isinstance(element, tuple) or len(element) != 2:
             return False
-        
+
         # Check that the first element is a string, the latter an estimator
         is_str = isinstance(element[0], str)
         is_est = (hasattr(element[1], 'get_params') and
                   hasattr(element[1], 'fit'))
         if not (is_str and is_est):
             return False
-    
+
     # Check that there are no duplicate names
     names = Counter([tup[0] for tup in instance_list])
     if max([val for val in names.values()]) > 1:
         return False
-    
+
     # If 'instances' passes above criterion, it's correctly specified
     return True
 

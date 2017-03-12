@@ -21,4 +21,4 @@ script:
   - flake8 --exclude [mlens/visualization, mlens/externals, dev]
 
 after_success:
-  coveralls
+  - coveralls

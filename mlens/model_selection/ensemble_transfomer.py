@@ -10,16 +10,22 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 
 from __future__ import division
 
-from .base import BaseEnsemble
-from ._layer import fit_layer, predict_layer
-from ..utils import print_time, safe_print, check_inputs, check_ensemble_build
-from ..metrics import set_scores
+from mlens.ensemble.base import BaseEnsemble
+
+# TODO: need to create functions for predicting the training set.
+# Kill this import - cannot use these functions!
+from mlens.ensemble._layer import fit_layer, predict_layer
+# TODO: Should id_train be used here?
+from mlens.base import IdTrain
+
+from mlens.utils import print_time, safe_print, check_inputs, check_ensemble_build
+from mlens.metrics import set_scores
 
 from sklearn.base import clone
 from time import time
 
 
-class StackingEnsemble(BaseEnsemble):
+class StackingTransformer(BaseEnsemble):
 
     """Stacking Ensemble class.
 

@@ -1,16 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-@author: Sebastian Flennerhag
-@date: 12/01/2017
+:author: Sebastian Flennerhag
 """
 
 from __future__ import division, print_function
 
-from mlens.preprocessing import Subset, StandardScalerDf
+from mlens.preprocessing import Subset, StandardScaler
 import numpy as np
 from pandas import DataFrame
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler as StandardScaler_
 
 # training data
 np.random.seed(100)
@@ -26,8 +23,8 @@ X[:, 2] *= 5
 X[:, 3] *= 3
 X[:, 4] /= 10
 
-sc1 = StandardScalerDf()
-sc2 = StandardScaler()
+sc1 = StandardScaler()
+sc2 = StandardScaler_()
 
 sub1 = Subset([1, 2])
 sub2 = Subset()

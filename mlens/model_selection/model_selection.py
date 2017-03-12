@@ -1,14 +1,11 @@
-"""ML-ENSEMBLE
+"""
 
-author: Sebastian Flennerhag
-licence: MIT
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 
 Class for parallel tuning a set of estimators that share a common
-preprocessing pipeline that must be fitted on each training fold. This
-implementation improves on standard grid search by avoiding fitting the
-preprocessing pipeline for every estimators, and allowing several alternative
-preprocessing cases to be evaluated. Tuning information for all estimators
-and all cases are accessibly stored in a summary attribute.
+preprocessing pipeline.
 """
 
 from __future__ import division, print_function
@@ -26,100 +23,119 @@ import sys
 
 class Evaluator(object):
 
-    """Class for evaluating a set of estimators and preprocessing pipelines
+    """Model selection across several estimators and preprocessing pipelines.
 
-    Evaluator class that allows user to evaluate several models simultaneously
-    across a set of pre-specified pipelines. The class is useful for comparing
-    a set of estimators when several preprocessing pipelines have potential.
-    By fitting all estimators on the same folds, number of fit can be greatly
-    reduced as compared to pipelining each estimator and getting them in an
-    sklearn grid search. If preprocessing is time consuming, the evaluator
-    class can be order of magnitude faster than a standard grid search.
+    The ``Evaluator`` allows users to evaluate several models in one call
+    across a set preprocessing pipelines. The class is useful for comparing
+    a set of estimators, especially when several preprocessing pipelines is to
+    be evaluated. By pre-making all folds and iteratively fitting estimators
+    with different parameter settings, array slicing and preprocessing is kept
+    to a minimum. This can greatly reduced fit time compared to
+    creating pipeline classes for each estimator and pipeline and fitting them
+    one at a time in an Scikit-learn ``GridSearch`` class.
 
-    If the user in unsure about what estimators to fit, the preprocess method
-    can be used to preprocess data, after which the evuate method can be run
-    any number of times upon the pre-made folds for various configurations of
-    parameters. Current implementation only accepts randomized grid search.
+    Preprocessing can be done before making any evaluation, and several
+    evaluations can be made on the pre-made folds. Current implementation
+    relies on a randomized grid search, so parameter grids must be specified as
+    SciPy distributions (or a class that accepts a ``rvs`` method).
 
     Parameters
-    -----------
-    scoring : func
-        scoring function that follows sklearn API,
-        i.e. score = scoring(estimator, X, y)
-    error_score : int,
-        score to assign when estimator fit fails
-    preprocessing: dict, default=None
+    ----------
+    scorer : function
+        a scoring function that follows the Scikit-learn API::
+
+            score = scorer(estimator, y_true, y_pred)
+
+        A user defines scoring function, ``score = f(y_true, y_pred)`` can be
+        made into a scorer by calling on the ML-Ensemble implementation of
+        Scikit-learn's ``make_scorer``. NOTE: do **not** use Scikit-learn's
+        ``make_scorer`` if the Evaluator is to be pickled. ::
+
+            from mlens.metrics import make_scorer
+            scorer = make_scorer(scoring_function, **kwargs)
+
+    preprocessing : dict (default = None)
         dictionary of lists with preprocessing pipelines to fit models on.
-        Each pipeline will be used to generate k folds that are stored, hence
+        Each pipeline will be used to generate K folds that are stored, hence
         with large data running several cases with many cv folds can require
-        considerable memory. preprocess should be of the form:
-            P = {'case-1': [step1, step2], ...}
-    cv : int, obj, default=2
-        cross validation folds to use. Either pass a KFold class object that
-        accepts as ``split`` method, or the number of folds in standard KFold
-    shuffle : bool, default=True,
-        whether to shuffle data before creating folds
-    random_state : int, default=None
-        seed for creating folds (if shuffled) and for parameter draws
-    n_jobs_preprocessing : int, default=-1
-        number of CPU cores to use for preprocessing of folds
-    n_jobs_estimators : int, default=-1
-        number of CPU cores to use for grid search (estimator fitting)
-    verbose : bool, int, default=False
-        level of printed output.
+        considerable memory. ``preprocess`` should be of the form::
+
+                preprocess = {'case-1': [transformer_1, transformer_2],}
+
+    error_score : int, optional
+        score to assign when fitting an estimator fails. If ``None``, the
+        evaluator will raise an error.
+
+    cv : int or obj (default = 2)
+        cross validation folds to use. Either pass a ``KFold`` class
+        that obeys the Scikit-learn API.
+
+    shuffle : bool (default = True)
+        whether to shuffle input data before creating cv folds.
+
+    random_state : int, optional
+        seed for creating folds (if shuffled) and parameter draws
+
+    n_jobs_preprocessing : int (default = -1)
+        number of CPU cores to use for preprocessing of folds. ``-1``
+        corresponds to all available CPU cores.
+
+    n_jobs_estimators : int (default = -1)
+        number of CPU cores to use for preprocessing of folds. ``-1``
+        corresponds to all available CPU cores.
+
+    verbose : bool or int (default = False)
+        level of printed messages.
 
     Attributes
     -----------
     summary_ : DataFrame
         Summary output that shows data for best mean test scores, such as
-        test and train scores, std, fit times, and params
+        test and train scores, std, fit times, and params.
+
     cv_results_ : DataFrame
         a table of data from each fit. Includes mean and std of test and train
         scores and fit times, as well as param draw index and parameters.
-    best_idx_ : ndarray,
-        an array of index keys for best estimator in ``cv_results_``
 
-    Methods
-    --------
-    preprocess : None
-        Preprocess data according to specified pipelines and cv folds.
-        Preprocessed data is stored in class instance to allow for repeated
-        evaluation of estimators
-    evaluate : estimators, param_dicts, n_iter, reset_preprocess,
-               flush_preprocess
-        Method to run grid search on a set of estimators with given param_dicts
-        for n_iter iterations. Set reset_preprocess to True to regenerate
-        preprocessed data
+    best_idx_ : ndarray
+        an array of index keys for best estimator in ``cv_results_``.
     """
 
-    def __init__(self, scoring, preprocessing=None, cv=10, shuffle=True,
-                 random_state=None, n_jobs_preprocessing=-1,
-                 error_score=-99, n_jobs_estimators=-1, verbose=0):
+    def __init__(self,
+                 scorer,
+                 preprocessing=None,
+                 cv=2,
+                 shuffle=True,
+                 random_state=None,
+                 n_jobs_preprocessing=-1,
+                 error_score=None,
+                 n_jobs_estimators=-1,
+                 verbose=False):
+
         self.cv = cv
         self.shuffle = shuffle
         self.n_jobs_preprocessing = n_jobs_preprocessing
         self.n_jobs_estimators = n_jobs_estimators
         self.error_score = error_score
         self.random_state = random_state
-        self.scoring = scoring
+        self.scorer = scorer
         self.verbose = verbose
         self.preprocessing = check_instances(preprocessing)
 
     def preprocess(self, X, y):
-        """Preprocess folds
+        """Preprocess folds.
 
-        Method for preprocessing data separately from estimator
-        evaluation. Helpful if preprocessing is costly relative to
-        estimator fitting and flexibility is needed in evaluating
-        estimators. Examples include fitting base estimators as part of
-        preprocessing, to evaluate suitabe meta estimators in ensembles.
+        Method for preprocessing data separately from the evaluation
+        method. Helpful if preprocessing is costly relative to
+        estimator fitting and several ``evaluate`` calls might be desired.
 
         Parameters
-        -----------
+        ----------
         X : array-like, shape=[n_samples, n_features]
-            input matrix to be used for prediction
+            input data to preprocess and create folds from.
+
         y : array-like, shape=[n_samples, ]
-            output vector to trained estimators on
+            training labels.
 
         Returns
         ----------
@@ -140,47 +156,64 @@ class Evaluator(object):
                                      verbose=self.verbose)
 
         if self.verbose > 0:
-            print_time(time() - t0, 'Preprocessing done', file=printout)
+            print_time(t0, 'Preprocessing done', file=printout)
 
         return self
 
-    def evaluate(self, X, y, estimators, param_dicts, n_iter=2,
+    def evaluate(self, estimators, param_dicts, X=None, y=None, n_iter=2,
                  reset_preprocess=False, flush_preprocess=False):
-        """Evaluate estimators.
+        """Evaluate set of estimators.
 
-        Function for evaluating a list of functions, potentially with various
-        preprocessing pipelines. This method improves fit time of regular grid
-        search of a list of estimators since preprocessing is done once
-        for each fold, rather than for each fold and estimator.
-        [Note: if preprocessing was performed previous to calling evaluate,
-         preprocessed folds will be used. To re-run preprocessing, set
-         reset_preprocess to True.]
+        Function for evaluating a set of estimators using cross validation.
+        Similar to a randomized grid search, but applies the grid search to all
+        specified preprocessing pipelines.
 
         Parameters
         ----------
-        X : array-like, shape=[n_samples, n_features]
-            input matrix to be used for prediction
-        y : array-like, shape=[n_samples, ]
-            output vector to trained estimators on
         estimators : dict
-            set of estimators to use: estimators={'est1': est(), ...}
+            set of estimators to use, specified as::
+
+                estimators = {'est-1': estimator_1, 'est-2': estimator_2}
+
         param_dicts : dict
             param_dicts for estimators. Current implementation only supports
-            randomized grid search, where passed distributions accept the
-            .rvs() method. See sklearn.model_selection.RandomizedSearchCV for
-            details.Form: param_dicts={'est1': {'param1': dist}, ...}
+            randomized grid search. Passed distribution object must have a
+            ``rvs`` method. See
+            :py:class:`sklearn.model_selection.RandomizedSearchCV` for
+            details. ``param_dict`` should be specified as::
+
+                param_dicts = {'est-1':
+                                   {'param-1': some_distribution,
+                                    'param-2': some_distribution},
+                               'est-2':
+                                   {'param-1': some_distribution,
+                                    'param-2': some_distribution},
+                               }
+
+        X : array-like of shape = [n_samples, n_features], optional
+            input data. If ``preprocess`` was called prior to ``evaluate``
+            no data needs to be specified.
+
+        y : array-like, shape=[n_samples, ]
+            training labels. If ``preprocess`` was called prior to ``evaluate``
+            no data needs to be specified.
+
         n_iter : int
-            number of parameter draws
-        reset_preprocess : bool, default=False
-            set to True to regenerate preprocessed folds
-        flush_preprocess : bool, default=False
-            set to True to drop preprocessed data. Useful if memory requirement
-            is large.
+            number of parameter draws to evaluate.
+
+        reset_preprocess : bool (default = False)
+            set to ``True`` to create new preprocessed folds (applicable if
+            a ``evaluate`` or ``preprocess`` was call before.
+
+        flush_preprocess : bool (default = False)
+            set to ``True`` to drop preprocessed folds after evaluation.
+            Useful if memory requirement is large or if the ``Evaluator``
+            instance is to be pickled without any arrays.
 
         Returns
         ---------
-        self : obj
-            class instance with stored evaluation data.
+        self : instance
+            class instance with stored estimator evaluation results.
         """
         self.n_iter = n_iter
         self.estimators_ = check_instances(estimators)
@@ -200,7 +233,7 @@ class Evaluator(object):
                                         printout)
 
         out = cross_validate(self.estimators_, self.param_sets_, self.dout,
-                             self.scoring, self.error_score,
+                             self.scorer, self.error_score,
                              self.n_jobs_estimators, self.verbose)
 
         # ===== Create summary statistics =====
@@ -212,7 +245,7 @@ class Evaluator(object):
             del self.dout
 
         if self.verbose > 0:
-            print_time(time() - t0, 'Evaluation done', file=printout)
+            print_time(t0, 'Evaluation done', file=printout)
 
         return self
 
@@ -238,8 +271,12 @@ class Evaluator(object):
         param_map = {}   # dict with param settings for each est_prep pair
 
         # Create list of param settings for each estimator
-        for est_name, _ in self.estimators_:
-            param_sets[est_name] = self._draw_params(est_name)
+        for est_name, est in self.estimators_:
+            try:
+                param_sets[est_name] = self._draw_params(est_name)
+            except KeyError:
+                # No param draws desired. Set empty dict
+                param_sets[est_name] = [{} for _ in range(self.n_iter)]
 
         # Flatten list to param draw mapping for each preprocessing case
         for est_name, param_draws in param_sets.items():
@@ -251,7 +288,7 @@ class Evaluator(object):
 
     @staticmethod
     def _results(out, param_map):
-        """Format results into readable DataFrames.
+        """Format results into readable pandas DataFrame.
 
         Parameters
         ----------

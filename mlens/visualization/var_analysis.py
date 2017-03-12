@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 10/01/2017
-licence: MIT
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+
+Explained variance plots.
 """
 
 from __future__ import division, print_function
@@ -17,10 +16,32 @@ from sklearn.decomposition import KernelPCA
 
 
 def IO_plot_comp(X, y, figsize=(10, 8)):
-    """Function for comparing PCA analysis
+    """Function for comparing PCA analysis.
 
     Function compares across 2 and 3 dimensions and
-    linear and rbf kernels. See IO_plot for details.
+    linear and rbf kernels.
+
+    Parameters
+    ----------
+    X : array-like of shape = [n_samples, n_features]
+        input matrix to be used for prediction.
+
+    y : array-like of shape = [n_samples, ] or None (default = None)
+        output vector to trained estimators on.
+
+    figsize = tuple (default = (10, 8))
+        Size of figure.
+
+    Returns
+    -------
+    f :
+        figure object.
+    ax :
+        axis object.
+
+    See Also
+    --------
+    :class:`mlens.visualization.IO_plot`
     """
     comp = ['linear', 'rbf']
     f = plt.figure(figsize=figsize)
@@ -40,19 +61,30 @@ def IO_plot_comp(X, y, figsize=(10, 8)):
 def IO_plot(X, y, estimator, figsize=(10, 8), show=True, ax=None):
     """Function to plot a PCA analysis of 1, 2, or 3 dims.
 
-    Input:
-    ---------
-    X : array-like
-        Input matrix
-    y : array-like
-        label vector
-    estimator : object
-        PCA estimator, not initiated, assumes an sklearn API.
-    dim : int <= 3
-        subspace dimensions.
+    Parameters
+    ----------
+    X : array-like of shape = [n_samples, n_features]
+        input matrix to be used for prediction.
 
-    Returns:
-        shows figure
+    y : array-like of shape = [n_samples, ] or None (default = None)
+        output vector to trained estimators on.
+
+    estimator : class
+        PCA estimator, not initiated, assumes a Scikit-learn API.
+
+    figsize = tuple (default = (10, 8))
+        Size of figure.
+
+    show : bool (default = True)
+        whether to print figure using ``matplotlib.pyplot.show()``.
+
+    ax : object, optional
+        axis to attach plot to.
+
+    Returns
+    -------
+    ax : optional
+        if ``ax`` was specified, returns ``ax`` with plot attached.
     """
     Z = estimator.fit_transform(X.values)
 
@@ -76,18 +108,29 @@ def IO_plot(X, y, estimator, figsize=(10, 8), show=True, ax=None):
 
 
 def exp_var_plot(X, estimator, figsize=(10, 8), show=True, ax=None):
-    """
-    Function to plot the explained variance using PCA.
+    """Function to plot the explained variance using PCA.
 
-    Input:
-    ---------
-    X : array-like
-        Input matrix
-    estimator : object
-        PCA estimator, assumes an sklearn API.
+    Parameters
+    ----------
+    X : array-like of shape = [n_samples, n_features]
+        input matrix to be used for prediction.
 
-    Returns:
-        shows figure
+    estimator : class
+        PCA estimator, not initiated, assumes a Scikit-learn API.
+
+    figsize = tuple (default = (10, 8))
+        Size of figure.
+
+    show : bool (default = True)
+        whether to print figure using ``matplotlib.pyplot.show()``.
+
+    ax : object, optional
+        axis to attach plot to.
+
+    Returns
+    -------
+    ax : optional
+        if ``ax`` was specified, returns ``ax`` with plot attached.
     """
     estimator.set_params(**{'n_components': None})
     ind_var_exp = estimator.fit(X).explained_variance_ratio_

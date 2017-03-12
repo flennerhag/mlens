@@ -1,6 +1,7 @@
-"""ML-ENSEMBLE
-
-author: Sebastian Flennerhag
+"""
+:author: Sebastian Flennerhag
+:copyright: 2017
+:license: MIT
 """
 
 import warnings

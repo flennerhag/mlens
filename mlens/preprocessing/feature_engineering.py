@@ -1,11 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 10/02/2017
-licence: MIT
+:author: Sebastian Flennerhag
+:licence: MIT
+
 Class for generating new features in the form of predictions from a given set
 of models. Prediction are generated using KFold out-of-sample predictions.
 """
@@ -27,52 +24,51 @@ import sys
 
 class PredictionFeature(BaseEstimator, TransformerMixin):
 
-    """Prediction Feature
+    """Prediction Feature.
 
     Transformer that appends columns of predictions from a set of estimators
     to a matrix.
 
     Parameters
-    -----------
-    estimators : obj
+    ----------
+    estimators : list
         estimators to use for generating predictions. One feature of
-        predictions is generated per estimator
-    folds : int, obj, default=2
+        predictions is generated per estimator.
+
+    folds : int, obj (default = 2)
         number of folds to use for constructing prediction feature set.
         Either pass a KFold class object that accepts as ``split`` method,
-        or the number of folds in standard KFold
-    shuffle : bool, default=True
-        whether to shuffle data for creating k-fold out of sample predictions
-    random_state : int, default=None
-        seed for creating folds during fitting (if shuffle=True)
-    sample_size : int,
-        subset size to sample from training set for check during `transform`
-        call. Datasets with low variation need larger subsets to ensure
-        a random subset was polled.
-    verbose : bool, int, default=False
-        level of verbosity of fitting:
-            verbose = 0 prints minimum output
-            verbose = 1 give prints for meta and base estimators
-            verbose = 2 prints also for each stage (preprocessing, estimator)
-    n_jobs : int, default=-1
-        number of CPU cores to use for fitting and prediction
+        or the number of folds in Scikit-learn ``KFold`` instance.
+
+    shuffle : bool (default = True)
+        whether to shuffle data for creating k-fold out of sample predictions.
+
+    random_state : int, (default = None)
+        seed for creating folds during fitting (if ``shuffle = True``).
+
+    sample_size : int
+        subset size to sample from training set for check during ``transform``
+        call. Data sets with low variation need larger subsets to ensure
+        the subset is unique.
+
+    verbose : int or bool (default = False)
+        level of verbosity.
+
+            - ``verbose = 0`` silent (same as ``verbose = False``)
+            - ``verbose = 1`` messages at start and finish \
+            (same as ``verbose = True``)
+            - ``verbose = 2`` messages for each layer
+
+        If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
+        For verbosity in the layers themselves, use ``fit_params``.
+
+    n_jobs : int (default = -1)
+        number of CPU cores to use for fitting and prediction.
 
     Attributes
-    -----------
+    ----------
     estimators_ : list
-        fitted estimator
-
-    Methods
-    --------
-    fit : X, y=None
-        Fits estimators on provided data
-    predict : X
-        Use fitted estimators to create matrix of predictions,
-        shape [n_samples, n_estimators]
-    transform : X
-        Use fitted estimators to generate and concatenate predictions to X
-    get_params : None
-        Method for generating mapping of parameters. Sklearn API
+        list of fitted estimator.
     """
 
     def __init__(self, estimators, folds=2, shuffle=True, scorer=None,
@@ -93,19 +89,20 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         self.n_jobs = n_jobs
 
     def fit(self, X, y):
-        """Fit ensemble
+        """Fit estimators.
 
         Parameters
         ----------
         X : array-like, shape=[n_samples, n_features]
-            input matrix to be used for prediction
+            input data to fit estimators on.
+
         y : array-like, shape=[n_samples, ]
-            output vector to trained estimators on
+            training labels.
 
         Returns
-        --------
-        self : obj
-            class instance with fitted estimators
+        -------
+        self : instance
+            class instance with fitted estimators.
         """
         # Store training set id
         self.check = self.check.fit(X)
@@ -147,17 +144,17 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         return self
 
     def predict(self, X, y=None):
-        """Predict with fitted ensemble
+        """Predict with fitted ensemble.
 
         Parameters
         ----------
         X : array-like, shape=[n_samples, n_features]
-            input matrix to be used for prediction
+            Data to use for making predictions.
 
         Returns
-        --------
-        y : array-like, shape=[n_samples, ]
-            predictions for provided input array
+        -------
+        X_pred : array-like, shape=[n_samples, n_estimators]
+            prediction matrix.
         """
         as_df = isinstance(X, DataFrame)
 
@@ -186,22 +183,23 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
                          function_args=function_args,
                          columns=self._fitted_ests, as_df=as_df,
                          n_jobs=self.n_jobs, verbose=self.verbose)
+
         check_fit_overlap(self._fitted_ests, fitted_estimator_names,
                           'prediction_feature')
         return M
 
     def transform(self, X, y=None):
-        """Transform input array X by concatenting prediction features
+        """Transform input array X by concatenating prediction features.
 
         Parameters
         ----------
         X : array-like, shape=[n_samples, n_features]
-            input matrix to be used for prediction
+            input data.
 
         Returns
-        --------
-        Concatenated : array-like, shape=[n_samples, n_features + n_estimators]
-            Full matrix X concatenated by `n_estimators` columns of predictions
+        -------
+        X_concat : array-like, shape=[n_samples, n_features + n_estimators]
+            Full matrix X concatenated by ``n_estimators`` prediction features.
         """
         M = self.predict(X, y)
 
@@ -216,7 +214,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
             return hstack((X, M))
 
     def get_params(self, deep=True):
-        """Sklearn API for retrieveing all (also nested) model parameters"""
+        """Get parameters of the PredictionFeature transformer."""
         if not deep:
             return super(PredictionFeature, self).get_params(deep=False)
         else:

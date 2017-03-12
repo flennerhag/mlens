@@ -1,7 +1,7 @@
-"""ML-ENSEMBLE
-
-author: Sebastian Flennerhag
-licence: MIT
+"""
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 """
 
 from .stacking_ensemble import StackingEnsemble

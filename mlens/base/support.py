@@ -7,7 +7,7 @@ Support functions used throughout mlens
 
 from __future__ import division, print_function
 
-from ..utils.checks import SliceError, LayerSpecificationError
+from ..utils.exceptions import SliceError, LayerSpecificationError
 from numpy import ix_
 from collections import Counter
 from sklearn.pipeline import Pipeline, _name_estimators

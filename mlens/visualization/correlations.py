@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 10/01/2017
-licence: MIT
-Correlation plots
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+
+Correlation plots.
 """
 
 from __future__ import division, print_function
@@ -25,22 +23,33 @@ def corrmat(corr, figsize=(11, 9), annotate=True,
 
     Parameters
     ----------
-    corr : array-like, shape = [n_features, n_features]
-        Input correlation matrix. Use pandas DataFrame for axis labels
-    figsize : tuple, shape (int, int)
-        Size of figure
+    corr : array-like of shape = [n_features, n_features]
+        Input correlation matrix. Pass a pandas ``DataFrame`` for axis labels.
+
+    figsize : tuple (default = (11, 9))
+        Size of printed figure.
+
     linewidths : float
-        with of line separating color points
+        with of line separating each coordinate square.
+
     cbar_kws : dict, str (default = 'default')
         Optional arguments to color bar. The default options, 'default',
         passes the ``shrink`` parameter to fit colorbar standard figure frame.
-    kwargs : kwargs
-        Other pptional arguments to sns heatmap
+
+    kwargs : **dict
+        Other optional arguments to sns heatmap.
 
     Returns
+    -------
+    f : object
+        figure object.
+
+    ax : object
+        axis object.
+
+    See Also
     --------
-    heatmap : obj
-        Matplotlib figure containing heatmap
+    :class:`mlens.visualization.clustered_corrmap`
     """
 
     if cbar_kws == "default":
@@ -69,18 +78,40 @@ def corrmat(corr, figsize=(11, 9), annotate=True,
 
 
 def clustered_corrmap(X, cls=None, label_attr_name='labels_',
-                      fig_size=(20, 20), title_fontsize=24, show=True,
+                      figsize=(20, 20), title_fontsize=24, show=True,
                       title_name='Feature correlation heatmap', **kwargs):
-    """Function for plotting a clustered correlation heatmap
+    """Function for plotting a clustered correlation heatmap.
 
     Parameters
     ----------
-    X : array-like, shape = [n_samples, n_features]
-        dataset to plot
-    cls : obj
-        cluster object that accepts fit and stores labels as attribute
+    X : array-like of shape = [n_features, n_features]
+        Input data.
+
+    cls : instance
+        cluster estimator with a ``fit`` method cluster labels stored as an
+        attribute as specified by the ``label_attr_name`` parameter.
+
     label_attr_name : str
-        name of attribute that contains cluster label
+        name of attribute that contains cluster labels.
+
+    figsize : tuple (default = (10, 8))
+        Size of figure.
+
+    title_fontsize : int
+        size of title.
+
+    title_name : str
+        Figure title.
+
+    show : bool (default = True)
+        whether to print figure using ``matplotlib.pyplot.show()``.
+
+    kwargs : **dict
+        Other optional arguments to sns heatmap.
+
+    See Also
+    --------
+    :class:`mlens.visualization.corrmat`
     """
     # find closely associated features
     fa = cls(**kwargs)
@@ -90,7 +121,7 @@ def clustered_corrmap(X, cls=None, label_attr_name='labels_',
     corr_list = [tup[0] for tup in sorted(zip(X.columns.tolist(),
                                               getattr(fa, label_attr_name)),
                                           key=lambda x: x[1])]
-    plt.figure(figsize=fig_size)
+    plt.figure(figsize=figsize)
     heatmap(X.loc[:, corr_list].corr(), vmax=1.0, square=True)
     plt.title(title_name, fontsize=title_fontsize)
     if show:
@@ -104,13 +135,25 @@ def corr_X_y(X, y, top=5, show=True):
 
     Parameters
     ----------
+    X : array-like of shape = [n_features, n_features]
+        Input data.
+
+    y : array-like of shape = [n_features,]
+        labels.
+
     top : int
         number of features to show in top pos and neg graphs
 
+    show : bool (default = True)
+        whether to print figure using ``matplotlib.pyplot.show()``.
+
     Returns
     -------
-    f, gs : object, object
-        figure, axis_grid
+    f : object
+        figure object.
+
+    ax : object
+        axis object.
     """
     correls = X.apply(lambda x: pearsonr(x, y)[0]).sort_values(ascending=False)
 

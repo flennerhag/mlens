@@ -5,7 +5,11 @@ date: 10/01/2017
 """
 
 from .utils import pickle_save, pickle_load, print_time, safe_print
-from .checks import check_is_fitted, check_inputs
+from .validation import check_inputs
+from .checks import (check_is_fitted, check_ensemble_build,
+                     assert_correct_layer_format, check_layer_output)
 
-__all__ = ['pickle_save', 'pickle_load', 'print_time', 'check_is_fitted',
-           'check_inputs', 'safe_print']
+__all__ = ['check_inputs',
+           'check_is_fitted', 'check_ensemble_build', 'check_layer_output',
+           'assert_correct_layer_format'
+           'pickle_save', 'pickle_load', 'print_time', 'safe_print']

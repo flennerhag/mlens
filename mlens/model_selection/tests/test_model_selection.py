@@ -74,13 +74,13 @@ def check_scores(evals):
 
 def test_evals():
         evals1.preprocess(X, y)
-        evals1.evaluate(X, y, estimators, parameters, 3, flush_preprocess=True)
-        evals1.evaluate(X, y, estimators, parameters, 3)
+        evals1.evaluate(estimators, parameters, 3, flush_preprocess=True)
+        evals1.evaluate(estimators, parameters, X, y, 3)
         check_scores(evals1)
 
 
 def test_pickling_evals():
-        evals2.evaluate(X, y, estimators, parameters, 3)
+        evals2.evaluate(estimators, parameters, X, y, 3)
 
         pickle_save(evals2, 'evals_test_pickle')
         pickled_eval = pickle_load('evals_test_pickle')
@@ -92,7 +92,13 @@ def test_pickling_evals():
 
 def test_exception_handling_evals():
 
+    try:
+        evals1.evaluate(estimators, parameters_exception, X, y, 3)
+    except Exception as e:
+        print(e)
+
+    evals1.error_score = -99
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        evals1.evaluate(X, y, estimators, parameters_exception, 3)
+        evals1.evaluate(estimators, parameters_exception, X, y, 3)
         assert str(evals1.summary_.iloc[-1][0])[:3] == '-99'

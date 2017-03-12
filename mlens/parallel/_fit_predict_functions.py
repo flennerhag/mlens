@@ -11,10 +11,10 @@ from time import time
 import numpy as np
 import warnings
 from sklearn.base import clone
-from ..utils.checks import FitFailedWarning
+from ..utils.exceptions import FitFailedWarning, FitFailedError
 
 
-def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
+def _fit_score(est, est_name, params, scoring, tup, draw, error_score):
     """Score an estimator with given parameters on train and test set."""
     try:
         xtrain, xtest, ytrain, ytest, p_name = tup
@@ -33,7 +33,12 @@ def _fit_score(est, est_name, params, scoring, tup, draw, error_score=-99):
         train_sc = scoring(est, xtrain, ytrain)
 
     except Exception as e:
-        msg = "Could not fit estimator [%s]. Score set to %s. Details: \n%r"
+
+        if error_score is None:
+            raise FitFailedError("Could not fit estimator [%s]. "
+                                 "Details:\n%r" % (est_name, e))
+
+        msg = "Could not fit estimator [%s]. Score set to %s. Details:\n%r"
         warnings.warn(msg % (est_name, str(error_score), e), FitFailedWarning)
 
         t = 0

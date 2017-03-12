@@ -1,20 +1,23 @@
-"""ML-ENSEMBLE
+"""
 
-author: Sebastian Flennerhag
-copyright: 2016
-licence: MIT
-Base ensemble class for layer API and generic 'fit' and 'predict' calls on
-instances.
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+
+Base classes for ensemble layer management.
 """
 
 from __future__ import division, print_function
-from collections import OrderedDict as Odict
+from collections import OrderedDict
 
 from sklearn.base import BaseEstimator
 from ..base import check_instances
-from ..utils import check_is_fitted, print_time, safe_print
-from ..utils.checks import (LayerSpecificationWarning, LayerSpecificationError,
-                            assert_correct_layer_format, NotFittedError)
+from ..utils import (check_is_fitted, assert_correct_layer_format,
+                     print_time, safe_print, check_layer_output)
+
+from ..utils.exceptions import (LayerSpecificationWarning,
+                                LayerSpecificationError,
+                                NotFittedError)
 
 import warnings
 from time import time
@@ -25,55 +28,22 @@ class LayerContainer(BaseEstimator):
     """Container class for layers.
 
     The LayerContainer class stories all layers as an ordered dictionary
-     and modifies possesses a 'get_params' method to appear as an estimator
-     in the Scikit-learn API. This allows correct cloning and parameter
-     updating.
+    and modifies possesses a ``get_params`` method to appear as an estimator
+    in the Scikit-learn API. This allows correct cloning and parameter
+    updating.
 
-     ROAD MAP: this class is meant to also house connection layers and other
-              intra-layer information, and act as the core layer-handler
-              in all ensembles.
+    Parameters
+    ----------
+    layers : OrderedDict, None (default = None)
+        An ordered dictionary of Layer instances. To initiate a new
+        ``LayerContainer`` instance, set ``layers = None``.
 
-     Parameters
-     ----------
-     layers : OrderedDict (default = OrderedDict())
-        An ordered dictionary of Layer instances.
-
-     n_layers : int (default = None)
+    n_layers : int (default = None)
         number of layers instantiated. Automatically set, normally there is no
         reason to fiddle with this parameter.
 
     raise_on_exception : bool (default = False)
         raise error on soft exceptions. Otherwise issue warning.
-
-    Methods
-    ----------
-    fit : X, y, fit_function, verbose, args, kwargs
-        Generic fit method for fitting and storing all layers in the
-        container The 'fit_function' must have the following API:
-
-        '''
-        (estimators_, preprocessing_, fitted_estimators_) = \
-            fit_function(layer_instance, X, y, *args, **kwargs)
-        '''
-
-        where estimators_ and preprocessing_ is a generic container of fitted
-        instances, such as a list or dict. These will be stored in the
-        layer class and passed to a user-specified 'predict_function' in the
-        layer"s 'predict' method.
-
-    predict : X, y, predict_function, args, kwargs
-        Generic function for generating predictions through all layers. The
-        'predict_function' must have the following  API:
-
-        '''
-        X_preds = predict_function(layer_instance, X, y, *args, **kwargs)
-        '''
-
-        The predictions of each layer is passed as input to the subsequent
-        layer.
-
-    add : estimators, preprocessing
-        Method for adding a layer to the container.
     """
 
     def __init__(self, layers=None, n_layers=0, raise_on_exception=False):
@@ -89,100 +59,93 @@ class LayerContainer(BaseEstimator):
         Parameters
         -----------
         fit_function : function
-            The fit_function determines the type of layer and must have the
-            following API:
+            Function used for fitting the layer. The ``fit_function`` must
+            have the following API::
 
-            '''
-            (estimators_, preprocessing_, fitted_estimators_, out) = \
-                fit_function(layer_instance, X, y, *args, **kwargs)
-            '''
+                (estimators_, preprocessing_, out) = fit_function(
+                layer_instance, X, y, fit_params)
 
-            where estimators_ and preprocessing_ are generic containers of
-            fitted  instances, such as lists or dicts. These will be passed
-            to a user-specified 'predict_function' in each layer"s 'predict'
-            method. 'out' is a tuple of output data that at least contains
-            the training data for the subsequent layer as its first element.
+            where ``estimators_`` and ``preprocessing_`` are generic objects
+            holding fitted instances. The ``LayerContainer`` class is agnostic
+            to the object type, and only passes these along to the
+            ``predict_function`` during a ``predict`` call. The ``out``
+            variable must be a tuple of output data that at least contains
+            the training data for the subsequent layer as its **first**
+            element: ``out = (X, ...)``.
 
         predict_function : function
-            The predict_function must have the following API:
+            Function used for generating prediction with the fitted layer.
+            The predict_function must have the following API::
 
-            '''
-            X_pred = predict_function(layer_instance, X, y, *args, **kwargs)
-            '''
-            for each layer, its predictions will be passed as input for the
-            subsequent layer.
+                X_pred = predict_function(layer_instance, X, y, predict_params)
 
+            where ``X_pred`` is an array-like of shape [n_samples,
+            n_fitted_estimators] of predictions.
 
-        preprocessing: dict of lists or list, optional (default = [])
+        preprocessing: dict of lists or list, optional (default = None)
             preprocessing pipelines for given layer. If
-            the same preprocessing applies to all estimators, 'preprocessing'
-            can be a list of transformer instances. The list can contain the
-            instances directly, or named tuples of transformers:
+            the same preprocessing applies to all estimators, ``preprocessing``
+            should be a list of transformer instances. The list can contain the
+            instances directly, named tuples of transformers,
+            or a combination of both. ::
 
-            '''
-            option_1 = [transformer_1, transformer_2]
-            option_2 = [("trans-1", transformer_1), ("trans-2", transformer_2)]
-            '''
+                option_1 = [transformer_1, transformer_2]
+                option_2 = [("trans-1", transformer_1),
+                            ("trans-2", transformer_2)]
+                option_3 = [transformer_1, ("trans-2", transformer_2)]
 
-             If different preprocessing pipelines are desired, a dictionary
-             that maps preprocessing pipelines must be passed. The names of the
-             preprocessing dictionary must correspond to the names of the
-             estimator dictionary.
+            If different preprocessing pipelines are desired, a dictionary
+            that maps preprocessing pipelines must be passed. The names of the
+            preprocessing dictionary must correspond to the names of the
+            estimator dictionary. ::
 
-             '''
-             preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                    "case-2": [alt_trans_1, alt_trans_2]}
+                preprocessing_cases = {"case-1": [trans_1, trans_2].
+                                       "case-2": [alt_trans_1, alt_trans_2]}
 
-             estimators = {"case-1": [est_a, est_b].
-                           "case-2": [est_c, est_d]}
-             '''
+                estimators = {"case-1": [est_a, est_b].
+                              "case-2": [est_c, est_d]}
 
-             The lists for each dictionary entry can be both a list of
-             transformers and a list of named tuples of transformers,
-             as in 'option_1' and 'option_2' respectively.
+            The lists for each dictionary entry can be any of ``option_1``,
+            ``option_2`` and ``option_3``.
 
         estimators: dict of lists or list
-            estimators constituting the layer. If no preprocessing,
-            or preprocessing applies to all estimators, a list of estimators
-            can be passed. The list can either contain estimator instances,
-            or named tuples of estimator instances:
+            estimators constituting the layer. If ``preprocessing`` is
+            ``None`` or ``list``, ``estimators`` should be a ``list``.
+            The list can either contain estimator instances,
+            named tuples of estimator instances, or a combination of both. ::
 
-            '''
-            option_1 = [estimator_1, estimator_2]
-            option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
-            '''
+                option_1 = [estimator_1, estimator_2]
+                option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
+                option_3 = [estimator_1, ("est-2", estimator_2)]
 
-             If different preprocessing pipelines are desired, a dictionary
-             that maps estimators to preprocessing pipelines must be passed.
-             The names of the estimator dictionary must correspond to the
-             names of the estimator dictionary:
+            If different preprocessing pipelines are desired, a dictionary
+            that maps estimators to preprocessing pipelines must be passed.
+            The names of the estimator dictionary must correspond to the
+            names of the estimator dictionary. ::
 
-             '''
-             preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                    "case-2": [alt_trans_1, alt_trans_2]}
+                preprocessing_cases = {"case-1": [trans_1, trans_2].
+                                       "case-2": [alt_trans_1, alt_trans_2]}
 
-             estimators = {"case-1": [est_a, est_b].
-                           "case-2": [est_c, est_d]}
-             '''
+                estimators = {"case-1": [est_a, est_b].
+                              "case-2": [est_c, est_d]}
 
-             The lists for each dictionary entry can be both a list of
-             estimators and a list of named tuples of estimators,
-             as in 'option_1' and 'option_2' respectively.
+            The lists for each dictionary entry can be any of ``option_1``,
+            ``option_2`` and ``option_3``.
 
         fit_params : dict, tuple or None (default = None)
-            optional arguments passed to 'fit_function'.
+            optional arguments passed to ``fit_function``.
 
         predict_params : dict, tuple or None (default = None)
-            optional arguments passed to 'predict_function'.
+            optional arguments passed to ``predict_function``.
 
         in_place: bool (default = True)
-            whether to return the instance (i.e. 'self').
+            whether to return the instance (i.e. ``self``).
 
         Returns
         ----------
-        lc : instance, None (default = None)
-            if in_place = True, returns the instance with the instantiated
-            layer.
+        self : instance, optional
+            if ``in_place = True``, returns ``self`` with the layer
+            instantiated.
         """
         # Instantiate layer
         lyr = Layer(estimators=estimators,
@@ -207,34 +170,40 @@ class LayerContainer(BaseEstimator):
         Parameters
         -----------
         X : array-like of shape = [n_samples, n_features]
-            input matrix to be used for prediction.
+            input matrix to be used for fitting and predicting.
 
         y : array-like of shape = [n_samples, ]
-            output vector to trained estimators on.
+            training labels.
 
         return_final : bool (default = True)
             whether to return the final training input. In this case,
-            the output of the 'fit' method is a tuple '(out, X)'.
-            Otherwise, 'fit' returns 'out'.
+            the output of the ``fit`` method is a tuple ``(out, X)``.
+            Otherwise, ``fit`` returns ``out``.
 
         verbose : int or bool (default = False)
-            level of verbosity of 'LayerContainer' instance:
-                - verbose = 0 : silent (same as verbose = False)
-                - verbose = 1 : times full fitting (same as verbose = True)
-                - verbose = 2 : times all layer fittings
+            level of verbosity.
 
-            If verbose >= prints to sys.stdout, else sys.stderr.
-            For verbose layers, use kwargs for the 'fit_function'.
+                - ``verbose = 0`` silent (same as ``verbose = False``)
+                - ``verbose = 1`` messages at start and finish \
+                (same as ``verbose = True``)
+                - ``verbose = 2`` messages for each layer
+
+            If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
+            For verbosity in the layers themselves, use ``fit_params``.
 
         Returns
         -----------
         out : dict
             dictionary of output data (possibly empty) generated
             through fitting. Keys correspond to layer names and values to
-            the output generated by calling the layer"s 'fit_function'.
+            the output generated by calling the layer's ``fit_function``. ::
+
+                out = {'layer-i-estimator-j': some_data,
+                       ...
+                       'layer-s-estimator-q': some_data}
 
         X : array-like (optional)
-            predictions from final layer"s fit call.
+            predictions from final layer's ``fit`` call.
         """
         if verbose:
             pout = "stdout" if verbose >= 3 else "stderr"
@@ -252,6 +221,8 @@ class LayerContainer(BaseEstimator):
 
             fit_tup = layer.fit(fit_tup[0], y)
             out[layer_name] = fit_tup[1:]
+
+            check_layer_output(layer, layer_name, self.raise_on_exception)
 
             if verbose > 1:
                 print_time(ti, "[%s] done" % layer_name, file=pout, flush=True)
@@ -272,23 +243,24 @@ class LayerContainer(BaseEstimator):
         X : array-like of shape = [n_samples, n_features]
             input matrix to be used for prediction.
 
-        y : array-like of shape = [n_samples, ]
-            output vector to trained estimators on.
+        y : array-like, None (default = None)
+            pass through for Scikit-learn compatibility.
 
         verbose : int or bool (default = False)
-            level of verbosity of 'LayerContainer' instance:
+            level of verbosity.
 
-                - verbose = 0 : silent (same as verbose = False)
-                - verbose = 1 : times full prediction (same as verbose = True)
-                - verbose = 2 : times all layer predictions
+                - ``verbose = 0`` silent (same as ``verbose = False``)
+                - ``verbose = 1`` messages at start and finish \
+                (same as ``verbose = True``)
+                - ``verbose = 2`` messages for each layer
 
-            If verbose >= prints to sys.stdout, else sys.stderr.
-            For verbose layers, use kwargs for the 'predict_function'.
+            If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
+            For verbosity in the layers themselves, use ``fit_params``.
 
         Returns
-        -----------
+        -------
         X_pred : array-like of shape = [n_samples, n_fitted_estimators]
-            prediction matrix from final layer.
+            predictions from final layer.
         """
         if verbose:
             pout = "stdout" if verbose >= 3 else "stderr"
@@ -317,7 +289,7 @@ class LayerContainer(BaseEstimator):
     def _init_layers(layers):
         """Return a clean ordered dictionary or copy the passed dictionary."""
         if layers is None:
-            layers = Odict()
+            layers = OrderedDict()
             layers.clear()
             return layers
         else:
@@ -373,93 +345,97 @@ class Layer(BaseEstimator):
 
     Parameters
     ----------
-    preprocessing: dict of lists or list, optional (default = [])
+    preprocessing: dict of lists or list, optional (default = None)
         preprocessing pipelines for given layer. If
-        the same preprocessing applies to all estimators, 'preprocessing'
-        can be a list of transformer instances. The list can contain the
-        instances directly, or named tuples of transformers:
+        the same preprocessing applies to all estimators, ``preprocessing``
+        should be a list of transformer instances. The list can contain the
+        instances directly, named tuples of transformers,
+        or a combination of both. ::
 
-        '''
-        option_1 = [transformer_1, transformer_2]
-        option_2 = [("trans-1", transformer_1), ("trans-2", transformer_2)]
-        '''
+            option_1 = [transformer_1, transformer_2]
+            option_2 = [("trans-1", transformer_1),
+                        ("trans-2", transformer_2)]
+            option_3 = [transformer_1, ("trans-2", transformer_2)]
 
-         If different preprocessing pipelines are desired, a dictionary that
-         maps preprocessing pipelines must be passed. The names of the
-         preprocessing dictionary must correspond to the names of the
-         estimator dictionary.
+        If different preprocessing pipelines are desired, a dictionary
+        that maps preprocessing pipelines must be passed. The names of the
+        preprocessing dictionary must correspond to the names of the
+        estimator dictionary. ::
 
-         '''
-         preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                "case-2": [alt_trans_1, alt_trans_2]}
+            preprocessing_cases = {"case-1": [trans_1, trans_2].
+                                   "case-2": [alt_trans_1, alt_trans_2]}
 
-         estimators = {"case-1": [est_a, est_b].
-                       "case-2": [est_c, est_d]}
-         '''
+            estimators = {"case-1": [est_a, est_b].
+                          "case-2": [est_c, est_d]}
 
-         The lists for each dictionary entry can be both a list of transformers
-         and a list of named tuples of transformers, as in 'option_1' and
-         'option_2' respectively.
+        The lists for each dictionary entry can be any of ``option_1``,
+        ``option_2`` and ``option_3``.
 
     estimators: dict of lists or list
-        estimators constituting the layer. If no preprocessing,
-        or preprocessing applies to all estimators, a list of estimators can be
-        passed. The list can either contain estimator instances, or named
-        tuples of estimator instances:
+        estimators constituting the layer. If ``preprocessing`` is
+        ``None`` or ``list``, ``estimators`` should be a ``list``.
+        The list can either contain estimator instances,
+        named tuples of estimator instances, or a combination of both. ::
 
-        '''
-        option_1 = [estimator_1, estimator_2]
-        option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
-        '''
+            option_1 = [estimator_1, estimator_2]
+            option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
+            option_3 = [estimator_1, ("est-2", estimator_2)]
 
-         If different preprocessing pipelines are desired, a dictionary that
-         maps estimators to preprocessing pipelines must be passed. The
-         names of the estimator dictionary must correspond to the names of the
-         estimator dictionary:
+        If different preprocessing pipelines are desired, a dictionary
+        that maps estimators to preprocessing pipelines must be passed.
+        The names of the estimator dictionary must correspond to the
+        names of the estimator dictionary. ::
 
-         '''
-         preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                "case-2": [alt_trans_1, alt_trans_2]}
+            preprocessing_cases = {"case-1": [trans_1, trans_2].
+                                   "case-2": [alt_trans_1, alt_trans_2]}
 
-         estimators = {"case-1": [est_a, est_b].
-                       "case-2": [est_c, est_d]}
-         '''
+            estimators = {"case-1": [est_a, est_b].
+                          "case-2": [est_c, est_d]}
 
-         The lists for each dictionary entry can be both a list of estimators
-         and a list of named tuples of estimators, as in 'option_1' and
-         'option_2' respectively.
-
-    fit_function : function
-        The fit_function must have the following API:
-
-        '''
-        (estimators_, preprocessing_, fitted_estimators_, out) = \
-            fit_function(layer_instance, X, y, *args, **kwargs)
-        '''
-
-        where estimators_ and preprocessing_ is a generic container of
-        fitted  instances, such as a list or dict. These will be passed
-        to a user-specified 'predict_function' in the 'predict' call.
-        'out' is a (possibly empty) generic return object.
-
-    predict_function : function
-        The predict_function must have the following API:
-
-        '''
-        y_pred = predict_function(layer_instance, X, y, *args, **kwargs)
-        '''
+        The lists for each dictionary entry can be any of ``option_1``,
+        ``option_2`` and ``option_3``.
 
     fit_params : dict, tuple or None (default = None)
-        optional arguments passed to 'fit_function'.
+        optional arguments passed to ``fit_function``.
 
     predict_params : dict, tuple or None (default = None)
-        optional arguments passed to 'predict_function'.
+        optional arguments passed to ``predict_function``.
+
+    fit_function : function
+        Function used for fitting the layer. The ``fit_function`` must
+        have the following API::
+
+            (estimators_, preprocessing_, out) = fit_function(
+            layer_instance, X, y, fit_params)
+
+        where ``estimators_`` and ``preprocessing_`` are generic objects
+        holding fitted instances. The ``LayerContainer`` class is agnostic
+        to the object type, and only passes these along to the
+        ``predict_function`` during a ``predict`` call. The ``out``
+        variable must be a tuple of output data that at least contains
+        the training data for the subsequent layer as its **first**
+        element: ``out = (X, ...)``.
+
+    predict_function : function
+        Function used for generating prediction with the fitted layer.
+        The predict_function must have the following API::
+
+            X_pred = predict_function(layer_instance, X, y, predict_params)
+
+        where ``X_pred`` is an array-like of shape [n_samples,
+        n_fitted_estimators] of predictions.
+
+    fit_params : dict, tuple or None (default = None)
+        optional keyword arguments passed to ``fit_function``.
+
+    predict_params : dict, tuple or None (default = None)
+        optional keyword arguments passed to ``predict_function``.
 
     raise_on_exception : bool (default = False)
         whether to raise an error on soft exceptions, else issue warning.
 
     Attributes
-    -----------
+    ----------
     estimators_ : OrderedDict, list
         container for fitted estimators, possibly mapped to preprocessing
         cases and / or folds.
@@ -467,32 +443,6 @@ class Layer(BaseEstimator):
     preprocessing_ : OrderedDict, list
         container for fitted preprocessing pipelines, possibly mapped to
         preprocessing cases and / or folds.
-
-    fitted_estimators_ : list
-        list of fitted estimator names.
-
-    Methods
-    ----------
-    fit : X, y, fit_function, args, kwargs
-        Generic fit function for storing fitted estimators and preprocessing
-        pipelines. The 'fit_function' must have the following API:
-
-        '''
-        (estimators_, preprocessing_, fitted_estimators_) = \
-            fit_function(layer_instance, X, y, *args, **kwargs)
-        '''
-
-        where estimators_ and preprocessing_ is a generic container of fitted
-        instances, such as a list or dict. These will be passed to a user-
-        specified 'predict_function' in the 'predict' call.
-
-    predict : X, y, predict_function, args, kwargs
-        Generic predict function for predicting using fitted layer. The
-        'predict_function' must have the following  API:
-
-        '''
-        y_preds = predict_function(layer_instance, X, y, *args, **kwargs)
-        '''
     """
 
     def __init__(self, estimators, fit_function, predict_function,
@@ -513,19 +463,20 @@ class Layer(BaseEstimator):
         """Generic method for fitting and storing layer.
 
         Parameters
-        -----------
+        ----------
         X : array-like of shape = [n_samples, n_features]
             input matrix to be used for prediction.
 
         y : array-like of shape = [n_samples, ]
-            output vector to trained estimators on.
+            training lables.
 
         Returns
-        -----------
+        -------
         out : tuple
-            output returned in the fit_function. The first element must be
-            training data for subsequent layer. Other entries are optional
-            information passed onto the ensemble class making the 'fit' call.
+            output returned in from ``fit_function``. The first element
+            **must** be training data for subsequent layer. Other entries
+            are optional information passed onto the ensemble class making
+            the ``fit`` call: ``out = (X_pred, ...)``.
         """
         self.estimators_, self.preprocessing_, out = \
             self.fit_function(self, X, y, **self.fit_params)
@@ -535,7 +486,7 @@ class Layer(BaseEstimator):
         """Generic method for predicting with fitted layer.
 
         Parameters
-        -----------
+        ----------
         X : array-like of shape = [n_samples, n_features]
             input matrix to be used for prediction.
 
@@ -543,9 +494,9 @@ class Layer(BaseEstimator):
             pass-through for Scikit-learn API.
 
         Returns
-        -----------
+        -------
         X_pred : array-like of shape = [n_samples, n_fitted_estimators]
-            predictions from fitted estimators.
+            predictions from fitted estimators in layer.
         """
         self._check_fitted()
         return self.predict_function(self, X, y, **self.predict_params)
@@ -587,13 +538,14 @@ class Layer(BaseEstimator):
 
         Parameters
         ----------
-        deep : boolean, optional
-            If True, will return the layers separately as individual
-            parameters. If False, will return the collapsed dictionary.
+        deep : boolean (default = True)
+            If ``True``, will return the layers separately as individual
+            parameters. If ``False``, will return the collapsed dictionary.
 
         Returns
         -------
-        params : mapping of parameter names mapped to their values.
+        params : dict
+            mapping of parameter names mapped to their values.
         """
 
         if not deep:
@@ -620,16 +572,6 @@ class BaseEnsemble(BaseEstimator):
 
     Core ensemble class methods used to add ensemble layers and manipulate
     parameters.
-
-    Methods
-    -------
-    add : estimators, preprocessing (default = [])
-        add a layer consisting of a mapping of estimators and preprocessing
-        pipelines. See 'Layer' for documentation on format of estimators and
-        preprocessing.
-
-    get_params : None
-        Method for generating mapping of parameters. Sklearn API.
     """
 
     def _add(self, estimators, fit_function, predict_function,
@@ -639,94 +581,90 @@ class BaseEnsemble(BaseEstimator):
         Parameters
         -----------
         fit_function : function
-            The fit_function determines the type of layer and must have the
-            following API::
+            Function used for fitting the layer. The ``fit_function`` must
+            have the following API::
 
-                (estimators_, preprocessing_, fitted_estimators_,
-                 out) = fit_function(layer_instance, X, y)
+                (estimators_, preprocessing_, out) = fit_function(
+                layer_instance, X, y, fit_params)
 
-            where estimators_ and preprocessing_ are generic containers of
-            fitted  instances, such as lists or dicts. These will be passed
-            to a user-specified 'predict_function' in each layer"s 'predict'
-            method. 'out' is a tuple of output data that at least contains
-            the training data for the subsequent layer as its first element.
+            where ``estimators_`` and ``preprocessing_`` are generic objects
+            holding fitted instances. The ``LayerContainer`` class is agnostic
+            to the object type, and only passes these along to the
+            ``predict_function`` during a ``predict`` call. The ``out``
+            variable must be a tuple of output data that at least contains
+            the training data for the subsequent layer as its **first**
+            element: ``out = (X, ...)``.
 
         predict_function : function
-            The predict_function must have the following API:
+            Function used for generating prediction with the fitted layer.
+            The predict_function must have the following API::
 
-            '''
-            X_pred = predict_function(layer_instance, X, y, *args, **kwargs)
-            '''
-            for each layer, its predictions will be passed as input for the
-            subsequent layer.
+                X_pred = predict_function(layer_instance, X, y, predict_params)
 
+            where ``X_pred`` is an array-like of shape [n_samples,
+            n_fitted_estimators] of predictions.
 
-        preprocessing: dict of lists or list, optional (default = [])
+        preprocessing: dict of lists or list, optional (default = None)
             preprocessing pipelines for given layer. If
-            the same preprocessing applies to all estimators, 'preprocessing'
-            can be a list of transformer instances. The list can contain the
-            instances directly, or named tuples of transformers:
+            the same preprocessing applies to all estimators, ``preprocessing``
+            should be a list of transformer instances. The list can contain the
+            instances directly, named tuples of transformers,
+            or a combination of both. ::
 
-            '''
-            option_1 = [transformer_1, transformer_2]
-            option_2 = [("trans-1", transformer_1), ("trans-2", transformer_2)]
-            '''
+                option_1 = [transformer_1, transformer_2]
+                option_2 = [("trans-1", transformer_1),
+                            ("trans-2", transformer_2)]
+                option_3 = [transformer_1, ("trans-2", transformer_2)]
 
              If different preprocessing pipelines are desired, a dictionary
              that maps preprocessing pipelines must be passed. The names of the
              preprocessing dictionary must correspond to the names of the
-             estimator dictionary.
+             estimator dictionary. ::
 
-             '''
-             preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                    "case-2": [alt_trans_1, alt_trans_2]}
+                 preprocessing_cases = {"case-1": [trans_1, trans_2].
+                                        "case-2": [alt_trans_1, alt_trans_2]}
 
-             estimators = {"case-1": [est_a, est_b].
-                           "case-2": [est_c, est_d]}
-             '''
+                 estimators = {"case-1": [est_a, est_b].
+                               "case-2": [est_c, est_d]}
 
-             The lists for each dictionary entry can be both a list of
-             transformers and a list of named tuples of transformers,
-             as in 'option_1' and 'option_2' respectively.
+             The lists for each dictionary entry can be any of 'option_1',
+             'option_2' and ``option_3``.
 
         estimators: dict of lists or list
-            estimators constituting the layer. If no preprocessing,
-            or preprocessing applies to all estimators, a list of estimators
-            can be passed. The list can either contain estimator instances,
-            or named tuples of estimator instances:
+            estimators constituting the layer. If ``preprocessing`` is
+            ``None`` or ``list``, ``estimators`` should be a ``list``.
+            The list can either contain estimator instances,
+            named tuples of estimator instances, or a combination of both. ::
 
-            '''
-            option_1 = [estimator_1, estimator_2]
-            option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
-            '''
+                option_1 = [estimator_1, estimator_2]
+                option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
+                option_3 = [estimator_1, ("est-2", estimator_2)]
 
              If different preprocessing pipelines are desired, a dictionary
              that maps estimators to preprocessing pipelines must be passed.
              The names of the estimator dictionary must correspond to the
-             names of the estimator dictionary:
+             names of the estimator dictionary. ::
 
-             '''
-             preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                    "case-2": [alt_trans_1, alt_trans_2]}
+                 preprocessing_cases = {"case-1": [trans_1, trans_2].
+                                        "case-2": [alt_trans_1, alt_trans_2]}
 
-             estimators = {"case-1": [est_a, est_b].
-                           "case-2": [est_c, est_d]}
-             '''
+                 estimators = {"case-1": [est_a, est_b].
+                               "case-2": [est_c, est_d]}
 
-             The lists for each dictionary entry can be both a list of
-             estimators and a list of named tuples of estimators,
-             as in 'option_1' and 'option_2' respectively.
+             The lists for each dictionary entry can be any of 'option_1',
+             'option_2' and ``option_3``.
 
         fit_params : dict, tuple or None (default = None)
-            optional arguments passed to 'fit_function'.
+            optional arguments passed to ``fit_function``.
 
         predict_params : dict, tuple or None (default = None)
-            optional arguments passed to 'predict_function'.
+            optional arguments passed to ``predict_function``.
 
         Returns
-        ----------
-        self : instance
-            The instance with the instantiated layer.
+        -------
+        self : instance, optional
+            if ``in_place = True``, returns ``self`` with the layer
+            instantiated.
         """
         if self.layers is None:
             raise_on_exception = getattr(self, 'raise_on_exception', False)
@@ -741,61 +679,74 @@ class BaseEnsemble(BaseEstimator):
         return self
 
     def _fit_layers(self, X, y, return_final, verbose):
-        """Fit layers of an ensemble.
+        """Generic method for fitting all layers in the ensemble.
 
         Parameters
-        ----------
-        X : array-like, shape=[n_samples, n_features]
-            input matrix to be used for prediction.
+        -----------
+        X : array-like of shape = [n_samples, n_features]
+            input matrix to be used for fitting and predicting.
 
-        y : array-like, shape=[n_samples, ]
-            output vector to trained estimators on.
+        y : array-like of shape = [n_samples, ]
+            training labels.
 
         return_final : bool (default = True)
             whether to return the final training input. In this case,
-            the output of the 'fit' method is a tuple '(out, X)'.
-            Otherwise, 'fit' returns 'out'.
+            the output of the ``fit`` method is a tuple ``(out, X)``.
+            Otherwise, ``fit`` returns ``out``.
 
         verbose : int or bool (default = False)
-            level of verbosity of 'LayerContainer' instance:
-                - verbose = 0 : silent (same as verbose = False)
-                - verbose = 1 : times full fitting (same as verbose = True)
-                - verbose = 2 : times all layer fittings
+            level of verbosity.
 
-            If verbose >= prints to sys.stdout, else sys.stderr.
-            For verbose layers, use kwargs for the 'fit_function'
+                - ``verbose = 0`` silent (same as ``verbose = False``)
+                - ``verbose = 1`` messages at start and finish \
+                (same as ``verbose = True``)
+                - ``verbose = 2`` messages for each layer
+
+            If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
+            For verbosity in the layers themselves, use ``fit_params``.
 
         Returns
-        ----------
+        -----------
         out : dict
-            dict of fit data as specified by each layer"s 'fit_function'.
+            dictionary of output data (possibly empty) generated
+            through fitting. Keys correspond to layer names and values to
+            the output generated by calling the layer"s ``fit_function``. ::
+
+                out = {'layer-i-estimator-j': some_data,
+                       ...
+                       'layer-s-estimator-q': some_data}
+
+        X : array-like (optional)
+            if ``return_final = True``, returns predictions from final layer's
+            ``fit`` call.
         """
         return self.layers.fit(X, y, return_final, verbose)
 
     def _predict_layers(self, X, y, verbose):
-        """Predict with fitted ensemble.
+        """Generic method for predicting through all layers in the ensemble.
 
         Parameters
-        ----------
-        X : array-like, shape=[n_samples, n_features]
+        -----------
+        X : array-like of shape = [n_samples, n_features]
             input matrix to be used for prediction.
 
-        y : array-like, default=None
-            pass through for pipeline compatibility.
+        y : array-like, None (default = None)
+            pass through for Scikit-learn compatibility.
 
-        verbose : int or bool (default = False)
-            level of verbosity of 'LayerContainer' instance:
-                - verbose = 0 : silent (same as verbose = False)
-                - verbose = 1 : times full prediction (same as verbose = True)
-                - verbose = 2 : times all layer predictions
+         verbose : int or bool (default = False)
+            level of verbosity.
 
-            If verbose >= prints to sys.stdout, else sys.stderr.
+                - ``verbose = 0`` silent (same as ``verbose = False``)
+                - ``verbose = 1`` messages at start and finish \
+                (same as ``verbose = True``)
+                - ``verbose = 2`` messages for each layer
 
-            For verbose layers, use kwargs for the 'predict_function'
+            If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
+            For verbosity in the layers themselves, use ``fit_params``.
 
         Returns
-        -----------
+        -------
         X_pred : array-like of shape = [n_samples, n_fitted_estimators]
-            prediction matrix from final layer.
+            predictions from final layer.
         """
         return self.layers.predict(X, y, verbose)

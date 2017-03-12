@@ -7,6 +7,7 @@ author: Sebastian Flennerhag
 date: 11/01/2017
 """
 
+from ..externals import make_scorer
 from .metrics import score_matrix, set_scores, rmse, mape, wape
 
-__all__ = ['score_matrix', 'set_scores', 'rmse', 'mape', 'wape']
+__all__ = ['score_matrix', 'set_scores', 'rmse', 'mape', 'wape', 'make_scorer']

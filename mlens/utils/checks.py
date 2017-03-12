@@ -2,15 +2,54 @@
 
 author: Sebastian Flennerhag
 licence: MIT
-Suite for checking valid estimation and informative error traceback.
-This is a light version of the Scikit-learn test suite, to pre-check
-conditions for estimation before making estimator function calls in parallel
-jobs.
+Quick checks that an estimator is built as expected.
 """
 
+import warnings
+from .exceptions import (NotFittedError, LayerSpecificationWarning,
+                         LayerSpecificationError, FitFailedError,
+                         FitFailedWarning)
 
-from sklearn.utils.validation import (check_random_state, check_X_y,
-                                      check_array)
+
+def _non_null_return(*args):
+    """Utility for returning non-null values."""
+    return tuple([arg for arg in args if arg is not None])
+
+
+def check_layer_output(layer, layer_name, raise_on_exception):
+    """Quick check to determine if no estimators where fitted."""
+    if not hasattr(layer, 'estimators_'):
+        # If the attribute was not created during fit, the instance will not
+        # function. Raise error.
+        raise FitFailedError("[%s] Fit failed. The 'fit_function' did "
+                             "not return expected output: the layer [%s] is "
+                             "missing the 'estimators_' attribute with "
+                             "fitted estimators." % (layer_name, layer_name))
+
+    ests = layer.estimators_
+    if ests is None or len(ests) == 0:
+        msg = "[%s] No estimators in layer was fitted."
+        if raise_on_exception:
+            raise FitFailedError(msg % layer_name)
+        warnings.warn(msg % layer_name, FitFailedWarning)
+
+
+def check_is_fitted(estimator, attr):
+    """Check that ensemble has been fitted.
+
+    Parameters
+    ----------
+    estimator : estimator instance
+        ensemble instance to check.
+
+    attr : str
+        attribute to assert existence of. Default is the 'layer_' attribute
+        that holds fitted layers.
+    """
+    msg = ("This %(name)s instance is not fitted yet. Call 'fit' with "
+           "appropriate arguments before using this method.")
+    if not hasattr(estimator, attr):
+        raise NotFittedError(msg % {"name": type(estimator).__name__})
 
 
 def check_ensemble_build(inst, attr='layers'):
@@ -27,10 +66,22 @@ def check_ensemble_build(inst, attr='layers'):
     if getattr(inst, attr) is None:
         # No layers instantiated.
 
-        msg = ("No Layers in instance (%s). Add layers before calling "
-               "'fit' and 'predict'.")
+        if not getattr(inst, 'raise_on_exception', True):
 
-        raise LayerSpecificationError(msg % inst.__class__.__name__)
+            msg = "No Layers in instance (%s). Nothing to fit / predict."
+            warnings.warn(msg % inst.__class__.__name__,
+                          LayerSpecificationWarning)
+            # For PASSED flag on soft fail
+            return False
+
+        else:
+
+            msg = ("No Layers in instance (%s). Add layers before calling "
+                   "'fit' and 'predict'.")
+            raise LayerSpecificationError(msg % inst.__class__.__name__)
+
+    # For PASSED flag
+    return True
 
 
 def assert_correct_layer_format(estimators, preprocessing):
@@ -68,109 +119,3 @@ def assert_correct_layer_format(estimators, preprocessing):
                    "preprocessing cases: %r\nestimator cases:     %r")
             raise LayerSpecificationError(msg % (list(preprocessing),
                                                  list(estimators)))
-
-
-def check_inputs(X, y, random_state):
-    """Permissive pre-check that an estimator is ready for fitting.
-
-    Purpose is to enforce a minimum standard on X and y before passing
-    subsets to estimators, as this will trigger excess copying in each
-    worker during parallel estimation.
-
-    Note that estimation may still fail or trigger excess copying if specific
-    estimators have more restrictive input conditions.
-
-    For full documentation, see 'check_random_state' and 'check_X_y' in
-    'sklearn.utils.validation'.
-
-    Parameters
-    ----------
-    X : nd-array, list or sparse matrix
-        Input data.
-
-    y : nd-array, list or sparse matrix
-        Labels.
-
-    random_state : seed
-        random seed to enforce
-
-    Returns
-    ---------
-    X_converted : object
-        The converted and validated X.
-
-    y_converted : object
-        The converted and validated y.
-    """
-    # Turn seed into a np.random.RandomState instance
-    r = check_random_state(random_state) if random_state is not None else None
-
-    # Check arrays
-    if y is not None:
-        X, y = \
-            check_X_y(X, y,
-                      accept_sparse=True,     # Sparse input is admitted
-                      dtype=None,             # Native dtype preserve
-                      order=None,             # Make no C or Fortran imposition
-                      copy=False,             # Do not trigger copying
-                      force_all_finite=True,  # Raise error on np.inf or np.nan
-                      ensure_2d=True,         # Force 'X' do be a matrix
-                      allow_nd=True,          # Allow 'X.ndim' > 2
-                      multi_output=True,      # Allow 'y.shape[1]' > 1
-                      warn_on_dtype=False     # Mute as 'dtype' is 'None'
-                      )
-    else:
-        X = check_array(X,
-                        accept_sparse=True,     # Sparse input is admitted
-                        dtype=None,             # Native dtype preserve
-                        order=None,             # Do not enforce C or Fortran
-                        copy=False,             # Do not trigger copying
-                        force_all_finite=True,  # Raise error on np.inf/np.nan
-                        ensure_2d=True,         # Force 'X' do be a matrix
-                        allow_nd=True,          # Allow 'X.ndim' > 2
-                        warn_on_dtype=False     # Mute as 'dtype' is 'None'
-                        )
-    return r
-
-
-class NotFittedError(ValueError, AttributeError):
-
-    """Error class for not fitted ensembles."""
-
-
-class FitFailedWarning(RuntimeWarning):
-
-    """Warning for failed fitting."""
-
-
-class SliceError(TypeError, IndexError, ValueError, AttributeError):
-
-    """Error class for failed slicing."""
-
-
-class LayerSpecificationError(TypeError, ValueError):
-
-    """Error class for incorrectly specified layers."""
-
-
-class LayerSpecificationWarning(UserWarning):
-
-    """Error class for incorrectly specified layers."""
-
-
-def check_is_fitted(estimator, attr):
-    """Check that ensemble has been fitted.
-
-    Parameters
-    ----------
-    estimator : estimator instance
-        ensemble instance to check.
-
-    attr : str
-        attribute to assert existence of. Default is the 'layer_' attribute
-        that holds fitted layers.
-    """
-    msg = ("This %(name)s instance is not fitted yet. Call 'fit' with "
-           "appropriate arguments before using this method.")
-    if not hasattr(estimator, attr):
-        raise NotFittedError(msg % {"name": type(estimator).__name__})

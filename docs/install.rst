@@ -71,4 +71,4 @@ script will automatically try to install it using
 If the build fails, a log file will be created named ``check_build_log.txt``
 that contains the traceback for the failed test for debugging.
 
-.. _Nose: http://pypi.org/nose
+.. _Nose: http://nose.readthedocs.io/en/latest/

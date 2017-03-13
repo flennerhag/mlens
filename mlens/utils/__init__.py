@@ -1,7 +1,8 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flenenrhag
-date: 10/01/2017
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 """
 
 from .utils import pickle_save, pickle_load, print_time, safe_print
@@ -11,5 +12,5 @@ from .checks import (check_is_fitted, check_ensemble_build,
 
 __all__ = ['check_inputs',
            'check_is_fitted', 'check_ensemble_build', 'check_layer_output',
-           'assert_correct_layer_format'
+           'assert_correct_layer_format',
            'pickle_save', 'pickle_load', 'print_time', 'safe_print']

@@ -517,12 +517,13 @@ def check_inputs(X, y, check_level=0):
 
     check_level : int (default = 2)
         level of strictness in checking input arrays.
+
             - ``check_level = 0`` no checks, returns X, y
-            - ``check_level`` = 1 will raises warnings if any non-critical
+            - ``check_level`` = 1 will raises warnings if any non-critical \
             test fails. Returns boolean FAIL flag.
-            - ``check_level = 2`` will impose Scikit-learn array  check, which
-            converts ``X`` and ``y`` to numpy arrays and raises error if
-            conversion fails.
+            - ``check_level = 2`` will impose Scikit-learn array  check, \
+            which converts ``X`` and ``y`` to numpy arrays and raises error \
+            if conversion fails.
 
     Returns
     ---------

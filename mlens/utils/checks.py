@@ -43,7 +43,7 @@ def check_is_fitted(estimator, attr):
         ensemble instance to check.
 
     attr : str
-        attribute to assert existence of. Default is the 'layer_' attribute
+        attribute to assert existence of. Default is the ``layer_`` attribute
         that holds fitted layers.
     """
     msg = ("This %(name)s instance is not fitted yet. Call 'fit' with "

@@ -98,3 +98,9 @@ _site/
 
 # Local development items
 dev/
+
+# Check build logs
+check_build_log.txt
+
+# doc builds
+*/_build_html

@@ -570,8 +570,8 @@ def has_fit_parameter(estimator, parameter):
 
     Examples
     --------
-    from sklearn.svm import SVC
-    has_fit_parameter(SVC(), "sample_weight")
+    >>> from sklearn.svm import SVC
+    >>> has_fit_parameter(SVC(), "sample_weight")
     True
 
     """

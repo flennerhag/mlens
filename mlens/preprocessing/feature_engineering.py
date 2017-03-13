@@ -67,7 +67,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
 
     Attributes
     ----------
-    estimators_ : list
+    estimators\_ : list
         list of fitted estimator.
     """
 

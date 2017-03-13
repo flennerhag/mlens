@@ -17,9 +17,13 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import subprocess
 import os
 import sys
 import sphinx_rtd_theme
+
+# Ensure numpydoc exists
+subprocess.run(['pip', 'install', 'numpydoc'])
 
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.append(sys.path[-1] + '/mlens')

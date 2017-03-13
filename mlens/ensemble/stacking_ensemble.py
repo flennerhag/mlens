@@ -92,7 +92,7 @@ class StackingEnsemble(BaseEnsemble):
 
     Attributes
     ----------
-    scores_ : dict
+    scores\_ : dict
         if ``scorer`` was passed to instance, ``scores_`` contains dictionary
         with cross-validated scores assembled during ``fit`` call. The fold
         structure used for scoring is determined by ``folds``.
@@ -101,6 +101,21 @@ class StackingEnsemble(BaseEnsemble):
         container instance for layers see
         :py:class:`mlens.ensemble.base.LayerContainer` for further
         information.
+
+    Examples
+    --------
+    ::
+
+        >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
+        >>> from sklearn.linear_model import Lasso
+        >>> from sklearn.svm import SVR
+
+        >>> preprocessing_cases = {'mm': [MinMaxScaler()],
+        >>>                        'sc': [StandardScaler()]}
+        >>> estimators_per_case = {'mm': [SVR()],
+        >>>                        'sc': [Lasso()]}
+        >>> ensemble = StackingEnsemble()
+        >>> ensemble.add(estimators_per_case, preprocessing_cases)
     """
 
     def __init__(self,
@@ -188,22 +203,6 @@ class StackingEnsemble(BaseEnsemble):
         -------
         self : instance
             ensemble instance with layer instantiated.
-
-        Example
-        -------
-        ::
-
-            >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
-            >>> from sklearn.linear_model import Lasso
-            >>> from sklearn.svm import SVR
-
-            >>> preprocessing_cases = {'mm': [MinMaxScaler()],
-            >>>                        'sc': [StandardScaler()]}
-            >>> estimators_per_case = {'mm': [SVR()],
-            >>>                        'sc': [Lasso()]}
-            >>> ensemble = StackingEnsemble()
-            >>> ensemble.add(estimators_per_case, preprocessing_cases)
-
         """
         fit_params = {'folds': self.folds,
                       'shuffle': self.shuffle,

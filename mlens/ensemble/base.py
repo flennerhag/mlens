@@ -436,11 +436,11 @@ class Layer(BaseEstimator):
 
     Attributes
     ----------
-    estimators_ : OrderedDict, list
+    estimators\_ : OrderedDict, list
         container for fitted estimators, possibly mapped to preprocessing
         cases and / or folds.
 
-    preprocessing_ : OrderedDict, list
+    preprocessing\_ : OrderedDict, list
         container for fitted preprocessing pipelines, possibly mapped to
         preprocessing cases and / or folds.
     """

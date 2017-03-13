@@ -1,12 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 10/01/2017
-licence: MIT
-A library for ensemble learning
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 """
 
 __version__ = "0.1.1.dev0"

@@ -1,8 +1,8 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-copyright Sebastian Flennerhag 2017
-license: MIT
+:author: Sebastian Flennerhag
+:copyright: 2017
+:license: MIT
 
 ML-Ensemble - a library for Ensemble Learning
 """

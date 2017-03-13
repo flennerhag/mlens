@@ -1,7 +1,9 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-licence: MIT
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+
 Base functions for any parallel processing
 """
 
@@ -51,6 +53,7 @@ def _parallel_estimation(function, data, estimator_cases,
     function : function
         function to be evaluated in parallel loop. Function should accept only
         one argument, a tuple for unpacking. The tuple is unpacked as one of:
+
             - ``data_tuple, estimator_info = tuple``
             - ``const_tuple, data_tuple, estimator_info = tuple``
 
@@ -205,7 +208,7 @@ def cross_validate(estimators, param_sets, dout, scoring, error_score=nan,
 
     param_sets: dict
         Mapping of parameter settings that, for each estimator, is to be
-        evaluated. Hence, for some estimator named ``est'`, param_sets is a
+        evaluated. Hence, for some estimator named ``est``, param_sets is a
         list of of param_settings dictionaries.
 
     dout: list

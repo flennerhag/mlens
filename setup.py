@@ -25,10 +25,10 @@ setup(name='mlens',
                          ]
                     },
       include_package_data=True,
-      install_requires=['numpy>=1.11.0',
+      install_requires=['numpy>=1.11',
                         'scipy>=0.17',
-                        'scikit-learn>=0.18.1',
-                        'pandas>=0.18.0',
+                        'scikit-learn>=0.18',
+                        'pandas>=0.18',
                         'joblib>=0.9'
                         ],
       license='MIT',

@@ -89,15 +89,15 @@ class Evaluator(object):
 
     Attributes
     -----------
-    summary_ : DataFrame
+    summary\_ : DataFrame
         Summary output that shows data for best mean test scores, such as
         test and train scores, std, fit times, and params.
 
-    cv_results_ : DataFrame
+    cv_results\_ : DataFrame
         a table of data from each fit. Includes mean and std of test and train
         scores and fit times, as well as param draw index and parameters.
 
-    best_idx_ : ndarray
+    best_idx\_ : ndarray
         an array of index keys for best estimator in ``cv_results_``.
     """
 

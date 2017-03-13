@@ -98,7 +98,7 @@ class StackingTransformer(BaseEnsemble):
 
     Attributes
     ----------
-    scores_ : dict
+    scores\_ : dict
         if ``scorer`` was passed to instance, ``scores_`` contains dictionary
         with cross-validated scores assembled during ``fit`` call. The fold
         structure used for scoring is determined by ``folds``.
@@ -195,8 +195,8 @@ class StackingTransformer(BaseEnsemble):
         self : instance
             ensemble instance with layer instantiated.
 
-        Example
-        -------
+        Examples
+        --------
         ::
 
             >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler

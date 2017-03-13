@@ -3,19 +3,17 @@
 API
 ====
 
-ML-Ensemble uses two main APIs, one for ensemble estimators and one for model
-selection. The API for ensemble estimators is as close to the API used by
-Scikit-learn. The main difference is that to properly instantiate an ensemble
-instance, in addition to creating a class instance, at least on layer and
-if applicable a meta estimator must be attached to the ensemble. Hence, while
-Scikit-learn would allow the user to fit an estimator with::
+ML-Ensemble estimators behaves essentially identical to `Scikit-learn`_
+estimators, with one main difference: to properly instantiate an ensemble,
+at least on layer, and if applicable a meta estimator, must be added to the
+ensemble. Otherwise, there is no ensemble to estimate. The difference
+can be summarized as follows. ::
 
+   # sklearn API
    estimator = Estimator()
    estimator.fit(X, y)
 
-A ML-Ensemble estimator needs to first initiate layers before the ``fit``
-method can be called::
-
+    # mlens API
    ensemble = Ensemble().add(list_of_estimators).add_meta(estimator)
    ensemble.fit(X, y)
 
@@ -60,8 +58,8 @@ Visualization
    corrmat
    clustered_corrmap
    corr_X_y
-   IO_plot_comp
-   IO_plot
+   pca_plot
+   pca_comp_plot
    exp_var_plot
 
 For Developers
@@ -80,3 +78,4 @@ the ``_add``, ``_fit`` and ``_predict`` methods, rather than calling methods of
    LayerContainer
    Layer
 
+.. _Scikit-learn: http://scikit-learn.org/stable/

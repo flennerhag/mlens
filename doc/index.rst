@@ -89,6 +89,7 @@ ensemble for faster and simpler development.
    :caption: Documentation
 
    API
+   source/modules
 
 .. toctree::
    :hidden:

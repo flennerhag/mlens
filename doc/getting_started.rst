@@ -31,7 +31,7 @@ the same imports several times, we put all common imports here. ::
     from sklearn.metrics import f1_score
 
     def f1(y_true, y_pred):
-    """Wrapper around f1_scorer with average='micro'."""
+        """Wrapper around f1_scorer with average='micro'."""
         return f1_score(y_true, y_pred, average='micro')
 
     # We use the iris data set
@@ -193,7 +193,113 @@ efficient preprocessing pipelines.
 Visualization Guide
 -------------------
 
+**Explained variance plot**
 
+The :class:`mlens.visualization.exp_var_plot` function
+plots the explained variance from mapping a matrix ``X`` onto a smaller
+dimension using a user-supplied transformer, such as the Scikit-learn
+:class:`sklearn.decomposition.PCA` transformer for
+Principal Components Analysis. ::
+
+    >>> from mlens.visualization import exp_var_plot
+    >>> from sklearn.decomposition import PCA
+
+    >>> exp_var_plot(X, PCA(), marker='s', where='post')
+
+.. image:: img/exp_var.png
+   :align: center
+
+
+**Principal Components Analysis plot**
+
+The :class:`mlens.visualization.pca_plot` function
+plots a PCA analysis or similar if ``n_components`` is one of ``[1, 2, 3]``.
+By passing a class labels, the plot shows how well separated different classes
+are. ::
+
+    >>> from mlens.visualization import pca_plot
+    >>> from sklearn.decomposition import PCA
+
+    >>> pca_plot(X, PCA(n_components=2))
+
+.. image:: img/pca_plot.png
+   :align: center
+
+**Principal Components Comparison plot**
+
+The :class:`mlens.visualization.pca_comp_plot` function
+plots a matrix of PCA analyses, one for each combination of
+``n_components in [1, 2]`` and ``kernel in ['linear', 'rbf']``. ::
+
+    >>> from mlens.visualization import pca_plot_comp
+
+    >>> pca_plot_comp(X, y, figsize=(8, 6))
+
+.. image:: img/pca_comp_plot.png
+   :align: center
+
+**Correlation matrix plot**
+
+The :class:`mlens.visualization.corrmat` function plots the lower triangle of
+a correlation matrix. ::
+
+   >>> from mlens.visualization import corrmat
+   >>> from sklearn.linear_model import LogisticRegression
+   >>> from pandas import DataFrame
+   >>>
+   >>> # Generate som different predictions to correlate
+   >>> params = [0.1, 0.3, 1.0, 3.0, 10, 30]
+   >>> preds = []
+   >>> for i in params:
+   >>>    p = LogisticRegression(C=i).fit(X, y).predict(X)
+   >>>    preds.append(p)
+   >>>
+   >>> preds = np.vstack(preds).T
+   >>> corr = DataFrame(preds, columns=['C=%.1f' % i for i in params]).corr()
+   >>>
+   >>> corrmat(corr)
+
+.. image:: img/corrmat.png
+   :align: center
+
+**Clustered correlation heatmap plot**
+
+The :class:`mlens.visualization.clustered_corrmap` function is similar to
+:class:`mlens.visualization.corrmat`, but differs in two respects. First, and
+most importantly, it uses a user supplied clustering estimator to cluster
+the correlation matrix on similar features, which can often help visualize
+whether there are blocks of highly correlated features. Secondly, it plots the
+full matrix (as opposed to the lower triangle). ::
+
+   >>> from mlens.visualization import clustered_corrmap
+   >>> from sklearn.cluster import KMeans
+   >>>
+   >>> Z = DataFrame(X, columns=['f_%i' %i for i in range(1, 5)])
+   >>>
+   >>> # We duplicate all features, note that the heatmap orders features
+   >>> # as duplicate pairs, and thus fully pick up on this duplication.
+   >>> corr = Z.join(Z, lsuffix='L', rsuffix='R').corr()
+   >>>
+   >>> clustered_corrmap(corr, KMeans())
+
+.. image:: img/clustered_corrmap.png
+   :align: center
+
+**Input-Output correlations**
+
+The :class:mlens.`visualization.corr_X_y` function gives a dashboard of
+pairwise correlations between the input data (``X``) and the labels to be
+predicted (``y``). If the number of features is large, it is adviced to set
+the ``no_ticks`` parameter to ``True``, to avoid rendering an illegible
+x-axis. Note that ``X`` must be a :class:`pandas.DataFrame`. ::
+
+   >>> from mlens.visualization import corr_X_y
+   >>> from pandas import DataFrame, Series
+   >>>
+   >>> corr_X_y(DataFrame(X), y, 2)
+
+.. image:: img/corr_X_y.png
+   :align: center
 
 .. _Scikit-learn:  http://scikit-learn.org/stable/
 .. _Random Forest: https://en.wikipedia.org/wiki/Random_forest

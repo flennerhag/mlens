@@ -1,12 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 10/01/2017
-licence: MIT
-Collection of preprocessing functions
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 """
 
 from __future__ import division, print_function

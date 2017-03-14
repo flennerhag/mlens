@@ -1,4 +1,5 @@
-"""
+"""ML-ENSEMBLE
+
 :author: Sebastian Flennerhag
 """
 
@@ -31,16 +32,20 @@ sub2 = Subset()
 
 
 def test_standard_scaler_df():
+    """[Preprocessing] StandardScaler: test against sklearn parent class."""
     Z = DataFrame(X)
     Zout = sc1.fit_transform(Z)
     Xout = sc2.fit_transform(X)
     Xout = DataFrame(Xout)
-    assert ((Xout - Zout).abs() < 1e-10).any().any()
+    np.array_equal(Xout, Zout)
 
 
-def test_Subset_1():
+def test_subset_1():
+    """[Preprocessing] Subset: assert correct subset."""
     assert sub1.fit_transform(X).shape[1] == 2
 
 
-def test_Subset_2():
-    assert (sub2.fit_transform(X) == X).all()
+def test_subset_2():
+    """[Preprocessing] Subset: assert X is returned for empty subset."""
+    out = sub2.fit_transform(X)
+    assert id(out) == id(X)

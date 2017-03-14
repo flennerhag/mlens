@@ -1,19 +1,24 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
+:author: Sebastian Flennerhag
 """
 
 from __future__ import division, print_function
+from contextlib import redirect_stderr
+import os
+
+import numpy as np
 
 from mlens.model_selection import Evaluator
 from mlens.metrics import rmse
 from mlens.utils import pickle_save, pickle_load
-import numpy as np
+from mlens.utils.exceptions import FitFailedError, FitFailedWarning
 from sklearn.linear_model import Lasso
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
 from scipy.stats import uniform, randint
+
 import warnings
 import subprocess
 
@@ -60,6 +65,7 @@ evals2 = Evaluator(rmse, preprocessing, cv=2,
 
 
 def check_scores(evals):
+    """Check that a fitted Evaluator has found the right scores."""
     test_draws = []
     for params in evals.cv_results_.loc[[('rf-a', 1),
                                          ('rf-a', 2),
@@ -72,33 +78,89 @@ def check_scores(evals):
     assert str(evals.summary_.iloc[0][0])[:16] == '-0.127723982162'
 
 
-def test_evals():
+def test_evals_preprocessing():
+    """[Evaluator] Check preprocessing."""
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+        # Silences the training output, but lets warnings and errors through.
         evals1.preprocess(X, y)
-        evals1.evaluate(estimators, parameters, 3, flush_preprocess=True)
+
+
+def test_evals_evaluate_preprocessed():
+    """[Evaluator] Check evaluate on preprocessed folds."""
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+        # Silences the training output, but lets warnings and errors through.
         evals1.evaluate(estimators, parameters, X, y, 3)
-        check_scores(evals1)
+
+    check_scores(evals1)
+
+
+def test_evals_evaluate():
+    """[Evaluator] Check evaluate with flush_preprocess."""
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+        # Silences the training output, but lets warnings and errors through.
+        evals1.evaluate(estimators, parameters, X, y, 3, reset_preprocess=True)
+
+    check_scores(evals1)
 
 
 def test_pickling_evals():
+    """[Evaluator] Test Pickling evals."""
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+        # Silences the training output, but lets warnings and errors through.
+        evals2.evaluate(estimators, parameters, X, y, 3, flush_preprocess=True)
+    pickle_save(evals2, 'evals_test_pickle1')
+    pickled_eval1 = pickle_load('evals_test_pickle1')
+
+    assert not hasattr(evals2, 'dout')
+    assert not hasattr(pickled_eval1, 'dout')
+
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
         evals2.evaluate(estimators, parameters, X, y, 3)
+    pickle_save(evals2, 'evals_test_pickle2')
+    pickled_eval2 = pickle_load('evals_test_pickle2')
 
-        pickle_save(evals2, 'evals_test_pickle')
-        pickled_eval = pickle_load('evals_test_pickle')
+    subprocess.check_call(['rm', 'evals_test_pickle1.pkl'])
+    subprocess.check_call(['rm', 'evals_test_pickle2.pkl'])
 
-        subprocess.check_call(['rm', 'evals_test_pickle.pkl'])
+    check_scores(pickled_eval1)
+    check_scores(pickled_eval2)
 
-        check_scores(pickled_eval)
 
-
-def test_exception_handling_evals():
-
+def test_raise_error():
+    """[Evaluator] Check that a FitFailedError is thrown."""
+    evals1.error_score = None
     try:
-        evals1.evaluate(estimators, parameters_exception, X, y, 3)
+        with open(os.devnull, 'w') as f, redirect_stderr(f):
+            evals1.evaluate(estimators, parameters_exception, X, y, 3)
     except Exception as e:
-        print(e)
+        assert issubclass(type(e), FitFailedError)
 
+
+def test_raise_warning():
+    """[Evaluator] Check for a FitFailedWarning is thrown with error score."""
+    # Set an error score
     evals1.error_score = -99
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+
+    # Suppress printed messages
+    evals1.verbose = False
+
+    # We need single threading for catch_warnings to record messages
+    evals1.n_jobs_estimators = 1
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+
         evals1.evaluate(estimators, parameters_exception, X, y, 3)
-        assert str(evals1.summary_.iloc[-1][0])[:3] == '-99'
+
+    # Check warning
+    assert len(w) == (evals1.n_iter * evals1.cv.n_splits *
+                      len(evals1.preprocessing))
+    assert all([issubclass(m.category, FitFailedWarning) for m in w])
+    assert str(w[0].message) == \
+        ("Could not fit estimator [rf]. Score set to -99. Details:\n"
+         "ValueError('min_samples_leaf must be at least 1 or in (0, 0.5], "
+         "got 1.58057518888',)")
+
+    # Check Scores
+    for i in [1, 2]:
+        assert str(evals1.summary_.iloc[-i][0])[:3] == '-99'

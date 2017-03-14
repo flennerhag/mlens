@@ -23,7 +23,7 @@ import sys
 
 class Evaluator(object):
 
-    """Model selection across several estimators and preprocessing pipelines.
+    r"""Model selection across several estimators and preprocessing pipelines.
 
     The ``Evaluator`` allows users to evaluate several models in one call
     across a set preprocessing pipelines. The class is useful for comparing
@@ -271,7 +271,7 @@ class Evaluator(object):
         param_map = {}   # dict with param settings for each est_prep pair
 
         # Create list of param settings for each estimator
-        for est_name, est in self.estimators_:
+        for est_name, _ in self.estimators_:
             try:
                 param_sets[est_name] = self._draw_params(est_name)
             except KeyError:

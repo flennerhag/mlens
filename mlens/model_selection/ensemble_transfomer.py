@@ -1,4 +1,4 @@
-"""
+"""ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
 :copyright: 2017
@@ -18,7 +18,8 @@ from mlens.ensemble._layer import fit_layer, predict_layer
 # TODO: Should id_train be used here?
 from mlens.base import IdTrain
 
-from mlens.utils import print_time, safe_print, check_inputs, check_ensemble_build
+from mlens.utils import (print_time, safe_print, check_inputs,
+                         check_ensemble_build)
 from mlens.metrics import set_scores
 
 from sklearn.base import clone
@@ -27,7 +28,7 @@ from time import time
 
 class StackingTransformer(BaseEnsemble):
 
-    """Stacking Ensemble class.
+    r"""Stacking Ensemble class.
 
     Meta estimator class that blends a set of base estimators via a meta
     estimator. In difference to standard stacking, where the base estimators

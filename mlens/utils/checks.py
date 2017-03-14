@@ -1,7 +1,9 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-licence: MIT
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+
 Quick checks that an estimator is built as expected.
 """
 
@@ -54,7 +56,6 @@ def check_is_fitted(estimator, attr):
 
 def check_ensemble_build(inst, attr='layers'):
     """Check that layers have been instantiated."""
-
     if not hasattr(inst, attr):
         # No layer container. This should not happen!
 

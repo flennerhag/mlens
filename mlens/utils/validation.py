@@ -1,5 +1,9 @@
 """ML-ENSEMBLE
 
+:author: Sebastian Flennerhag
+:copyright: 2017
+:license: MIT
+
 Input validation module. Builds on Scikit-learns ``validation`` module, but
 extends it to a soft check that issues warnings but don't force change the
 inputs.
@@ -10,15 +14,8 @@ import scipy.sparse as sp
 
 from ..externals.validation import (check_X_y, check_array,
                                     check_consistent_length)
-
 from ..externals import six
 from ..externals.validation import _shape_repr, _num_samples
-
-try:
-    from inspect import signature
-except ImportError:
-    from ..externals.funcsigs import signature
-
 from ..utils.exceptions import NonBLASDotWarning, InputDataWarning
 
 import warnings
@@ -417,29 +414,7 @@ def soft_check_x_y(X, y, accept_sparse=True, dtype=None,
                                     ensure_2d=False, dtype=dtype,
                                     estimator=estimator)
     else:
-        context = _get_context(estimator)
-
-        CHANGE_y = _check_column_or_1d(y)
-
-        ALL_FINITE = _check_all_finite(y)
-        if not ALL_FINITE:
-            CHANGE_y = True
-            msg = ("%sNot all elements in array are finite. This may "
-                   "cause estimation problems. Consider nan conversion "
-                   "and replacing infinite values.")
-            warnings.warn(msg % context, InputDataWarning)
-
-        if y_numeric and y.dtype.kind == 'O':
-            CHANGE_y = True
-            msg = ("%sDtype of y not the expected type [dtype: %s]. "
-                   "Consider changing to 'float' or 'int'.")
-            warnings.warn(msg % (context, y.dtype.kind), InputDataWarning)
-
-        if CHANGE_y:
-            msg = ("%sy array failed initial test. Estimation may fail. "
-                   "Consider converting input data to a numpy array with "
-                   "finite elements and no missing values.")
-            warnings.warn(msg % context, InputDataWarning)
+        CHANGE_y = soft_check_1d(y, y_numeric, estimator)
 
     # Check consistent lengths. This raises an error if test fails.
     check_consistent_length(X, y)
@@ -447,8 +422,37 @@ def soft_check_x_y(X, y, accept_sparse=True, dtype=None,
     return CHANGE_X or CHANGE_y
 
 
+def soft_check_1d(y, y_numeric, estimator):
+    """Check if y is numeric, finite and one-dimensional."""
+    context = _get_context(estimator)
+
+    CHANGE_y = _check_column_or_1d(y)
+
+    ALL_FINITE = _check_all_finite(y)
+    if not ALL_FINITE:
+        CHANGE_y = True
+        msg = ("%sNot all elements in array are finite. This may "
+               "cause estimation problems. Consider nan conversion "
+               "and replacing infinite values.")
+        warnings.warn(msg % context, InputDataWarning)
+
+    if y_numeric and y.dtype.kind == 'O':
+        CHANGE_y = True
+        msg = ("%sDtype of y not the expected type [dtype: %s]. "
+               "Consider changing to 'float' or 'int'.")
+        warnings.warn(msg % (context, y.dtype.kind), InputDataWarning)
+
+    if CHANGE_y:
+        msg = ("%sy array failed initial test. Estimation may fail. "
+               "Consider converting input data to a numpy array with "
+               "finite elements and no missing values.")
+        warnings.warn(msg % context, InputDataWarning)
+
+    return CHANGE_y
+
+
 def _check_column_or_1d(y, context=""):
-    """ Check if y can be raveled."""
+    """Check if y can be raveled."""
     CHANGE = False
     try:
         shape = np.shape(y)
@@ -456,7 +460,7 @@ def _check_column_or_1d(y, context=""):
         CHANGE = True
         warnings.warn("%sCould not get shape of y. Consider changing the "
                       "shape of y to n_samples, ), "
-                      "for example using ravel()." % context,
+                      "for example using ravel(). Details:\n%r" % (context, e),
                       InputDataWarning)
         return CHANGE
 
@@ -500,7 +504,7 @@ def _check_array(X):
 
 
 def check_inputs(X, y, check_level=0):
-    """Pre-checks on input arrays X and y.
+    r"""Pre-checks on input arrays X and y.
 
     Checks input data according to ``check_level`` to ensure format is roughly
     in line with what a typical estimator expects.

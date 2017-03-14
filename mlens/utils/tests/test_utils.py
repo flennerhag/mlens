@@ -15,7 +15,7 @@ d = {'entry1': 'test', 'entry2': 'also_test'}
 
 
 def test_print_msg():
-    """Check that printing timed messages looks as they should."""
+    """[Utils] Check that printing timed messages looks as they should."""
 
     class Logger(object):
         """Temporary class redirect print messages to a python object."""
@@ -40,7 +40,7 @@ def test_print_msg():
 
 
 def test_pickle():
-    """Check that pickling a standard object works."""
+    """[Utils] Check that pickling a standard object works."""
     utils.pickle_save(d, 'd')
     test = utils.pickle_load('d')
 

@@ -1,6 +1,6 @@
 """ML-ENSEMBLE
 
-Exception handling classes
+Exception handling classes.
 """
 
 
@@ -35,6 +35,7 @@ class LayerSpecificationWarning(UserWarning):
 
 
 class EfficiencyWarning(UserWarning):
+
     """Warning used to notify the user of inefficient computation.
 
     This warning notifies the user that the efficiency may not be optimal due
@@ -48,6 +49,7 @@ class EfficiencyWarning(UserWarning):
 
 
 class NonBLASDotWarning(EfficiencyWarning):
+
     """Warning used when the dot operation does not use BLAS.
 
     FROM SCIKIT-LEARN
@@ -63,6 +65,7 @@ class NonBLASDotWarning(EfficiencyWarning):
 
 
 class DataConversionWarning(UserWarning):
+
     """Warning used to notify implicit data conversions happening in the code.
 
     This warning occurs when some input data needs to be converted or
@@ -83,6 +86,7 @@ class DataConversionWarning(UserWarning):
 
 
 class InputDataWarning(UserWarning):
+
     """Warning used to notify that an array does not behave as expected.
 
     Probably, this is because the data is held in an object not anticipated by

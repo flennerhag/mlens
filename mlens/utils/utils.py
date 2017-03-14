@@ -1,7 +1,8 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-licence: MIT
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 """
 
 from __future__ import division, print_function, with_statement

@@ -18,13 +18,15 @@ from ..parallel import (preprocess_folds, preprocess_pipes,
 import sys
 
 
-def _layer_preprocess(X, y, layer_preprocess, method_is_fit, n_jobs, verbose):
+def _layer_preprocess(X, y, parallel, layer_preprocess, method_is_fit, n_jobs,
+                      verbose):
     """Method for generating predictions for inputs."""
     if (layer_preprocess is None) or (len(layer_preprocess) == 0):
         return [[X, '']], None
     else:
 
-        out = preprocess_pipes(layer_preprocess, X, y, fit=method_is_fit,
+        out = preprocess_pipes(layer_preprocess, X, y,
+                               parallel, fit=method_is_fit,
                                return_estimators=method_is_fit,
                                n_jobs=n_jobs, verbose=verbose)
         if method_is_fit:
@@ -36,8 +38,9 @@ def _layer_preprocess(X, y, layer_preprocess, method_is_fit, n_jobs, verbose):
             return [[z, case] for z, case in out], None
 
 
-def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
-                  folded_preds, n_jobs, printout, verbose, layer_msg=''):
+def _gen_in_layer(layer, X, y, parallel, folds, shuffle, random_state, scorer,
+                  as_df, folded_preds, n_jobs, printout, verbose,
+                  layer_msg=''):
     """Generate training data layer.
 
     Function for generating training data for next layer from an ingoing layer.
@@ -46,11 +49,11 @@ def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
     estimators = clone_base_estimators(layer.estimators)
     columns = name_columns(estimators)
 
-    Min = preprocess_folds(preprocess, X, y, folds=folds, fit=True,
+    Min = preprocess_folds(preprocess, X, y, parallel, folds=folds, fit=True,
                            shuffle=shuffle, random_state=random_state,
                            n_jobs=n_jobs, verbose=verbose)
 
-    M, est_names = base_predict(Min, estimators, n=X.shape[0],
+    M, est_names = base_predict(Min, estimators, parallel, n=X.shape[0],
                                 folded_preds=folded_preds,
                                 function_args=(True, True), columns=columns,
                                 as_df=as_df, n_jobs=n_jobs, verbose=verbose)
@@ -64,20 +67,20 @@ def _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
     return M, scores, est_names
 
 
-def _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose):
+def _fit_layer_estimators(layer, X, y, parallel, n_jobs, printout, verbose):
     """Fits preprocessing pipelines and layer estimator on full data set."""
     preprocess, estimators = layer.preprocessing, layer.estimators
 
     Min, preprocessing = \
-        _layer_preprocess(X, y, clone_preprocess_cases(preprocess), True,
-                          n_jobs, verbose)
+        _layer_preprocess(X, y, parallel, clone_preprocess_cases(preprocess),
+                          True, n_jobs, verbose)
 
-    return (fit_estimators(Min, clone_base_estimators(estimators), y, n_jobs,
-                           verbose), preprocessing)
+    return (fit_estimators(Min, clone_base_estimators(estimators), y,
+                           parallel, n_jobs, verbose), preprocessing)
 
 
-def fit_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
-              folded_preds, n_jobs, printout, verbose, layer_msg=''):
+def fit_layer(layer, X, y, parallel, folds, shuffle, random_state, scorer,
+              as_df, folded_preds, n_jobs, printout, verbose, layer_msg=''):
     """Fit ensemble layer.
 
     Function for fitting a layer and generating training data for next layer.
@@ -86,12 +89,12 @@ def fit_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
     fits the final preprocessing pipes and estimators on the full training set.
     """
     M, scores, est_names = \
-        _gen_in_layer(layer, X, y, folds, shuffle, random_state, scorer,
-                      as_df, folded_preds, n_jobs, printout, verbose,
+        _gen_in_layer(layer, X, y, parallel, folds, shuffle, random_state,
+                      scorer, as_df, folded_preds, n_jobs, printout, verbose,
                       layer_msg)
 
     fitted_estimators, fitted_preprocessing = \
-        _fit_layer_estimators(layer, X, y, n_jobs, printout, verbose)
+        _fit_layer_estimators(layer, X, y, parallel, n_jobs, printout, verbose)
 
     # Check that success in folded fits overlap with success in full fit
     fitted_est_names = name_columns(fitted_estimators)
@@ -100,7 +103,7 @@ def fit_layer(layer, X, y, folds, shuffle, random_state, scorer, as_df,
     return fitted_estimators, fitted_preprocessing, (M, scores)
 
 
-def predict_layer(layer, X, y, as_df, n_jobs, verbose, printout=None,
+def predict_layer(layer, X, y, parallel, as_df, n_jobs, verbose, printout=None,
                   layer_msg=None):
     """Predict ensemble layer.
 
@@ -114,10 +117,10 @@ def predict_layer(layer, X, y, as_df, n_jobs, verbose, printout=None,
         print('Processing layer %s' % layer_msg, file=getattr(sys, printout))
         getattr(sys, printout).flush()
 
-    out, _ = _layer_preprocess(X, y, layer.preprocessing_,
+    out, _ = _layer_preprocess(X, y, parallel, layer.preprocessing_,
                                False, n_jobs, verbose)
 
-    out = base_predict(out, layer.estimators_, n=X.shape[0],
+    out = base_predict(out, layer.estimators_, parallel, n=X.shape[0],
                        folded_preds=False, function_args=(True,),
                        columns=columns, as_df=as_df, n_jobs=n_jobs,
                        verbose=verbose)

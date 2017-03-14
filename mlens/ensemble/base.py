@@ -8,9 +8,10 @@ Base classes for ensemble layer management.
 """
 
 from __future__ import division, print_function
-from collections import OrderedDict
 
-from sklearn.base import BaseEstimator
+from collections import OrderedDict
+from abc import ABCMeta, abstractmethod
+
 from ..base import check_instances
 from ..utils import (check_is_fitted, assert_correct_layer_format,
                      print_time, safe_print, check_layer_output)
@@ -19,7 +20,9 @@ from ..utils.exceptions import (LayerSpecificationWarning,
                                 LayerSpecificationError,
                                 NotFittedError)
 
-from abc import ABCMeta, abstractmethod
+from joblib import Parallel
+from sklearn.base import BaseEstimator
+
 
 import warnings
 from time import time
@@ -44,13 +47,23 @@ class LayerContainer(BaseEstimator):
         number of layers instantiated. Automatically set, normally there is no
         reason to fiddle with this parameter.
 
+    n_jobs : int (default = -1)
+        Number of CPUs to use. Set ``n_jobs = -1`` for all available CPUs, and
+        ``n_jobs = -2`` for all available CPUs except one, e.tc..
+
     raise_on_exception : bool (default = False)
         raise error on soft exceptions. Otherwise issue warning.
     """
 
-    def __init__(self, layers=None, n_layers=0, raise_on_exception=False):
+    def __init__(self,
+                 layers=None,
+                 n_layers=0,
+                 n_jobs=-1,
+                 raise_on_exception=False):
+
         self.layers = self._init_layers(layers)
         self.n_layers = self._check_n_layers(n_layers)
+        self.n_jobs = n_jobs
         self.raise_on_exception = raise_on_exception
 
     def add(self, fit_function, predict_function, estimators,
@@ -215,22 +228,27 @@ class LayerContainer(BaseEstimator):
 
         fit_tup = (X,)  # initiate a tuple of fit outputs for first layer
         out = {}
-        for layer_name, layer in self.layers.items():
 
-            if verbose > 1:
-                safe_print("[%s] fitting" % layer_name, file=pout, flush=True)
-                ti = time()
+        # Initiate multiprocess job
+        with Parallel(n_jobs=self.n_jobs, verbose=verbose) as parallel:
+            for layer_name, layer in self.layers.items():
 
-            fit_tup = layer.fit(fit_tup[0], y)
-            out[layer_name] = fit_tup[1:]
+                if verbose > 1:
+                    safe_print("[%s] fitting" % layer_name,
+                               file=pout, flush=True)
+                    ti = time()
 
-            check_layer_output(layer, layer_name, self.raise_on_exception)
+                fit_tup = layer.fit(fit_tup[0], y, parallel)
+                out[layer_name] = fit_tup[1:]
 
-            if verbose > 1:
-                print_time(ti, "[%s] done" % layer_name, file=pout, flush=True)
+                check_layer_output(layer, layer_name, self.raise_on_exception)
 
-        if verbose:
-            print_time(t0, "Fit complete", file=pout, flush=True)
+                if verbose > 1:
+                    print_time(ti, "[%s] done" % layer_name,
+                               file=pout, flush=True)
+
+            if verbose:
+                print_time(t0, "Fit complete", file=pout, flush=True)
 
         if return_final:
             return out, fit_tup[0]
@@ -270,17 +288,18 @@ class LayerContainer(BaseEstimator):
                        file=pout, flush=True)
             t0 = time()
 
-        for layer_name, layer in self.layers.items():
+        with Parallel(n_jobs=self.n_jobs, verbose=verbose) as parallel:
+            for layer_name, layer in self.layers.items():
 
-            if verbose > 1:
-                safe_print("[%s] predicting" % layer_name, file=pout,
-                           flush=True)
-                ti = time()
+                if verbose > 1:
+                    safe_print("[%s] predicting" % layer_name, file=pout,
+                               flush=True)
+                    ti = time()
 
-            X = layer.predict(X, y)
+                X = layer.predict(X, y, parallel)
 
-            if verbose > 1:
-                print_time(ti, "[%s] done" % layer_name, file=pout, flush=True)
+                if verbose > 1:
+                    print_time(ti, "[%s] done" % layer_name, file=pout, flush=True)
 
         if verbose:
             print_time(t0, "prediction complete", file=pout, flush=True)
@@ -462,7 +481,7 @@ class Layer(BaseEstimator):
         self.predict_params = self._format_params(predict_params)
         self.raise_on_exception = raise_on_exception
 
-    def fit(self, X, y):
+    def fit(self, X, y, parallel):
         """Generic method for fitting and storing layer.
 
         Parameters
@@ -482,10 +501,10 @@ class Layer(BaseEstimator):
             the ``fit`` call: ``out = (X_pred, ...)``.
         """
         self.estimators_, self.preprocessing_, out = \
-            self.fit_function(self, X, y, **self.fit_params)
+            self.fit_function(self, X, y, parallel, **self.fit_params)
         return out
 
-    def predict(self, X, y):
+    def predict(self, X, y, parallel):
         """Generic method for predicting with fitted layer.
 
         Parameters
@@ -502,7 +521,8 @@ class Layer(BaseEstimator):
             predictions from fitted estimators in layer.
         """
         self._check_fitted()
-        return self.predict_function(self, X, y, **self.predict_params)
+        return self.predict_function(self, X, y, parallel,
+                                     **self.predict_params)
 
     def _check_fitted(self):
         """Utility function for checking that fitted estimators exist."""
@@ -686,7 +706,9 @@ class BaseEnsemble(BaseEstimator):
         """
         if getattr(self, 'layers', None) is None:
             raise_on_exception = getattr(self, 'raise_on_exception', False)
-            self.layers = LayerContainer(raise_on_exception=raise_on_exception)
+            n_jobs = getattr(self, 'n_jobs', -1)
+            self.layers = LayerContainer(n_jobs=n_jobs,
+                                         raise_on_exception=raise_on_exception)
 
         self.layers.add(estimators=estimators,
                         preprocessing=preprocessing,

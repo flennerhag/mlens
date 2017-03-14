@@ -149,7 +149,7 @@ class Evaluator(object):
             t0 = self._print_prep_start(self.preprocessing_, printout)
 
         self.dout = preprocess_folds(self.preprocessing_, X.copy(), y.copy(),
-                                     self.cv, fit=True, return_idx=False,
+                                     None, self.cv, fit=True, return_idx=False,
                                      shuffle=self.shuffle,
                                      random_state=self.random_state,
                                      n_jobs=self.n_jobs_preprocessing,

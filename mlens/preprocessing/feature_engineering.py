@@ -12,13 +12,17 @@ from __future__ import division, print_function
 
 from pandas import DataFrame, concat
 from numpy import hstack
+
+from ..base import name_estimators, IdTrain, check_instances
+from ..base import clone_base_estimators
+from ..base import check_fit_overlap
+from ..utils import print_time, check_inputs
+from ..parallel import preprocess_folds, fit_estimators, base_predict
+from ..externals import six
+
+from joblib import Parallel
 from sklearn.base import BaseEstimator, TransformerMixin
-from mlens.base import name_estimators, IdTrain, check_instances
-from mlens.base import clone_base_estimators
-from mlens.base import check_fit_overlap
-from mlens.utils import print_time, check_inputs
-from mlens.parallel import preprocess_folds, fit_estimators, base_predict
-from mlens.externals import six
+
 from time import time
 import sys
 
@@ -139,27 +143,32 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
             printout = None
 
         # Fit estimators for training set
-        Min = preprocess_folds(None, X, y, folds=self.folds, fit=False,
-                               shuffle=self.shuffle,
-                               random_state=self.random_state,
-                               n_jobs=self.n_jobs, verbose=self.verbose)
+        with Parallel(n_jobs=self.n_jobs, verbose=self.verbose) as parallel:
+            Min = preprocess_folds(None, X, y, parallel, folds=self.folds,
+                                   fit=False, shuffle=self.shuffle,
+                                   random_state=self.random_state,
+                                   n_jobs=self.n_jobs, verbose=self.verbose)
 
-        # >> Generate mapping between folds and estimators
-        Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
-        ests_ = {i: clone_base_estimators(check_instances(self.estimators))['']
-                 for i in range(len(Min))}
-        self.train_ests_ = fit_estimators(Min, ests_, None,
-                                          self.n_jobs, self.verbose)
+            # >> Generate mapping between folds and estimators
+            Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
 
-        # Fit estimators for test set
-        self.test_ests_ = \
-            fit_estimators([[X, '']],
-                           clone_base_estimators(check_instances(
-                                   self.estimators)),
-                           y, self.n_jobs, self.verbose)
+            ests_ = \
+                {i: clone_base_estimators(check_instances(self.estimators))['']
+                     for i in range(len(Min))}
 
-        fitted_test_ests = [est_name for est_name, _ in self.test_ests_['']]
-        self._fitted_ests = fitted_test_ests
+            self.train_ests_ = fit_estimators(Min, ests_, None, parallel,
+                                              self.n_jobs, self.verbose)
+
+            # Fit estimators for test set
+            self.test_ests_ = \
+                fit_estimators([[X, '']],
+                               clone_base_estimators(check_instances(
+                                       self.estimators)),
+                               y, parallel, self.n_jobs, self.verbose)
+
+            fitted_test_ests = \
+                [est_name for est_name, _ in self.test_ests_['']]
+            self._fitted_ests = fitted_test_ests
 
         if self.verbose > 0:
             print_time(ts, 'Fit complete', file=printout)
@@ -188,31 +197,34 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
 
         as_df = isinstance(X, DataFrame)
 
-        if self.check.is_train(X):
-            # Use cv folds to generate predictions
-            Min = preprocess_folds(None, X, y, folds=self.folds, fit=False,
-                                   shuffle=self.shuffle,
-                                   random_state=self.random_state,
-                                   n_jobs=self.n_jobs, verbose=self.verbose)
+        with Parallel(n_jobs=self.n_jobs, verbose=self.verbose) as parallel:
 
-            Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
-            folded_preds = True
-            estimators = self.train_ests_
-            function_args = (False, False)
-        else:
-            # Predict using estimators fitted on full training data
-            Min = [[X, '']]
-            folded_preds = False
-            estimators = self.test_ests_
-            function_args = (False,)
+            if self.check.is_train(X):
+                # Use cv folds to generate predictions
+                Min = preprocess_folds(None, X, y, parallel, folds=self.folds,
+                                       fit=False, shuffle=self.shuffle,
+                                       random_state=self.random_state,
+                                       n_jobs=self.n_jobs,
+                                       verbose=self.verbose)
 
-        # Generate predictions matrix
-        M, fitted_estimator_names = \
-            base_predict(Min, estimators, n=X.shape[0],
-                         folded_preds=folded_preds,
-                         function_args=function_args,
-                         columns=self._fitted_ests, as_df=as_df,
-                         n_jobs=self.n_jobs, verbose=self.verbose)
+                Min = [tup[:-1] + [i] for i, tup in enumerate(Min)]
+                folded_preds = True
+                estimators = self.train_ests_
+                function_args = (False, False)
+            else:
+                # Predict using estimators fitted on full training data
+                Min = [[X, '']]
+                folded_preds = False
+                estimators = self.test_ests_
+                function_args = (False,)
+
+            # Generate predictions matrix
+            M, fitted_estimator_names = \
+                base_predict(Min, estimators, parallel, n=X.shape[0],
+                             folded_preds=folded_preds,
+                             function_args=function_args,
+                             columns=self._fitted_ests, as_df=as_df,
+                             n_jobs=self.n_jobs, verbose=self.verbose)
 
         check_fit_overlap(self._fitted_ests, fitted_estimator_names,
                           'prediction_feature')

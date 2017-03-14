@@ -94,8 +94,9 @@ def _parallel_estimation(function, data, estimator_cases,
                     for est in estimator_cases[tup[-1]])
 
 
-def base_predict(data, estimator_cases, function_args, folded_preds, n,
-                 columns, as_df=False, n_jobs=-1, verbose=False):
+def base_predict(data, estimator_cases, parallel, function_args,
+                 folded_preds, n, columns, as_df=False, n_jobs=-1,
+                 verbose=False):
     """Generate a matrix M of predictions from m estimators.
 
     Generic function for generating a prediction matrix M over a set of
@@ -153,7 +154,8 @@ def base_predict(data, estimator_cases, function_args, folded_preds, n,
         function = _predict
 
     out = _parallel_estimation(function, data, estimator_cases, function_args,
-                               n_jobs=n_jobs, verbose=verbose)
+                               parallel=parallel, n_jobs=n_jobs,
+                               verbose=verbose)
 
     fitted_estimator_names = _pre_check_estimators(out, columns)
     M = _construct_matrix(out, n, fitted_estimator_names, folded_preds)
@@ -164,7 +166,8 @@ def base_predict(data, estimator_cases, function_args, folded_preds, n,
     return M, fitted_estimator_names
 
 
-def fit_estimators(data, estimator_cases, y, n_jobs=-1, verbose=False):
+def fit_estimators(data, estimator_cases, y, parallel, n_jobs=-1,
+                   verbose=False):
     """Function for parallelized estimator fitting.
 
     Parameters
@@ -196,10 +199,12 @@ def fit_estimators(data, estimator_cases, y, n_jobs=-1, verbose=False):
     if y is None:
         # Assume 'data' is structured as [[xtrain, xtest, ytrain, ytest, ...],]
         out = _parallel_estimation(_fit_ests_folds, data, estimator_cases,
+                                   parallel=parallel,
                                    n_jobs=n_jobs, verbose=verbose)
     else:
         # Assume 'data' is structured as [[X, 'case_i']]
         out = _parallel_estimation(_fit_ests, data, estimator_cases, (y,),
+                                   parallel=parallel,
                                    n_jobs=n_jobs, verbose=verbose)
 
     # Return dictionary with only successfully fitted estimators

@@ -171,6 +171,7 @@ def test_base_predict():
     with warnings.catch_warnings(record=True) as w:
         (M, ests) = base_predict(data, {'test': [('ls', estimator),
                                                  ('bad', estimator_bad)]},
+                                 None,
                                  (True, True), True, 100,
                                  ['test-ls', 'test-bad'], True, n_jobs=1)
 
@@ -193,7 +194,8 @@ def test_fit_estimators():
     """[Parallel] fit_estimators: test run."""
     tup = [(X, 'test')]
 
-    out = fit_estimators(tup, {'test': [('ls', Lasso(alpha=0.001))]}, y)
+    out = fit_estimators(tup, {'test': [('ls', Lasso(alpha=0.001))]}, y,
+                         None)
 
     assert isinstance(out, dict)
     assert isinstance(out['test'], list)

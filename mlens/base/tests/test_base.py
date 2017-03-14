@@ -5,14 +5,17 @@ author: Sebastian Flennerhag
 
 import numpy as np
 from pandas import DataFrame
+
+from mlens.utils.exceptions import SliceError
+from mlens.base import (clone_base_estimators, clone_preprocess_cases,
+                        name_estimators, name_layer, check_instances,
+                        check_fit_overlap, name_columns, safe_slice, IdTrain)
+
 from sklearn.linear_model import Lasso
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from mlens.base import (clone_base_estimators, clone_preprocess_cases,
-                        name_estimators, name_layer, check_instances,
-                        check_fit_overlap, name_columns, safe_slice, IdTrain)
 
 SEED = 100
 np.random.seed(SEED)
@@ -39,7 +42,7 @@ layer = {
 
 
 def test_naming():
-    """Test correct naming of estimators."""
+    """[Base] Test correct naming of estimators."""
     named_meta = name_estimators([meta], 'meta-')
     named_base = name_layer(layer)
 
@@ -50,7 +53,7 @@ def test_naming():
 
 
 def test_check_instances():
-    """Test that unnamed estimator lists are named."""
+    """[Base] Test that unnamed estimator lists are named."""
     preprocess = [(case, check_instances(p[0])) for case, p in
                   layer.items()]
 
@@ -66,7 +69,7 @@ def test_check_instances():
 
 
 def test_clone():
-    """Preprocess and estimator pipes clone and return handling."""
+    """[Base] Preprocess and estimator pipes clone and return handling."""
     preprocess = {case: check_instances(p[0]) for case, p in
                   layer.items()}
     base_estimators = {case: check_instances(p[1]) for case, p in
@@ -96,7 +99,7 @@ def test_clone():
 
 
 def test_check_estimators():
-    """Test that fitted estimator overlap is correctly checked."""
+    """[Base] Test that fitted estimator overlap is correctly checked."""
     fold_fit_incomplete = ['a']
     fold_fit_complete = ['a', 'b']
 
@@ -108,16 +111,26 @@ def test_check_estimators():
     try:
         check_fit_overlap(fold_fit_incomplete, full_fit_complete, 'layer-1')
     except ValueError as e:
-        print(e)
+        assert issubclass(type(e), ValueError)
+        assert str(e) == \
+               ("[layer-1] Not all estimators successfully fitted on "
+                "the full data set were fitted during fold predictions. "
+                "Aborting.\n[layer-1] Fitted estimators on full data: ['a']\n"
+                "[layer-1] Fitted estimators on folds:['a', 'b']")
 
     try:
         check_fit_overlap(fold_fit_complete, full_fit_incomplete, 'layer-1')
     except ValueError as e:
-        print(e)
+        assert issubclass(type(e), ValueError)
+        assert str(e) == \
+               ("[layer-1] Not all estimators successfully fitted on the fold "
+                "data were successfully fitted on the full data. Aborting.\n"
+                "[layer-1] Fitted estimators on full data: ['a', 'b']\n"
+                "[layer-1] Fitted estimators on folds:['a']")
 
 
 def test_column_naming():
-    """Assert correct columns naming."""
+    """[Base] Assert correct columns naming."""
     cols = name_columns({'case-1': [('est-1', SVR()), ('est-2', Lasso())]})
 
     for i, key in enumerate(cols):
@@ -125,7 +138,7 @@ def test_column_naming():
 
 
 def test_safe_slice():
-    """Test that safe slicing correctly retrieves subsets from X and Xdf."""
+    """[Base] Test safe slicing correctly retrieves subsets from X and Xdf."""
     # Test sets
     row_slice = np.array([[10, 11, 12, 13, 14], [15, 16, 17, 18, 19]])
     row_slice_df = DataFrame(row_slice, index=[2, 3])
@@ -160,42 +173,69 @@ def test_safe_slice():
     assert full_slice_df.equals(full_sample_df)
 
 
-def test_safe_slice_error_raise():
-    """Check error handling in safe_slice."""
-    wrong_type = {'wrong_type': None}
+def test_no_index():
+    """[Base] Check that safe_slice with no passed slice return input."""
+    foo = {}
 
     # No slicing should return object
-    out = safe_slice(wrong_type)
-    assert id(out) == id(wrong_type)
+    out = safe_slice(foo)
+    assert id(out) == id(foo)
 
-    # TypeError
+
+def test_wrong_type_slice():
+    """[Base] Check that safe_slice raise error on wrong type of input."""
+    wrong_type = {'wrong_type': None}
+
     try:
         safe_slice(wrong_type, [0, 1])
         raise AssertionError('Error: Slicing a dictionary passed!')
     except Exception as e:
-        print(e)
+        assert issubclass(type(e), SliceError)
+        assert str(e) == \
+               ('Slicing array failed. Aborting. Details:\nTypeError'
+                '("unhashable type: \'list\'",)\nX: <class \'dict\'>\n'
+                '{\'wrong_type\': None}')
 
-    print()
 
-    # IndexError on ndarray
+def test_index_error_ndarray():
+    """[Base] Check that safe_slice raise error over-indexing ndarray."""
     try:
         safe_slice(X, range(100), layer_name='layer-1')
         raise AssertionError('Error: Slicing out-of-bounds ndarray passed!')
     except Exception as e:
-        print(e)
+        assert issubclass(type(e), SliceError)
+        assert str(e) == \
+               ("[layer-1] Slicing array failed. Aborting. Details:\n"
+                "IndexError('index 5 is out of bounds for axis 0 with "
+                "size 5',)\nX: <class 'numpy.ndarray'>\n"
+                "array([[ 0,  1,  2,  3,  4],\n"
+                "       [ 5,  6,  7,  8,  9],\n"
+                "       [10, 11, 12, 13, 14],\n"
+                "       [15, 16, 17, 18, 19],\n"
+                "       [20, 21, 22, 23, 24]])")
 
-    print()
 
-    # IndexError on DataFrame
+def test_safe_slice_error_raise():
+    """[Base] Check that safe_slice raise error over-indexing DataFrame."""
     try:
         safe_slice(Xdf, range(100), layer_name='layer-1')
         raise AssertionError('Error: Slicing out-of-bounds DataFrame passed!')
     except Exception as e:
-        print(e)
+        assert issubclass(type(e), SliceError)
+        assert str(e) == \
+               ("[layer-1] Slicing array failed. Aborting. Details:\n"
+                "IndexError('positional indexers are out-of-bounds',)\n"
+                "X: <class 'pandas.core.frame.DataFrame'>\n"
+                "    0   1   2   3   4\n"
+                "0   0   1   2   3   4\n"
+                "1   5   6   7   8   9\n"
+                "2  10  11  12  13  14\n"
+                "3  15  16  17  18  19\n"
+                "4  20  21  22  23  24")
 
 
 def test_id_train():
-    """Test the IdTrain class for checking training and test matrices"""
+    """[Base] Test IdTrain class for checking training and test matrices."""
     id_train.fit(X)
 
     assert id_train.is_train(X)

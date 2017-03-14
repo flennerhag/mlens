@@ -1,8 +1,9 @@
 doc-warnings: yes
 
 ignore-paths:
-  - doc/examples
+  - docs/
   - mlens/externals
+  - dev/
 
 ignore-patterns:
     - ^example/doc_.*\.py$

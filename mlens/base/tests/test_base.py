@@ -190,7 +190,7 @@ def test_wrong_type_slice():
         safe_slice(wrong_type, [0, 1])
         raise AssertionError('Error: Slicing a dictionary passed!')
     except Exception as e:
-        assert issubclass(type(e), SliceError)
+        assert issubclass(e.__class__, SliceError)
         assert str(e) == \
                ('Slicing array failed. Aborting. Details:\nTypeError'
                 '("unhashable type: \'list\'",)\nX: <class \'dict\'>\n'
@@ -203,7 +203,7 @@ def test_index_error_ndarray():
         safe_slice(X, range(100), layer_name='layer-1')
         raise AssertionError('Error: Slicing out-of-bounds ndarray passed!')
     except Exception as e:
-        assert issubclass(type(e), SliceError)
+        assert issubclass(e.__class__, SliceError)
         assert str(e) == \
                ("[layer-1] Slicing array failed. Aborting. Details:\n"
                 "IndexError('index 5 is out of bounds for axis 0 with "
@@ -221,7 +221,7 @@ def test_safe_slice_error_raise():
         safe_slice(Xdf, range(100), layer_name='layer-1')
         raise AssertionError('Error: Slicing out-of-bounds DataFrame passed!')
     except Exception as e:
-        assert issubclass(type(e), SliceError)
+        assert issubclass(e.__class__, SliceError)
         assert str(e) == \
                ("[layer-1] Slicing array failed. Aborting. Details:\n"
                 "IndexError('positional indexers are out-of-bounds',)\n"

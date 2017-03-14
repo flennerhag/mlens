@@ -1,6 +1,7 @@
 """ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
+:copyright: 2017
 :licence: MIT
 
 Class for generating new features in the form of predictions from a given set
@@ -15,7 +16,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from mlens.base import name_estimators, IdTrain, check_instances
 from mlens.base import clone_base_estimators
 from mlens.base import check_fit_overlap
-from mlens.utils import print_time
+from mlens.utils import print_time, check_inputs
 from mlens.parallel import preprocess_folds, fit_estimators, base_predict
 from mlens.externals import six
 from time import time
@@ -24,7 +25,7 @@ import sys
 
 class PredictionFeature(BaseEstimator, TransformerMixin):
 
-    """Prediction Feature.
+    r"""Prediction Feature.
 
     Transformer that appends columns of predictions from a set of estimators
     to a matrix.
@@ -42,6 +43,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
 
     shuffle : bool (default = True)
         whether to shuffle data for creating k-fold out of sample predictions.
+        If ``shuffle=True``, then a ``random_state`` **must** be set.
 
     random_state : int, (default = None)
         seed for creating folds during fitting (if ``shuffle = True``).
@@ -50,6 +52,17 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         subset size to sample from training set for check during ``transform``
         call. Data sets with low variation need larger subsets to ensure
         the subset is unique.
+
+    array_check : int (default = 2)
+        level of strictness in checking input arrays.
+
+            - ``array_check = 0`` will not check ``X`` or ``y``
+            - ``array_check = 1`` will check ``X`` and ``y`` for \
+            inconsistencies and warn when format looks suspicious, \
+            but retain original format.
+            - ``array_check = 2`` will impose Scikit-learn array checks, \
+            which converts ``X`` and ``y`` to numpy arrays and raises \
+            an error if conversion fails.
 
     verbose : int or bool (default = False)
         level of verbosity.
@@ -71,9 +84,9 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         list of fitted estimator.
     """
 
-    def __init__(self, estimators, folds=2, shuffle=True, scorer=None,
+    def __init__(self, estimators, folds=2, shuffle=False, scorer=None,
                  concat=True, random_state=None, sample_size=10,
-                 verbose=False, n_jobs=1):
+                 array_check=2, verbose=False, n_jobs=1):
 
         self.estimators = estimators
         self.named_estimators = name_estimators(estimators)
@@ -84,9 +97,15 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         self.concat = concat
         self.random_state = random_state
         self.sample_size = sample_size
+        self.array_check = array_check
         self.check = IdTrain(self.sample_size)
         self.verbose = verbose
         self.n_jobs = n_jobs
+
+        if shuffle and random_state is None:
+            raise ValueError("If 'shuffle=True', a 'random_state' seed must "
+                             "be provided, else transforming training data "
+                             "will not be consistent.")
 
     def fit(self, X, y):
         """Fit estimators.
@@ -104,6 +123,10 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         self : instance
             class instance with fitted estimators.
         """
+        X, y = check_inputs(X, y, self.array_check)
+
+        self._train_shape_ = X.shape[1]
+
         # Store training set id
         self.check = self.check.fit(X)
 
@@ -143,7 +166,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
 
         return self
 
-    def predict(self, X, y=None):
+    def _predict(self, X, y=None):
         """Predict with fitted ensemble.
 
         Parameters
@@ -156,6 +179,13 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         X_pred : array-like, shape=[n_samples, n_estimators]
             prediction matrix.
         """
+        X, y = check_inputs(X, y, self.array_check)
+
+        if X.shape[1] != self._train_shape_:
+            raise ValueError("Input for transformation have inconsistent "
+                             "number of features.\nExpected %i features, got "
+                             "%i." % (self._train_shape_, X.shape[1]))
+
         as_df = isinstance(X, DataFrame)
 
         if self.check.is_train(X):
@@ -201,7 +231,7 @@ class PredictionFeature(BaseEstimator, TransformerMixin):
         X_concat : array-like, shape=[n_samples, n_features + n_estimators]
             Full matrix X concatenated by ``n_estimators`` prediction features.
         """
-        M = self.predict(X, y)
+        M = self._predict(X, y)
 
         if not self.concat:
             return M

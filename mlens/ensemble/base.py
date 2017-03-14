@@ -19,6 +19,8 @@ from ..utils.exceptions import (LayerSpecificationWarning,
                                 LayerSpecificationError,
                                 NotFittedError)
 
+from abc import ABCMeta, abstractmethod
+
 import warnings
 from time import time
 
@@ -165,7 +167,7 @@ class LayerContainer(BaseEstimator):
             return self
 
     def fit(self, X, y, return_final, verbose):
-        """Generic method for fitting all layers in the container.
+        r"""Generic method for fitting all layers in the container.
 
         Parameters
         -----------
@@ -236,7 +238,7 @@ class LayerContainer(BaseEstimator):
             return out
 
     def predict(self, X, y, verbose):
-        """Generic method for predicting through all layers in the container.
+        r"""Generic method for predicting through all layers in the container.
 
         Parameters
         -----------
@@ -318,7 +320,8 @@ class LayerContainer(BaseEstimator):
 
         Returns
         -----------
-        params : mapping of parameter names mapped to their values.
+        params : dict
+            mapping of parameter names mapped to their values.
         """
         if not deep:
             return super(LayerContainer, self).get_params()
@@ -337,7 +340,7 @@ class LayerContainer(BaseEstimator):
 
 class Layer(BaseEstimator):
 
-    """Layer of preprocessing pipes and estimators.
+    r"""Layer of preprocessing pipes and estimators.
 
     Layer is an internal class that holds a layer and all associated layer
     specific methods. It behaves as an estimator from an Scikit-learn API
@@ -547,7 +550,6 @@ class Layer(BaseEstimator):
         params : dict
             mapping of parameter names mapped to their values.
         """
-
         if not deep:
             return super(Layer, self).get_params()
 
@@ -565,7 +567,6 @@ class Layer(BaseEstimator):
         return out
 
 
-# TODO: make the preprocessing of folds optional as it can take a lot of memory
 class BaseEnsemble(BaseEstimator):
 
     """BaseEnsemble class.
@@ -573,6 +574,23 @@ class BaseEnsemble(BaseEstimator):
     Core ensemble class methods used to add ensemble layers and manipulate
     parameters.
     """
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def add(self):
+        """Interface for adding a layer."""
+        pass
+
+    @abstractmethod
+    def fit(self):
+        """Method for fitting all layers."""
+        pass
+
+    @abstractmethod
+    def predict(self):
+        """Method for predicting with all layers."""
+        pass
 
     def _add(self, estimators, fit_function, predict_function,
              fit_params=None, predict_params=None, preprocessing=None):
@@ -666,7 +684,7 @@ class BaseEnsemble(BaseEstimator):
             if ``in_place = True``, returns ``self`` with the layer
             instantiated.
         """
-        if self.layers is None:
+        if getattr(self, 'layers', None) is None:
             raise_on_exception = getattr(self, 'raise_on_exception', False)
             self.layers = LayerContainer(raise_on_exception=raise_on_exception)
 
@@ -679,7 +697,7 @@ class BaseEnsemble(BaseEstimator):
         return self
 
     def _fit_layers(self, X, y, return_final, verbose):
-        """Generic method for fitting all layers in the ensemble.
+        r"""Generic method for fitting all layers in the ensemble.
 
         Parameters
         -----------
@@ -723,7 +741,7 @@ class BaseEnsemble(BaseEstimator):
         return self.layers.fit(X, y, return_final, verbose)
 
     def _predict_layers(self, X, y, verbose):
-        """Generic method for predicting through all layers in the ensemble.
+        r"""Generic method for predicting through all layers in the ensemble.
 
         Parameters
         -----------

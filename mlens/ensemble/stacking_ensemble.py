@@ -21,7 +21,7 @@ from time import time
 
 class StackingEnsemble(BaseEnsemble):
 
-    """Stacking Ensemble class.
+    r"""Stacking Ensemble class.
 
     Meta estimator class that blends a set of base estimators via a meta
     estimator. In difference to standard stacking, where the base estimators
@@ -104,18 +104,42 @@ class StackingEnsemble(BaseEnsemble):
 
     Examples
     --------
-    ::
 
-        >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
-        >>> from sklearn.linear_model import Lasso
-        >>> from sklearn.svm import SVR
+    Instantiate ensembles with no/same preprocessing with estimator lists.
 
-        >>> preprocessing_cases = {'mm': [MinMaxScaler()],
-        >>>                        'sc': [StandardScaler()]}
-        >>> estimators_per_case = {'mm': [SVR()],
-        >>>                        'sc': [Lasso()]}
-        >>> ensemble = StackingEnsemble()
-        >>> ensemble.add(estimators_per_case, preprocessing_cases)
+    >>> from sklearn.datasets import load_boston
+    >>> from sklearn.linear_model import Lasso
+    >>> from sklearn.svm import SVR
+    >>>
+    >>> X, y = load_boston(True)
+    >>>
+    >>> ensemble = StackingEnsemble()
+    >>> ensemble.add([SVR(), Lasso()]).add_meta(SVR())
+    >>>
+    >>> ensemble.fit(X, y)
+    >>> preds = ensemble.predict(X)
+
+    Instantiate ensembles with different preprocessing pipelines through dicts.
+
+    >>> from sklearn.datasets import load_boston
+    >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
+    >>> from sklearn.linear_model import Lasso
+    >>> from sklearn.svm import SVR
+    >>>
+    >>> X, y = load_boston(True)
+    >>>
+    >>> preprocessing_cases = {'mm': [MinMaxScaler()],
+    ...                        'sc': [StandardScaler()]}
+    >>>
+    >>> estimators_per_case = {'mm': [SVR()],
+    ...                        'sc': [Lasso()]}
+    >>>
+    >>> ensemble = StackingEnsemble()
+    >>> ensemble.add(estimators_per_case, preprocessing_cases)
+    >>> ensemble.add_meta(SVR())
+    >>>
+    >>> ensemble.fit(X, y)
+    >>> preds = ensemble.predict(X)
     """
 
     def __init__(self,

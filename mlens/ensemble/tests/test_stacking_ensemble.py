@@ -4,8 +4,6 @@ author: Sebastian Flennerhag
 """
 
 from __future__ import division, print_function, with_statement
-from contextlib import redirect_stderr
-import os
 
 import numpy as np
 from pandas import DataFrame
@@ -25,6 +23,13 @@ from sklearn.base import clone
 from sklearn.utils.estimator_checks import check_estimator
 
 import warnings
+
+import os
+try:
+    from contextlib import redirect_stderr
+except ImportError:
+    from mlens.externals.fixes import redirect as redirect_stderr
+
 
 # Training data
 np.random.seed(100)

@@ -4,8 +4,6 @@ author: Sebastian Flennerhag
 """
 
 from __future__ import division, print_function
-from contextlib import redirect_stderr
-import os
 
 import numpy as np
 
@@ -22,6 +20,13 @@ from sklearn.pipeline import make_pipeline
 from sklearn.utils.estimator_checks import check_estimator
 
 import warnings
+
+import os
+try:
+    from contextlib import redirect_stderr
+except ImportError:
+    from mlens.externals.fixes import redirect as redirect_stderr
+
 
 SEED = 100
 np.random.seed(SEED)

@@ -56,7 +56,7 @@ class Temp(PredictionFeature):
     used to instantiate an estimator.
     """
     def __init__(self):
-        super().__init__(estimators=[AverageRegressor()])
+        super(Temp, self).__init__(estimators=[AverageRegressor()])
 
 
 def test_estimator_behavior():

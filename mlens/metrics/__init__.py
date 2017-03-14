@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 11/01/2017
+:author: Sebastian Flennerhag
+:copyright: 2017
+:license: MIT
 """
 
 from ..externals import make_scorer

@@ -47,6 +47,8 @@ class IdTrain(object):
         self: obj
             fitted instance with stored sample.
         """
+        self.train_shape = X.shape
+
         sample_idx = {}
         for i in range(2):
             dim_size = min(X.shape[i], self.size)
@@ -72,6 +74,9 @@ class IdTrain(object):
         self: obj
             fitted instance with stored sample.
         """
+        if not self._check_shape(X):
+            return False
+
         idx = self.sample_idx_
 
         try:
@@ -88,3 +93,7 @@ class IdTrain(object):
             # If index is out of bounds, X.shape < training_set.shape
             # -> X is not the training set
             return False
+
+    def _check_shape(self, X):
+        """Check if X has the shape as the training set."""
+        return all([X.shape[i] == self.train_shape[i] for i in range(2)])

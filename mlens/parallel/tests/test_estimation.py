@@ -4,6 +4,7 @@
 """
 
 from __future__ import division, print_function, with_statement
+import sysconfig
 
 import numpy as np
 from pandas import DataFrame
@@ -176,8 +177,10 @@ def test_base_predict():
                                  ['test-ls', 'test-bad'], True, n_jobs=1)
 
     # Check warnings
-#    assert len(w) == 2
-    print(w)
+    if float(sysconfig.get_python_version()) > 3.0:
+        # For some reason Python 2 only produce one warning...
+        assert len(w) == 2
+
     assert all([issubclass(m.category, FitFailedWarning) for m in w])
 
     # Check that bad estimator was dropped

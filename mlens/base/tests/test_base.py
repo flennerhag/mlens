@@ -5,6 +5,7 @@ author: Sebastian Flennerhag
 
 import numpy as np
 from pandas import DataFrame
+import sysconfig
 
 from mlens.utils.exceptions import SliceError
 from mlens.base import (clone_base_estimators, clone_preprocess_cases,
@@ -16,6 +17,8 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
+__VERSION__ = float(sysconfig.get_python_version())
 
 SEED = 100
 np.random.seed(SEED)
@@ -111,7 +114,7 @@ def test_check_estimators():
     try:
         check_fit_overlap(fold_fit_incomplete, full_fit_complete, 'layer-1')
     except ValueError as e:
-        assert issubclass(type(e), ValueError)
+        assert issubclass(e.__class__, ValueError)
         assert str(e) == \
                ("[layer-1] Not all estimators successfully fitted on "
                 "the full data set were fitted during fold predictions. "
@@ -121,7 +124,7 @@ def test_check_estimators():
     try:
         check_fit_overlap(fold_fit_complete, full_fit_incomplete, 'layer-1')
     except ValueError as e:
-        assert issubclass(type(e), ValueError)
+        assert issubclass(e.__class__, ValueError)
         assert str(e) == \
                ("[layer-1] Not all estimators successfully fitted on the fold "
                 "data were successfully fitted on the full data. Aborting.\n"
@@ -191,10 +194,12 @@ def test_wrong_type_slice():
         raise AssertionError('Error: Slicing a dictionary passed!')
     except Exception as e:
         assert issubclass(e.__class__, SliceError)
-        assert str(e) == \
-               ('Slicing array failed. Aborting. Details:\nTypeError'
-                '("unhashable type: \'list\'",)\nX: <class \'dict\'>\n'
-                '{\'wrong_type\': None}')
+
+        if __VERSION__ > 3.0:
+            assert str(e) == \
+                   ('Slicing array failed. Aborting. Details:\nTypeError'
+                    '("unhashable type: \'list\'",)\nX: <class \'dict\'>\n'
+                    '{\'wrong_type\': None}')
 
 
 def test_index_error_ndarray():
@@ -204,15 +209,17 @@ def test_index_error_ndarray():
         raise AssertionError('Error: Slicing out-of-bounds ndarray passed!')
     except Exception as e:
         assert issubclass(e.__class__, SliceError)
-        assert str(e) == \
-               ("[layer-1] Slicing array failed. Aborting. Details:\n"
-                "IndexError('index 5 is out of bounds for axis 0 with "
-                "size 5',)\nX: <class 'numpy.ndarray'>\n"
-                "array([[ 0,  1,  2,  3,  4],\n"
-                "       [ 5,  6,  7,  8,  9],\n"
-                "       [10, 11, 12, 13, 14],\n"
-                "       [15, 16, 17, 18, 19],\n"
-                "       [20, 21, 22, 23, 24]])")
+
+        if __VERSION__ > 3.0:
+            assert str(e) == \
+                   ("[layer-1] Slicing array failed. Aborting. Details:\n"
+                    "IndexError('index 5 is out of bounds for axis 0 with "
+                    "size 5',)\nX: <class 'numpy.ndarray'>\n"
+                    "array([[ 0,  1,  2,  3,  4],\n"
+                    "       [ 5,  6,  7,  8,  9],\n"
+                    "       [10, 11, 12, 13, 14],\n"
+                    "       [15, 16, 17, 18, 19],\n"
+                    "       [20, 21, 22, 23, 24]])")
 
 
 def test_safe_slice_error_raise():
@@ -222,16 +229,18 @@ def test_safe_slice_error_raise():
         raise AssertionError('Error: Slicing out-of-bounds DataFrame passed!')
     except Exception as e:
         assert issubclass(e.__class__, SliceError)
-        assert str(e) == \
-               ("[layer-1] Slicing array failed. Aborting. Details:\n"
-                "IndexError('positional indexers are out-of-bounds',)\n"
-                "X: <class 'pandas.core.frame.DataFrame'>\n"
-                "    0   1   2   3   4\n"
-                "0   0   1   2   3   4\n"
-                "1   5   6   7   8   9\n"
-                "2  10  11  12  13  14\n"
-                "3  15  16  17  18  19\n"
-                "4  20  21  22  23  24")
+
+        if __VERSION__ > 3.0:
+            assert str(e) == \
+                   ("[layer-1] Slicing array failed. Aborting. Details:\n"
+                    "IndexError('positional indexers are out-of-bounds',)\n"
+                    "X: <class 'pandas.core.frame.DataFrame'>\n"
+                    "    0   1   2   3   4\n"
+                    "0   0   1   2   3   4\n"
+                    "1   5   6   7   8   9\n"
+                    "2  10  11  12  13  14\n"
+                    "3  15  16  17  18  19\n"
+                    "4  20  21  22  23  24")
 
 
 def test_id_train():

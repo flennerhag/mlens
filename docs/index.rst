@@ -2,33 +2,33 @@ ML-Ensemble
 ===========
 
 ML-Ensemble is a Python library for **parallelized ensemble learning**,
-deploying an API that combines a flexibility approach to building a network
-of estimators to combine and the Scikit-learn estimator API. Ensembles behave
+deploying an API that allows flexibility in building the ensemble architecture
+and a clean Scikit-learn estimator API. Once assembled, ensembles behave
 just as any Scikit-learn estimator and are fully compatible with the
 Scikit-learn library.
 
 The only fundamental difference between the ML-Ensemble API and the
-Scikit-learn API is how to instantiate an estimator. In Scikit-learn,
-predictions can be achieved by::
+Scikit-learn API is how to instantiate an estimator. ::
 
+   #In Scikit-learn, predictions can be achieved by:
    estimator = Estimator()
    estimator.fit(X, y)
    predictions = estimator.predict(X
 
-In ML-Ensemble, to fully instantiate an estimator you need to specify a layer
-of estimators to combine::
-
-   estimator = Ensmeble().add(list_of_estimators).add_meta(meta_estimator)
+   # In ML-Ensemble, we also need to specify what estimators to buid an
+   # ensemble of:
+   estimator = Ensmeble()
+   ensemble.add(list_of_estimators).add_meta(meta_estimator)
    estimator.fit(X, y)
-   predictions = estimator.predict(X
+   predictions = estimator.predict(X)
 
 See :ref:`getting-started` and :ref:`ensemble-tutorial` for further examples.
 
-Features
---------
+Core Features
+-------------
 
-Layers
-^^^^^^
+Multi-Layered ensembles
+^^^^^^^^^^^^^^^^^^^^^^^
 
 The core unit of an ensemble is a **layer**, much as a hidden unit in a neural
 network. Each layer contains a set of preprocessing steps, estimators and
@@ -38,8 +38,8 @@ and generate predictions.
 The modular build of an ensemble allows great flexibility in building ensemble
 structures, both in terms of the depth of the ensemble (number of layers)
 and how each layer generates predictions. As such, it is straightforward to
-build arbitrarily complex ensembles that can combine several ensemble
-estimation methods (such as stacking, blending, Subsemble e.t.c.).
+build arbitrarily complex ensembles, where each layer use a different
+estimation method (i.e. stacking, blending, Subsemble e.t.c.).
 
 Differentiated preprocessing pipelines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -99,4 +99,6 @@ ensemble for faster and simpler development.
    licence
 
 
-ML Ensemble is licenced under MIT and is hosted on Github.
+ML Ensemble is licenced under MIT and is hosted on Github_.
+
+.. _Github: https://github.com/flennerhag/mlens

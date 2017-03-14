@@ -228,7 +228,7 @@ def test_fit_ests_folds():
     assert str(rmse(out[2], X[50:], y[50:])) == '-0.183772704162'
 
 
-def test_fit_ests_folds_exception_handlding():
+def test_fit_ests_folds_exception_handling():
     """[Parallel] _fit_ests_folds: exception handling."""
     tup = [(X[:50], None, y[:50], None, None, 1), ('est', estimator_bad)]
 

@@ -114,6 +114,12 @@ def base_predict(data, estimator_cases, parallel, function_args,
         dictionary that maps estimators on each preprocessing case.
         Each entry is a list of tuples, ``{'': [(est_name, est), ...], ...}``
 
+    parallel : obj, None (default = None)
+        parallel object to use. If several estimations are to be made in
+        sequence, using the same parallel object avoids destroying and creating
+        the pool of workers. If ``parallel = None``, a new pool will be
+        created.
+
     function_args: tuple
         a tuple of arguments passed to the evaluation function
 
@@ -184,6 +190,12 @@ def fit_estimators(data, estimator_cases, y, parallel, n_jobs=-1,
     estimator_cases: dict
         dictionary that maps estimators on each preprocessing case.
         Each entry is a list of tuples, ``{'': [(est_name, est), ...], }``
+
+    parallel : obj, None (default = None)
+        parallel object to use. If several estimations are to be made in
+        sequence, using the same parallel object avoids destroying and creating
+        the pool of workers. If ``parallel = None``, a new pool will be
+        created.
 
     n_jobs: int
         number of CPU cores to use for parallel estimation.

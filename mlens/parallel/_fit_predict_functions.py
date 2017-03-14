@@ -1,7 +1,9 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-licence: MIT
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+
 Support function for parallelized fitting and prediction of estimators
 """
 

@@ -1,11 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""ML-ENSEMBLE
 
-"""
-ML-ENSEMBLE
-author: Sebastian Flennerhag
-date: 10/01/2017
-licence: MIT
+:author: Sebastian Flennerhag
 """
 
 from __future__ import division, print_function, with_statement
@@ -13,14 +8,17 @@ from __future__ import division, print_function, with_statement
 import numpy as np
 from pandas import DataFrame
 
-# ML Ensemble
 from mlens.metrics import rmse
+from mlens.utils.exceptions import FitFailedWarning
 from mlens.parallel.fit_predict import _parallel_estimation, base_predict
 from mlens.parallel.fit_predict import fit_estimators, cross_validate
-from mlens.parallel._fit_predict_functions import _fit_score, _fit_ests, _fit_ests_folds
+from mlens.parallel._fit_predict_functions import (_fit_score, _fit_ests,
+                                                   _fit_ests_folds)
 from mlens.parallel._fit_predict_functions import _predict_folds
 from mlens.parallel._fit_predict_functions import _predict, _construct_matrix
+
 from sklearn.linear_model import Lasso
+
 import warnings
 
 # training data
@@ -42,6 +40,7 @@ estimator_bad = Lasso(alpha='a', random_state=100)
 
 
 def test_fit_estimator_func():
+    """[Parallel] _fit_ests: test run."""
     tup = (y, (X, 'test'), ('ls', estimator))
     out = _fit_ests(tup)
 
@@ -51,14 +50,19 @@ def test_fit_estimator_func():
 
 
 def test_fit_estimator_func_exception_handling():
+    """[Parallel] _fit_ests: exception handling."""
     tup = (y, (X, 'test'), ('ls', estimator_bad))
-    out = _fit_ests(tup)
 
+    with warnings.catch_warnings(record=True) as w:
+        out = _fit_ests(tup)
+
+    assert issubclass(w[0].category, FitFailedWarning)
     for key in out:
         assert key is None
 
 
 def test_fit_and_predict_func():
+    """[Parallel] _predict_folds: test run."""
     tup = (X, X, y, y, [i for i in range(100)], 'test'), ('ls', estimator)
     out = _predict_folds((True, True) + tup)
 
@@ -67,13 +71,19 @@ def test_fit_and_predict_func():
 
 
 def test_fit_and_predict_func_exception_handling():
+    """[Parallel] _predict_folds: exception handling."""
     tup = (X, X, y, y, [i for i in range(100)], 'test'), ('ls', estimator_bad)
-    out = _predict_folds((True, True) + tup)
+
+    with warnings.catch_warnings(record=True) as w:
+        out = _predict_folds((True, True) + tup)
+
+    assert issubclass(w[0].category, FitFailedWarning)
     for entry in out:
         assert entry is None
 
 
 def test_predict_func():
+    """[Parallel] _predict: test run."""
     estimator.fit(X, y)
     tup = ((X, 'test'), ('ls', estimator))
     out = _predict((True,) + tup)
@@ -82,13 +92,19 @@ def test_predict_func():
 
 
 def test_predict_func_exception_handling():
+    """[Parallel] _predict: exception handling."""
     tup = ((X, 'test'), ('ls', estimator_bad))
-    out = _predict((True,) + tup)
+
+    with warnings.catch_warnings(record=True) as w:
+        out = _predict((True,) + tup)
+
+    assert issubclass(w[0].category, FitFailedWarning)
     for entry in out:
         assert entry is None
 
 
 def test_construct_matrix_no_folds():
+    """[Parallel] _construct_matrix: check build on unfolded input."""
     M = _construct_matrix([('a', X[:, 0]),
                            ('b', X[:, 1])], 100, ['a', 'b'], False)
     assert (M[:, 0] == X[:, 0]).all()
@@ -96,6 +112,7 @@ def test_construct_matrix_no_folds():
 
 
 def test_construct_matrix_folds():
+    """[Parallel] _construct_matrix: check build on folded input."""
     d = [('a', [i for i in range(50)], X[range(50), 0]),
          ('a', [i for i in range(50, 100)], X[range(50, 100), 0]),
          ('b', [i for i in range(50)], X[range(50), 1]),
@@ -105,6 +122,7 @@ def test_construct_matrix_folds():
 
 
 def test_fit_score_func():
+    """[Parallel] _fit_score: test run."""
     tup = (X[:50], X[50:], y[:50], y[50:], 'test')
     out = _fit_score(estimator, 'ls', {'alpha': 0.1}, rmse, tup, 1, np.nan)
 
@@ -120,16 +138,21 @@ def test_fit_score_func():
 
 
 def test_fit_score_func_exception_handling():
+    """[Parallel] _fit_score: exception handling."""
     tup = (X[:50], X[50:], y[:50], y[50:], 'test')
-    out = _fit_score(estimator_bad, 'ls', {'alpha': 'b'}, rmse, tup, 1, -99)
 
+    with warnings.catch_warnings(record=True) as w:
+        out = _fit_score(estimator_bad, 'ls', {'alpha': 'b'}, rmse, tup, 1, -1)
+
+    assert issubclass(w[0].category, FitFailedWarning)
     assert out[0] == 'ls-test'
-    assert str(out[1]) == '-99'
-    assert str(out[2])== '-99'
+    assert str(out[1]) == '-1'
+    assert str(out[2]) == '-1'
     assert out[4] == 2
 
 
 def test_parallel_estimation():
+    """[Parallel] _parallel_estimation: test run."""
     tup = [(X, X, y, y, [i for i in range(100)], 'test')]
 
     out = _parallel_estimation(_predict_folds, tup,
@@ -141,16 +164,19 @@ def test_parallel_estimation():
 
 
 def test_base_predict():
-
+    """[Parallel] _predict: exception handling."""
     data = [[X[:50], X[50:], y[:50], y[50:], range(50, 100), 'test'],
             [X[50:], X[:50], y[50:], y[:50], range(50), 'test']]
 
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
+    with warnings.catch_warnings(record=True) as w:
         (M, ests) = base_predict(data, {'test': [('ls', estimator),
                                                  ('bad', estimator_bad)]},
                                  (True, True), True, 100,
-                                 ['test-ls', 'test-bad'], True)
+                                 ['test-ls', 'test-bad'], True, n_jobs=1)
+
+    # Check warnings
+    assert len(w) == 2
+    assert all([issubclass(m.category, FitFailedWarning) for m in w])
 
     # Check that bad estimator was dropped
     assert len(ests) == 1
@@ -164,7 +190,7 @@ def test_base_predict():
 
 
 def test_fit_estimators():
-
+    """[Parallel] fit_estimators: test run."""
     tup = [(X, 'test')]
 
     out = fit_estimators(tup, {'test': [('ls', Lasso(alpha=0.001))]}, y)
@@ -176,6 +202,7 @@ def test_fit_estimators():
 
 
 def test_cross_validate():
+    """[Parallel] cross_validate: test run."""
     tup = [[X[:50], X[50:], y[:50], y[50:], 'test']]
     out = cross_validate([('ls', Lasso())],
                          {'ls': [{'alpha': 0.31512612017405128},
@@ -192,6 +219,7 @@ def test_cross_validate():
 
 
 def test_fit_ests_folds():
+    """[Parallel] _fit_ests_folds: test run."""
     tup = [(X[:50], None, y[:50], None, None, 1), ('est', estimator)]
     out = _fit_ests_folds(tup)
 
@@ -201,8 +229,12 @@ def test_fit_ests_folds():
 
 
 def test_fit_ests_folds_exception_handlding():
+    """[Parallel] _fit_ests_folds: exception handling."""
     tup = [(X[:50], None, y[:50], None, None, 1), ('est', estimator_bad)]
-    out = _fit_ests_folds(tup)
 
+    with warnings.catch_warnings(record=True) as w:
+        out = _fit_ests_folds(tup)
+
+    assert issubclass(w[0].category, FitFailedWarning)
     for key in out:
         assert key is None

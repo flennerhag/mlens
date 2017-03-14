@@ -42,7 +42,8 @@ def _construct_estimator_dict(out):
 
 
 def _parallel_estimation(function, data, estimator_cases,
-                         optional_args=None, n_jobs=-1, verbose=False):
+                         optional_args=None, n_jobs=-1,
+                         parallel=None, verbose=False):
     """Backend function for estimator evaluation.
 
     Functions used for parallel estimation must accept only on argument,
@@ -74,15 +75,23 @@ def _parallel_estimation(function, data, estimator_cases,
     n_jobs : int
         number of CPUs to use.
 
+    parallel : obj, None (default = None)
+        parallel object to use. If several estimations are to be made in
+        sequence, using the same parallel object avoids destroying and creating
+        the pool of workers. If ``parallel = None``, a new pool will be
+        created.
+
     verbose : int
         verbosity of parallel jobs.
     """
+    if parallel is None:
+        parallel = Parallel(n_jobs=n_jobs, verbose=verbose)
+
     optional_args = optional_args if optional_args is not None else tuple()
 
-    return Parallel(n_jobs=n_jobs, verbose=verbose)(
-                   delayed(function)(optional_args + (tup, est))
-                   for tup in data
-                   for est in estimator_cases[tup[-1]])
+    return parallel(delayed(function)(optional_args + (tup, est))
+                    for tup in data
+                    for est in estimator_cases[tup[-1]])
 
 
 def base_predict(data, estimator_cases, function_args, folded_preds, n,
@@ -191,7 +200,7 @@ def fit_estimators(data, estimator_cases, y, n_jobs=-1, verbose=False):
     else:
         # Assume 'data' is structured as [[X, 'case_i']]
         out = _parallel_estimation(_fit_ests, data, estimator_cases, (y,),
-                                   n_jobs, verbose)
+                                   n_jobs=n_jobs, verbose=verbose)
 
     # Return dictionary with only successfully fitted estimators
     return _construct_estimator_dict(out)

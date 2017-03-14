@@ -1,11 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""ML-ENSEMBLE
 
-"""
-ML-ENSEMBLE
-author: Sebastian Flennerhag
-date: 14/1/2017
-licence: MIT
+:author: Sebastian Flennerhag
 """
 
 from __future__ import division, print_function
@@ -33,7 +28,7 @@ X[:, 4] /= 10
 
 
 def test_preprocess_pipe_fun():
-
+    """[Parallel] _preprocess_pipe: test run."""
     out = _preprocess_pipe(X, y, X, [StandardScaler()], fit=True)
     assert out is not None
     assert len(out) == 2
@@ -49,7 +44,7 @@ def test_preprocess_pipe_fun():
 
 
 def test_preprocess_fold_fun():
-
+    """[Parallel] _preprocess_fold: test run."""
     out = _preprocess_fold(X, y, (range(500), range(500, 1000)),
                            ('test', [StandardScaler()]), fit=True)
     assert out is not None
@@ -60,7 +55,7 @@ def test_preprocess_fold_fun():
 
 
 def test_preprocess_fold():
-
+    """[Parallel] preprocess_folds: test run."""
     preprocess = [('test', [StandardScaler()])]
 
     data = preprocess_folds(preprocess,
@@ -88,7 +83,7 @@ def test_preprocess_fold():
 
 
 def test_preprocess_pipe():
-
+    """[Parallel] preprocess_pipes: test run."""
     preprocess = [('test',
                    [StandardScaler(copy=True,
                                    with_mean=True, with_std=True)])]
@@ -104,6 +99,3 @@ def test_preprocess_pipe():
     assert isinstance(preprocess_[0], tuple)
     assert preprocess_[0][0] == 'test'
     assert hasattr(preprocess_[0][1][0], 'mean_')
-
-def test_preprocess_exception_handling():
-    pass

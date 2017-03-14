@@ -1,7 +1,8 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 10/01/2017
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 """
 
 from .preprocess import preprocess_pipes, preprocess_folds

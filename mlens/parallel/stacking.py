@@ -8,12 +8,12 @@ estimation function for parallel preprocessing of the
 :class:`mlens.ensemble.StackingEnsemble` class.
 """
 
-from ..utils import safe_print, print_time
+from ..utils import safe_print, print_time, pickle_load, pickle_save
 from ..utils.exceptions import FitFailedError, FitFailedWarning
 
 from sklearn.base import clone
 
-from joblib import dump, load, delayed
+from joblib import delayed
 import os
 
 from time import time
@@ -29,8 +29,9 @@ def expand_instance_list(instance_list, kf, X):
     ls = [('%s-%i' % (case, i),
            tri,
            tei,
-           [('%s-%i' % (n, i), clone(e)) for n, e in instance_list[case]])
-          for case in instance_list
+           [('%s-%i' % (n, i), clone(e)) for n, e in
+            sorted(instance_list[case])])
+          for case in sorted(instance_list)
           for i, (tri, tei) in enumerate(kf.split(X))
           ]
 
@@ -38,8 +39,8 @@ def expand_instance_list(instance_list, kf, X):
     # est_list)
     # Each est_list consist of (est_name, cloned_est)
     ls.extend([(case, None, None,
-                [(n, clone(e)) for n, e in instance_list[case]])
-               for case in instance_list])
+                [(n, clone(e)) for n, e in sorted(instance_list[case])])
+               for case in sorted(instance_list)])
 
     return ls
 
@@ -63,7 +64,7 @@ def get_col_idx(preprocessing, estimators, estimator_folds):
     case_list, idx, col = sorted(preprocessing), dict(), 0
 
     for case in case_list:
-        for est_name, _ in estimators[case]:
+        for est_name, _ in sorted(estimators[case]):
             idx[case, est_name] = col
             col += 1
 
@@ -87,9 +88,15 @@ def get_col_idx(preprocessing, estimators, estimator_folds):
 
 def _assemble(temp_folder, instance_list, suffix):
     """Utility for loading fitted instances."""
-    return [(case,
-             load(os.path.join(temp_folder, '%s_%s.pkl' % (case, suffix)))) for
-            case, _, _, _ in instance_list]
+    if suffix is 't':
+        return [(case, pickle_load(os.path.join(temp_folder,
+                                                '%s_%s' % (case, suffix))))
+                for case, _, _, _ in instance_list]
+    else:
+        return [(case, pickle_load(os.path.join(temp_folder,
+                                   '%s-%s_%s' % (case, est_name, suffix))))
+                for case, _, _, ests in instance_list
+                for est_name, _ in ests]
 
 
 def _strip(cases, fitted_estimators):
@@ -178,8 +185,8 @@ def fit_trans(temp_folder, case, tr_list, xtrain, ytrain, layer_name=None):
         out.append((tr_name, tr))
 
     # Write transformer list to cache
-    f = os.path.join(temp_folder, '%s_t.pkl' % case)
-    dump(out, f)
+    f = os.path.join(temp_folder, '%s_t' % case)
+    pickle_save(out, f)
 
 
 def fit_est(temp_folder, case, est_name, est, xtrain, ytrain, xtest, pred, idx,
@@ -187,8 +194,8 @@ def fit_est(temp_folder, case, est_name, est, xtrain, ytrain, xtest, pred, idx,
     """Fit estimator and write to cache along with predictions."""
 
     # Load transformers
-    f = os.path.join(temp_folder, '%s_t.pkl' % case)
-    tr_list = load(f, mmap_mode='r')
+    f = os.path.join(temp_folder, '%s_t' % case)
+    tr_list = pickle_load(f)
 
     # Transform input
     for tr_name, tr in tr_list:
@@ -206,8 +213,8 @@ def fit_est(temp_folder, case, est_name, est, xtrain, ytrain, xtest, pred, idx,
         pred[idx[0], idx[1]] = _predict_est(xtest, est, raise_on_exception,
                                             est_name, case, layer_name)
 
-    f = os.path.join(temp_folder, '%s_e.pkl' % case)
-    dump((est_name, est, idx), f)
+    f = os.path.join(temp_folder, '%s-%s_e' % (case, est_name))
+    pickle_save((est_name, est, idx), f)
 
 
 def folded_fit(layer, X, y, P, temp_folder, parallel, layer_name=None):

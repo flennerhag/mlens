@@ -69,7 +69,6 @@ class LayerContainer(BaseEstimator):
 
     def __init__(self,
                  layers=None,
-                 n_layers=0,
                  n_jobs=-1,
                  raise_on_exception=False,
                  verbose=False):
@@ -80,9 +79,7 @@ class LayerContainer(BaseEstimator):
         self.verbose = verbose
 
         # Set up layer
-        self.layers = self._init_layers(layers)
-        self.n_layers = self._check_n_layers(n_layers)
-        self._layer_data = {}
+        self._init_layers(layers)
 
     def add(self, fit_function, predict_function, estimators,
             preprocessing=None, fit_params=None, predict_params=None,
@@ -361,27 +358,18 @@ class LayerContainer(BaseEstimator):
         else:
             return [out]
 
-    @staticmethod
-    def _init_layers(layers):
+    def _init_layers(self, layers):
         """Return a clean ordered dictionary or copy the passed dictionary."""
         if layers is None:
             layers = OrderedDict()
             layers.clear()
-            return layers
-        else:
-            return layers
 
-    def _check_n_layers(self, n_layers):
-        """Check that n_layers match to dictionary length."""
-        n = len(self.layers)
-        if (n_layers != 0) and (n_layers != n):
-            warnings.warn("Specified 'n_layers' [%d] does not correspond to "
-                          "length of the 'layers' dictionary [%d]. Will "
-                          "proceed with 'n_layers = len(layers)' "
-                          "(%d)." % (n_layers, n, n),
-                          LayerSpecificationWarning)
+        self.layers = layers
+        self.n_layers = len(self.layers)
 
-        return n
+        self._layer_data = dict()
+        for layer_name in self.layers:
+            self._store_layer_data(layer_name)
 
     def _store_layer_data(self, name):
         """Utility for storing aggregate data about an added layer."""
@@ -671,7 +659,7 @@ class Layer(BaseEstimator):
             n_pred = 0
             for case in self._layer_data['cases']:
                 n_est = len(ests[case])
-                self._layer_data['%s-n_est'] = n_est
+                self._layer_data['%s-n_est' % case] = n_est
                 n_pred += n_est
 
             self._layer_data['n_pred'] = n_pred

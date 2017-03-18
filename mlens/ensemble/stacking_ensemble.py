@@ -12,7 +12,7 @@ from __future__ import division
 
 from .base import BaseEnsemble
 from ._layer import predict_layer
-from ..parallel.stacking import folded_fit
+from ..parallel.stacking import folded_fit, predict_on_full
 from ..utils import print_time, safe_print, check_inputs, check_ensemble_build
 from ..metrics import set_scores
 
@@ -230,21 +230,6 @@ class StackingEnsemble(BaseEnsemble):
         self : instance
             ensemble instance with layer instantiated.
         """
-        fit_params = {'folds': self.folds,
-                      'shuffle': self.shuffle,
-                      'random_state': self.random_state,
-                      'scorer': self.scorer,
-                      'as_df': self.as_df,
-                      'folded_preds': True,
-                      'n_jobs': self.n_jobs,
-                      'printout': self.printout,
-                      'verbose': self.verbose}
-
-        predict_params = {'as_df': self.as_df,
-                          'n_jobs': self.n_jobs,
-                          'verbose': self.verbose,
-                          'printout': self.printout}
-
         if isinstance(self.folds, int):
             kf = KFold(self.folds, self.shuffle, self.random_state)
         else:
@@ -253,9 +238,9 @@ class StackingEnsemble(BaseEnsemble):
         return self._add(estimators=estimators,
                          preprocessing=preprocessing,
                          fit_function=folded_fit,
-                         fit_params=fit_params,
-                         predict_function=predict_layer,
-                         predict_params=predict_params,
+                         fit_params=None,
+                         predict_function=predict_on_full,
+                         predict_params=None,
                          indexer=kf,
                          verbose=self.verbose)
 

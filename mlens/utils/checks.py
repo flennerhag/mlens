@@ -10,7 +10,8 @@ Quick checks that an estimator is built as expected.
 import warnings
 from .exceptions import (NotFittedError, LayerSpecificationWarning,
                          LayerSpecificationError, FitFailedError,
-                         FitFailedWarning)
+                         FitFailedWarning, ParallelProcessingError,
+                         ParallelProcessingWarning)
 
 
 def _non_null_return(*args):
@@ -120,3 +121,41 @@ def assert_correct_layer_format(estimators, preprocessing):
                    "preprocessing cases: %r\nestimator cases:     %r")
             raise LayerSpecificationError(msg % (list(preprocessing),
                                                  list(estimators)))
+
+
+def check_initialized(inst):
+    """Check if a ParallelProcessing instance is initialized properly."""
+
+    if not inst._initialized:
+        msg = "ParallelProcessing is not initialized. Call " \
+              "'initialize' before calling 'fit'."
+        raise ParallelProcessingError(msg)
+
+    if inst._fitted:
+        if inst.layers.raise_on_exception:
+            raise ParallelProcessingError("This instance is already "
+                                          "fitted and its parallel "
+                                          "processing jobs has not been "
+                                          "terminated. To refit "
+                                          "instance, call 'terminate' "
+                                          "before calling 'fit'.")
+        else:
+            warnings.warn("This instance is already "
+                          "fitted and its parallel "
+                          "processing job has not been "
+                          "terminated. Will refit using previous job's cache.",
+                          ParallelProcessingWarning)
+
+
+def check_process_attr(layer_container, attr):
+    """Check that all layers has the method to be used for estimation."""
+    failed = []
+    for layer_name, layer in layer_container.layers.items():
+        if not hasattr(layer, attr):
+            failed.append(layer_name)
+
+    if failed:
+        msg = ("Layers '%r' do not have the estimation method '%s'. "
+               "Ensure the 'LayerContainer' class and its layers are "
+               "correctly specified.")
+        raise LayerSpecificationError(msg % (failed, attr))

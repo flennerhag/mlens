@@ -9,17 +9,84 @@ Checks to deploy on estimators to assert proper behavior.
 
 import numpy as np
 
-from sklearn.base import BaseEstimator
+
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils.validation import check_array, check_X_y
-from mlens.ensemble import StackingEnsemble
-from sklearn.utils.estimator_checks import check_estimator
 
 from abc import abstractmethod
 
-CLASS = StackingEnsemble
+
+class OLS(BaseEstimator):
+
+    """No frills vanilla OLS estimator implemented through the normal equation.
+
+    MWE of a Scikit-learn estimator.
+
+    OLS is a simple estimator designed to allow for total control over
+    predictions in unit testing. It implements OLS through the Normal
+    Equation, and so no learning takes places. The ``offset`` option allows
+    the user to offset predictions by a scalar value, if different instances
+    should be differentiated in their predictions.
+
+    Parameters
+    ----------
+    offset : float (default = 0)
+        scalar value to add to the coefficient vector after fitting.
+    """
+
+    def __init__(self, offset=0):
+        self.offset = offset
+
+    def fit(self, X, y):
+        """Fit coefficient vector."""
+        X, y = check_X_y(X, y, accept_sparse='csr')
+        O = np.linalg.lstsq(X, y)
+        self.coef_ = O[0] + self.offset
+        self.resid_ = O[1]
+        return self
+
+    def predict(self, X, y=None):
+        """Predict with fitted weights."""
+        X = check_array(X, accept_sparse='csr')
+        return np.dot(X, self.coef_.T)
+
+
+class Scale(BaseEstimator, TransformerMixin):
+    """Removes mean per columns in an array.
+
+    MWE of a Scikit-learn transformer, to be used for unit-tests of ensemble
+    classes.
+
+    Parameters
+    ----------
+    copy : bool (default = True)
+        Whether to copy X before transforming.
+
+
+    Examples
+    --------
+    >>> X
+    array([1., 2.])
+    >>> Scale().fit_transform()
+    array([-.5, .5])
+    """
+    def __init__(self, copy=True):
+        self.copy = copy
+
+    def fit(self, X, y=None):
+        """Pass through."""
+        self.mean_ = X.mean(axis = 0)
+        return self
+
+    def transform(self, X):
+        """Transform X by adjusting all elements with scale."""
+        Xt = X.copy() if self.copy else X
+        return Xt - self.mean_
+
 
 
 class AverageRegressor(BaseEstimator):
+
     """Predicts the average of training labels.
 
     MWP of a Scikit-learn estimator, to be used for unit-tests of ensemble
@@ -43,6 +110,7 @@ class AverageRegressor(BaseEstimator):
 
 
 class InitMixin(object):
+
     """Mixin to make a mlens ensemble behave as Scikit-learn estimator.
 
     Scikit-learn expects an estimator to be fully initialized when
@@ -75,6 +143,7 @@ class InitMixin(object):
     >>> check_estimator(TestStackingEnsemble)
     [Some warning messages from mlens ONLY (not sklearn warnings)]
     """
+
     @abstractmethod
     def __init__(self):
 

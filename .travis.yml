@@ -2,8 +2,8 @@ language: python
 
 matrix:
     include:
-        - python: 3.5
         - python: 3.6
+        - python: 3.5
         - python: 2.7
 
 install:
@@ -18,7 +18,7 @@ install:
 script:
   - set -e
   - nosetests -s -v --with-coverage --exclude mlens/visualization --exclude mlens/externals --exclude mlens/dev
-  - flake8 --exclude [mlens/visualization, mlens/externals, dev]
+  - flake8 --exclude [externals, dev]
 
 after_success:
   - coveralls

@@ -1,4 +1,4 @@
-"""
+"""ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
 :copyright: 2017

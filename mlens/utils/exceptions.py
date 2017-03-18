@@ -34,6 +34,16 @@ class LayerSpecificationWarning(UserWarning):
     """Error class for incorrectly specified layers."""
 
 
+class ParallelProcessingError(AttributeError, RuntimeError):
+
+    """Error class for errors related to the ParallelProcessing class."""
+
+
+class ParallelProcessingWarning(UserWarning):
+
+    """Warnings related to the ParallelProcessing class."""
+
+
 class EfficiencyWarning(UserWarning):
 
     """Warning used to notify the user of inefficient computation.

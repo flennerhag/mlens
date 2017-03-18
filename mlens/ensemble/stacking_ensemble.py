@@ -1,4 +1,4 @@
-"""
+"""ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
 :copyright: 2017
@@ -11,11 +11,13 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ._layer import fit_layer, predict_layer
+from ._layer import predict_layer
+from ..parallel.stacking import folded_fit
 from ..utils import print_time, safe_print, check_inputs, check_ensemble_build
 from ..metrics import set_scores
 
 from sklearn.base import clone
+from sklearn.model_selection import KFold
 from time import time
 
 
@@ -243,12 +245,19 @@ class StackingEnsemble(BaseEnsemble):
                           'verbose': self.verbose,
                           'printout': self.printout}
 
+        if isinstance(self.folds, int):
+            kf = KFold(self.folds, self.shuffle, self.random_state)
+        else:
+            kf = self.folds
+
         return self._add(estimators=estimators,
                          preprocessing=preprocessing,
-                         fit_function=fit_layer,
+                         fit_function=folded_fit,
                          fit_params=fit_params,
                          predict_function=predict_layer,
-                         predict_params=predict_params)
+                         predict_params=predict_params,
+                         indexer=kf,
+                         verbose=self.verbose)
 
     def add_meta(self, meta_estimator):
         """Add final estimator used to combine last layer's predictions.
@@ -295,7 +304,7 @@ class StackingEnsemble(BaseEnsemble):
         ts = self._print_start()
 
         out, X = \
-            self._fit_layers(X, y, return_final=True, verbose=self.verbose)
+            self._fit_layers(X, y, return_final=True)
 
         self.scores_ = set_scores(self, out)
 
@@ -332,7 +341,7 @@ class StackingEnsemble(BaseEnsemble):
         X, y = check_inputs(X, y, self.array_check)
 
         # Process Layers
-        X = self._predict_layers(X, y, verbose=self.verbose)
+        X = self._predict_layers(X, y)
 
         # Final prediction
         return self.meta_estimator_.predict(X)

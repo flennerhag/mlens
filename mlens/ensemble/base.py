@@ -215,7 +215,7 @@ class LayerContainer(BaseEstimator):
         method has been called.
         """
         self._processor = ParallelProcessing(self)
-        self._processor.initialize(dir)
+        self._processor.initialize(X, y, dir)
 
     def terminate(self):
         """Terminate an initialized :class:`ParallelProcessing` engine."""

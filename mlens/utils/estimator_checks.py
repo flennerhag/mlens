@@ -9,6 +9,7 @@ Checks to deploy on estimators to assert proper behavior.
 
 import numpy as np
 
+from .exceptions import NotFittedError
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils.validation import check_array, check_X_y
@@ -72,14 +73,19 @@ class Scale(BaseEstimator, TransformerMixin):
     """
     def __init__(self, copy=True):
         self.copy = copy
+        self.__is_fitted__ = False
 
     def fit(self, X, y=None):
         """Pass through."""
+        self.__is_fitted__ = True
         self.mean_ = X.mean(axis = 0)
         return self
 
     def transform(self, X):
         """Transform X by adjusting all elements with scale."""
+        if not self.__is_fitted__:
+            raise NotFittedError("Estimator not fitted.")
+
         Xt = X.copy() if self.copy else X
         return Xt - self.mean_
 

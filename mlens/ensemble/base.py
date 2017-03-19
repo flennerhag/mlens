@@ -67,6 +67,9 @@ class LayerContainer(BaseEstimator):
 
     """
 
+    __lim__ = 60   # Time limit for trying to find transformers in cache
+    __sec__ = 0.1  # Time interval for checking if transformers exists in cache
+
     def __init__(self,
                  layers=None,
                  n_jobs=-1,
@@ -722,6 +725,35 @@ class BaseEnsemble(BaseEstimator):
     def predict(self, X, y=None):
         """Method for predicting with all layers."""
         pass
+
+
+    def __set_lim__(self, l):
+        """Set the time limit for waiting on preprocessing to complete."""
+        if not hasattr(self, 'layers'):
+            raise AttributeError("No layer's attached to ensemble. Cannot"
+                                 "set time limit.")
+        self.layers.__lim__ = l
+
+    def __get_lim__(self):
+        """Set the time limit for waiting on preprocessing to complete."""
+        if not hasattr(self, 'layers'):
+            raise AttributeError("No layer's attached to ensemble. Cannot"
+                                 "fetch time limit.")
+        return self.layers.__lim__
+
+    def __set_sec__(self, s):
+        """Set time interval for checking if preprocessing has completed."""
+        if not hasattr(self, 'layers'):
+            raise AttributeError("No layer's attached to ensemble. Cannot"
+                                 "set time interval.")
+        self.layers.__sec__ = s
+
+    def __get_sec__(self):
+        """Set the time limit for waiting on preprocessing to complete."""
+        if not hasattr(self, 'layers'):
+            raise AttributeError("No layer's attached to ensemble. Cannot"
+                                 "fetch time interval.")
+        return self.layers.__sec__
 
     def _add(self,
              estimators,

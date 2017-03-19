@@ -216,6 +216,10 @@ class ParallelProcessing(object):
         if 'P' in varnames:
             kwargs['P'] = self._job['P'][layer_name]
 
+        for attr in ['lim', 'sec']:
+            if attr in varnames:
+                kwargs[attr] = getattr(self.layers, '__%s__' % attr)
+
         f(**kwargs)
 
     def _process_layer(self, parallel, attr, layer_name):

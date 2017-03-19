@@ -9,14 +9,15 @@ estimation function for parallel preprocessing of the
 """
 
 from ..utils import safe_print, print_time, pickle_load, pickle_save
-from ..utils.exceptions import FitFailedError, FitFailedWarning
+from ..utils.exceptions import FitFailedError, FitFailedWarning, \
+    ParallelProcessingWarning, ParallelProcessingError
 
 from sklearn.base import clone
 
 from joblib import delayed
 import os
 
-from time import time
+from time import time, sleep
 
 import warnings
 
@@ -39,13 +40,13 @@ def expand_instance_list(instance_list, kf=None, X=None):
 
         # --- Folds ---
         # Estimators to be fitted on each fold. List entries have format:
-        # (case-fold_num, train_idx, test_idx, est_list)
-        # Each est_list have entries (est_name-fol_num, cloned_est)
+        # (case__fold_num, train_idx, test_idx, est_list)
+        # Each est_list have entries (est_name__fol_num, cloned_est)
         if kf is not None:
-            fd = [('%s-%i' % (case, i),
+            fd = [('%s__%i' % (case, i),
                    tri,
                    tei,
-                   [('%s-%i' % (n, i), clone(e)) for n, e in
+                   [('%s__%i' % (n, i), clone(e)) for n, e in
                     instance_list[case]])
                   for case in sorted(instance_list)
                   for i, (tri, tei) in enumerate(kf.split(X))
@@ -65,15 +66,26 @@ def expand_instance_list(instance_list, kf=None, X=None):
         # --- Folds ---
         # Estimators to be fitted on each fold. List entries have format:
         # (fold_num, train_idx, test_idx, est_list)
-        # Each est_list have entries (est_name-fol_num, cloned_est)
+        # Each est_list have entries (est_name__fol_num, cloned_est)
         if kf is not None:
             ls.extend([('%i' % i, tri, tei,
-                        [('%s-%i' % (n, i), clone(e)) for n, e in
+                        [('%s__%i' % (n, i), clone(e)) for n, e in
                          instance_list])
                        for i, (tri, tei) in enumerate(kf.split(X))
                        ])
 
     return ls
+
+
+def _wrap(folded_list, name='__trans__'):
+    """Wrap the folded transformer list.
+
+    wraps the ``folded_transformer_list`` to give each entry the format
+    ``(case, train_idx, None, [(__trans__, tr_list1), (__trans__, tr_list2)])``
+    to be compatible with the ``folded_estimator_list`` in the call to
+    ``parallel``."""
+    return [(case, tri, None, [(name, instance_list)]) for
+            case, tri, tei, instance_list in folded_list]
 
 
 def get_col_idx(preprocessing, estimators, estimator_folds):
@@ -114,13 +126,13 @@ def get_col_idx(preprocessing, estimators, estimator_folds):
             continue
 
         # Get case name from the name_id entry
-        # With cases, names are in the form (case_name-fold_num)
+        # With cases, names are in the form (case_name__fold_num)
         # Otherwise named as (fold_num) - in this case the case name is None
-        case = tup[0].split('-')[0] if '-' in tup[0] else None
+        case = tup[0].split('__')[0] if '__' in tup[0] else None
 
-        # Assign a column to estimators in belonging to the case-fold entry
+        # Assign a column to estimators in belonging to the case__fold entry
         for est_name_fold_num, _ in tup[-1]:
-            est_name = est_name_fold_num.split('-')[0]
+            est_name = est_name_fold_num.split('__')[0]
             idx[tup[0], est_name_fold_num] = idx[case, est_name]
 
     return idx
@@ -130,11 +142,11 @@ def _assemble(temp_folder, instance_list, suffix):
     """Utility for loading fitted instances."""
     if suffix is 't':
         return [(case, pickle_load(os.path.join(temp_folder,
-                                                '%s_%s' % (case, suffix))))
+                                                '%s__%s' % (case, suffix))))
                 for case, _, _, _ in instance_list]
     else:
         return [(case, pickle_load(os.path.join(temp_folder,
-                                   '%s-%s_%s' % (case, est_name, suffix))))
+                                   '%s__%s__%s' % (case, est_name, suffix))))
                 for case, _, _, ests in instance_list
                 for est_name, _ in ests]
 
@@ -162,6 +174,44 @@ def _name(layer_name, case):
 
 
 ###############################################################################
+def _load_trans(f, case, lim, s, raise_on_exception):
+    """Try loading transformers, and handle exception if not ready yet."""
+    try:
+        # Assume file exists
+        return pickle_load(f)
+    except FileNotFoundError or TypeError as exc:
+        error_msg = ("The file %s cannot be found after %i seconds of waiting."
+                     " Check that time to fit transformers is sufficiently "
+                     "fast to complete fitting before fitting estimators. "
+                     "Consider reducing the preprocessing intensity in the "
+                     "ensemble, or increase the '__lim__' attribute to wait "
+                     "extend period of waiting on transformation to complete. "
+                     " Details:\n%r")
+
+        if raise_on_exception:
+            # Raise error immediately
+            raise ParallelProcessingError(error_msg % exc)
+
+        # Else, throw a warning and wait for transformation to finish
+        warnings.warn("Could not find preprocessing case %s in the cache (%s)."
+                      " Will check every %.1f seconds if pipeline has been "
+                      "fitted for %i seconds before aborting. "
+                      "Fitting ensembles with time consuming preprocessing "
+                      "pipelines can cause estimators to call for "
+                      "transformers that have not been fitted yet. "
+                      "Consider optimizing preprocessing before passing to "
+                      "ensemble. Details:\n%r" % (case, f, s, lim, exc),
+                      ParallelProcessingWarning)
+
+        ts = time()
+        while not os.path.exists(f):
+            sleep(s)
+            if ts > lim:
+                raise ParallelProcessingError(error_msg % exc)
+
+    return pickle_load(f)
+
+
 def _fit_tr(x, y, tr, tr_name, case, layer_name):
     """Wrapper around try-except block for fitting transformer."""
     try:
@@ -216,51 +266,55 @@ def _predict_est(x, est, raise_on_exception, est_name, case, layer_name):
         warnings.warn(msg % (s, est_name, e), FitFailedWarning)
 
 
-def fit_trans(temp_folder, case, tr_list, X, y, idx, layer_name=None):
+def fit_trans(temp_folder, case, inst, X, y, idx, layer_name=None):
     """Fit transformers and write to cache."""
-    xtrain = X[idx]
-    ytrain = y[idx]
+    xtrain = X[idx] if idx is not None else X
+    ytrain = y[idx] if idx is not None else y
     out = []
-    for tr_name, tr in tr_list:
+    for tr_name, tr in inst:
         # Fit transformer
         _fit_tr(xtrain, ytrain, tr, tr_name, case, layer_name)
 
         # If more than one step, transform input for next step
-        if len(tr_list) > 1:
+        if len(inst) > 1:
             xtrain = _transform_tr(xtrain, tr, tr_name, case, layer_name)
         out.append((tr_name, tr))
 
     # Write transformer list to cache
-    f = os.path.join(temp_folder, '%s_t' % case)
+    f = os.path.join(temp_folder, '%s__t' % case)
     pickle_save(out, f)
 
 
-def fit_est(temp_folder, case, est_name, est, X, y, pred, idx,
-            raise_on_exception=True, layer_name=None):
+def fit_est(temp_folder, case, name, inst, X, y, pred, idx,
+            raise_on_exception=True, layer_name=None, lim=60, sec=0.1):
     """Fit estimator and write to cache along with predictions."""
-    xtrain = X[idx[0]] if idx[0] is not None else X
+    x = X[idx[0]] if idx[0] is not None else X
     ytrain = y[idx[0]] if idx[0] is not None else y
-    xtest = X[idx[1]] if idx[1] is not None else None
 
     # Load transformers
-    f = os.path.join(temp_folder, '%s_t' % case)
-    tr_list = pickle_load(f)
+    f = os.path.join(temp_folder, '%s__t' % case)
+    tr_list = _load_trans(f, case, lim, sec, raise_on_exception)
 
     # Transform input
     for tr_name, tr in tr_list:
-        xtrain = _transform_tr(xtrain, tr, tr_name, case, layer_name)
-
-        if xtest is not None:
-            xtest = _transform_tr(xtest, tr, tr_name, case, layer_name)
+        x = _transform_tr(x, tr, tr_name, case, layer_name)
 
     # Fit estimator
-    est = _fit_est(xtrain, ytrain, est, raise_on_exception, est_name, case,
+    est = _fit_est(x, ytrain, inst, raise_on_exception, name, case,
                    layer_name)
 
     # Predict if asked
-    if xtest is not None:
-        pred[idx[1], idx[2]] = _predict_est(xtest, est, raise_on_exception,
-                                            est_name, case, layer_name)
+    # We separate out the loops so we can overwrite x with xtest, rather than
+    # keeping both alive during the entire function call
+    if idx[1] is not None:
+
+        x = X[idx[1]]
+
+        for tr_name, tr in tr_list:
+            x = _transform_tr(x, tr, tr_name, case, layer_name)
+
+        pred[idx[1], idx[2]] = _predict_est(x, est, raise_on_exception,
+                                            name, case, layer_name)
 
     # We don't want to store the full test index:
     # during a process call, this index is a memmaped array, but once
@@ -273,72 +327,50 @@ def fit_est(temp_folder, case, est_name, est, X, y, pred, idx,
     else:
         idx = (None, idx[2])
 
-    f = os.path.join(temp_folder, '%s-%s_e' % (case, est_name))
-    pickle_save((est_name, est, idx), f)
+    f = os.path.join(temp_folder, '%s__%s__e' % (case, name))
+    pickle_save((name, est, idx), f)
 
 
 def _fit(**kwargs):
-    """Wrapper to select estimation or transformation."""
-    if kwargs['name'] == 'transformation':
-        fit_trans(**kwargs)
-    else:
-        fit_est(**kwargs)
+    """Wrapper to select fit_est or fit_trans."""
+    f = fit_trans if kwargs['name'] == '__trans__' else fit_est
+    f(**{k: v for k, v in kwargs.items() if k in f.__code__.co_varnames})
 
-
-def fit(layer, X, y, P, temp_folder, parallel, layer_name=None):
-    """Fit :class:`layer` using the layer's ``indexer`` method.
-    """
+def fit(layer, X, y, P, temp_folder, parallel, layer_name=None,
+        lim=60, sec=0.1):
+    """Fit :class:`layer` using the layer's ``indexer`` method."""
     if layer.verbose:
         printout = "stderr" if layer.verbose < 50 else "stdout"
         s = _name(layer_name, None)
         t0 = time()
 
     # Map transformers and estimators onto every fold
-    estimator_folds = expand_instance_list(layer.estimators, layer.indexer, X)
-    preprocessing_folds = expand_instance_list(layer.preprocessing,
-                                               layer.indexer, X)
+    est_folds = expand_instance_list(layer.estimators, layer.indexer, X)
+    prep_folds = expand_instance_list(layer.preprocessing, layer.indexer, X)
 
     # Get estimator prediction column mapping
-    cm = get_col_idx(layer.preprocessing, layer.estimators, estimator_folds)
+    cm = get_col_idx(layer.preprocessing, layer.estimators, est_folds)
 
-    # Fit preprocessing pipelines
-    if layer.verbose:
-        safe_print('\n%sFitting transformers' % s, file=printout)
-
-    parallel(delayed(fit_trans)(temp_folder=temp_folder,
-                                case=case,
-                                name=None,
-                                estimator=tr_list,
-                                X=X,
-                                y=y,
-                                pred=None,
-                                idx=tri,
-                                layer_name=layer_name,
-                                raise_on_exception=layer.raise_on_exception)
-             for case, tri, _, tr_list in preprocessing_folds)
-
-    # Fit estimators
-    if layer.verbose:
-        safe_print('\n%sFitting estimators' % s, file=printout)
-
-    parallel(delayed(fit_est)(temp_folder=temp_folder,
-                              case=case,
-                              name=est_name,
-                              estimator=est,
-                              X=X,
-                              y=y,
-                              pred=P if tei is not None else None,
-                              idx=(tri, tei, cm[case, est_name]),
-                              layer_name=layer_name,
-                              raise_on_exception=layer.raise_on_exception)
-             for case, tri, tei, ests in estimator_folds
-             for est_name, est in ests)
+    parallel(delayed(_fit)(temp_folder=temp_folder,
+                           case=case,
+                           name=name,
+                           inst=instance,
+                           X=X,
+                           y=y,
+                           pred=P if tei is not None else None,
+                           idx=(tri, tei, cm[case, name])
+                           if name != '__trans__' else tri,
+                           layer_name=layer_name,
+                           raise_on_exception=layer.raise_on_exception,
+                           lim=lim, sec=sec)
+             for case, tri, tei, instance_list in _wrap(prep_folds) + est_folds
+             for name, instance in instance_list)
 
     # Assemble transformer list
-    trans = _assemble(temp_folder, preprocessing_folds, 't')
+    trans = _assemble(temp_folder, prep_folds, 't')
 
     # Assemble estimator list
-    ests = _assemble(temp_folder, estimator_folds, 'e')
+    ests = _assemble(temp_folder, est_folds, 'e')
 
     if layer.verbose:
         print_time(t0, '%sDone' % s, file=printout)

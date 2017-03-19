@@ -1,31 +1,45 @@
 ML-Ensemble
 ===========
 
-ML-Ensemble is a Python library for **parallelized ensemble learning**,
-deploying an API that allows flexibility in building the ensemble architecture
-and a clean Scikit-learn estimator API. Once assembled, ensembles behave
-just as any Scikit-learn estimator and are fully compatible with the
-Scikit-learn library.
+ML-Ensemble is a Python library for **performant, memory efficient,
+parallelized ensemble network learning**.
 
-The only fundamental difference between the ML-Ensemble API and the
-Scikit-learn API is how to instantiate an estimator. ::
+ML-Ensemble utilizes the `Scikit-learn`_ API and all ML-Ensemble estimators
+are proper Scikit-learn estimators that can be combined with any Scikit-learn
+functionality, such as grid searches or pipelines. Moreover, ML-Ensemble adopts
+a network building API similar to popular Neural Network libraries like Keras_.
+As such, it straightforward to 'deep' ensembles of any level of complexity.
 
-   #In Scikit-learn, predictions can be achieved by:
-   estimator = Estimator()
-   estimator.fit(X, y)
-   predictions = estimator.predict(X
+ML-Ensemble uses **shared memory** across subprocesses to minimize footprint on
+the machine's RAM, and in fact an ensemble can use *less* memory during fitting
+and predicting than its some of its constituents estimators when
+there are fitted on a stand-alone basis.
 
-   # In ML-Ensemble, we also need to specify what estimators to buid an
-   # ensemble of:
-   estimator = Ensmeble()
-   ensemble.add(list_of_estimators).add_meta(meta_estimator)
-   estimator.fit(X, y)
-   predictions = estimator.predict(X)
-
-See :ref:`getting-started` and :ref:`ensemble-tutorial` for further examples.
+ML-Ensemble is highly performant, and an appropriately built ensemble will
+always outperforms any of its constituent estimators. For testimonials, see
+:ref:`benchmarks`. If you are new to ML-Ensemble, check out
+:ref:`getting-started` and :ref:`ensemble-tutorial`.
 
 Core Features
 -------------
+
+Memory Efficient Parallelized Learning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The fundamental philosophy of ML-Ensemble is multithreading: using as much of a
+machine's full processing power to fit as many estimators in parallel as
+possible. This can easily lead to exponential use of memory and with large
+ensembles, even relatively small datasets might be too large to fit.
+ML-Ensemble avoids this by sharing one copy of training and test data across
+all processes, and as such no unnecessary copying taking place. In fact, but
+using shared memory stored on disk, an ensemble can be a good deal **more**
+memory efficient than some of its constituent estimators when these are fitted
+outside of the ensemble!
+
+Not only is ML-Ensemble memory efficient, it is also fast: between 95-97% of
+training time is spent fitting estimators *irrespective* of data size, and as
+such the time it takes to fit an ensemble depends only on how fast and scalable
+the estimators you put in are, and how many CPU cores you have available.
 
 Multi-Layered ensembles
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -58,12 +72,12 @@ estimators to each preprocessing pipeline. ::
 
       ensemble.add(estimators, preprocessing)
 
-Dedicated Model Selection
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Dedicated Diagnostics
+^^^^^^^^^^^^^^^^^^^^^
 
-ML Ensemble implements a dedicated model selection and ensemble evaluation
-suite for simplified evaluation of preprocessing pipelines and estimators in an
-ensemble for faster and simpler development.
+ML Ensemble implements a dedicated diagnostics and model selection suite
+for intuitive and speedy ensemble evaluation. This is suite is under
+development, so check in frequently for new functionality!
 
 
 .. toctree::
@@ -72,6 +86,13 @@ ensemble for faster and simpler development.
    :caption: Installation
 
    install
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Benchmarks
+
+   benchmarks
 
 .. toctree::
    :hidden:

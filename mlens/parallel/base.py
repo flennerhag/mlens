@@ -96,8 +96,9 @@ class ParallelProcessing(object):
 
         # Pre-allocate prediction arrays and store memmaps in a prediction dict
         self._job['P'] = OrderedDict()
-        for n in range(self.layers.n_layers):
 
+        for n in range(self.layers.n_layers):
+            # Do all layers first
             name = 'layer-%i' % (n + 1)
 
             self._job['paths'][name] = \
@@ -139,7 +140,7 @@ class ParallelProcessing(object):
                                           "array as the estimation cache has "
                                           "been removed.")
 
-        final_layer = sorted(self.layers.layers)[-1]
+        final_layer = 'layer-%i' % self.layers.n_layers
 
         return np.asarray(self._job['P'][final_layer],
                           dtype=np.float, order=order)
@@ -187,10 +188,10 @@ class ParallelProcessing(object):
         """Generic method for processing a :class:`layer` with ``attr``."""
 
         # Determine whether training data is X or a previous P matrix
-        # based on the layer counter in the layer's name
         splitted_name = layer_name.split('-')
         base = splitted_name[0]
         n = int(splitted_name[-1])
+
         if n == 1:
             # First layer, we use X
             X = self._job['X']
@@ -201,17 +202,18 @@ class ParallelProcessing(object):
 
         # Get function to process and its variables
         f = getattr(self.layers.layers[layer_name], attr)
-        a = f.__func__.__code__.co_varnames
+        varnames = f.__func__.__code__.co_varnames
 
-        # Match variables against keys in the '_job' dict, except some args
-        # we don't set straight from the '_job' dict or not at all ('self')
-        no = ['parallel', 'X', 'P', 'self']
-        kwargs = {v: self._job[v] for v in a if v in self._job and v not in no}
+        # Strip variables we don't want to set from _job
+        args = [a for a in varnames if a not in {'parallel', 'X', 'P', 'self'}]
+
+        # Build argument list
+        kwargs = {a: self._job[a] for a in args if a in self._job}
 
         kwargs['parallel'] = parallel
-        if 'X' in a:
+        if 'X' in varnames:
             kwargs['X'] = X
-        if 'P' in a:
+        if 'P' in varnames:
             kwargs['P'] = self._job['P'][layer_name]
 
         f(**kwargs)

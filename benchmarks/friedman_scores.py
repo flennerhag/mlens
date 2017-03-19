@@ -9,7 +9,7 @@ the ensemble are part of the benchmark.
 The default ensemble configuration achieves a 25% score improvement as compared
 to the best benchmark estimator (GradientBoostingRegressor).
 
-Ensemble training time depends on the number of available cores.
+
 
 Example output
 --------------
@@ -65,14 +65,14 @@ FIT TIMES
   size | Ensemble |      GBM |      KNN | Kern Rid |    Lasso | Random F |
   2000 |     0:01 |     0:00 |     0:00 |     0:00 |     0:00 |     0:00 |
   4000 |     0:02 |     0:00 |     0:00 |     0:00 |     0:00 |     0:00 |
-  6000 |     0:04 |     0:00 |     0:00 |     0:01 |     0:00 |     0:00 |
-  8000 |     0:06 |     0:00 |     0:00 |     0:04 |     0:00 |     0:00 |
- 10000 |     0:08 |     0:01 |     0:00 |     0:08 |     0:00 |     0:00 |
- 12000 |     0:09 |     0:01 |     0:00 |     0:12 |     0:00 |     0:00 |
- 14000 |     0:12 |     0:01 |     0:00 |     0:20 |     0:00 |     0:00 |
- 16000 |     0:16 |     0:02 |     0:00 |     0:34 |     0:00 |     0:00 |
- 18000 |     0:20 |     0:02 |     0:00 |     0:47 |     0:00 |     0:00 |
- 20000 |     0:25 |     0:02 |     0:00 |     1:20 |     0:00 |     0:00 |
+  6000 |     0:03 |     0:00 |     0:00 |     0:01 |     0:00 |     0:00 |
+  8000 |     0:04 |     0:00 |     0:00 |     0:04 |     0:00 |     0:00 |
+ 10000 |     0:06 |     0:01 |     0:00 |     0:08 |     0:00 |     0:00 |
+ 12000 |     0:08 |     0:01 |     0:00 |     0:12 |     0:00 |     0:00 |
+ 14000 |     0:10 |     0:01 |     0:00 |     0:20 |     0:00 |     0:00 |
+ 16000 |     0:13 |     0:02 |     0:00 |     0:34 |     0:00 |     0:00 |
+ 18000 |     0:17 |     0:02 |     0:00 |     0:47 |     0:00 |     0:00 |
+ 20000 |     0:21 |     0:02 |     0:00 |     1:20 |     0:00 |     0:00 |
 
   size |      SVR |    elNet |
   2000 |     0:00 |     0:00 |
@@ -127,7 +127,7 @@ def build_ensemble(**kwargs):
 
     ens.add(est, prep)
 
-    ens.add_meta(GradientBoostingRegressor())
+    ens.add([GradientBoostingRegressor()])
 
     return ens
 

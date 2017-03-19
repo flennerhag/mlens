@@ -168,7 +168,7 @@ class LayerContainer(BaseEstimator):
         predict_params : dict, tuple or None (default = None)
             optional arguments passed to ``predict_function``.
 
-        in_place: bool (default = True)
+        in_place : bool (default = True)
             whether to return the instance (i.e. ``self``).
 
         **kwargs : optional
@@ -197,8 +197,8 @@ class LayerContainer(BaseEstimator):
                     **kwargs)
 
         self.n_layers += 1
-
         name = "layer-%i" % self.n_layers
+
         # Attached to ordered dictionary
         self.layers[name] = lyr
 
@@ -239,10 +239,12 @@ class LayerContainer(BaseEstimator):
         y : array-like of shape = [n_samples, ]
             training labels.
 
-        return_final : bool (default = True)
-            whether to return the final training input. In this case,
-            the output of the ``fit`` method is a tuple ``(out, X)``.
-            Otherwise, ``fit`` returns ``out``.
+        return_final : str or None, optional (default = None)
+            How to handle the final prediction matrix. If ``return_final=None``
+            the prediction matrix will not be returned. If
+            ``return_final='mmap'``, a :class:`numpy.memmap` pointing to the
+            final  prediction matrix is returned. If ``return_final='array'``,
+            a :class:`numpy.ndarray` is returned.
 
         **process_kwargs : optional
             optional arguments to initialize processor with.
@@ -649,6 +651,7 @@ class Layer(BaseEstimator):
 
             self._layer_data['n_pred'] = len(ests)
             self._layer_data['n_est'] = len(ests)
+            self._layer_data['cases'] = [None]
         else:
             # Need to number of predictions by moving through each
             # case and counting estimators.
@@ -836,7 +839,7 @@ class BaseEnsemble(BaseEstimator):
                         **kwargs)
         return self
 
-    def _fit_layers(self, X, y, return_final):
+    def _fit_layers(self, X, y):
         r"""Generic method for fitting all layers in the ensemble.
 
         Parameters
@@ -846,11 +849,6 @@ class BaseEnsemble(BaseEstimator):
 
         y : array-like of shape = [n_samples, ]
             training labels.
-
-        return_final : bool (default = True)
-            whether to return the final training input. In this case,
-            the output of the ``fit`` method is a tuple ``(out, X)``.
-            Otherwise, ``fit`` returns ``out``.
 
         Returns
         -----------
@@ -867,7 +865,7 @@ class BaseEnsemble(BaseEstimator):
             if ``return_final = True``, returns predictions from final layer's
             ``fit`` call.
         """
-        return self.layers.fit(X, y, return_final)
+        return self.layers.fit(X, y)
 
     def _predict_layers(self, X, y):
         r"""Generic method for predicting through all layers in the ensemble.

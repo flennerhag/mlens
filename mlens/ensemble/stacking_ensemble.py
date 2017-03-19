@@ -11,8 +11,7 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ._layer import predict_layer
-from ..parallel.stacking import folded_fit, predict_on_full
+from ..parallel.stacking import fit, predict_on_full
 from ..utils import print_time, safe_print, check_inputs, check_ensemble_build
 from ..metrics import set_scores
 
@@ -237,29 +236,12 @@ class StackingEnsemble(BaseEnsemble):
 
         return self._add(estimators=estimators,
                          preprocessing=preprocessing,
-                         fit_function=folded_fit,
+                         fit_function=fit,
                          fit_params=None,
                          predict_function=predict_on_full,
                          predict_params=None,
                          indexer=kf,
                          verbose=self.verbose)
-
-    def add_meta(self, meta_estimator):
-        """Add final estimator used to combine last layer's predictions.
-
-        Parameters
-        -----------
-        meta_estimator : instances
-            estimator to fit on base_estimator predictions.
-            Must accept ``fit`` and ``predict`` methods.
-
-        Returns
-        -------
-        self : instance
-            ensemble instance with meta estimator initiated.
-        """
-        self.meta_estimator = meta_estimator
-        return self
 
     def fit(self, X, y=None):
         """Fit ensemble.
@@ -288,13 +270,9 @@ class StackingEnsemble(BaseEnsemble):
         # Layer estimation
         ts = self._print_start()
 
-        out, X = \
-            self._fit_layers(X, y, return_final=True)
+        out = self._fit_layers(X, y)
 
         self.scores_ = set_scores(self, out)
-
-        # Meta estimator fit
-        self.meta_estimator_ = clone(self.meta_estimator).fit(X, y)
 
         if self.verbose > 0:
             print_time(ts, 'Ensemble fitted', file=self.printout)
@@ -325,11 +303,7 @@ class StackingEnsemble(BaseEnsemble):
         # Inputs check
         X, y = check_inputs(X, y, self.array_check)
 
-        # Process Layers
-        X = self._predict_layers(X, y)
-
-        # Final prediction
-        return self.meta_estimator_.predict(X)
+        return self._predict_layers(X, y).ravel()
 
     def _print_start(self):
         """Utility for printing initial message and launching timer."""

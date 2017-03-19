@@ -22,25 +22,56 @@ import warnings
 
 
 ###############################################################################
-def expand_instance_list(instance_list, kf, X):
+def expand_instance_list(instance_list, kf=None, X=None):
     """Build a list of estimation tuples."""
-    # Each entry consist of (case_fold, train_idx, test_idx, est_list)
-    # Each est_list consist of (est_name_fold, cloned_est)
-    ls = [('%s-%i' % (case, i),
-           tri,
-           tei,
-           [('%s-%i' % (n, i), clone(e)) for n, e in
-            sorted(instance_list[case])])
-          for case in sorted(instance_list)
-          for i, (tri, tei) in enumerate(kf.split(X))
-          ]
+    ls = list()
 
-    # Append final estimators with tuple (case, no_index, no_index,
-    # est_list)
-    # Each est_list consist of (est_name, cloned_est)
-    ls.extend([(case, None, None,
-                [(n, clone(e)) for n, e in sorted(instance_list[case])])
-               for case in sorted(instance_list)])
+    if isinstance(instance_list, dict):
+        # We need to build fit list on a case basis
+
+        # --- Full data ---
+        # Estimators to be fitted on full data. List entries have format:
+        # (case, no_train_idx, no_test_idx, est_list)
+        # Each est_list have entries (est_name, cloned_est)
+        ls.extend([(case, None, None,
+                    [(n, clone(e)) for n, e in instance_list[case]])
+                   for case in sorted(instance_list)])
+
+        # --- Folds ---
+        # Estimators to be fitted on each fold. List entries have format:
+        # (case-fold_num, train_idx, test_idx, est_list)
+        # Each est_list have entries (est_name-fol_num, cloned_est)
+        if kf is not None:
+            fd = [('%s-%i' % (case, i),
+                   tri,
+                   tei,
+                   [('%s-%i' % (n, i), clone(e)) for n, e in
+                    instance_list[case]])
+                  for case in sorted(instance_list)
+                  for i, (tri, tei) in enumerate(kf.split(X))
+                  ]
+            ls.extend(fd)
+
+    else:
+        # No cases to worry about: expand the list of named instance tuples
+
+        # --- Full data ---
+        # Estimators to be fitted on full data. List entries have format:
+        # (no_case, no_train_idx, no_test_idx, est_list)
+        # Each est_list have entries (est_name, cloned_est)
+        ls.extend([(None, None, None,
+                    [(n, clone(e)) for n, e in instance_list])])
+
+        # --- Folds ---
+        # Estimators to be fitted on each fold. List entries have format:
+        # (fold_num, train_idx, test_idx, est_list)
+        # Each est_list have entries (est_name-fol_num, cloned_est)
+        if kf is not None:
+            ls.extend([('%i' % i, tri, tei,
+                        [('%s-%i' % (n, i), clone(e)) for n, e in
+                         instance_list])
+                       for i, (tri, tei) in enumerate(kf.split(X))
+                       ])
 
     return ls
 
@@ -60,13 +91,20 @@ def get_col_idx(preprocessing, estimators, estimator_folds):
         list of estimators per case and per cv fold
 
     """
-    # Get a unique column id for every estimator in every case
-    case_list, idx, col = sorted(preprocessing), dict(), 0
+    # Set up main columns mapping
+    if isinstance(preprocessing, list) or preprocessing is None:
+        idx = {(None, est_name): i for i, (est_name, _) in
+               enumerate(estimators)}
 
-    for case in case_list:
-        for est_name, _ in sorted(estimators[case]):
-            idx[case, est_name] = col
-            col += 1
+        case_list = [None]
+    else:
+        # Nested for loop required
+        case_list, idx, col = sorted(preprocessing), dict(), 0
+
+        for case in case_list:
+            for est_name, _ in estimators[case]:
+                idx[case, est_name] = col
+                col += 1
 
     # Map every estimator-case-fold entry back onto the just created column
     # mapping for estimators
@@ -75,8 +113,10 @@ def get_col_idx(preprocessing, estimators, estimator_folds):
             # A main estimator, will not be used for folded predictions
             continue
 
-        # Get case name from the folded name_id (case_name-fold_num)
-        case = tup[0].split('-')[0]
+        # Get case name from the name_id entry
+        # With cases, names are in the form (case_name-fold_num)
+        # Otherwise named as (fold_num) - in this case the case name is None
+        case = tup[0].split('-')[0] if '-' in tup[0] else None
 
         # Assign a column to estimators in belonging to the case-fold entry
         for est_name_fold_num, _ in tup[-1]:
@@ -106,14 +146,18 @@ def _strip(cases, fitted_estimators):
 
 def _name(layer_name, case):
     """Utility for setting error or warning message prefix."""
-    if layer_name is not None and case is not None:
+    if layer_name is None and case is None:
+        # Both empty
+        out = ''
+    elif layer_name is not None and case is not None:
+        # Both full
         out = '[%s | %s ] ' % (layer_name, case)
     elif case is None:
+        # Case empty, layer_name full
         out = '[%s] ' % layer_name
-    elif layer_name is None:
-        out = '[%s] ' % case
     else:
-        out = ''
+        # layer_name empty, case full
+        out = '[%s] ' % case
     return out
 
 
@@ -172,8 +216,10 @@ def _predict_est(x, est, raise_on_exception, est_name, case, layer_name):
         warnings.warn(msg % (s, est_name, e), FitFailedWarning)
 
 
-def fit_trans(temp_folder, case, tr_list, xtrain, ytrain, layer_name=None):
+def fit_trans(temp_folder, case, tr_list, X, y, idx, layer_name=None):
     """Fit transformers and write to cache."""
+    xtrain = X[idx]
+    ytrain = y[idx]
     out = []
     for tr_name, tr in tr_list:
         # Fit transformer
@@ -189,9 +235,12 @@ def fit_trans(temp_folder, case, tr_list, xtrain, ytrain, layer_name=None):
     pickle_save(out, f)
 
 
-def fit_est(temp_folder, case, est_name, est, xtrain, ytrain, xtest, pred, idx,
+def fit_est(temp_folder, case, est_name, est, X, y, pred, idx,
             raise_on_exception=True, layer_name=None):
     """Fit estimator and write to cache along with predictions."""
+    xtrain = X[idx[0]] if idx[0] is not None else X
+    ytrain = y[idx[0]] if idx[0] is not None else y
+    xtest = X[idx[1]] if idx[1] is not None else None
 
     # Load transformers
     f = os.path.join(temp_folder, '%s_t' % case)
@@ -210,19 +259,38 @@ def fit_est(temp_folder, case, est_name, est, xtrain, ytrain, xtest, pred, idx,
 
     # Predict if asked
     if xtest is not None:
-        pred[idx[0], idx[1]] = _predict_est(xtest, est, raise_on_exception,
+        pred[idx[1], idx[2]] = _predict_est(xtest, est, raise_on_exception,
                                             est_name, case, layer_name)
+
+    # We don't want to store the full test index:
+    # during a process call, this index is a memmaped array, but once
+    # the fitted ests are returned to the ensemble, the test indices would
+    # be converted to full numpy arrays and get stored in the ensemble
+    if idx[1] is not None:
+        # Store as a tuple ((row_start, row_end + 1), col)
+        # We add 1 to allow slicing (X[row_start:row_end + 1] == X[tei])
+        idx = ((idx[1][0], idx[1][1] + 1), idx[2])
+    else:
+        idx = (None, idx[2])
 
     f = os.path.join(temp_folder, '%s-%s_e' % (case, est_name))
     pickle_save((est_name, est, idx), f)
 
 
-def folded_fit(layer, X, y, P, temp_folder, parallel, layer_name=None):
+def _fit(**kwargs):
+    """Wrapper to select estimation or transformation."""
+    if kwargs['name'] == 'transformation':
+        fit_trans(**kwargs)
+    else:
+        fit_est(**kwargs)
+
+
+def fit(layer, X, y, P, temp_folder, parallel, layer_name=None):
     """Fit :class:`layer` using the layer's ``indexer`` method.
     """
     if layer.verbose:
         printout = "stderr" if layer.verbose < 50 else "stdout"
-        s = '[%s] ' if layer_name is not None else ''
+        s = _name(layer_name, None)
         t0 = time()
 
     # Map transformers and estimators onto every fold
@@ -239,11 +307,15 @@ def folded_fit(layer, X, y, P, temp_folder, parallel, layer_name=None):
 
     parallel(delayed(fit_trans)(temp_folder=temp_folder,
                                 case=case,
-                                tr_list=tr_list,
-                                xtrain=X[tri] if tri is not None else X,
-                                ytrain=y[tri] if tri is not None else y,
-                                layer_name=layer_name)
-             for case, tri, tei, tr_list in preprocessing_folds)
+                                name=None,
+                                estimator=tr_list,
+                                X=X,
+                                y=y,
+                                pred=None,
+                                idx=tri,
+                                layer_name=layer_name,
+                                raise_on_exception=layer.raise_on_exception)
+             for case, tri, _, tr_list in preprocessing_folds)
 
     # Fit estimators
     if layer.verbose:
@@ -251,17 +323,16 @@ def folded_fit(layer, X, y, P, temp_folder, parallel, layer_name=None):
 
     parallel(delayed(fit_est)(temp_folder=temp_folder,
                               case=case,
-                              est_name=est_name,
-                              est=est,
-                              xtrain=X[tri] if tri is not None else X,
-                              ytrain=y[tri] if tri is not None else y,
-                              xtest=X[tei] if tei is not None else None,
+                              name=est_name,
+                              estimator=est,
+                              X=X,
+                              y=y,
                               pred=P if tei is not None else None,
-                              idx=(tei, cm[case, est_name]),
+                              idx=(tri, tei, cm[case, est_name]),
                               layer_name=layer_name,
                               raise_on_exception=layer.raise_on_exception)
-             for j, (case, tri, tei, ests) in enumerate(estimator_folds)
-             for i, (est_name, est) in enumerate(ests))
+             for case, tri, tei, ests in estimator_folds
+             for est_name, est in ests)
 
     # Assemble transformer list
     trans = _assemble(temp_folder, preprocessing_folds, 't')
@@ -289,10 +360,10 @@ def _predict(case, tr_list, est_name, est, xtest, pred, col,
 
 
 def predict_on_full(layer, X, P, parallel, layer_name=None):
-    """Predict through :class:`layer` fitted through :func:`folded_fit`."""
+    """Predict through :class:`layer` fitted through :func:`fit`."""
     if layer.verbose:
         printout = "stderr" if layer.verbose < 50 else "stdout"
-        s = '[%s] ' if layer_name is not None else ''
+        s = _name(layer_name, None)
         t0 = time()
 
     # Collect estimators fitted on full data

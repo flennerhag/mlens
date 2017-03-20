@@ -86,15 +86,35 @@ def check_ensemble_build(inst, attr='layers'):
     return True
 
 
+def assert_valid_estimator(instance):
+    """Assert that an instance has a ``get_params`` and ``fit`` method."""
+    has_get_params = hasattr(instance, 'get_params')
+    has_fit = hasattr(instance, 'fit')
+
+    if not has_get_params:
+        raise TypeError("[%s] does not appear to be a valid"
+                        " estimator as it does not implement a "
+                        "'get_params' method. Type: "
+                        "%s" % (instance, type(instance)))
+
+    if not has_fit:
+        raise TypeError("[%s] does not appear to be a valid"
+                        " estimator as it does not implement a "
+                        "'fit' method. Type: "
+                        "%s" % (instance, type(instance)))
+
+
 def assert_correct_layer_format(estimators, preprocessing):
     """Initial check to assert layer can be constructed."""
     if (preprocessing is None) or (isinstance(preprocessing, list)):
         # Either no preprocessing or uniform preprocessing
-        if not isinstance(estimators, list):
+        if isinstance(estimators, dict):
             msg = ("Preprocessing is either 'None' or 'list': 'estimators' "
                    "must be of type 'list' (%s type passed).")
             raise LayerSpecificationError(msg % type(estimators))
-
+        elif not isinstance(estimators, list):
+            # Assume estimators is a singular estimator instance - check valid
+            assert_valid_estimator(estimators)
     else:
         # Check that both estimators and preprocessing are dicts
         if not isinstance(preprocessing, dict):

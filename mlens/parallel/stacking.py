@@ -4,9 +4,11 @@
 :copyright: 2017
 :licence: MIT
 
-estimation function for parallel preprocessing of the
-:class:`mlens.ensemble.StackingEnsemble` class.
+estimation function for parallel preprocessing of
+:class:`mlens.ensemble.StackingEnsemble`.
 """
+
+from numpy import asarray
 
 from ..utils import safe_print, print_time, pickle_load, pickle_save
 from ..utils.exceptions import FitFailedError, FitFailedWarning, \
@@ -14,7 +16,7 @@ from ..utils.exceptions import FitFailedError, FitFailedWarning, \
 
 from sklearn.base import clone
 
-from joblib import delayed
+from ..externals.joblib import delayed
 import os
 
 from time import time, sleep
@@ -44,8 +46,8 @@ def expand_instance_list(instance_list, kf=None, X=None):
         # Each est_list have entries (est_name__fol_num, cloned_est)
         if kf is not None:
             fd = [('%s__%i' % (case, i),
-                   tri,
-                   tei,
+                   (tri[0], tri[-1] + 1),
+                   (tei[0], tei[-1] + 1),
                    [('%s__%i' % (n, i), clone(e)) for n, e in
                     instance_list[case]])
                   for case in sorted(instance_list)
@@ -68,7 +70,9 @@ def expand_instance_list(instance_list, kf=None, X=None):
         # (fold_num, train_idx, test_idx, est_list)
         # Each est_list have entries (est_name__fol_num, cloned_est)
         if kf is not None:
-            ls.extend([('%i' % i, tri, tei,
+            ls.extend([('%i' % i,
+                        (tri[0], tri[-1] + 1),
+                        (tei[0], tei[-1] + 1),
                         [('%s__%i' % (n, i), clone(e)) for n, e in
                          instance_list])
                        for i, (tri, tei) in enumerate(kf.split(X))
@@ -138,14 +142,14 @@ def get_col_idx(preprocessing, estimators, estimator_folds):
     return idx
 
 
-def _assemble(temp_folder, instance_list, suffix):
+def _assemble(dir, instance_list, suffix):
     """Utility for loading fitted instances."""
     if suffix is 't':
-        return [(case, pickle_load(os.path.join(temp_folder,
+        return [(case, pickle_load(os.path.join(dir,
                                                 '%s__%s' % (case, suffix))))
                 for case, _, _, _ in instance_list]
     else:
-        return [(case, pickle_load(os.path.join(temp_folder,
+        return [(case, pickle_load(os.path.join(dir,
                                    '%s__%s__%s' % (case, est_name, suffix))))
                 for case, _, _, ests in instance_list
                 for est_name, _ in ests]
@@ -266,10 +270,15 @@ def _predict_est(x, est, raise_on_exception, est_name, case, layer_name):
         warnings.warn(msg % (s, est_name, e), FitFailedWarning)
 
 
-def fit_trans(temp_folder, case, inst, X, y, idx, layer_name=None):
+def fit_trans(dir, case, inst, X, y, idx, layer_name=None):
     """Fit transformers and write to cache."""
-    xtrain = X[idx] if idx is not None else X
-    ytrain = y[idx] if idx is not None else y
+    # Have to be careful in prepping data for estimation.
+    # We need to slice memmap and convert to a proper array - otherwise
+    # transformers can store results memmaped to the cache, which will
+    # prevent the garbage collector from releasing the memmaps from memory
+    # after estimation
+    xtrain = asarray(X[idx[0]:idx[1]]) if idx is not None else asarray(X)
+    ytrain = asarray(y[idx[0]:idx[1]]) if idx is not None else asarray(y)
     out = []
     for tr_name, tr in inst:
         # Fit transformer
@@ -281,18 +290,25 @@ def fit_trans(temp_folder, case, inst, X, y, idx, layer_name=None):
         out.append((tr_name, tr))
 
     # Write transformer list to cache
-    f = os.path.join(temp_folder, '%s__t' % case)
+    f = os.path.join(dir, '%s__t' % case)
     pickle_save(out, f)
 
 
-def fit_est(temp_folder, case, name, inst, X, y, pred, idx,
+def fit_est(dir, case, name, inst, X, y, pred, idx,
             raise_on_exception=True, layer_name=None, lim=60, sec=0.1):
     """Fit estimator and write to cache along with predictions."""
-    x = X[idx[0]] if idx[0] is not None else X
-    ytrain = y[idx[0]] if idx[0] is not None else y
+    # Have to be careful in prepping data for estimation.
+    # We need to slice memmap and convert to a proper array - otherwise
+    # estimators can store results memmaped to the cache, which will
+    # prevent the garbage collector from releasing the memmaps from memory
+    # after estimation
+    tri, tei, col = idx[0], idx[1], idx[2]
+
+    x = asarray(X[tri[0]:tri[1]]) if tri is not None else asarray(X)
+    ytrain = asarray(y[tri[0]:tri[1]]) if tri is not None else asarray(y)
 
     # Load transformers
-    f = os.path.join(temp_folder, '%s__t' % case)
+    f = os.path.join(dir, '%s__t' % case)
     tr_list = _load_trans(f, case, lim, sec, raise_on_exception)
 
     # Transform input
@@ -304,30 +320,23 @@ def fit_est(temp_folder, case, name, inst, X, y, pred, idx,
                    layer_name)
 
     # Predict if asked
-    # We separate out the loops so we can overwrite x with xtest, rather than
-    # keeping both alive during the entire function call
-    if idx[1] is not None:
-
-        x = X[idx[1]]
+    # The predict loop is kept separate to allow overwrite of x, thus keeping
+    # only one subset of X in memory at any given time
+    if tei is not None:
+        x = asarray(X[tei[0]:tei[1]])
 
         for tr_name, tr in tr_list:
             x = _transform_tr(x, tr, tr_name, case, layer_name)
 
-        pred[idx[1], idx[2]] = _predict_est(x, est, raise_on_exception,
-                                            name, case, layer_name)
+        pred[tei[0]:tei[1], col] = \
+            _predict_est(x, est, raise_on_exception, name, case, layer_name)
 
-    # We don't want to store the full test index:
-    # during a process call, this index is a memmaped array, but once
-    # the fitted ests are returned to the ensemble, the test indices would
-    # be converted to full numpy arrays and get stored in the ensemble
-    if idx[1] is not None:
-        # Store as a tuple ((row_start, row_end + 1), col)
-        # We add 1 to allow slicing (X[row_start:row_end + 1] == X[tei])
-        idx = ((idx[1][0], idx[1][1] + 1), idx[2])
+    # We drop tri from index and only keep tei if any predictions were made
+        idx = idx[1:]
     else:
-        idx = (None, idx[2])
+        idx = (None, col)
 
-    f = os.path.join(temp_folder, '%s__%s__e' % (case, name))
+    f = os.path.join(dir, '%s__%s__e' % (case, name))
     pickle_save((name, est, idx), f)
 
 
@@ -336,7 +345,8 @@ def _fit(**kwargs):
     f = fit_trans if kwargs['name'] == '__trans__' else fit_est
     f(**{k: v for k, v in kwargs.items() if k in f.__code__.co_varnames})
 
-def fit(layer, X, y, P, temp_folder, parallel, layer_name=None,
+
+def fit(layer, X, y, P, dir, parallel, layer_name=None,
         lim=60, sec=0.1):
     """Fit :class:`layer` using the layer's ``indexer`` method."""
     if layer.verbose:
@@ -351,7 +361,7 @@ def fit(layer, X, y, P, temp_folder, parallel, layer_name=None,
     # Get estimator prediction column mapping
     cm = get_col_idx(layer.preprocessing, layer.estimators, est_folds)
 
-    parallel(delayed(_fit)(temp_folder=temp_folder,
+    parallel(delayed(_fit)(dir=dir,
                            case=case,
                            name=name,
                            inst=instance,
@@ -367,10 +377,10 @@ def fit(layer, X, y, P, temp_folder, parallel, layer_name=None,
              for name, instance in instance_list)
 
     # Assemble transformer list
-    trans = _assemble(temp_folder, prep_folds, 't')
+    trans = _assemble(dir, prep_folds, 't')
 
     # Assemble estimator list
-    ests = _assemble(temp_folder, est_folds, 'e')
+    ests = _assemble(dir, est_folds, 'e')
 
     if layer.verbose:
         print_time(t0, '%sDone' % s, file=printout)
@@ -399,8 +409,8 @@ def predict_on_full(layer, X, P, parallel, layer_name=None):
         t0 = time()
 
     # Collect estimators fitted on full data
-    trans = dict(_strip(layer._layer_data['cases'], layer.preprocessing_))
-    ests = _strip(layer._layer_data['cases'], layer.estimators_)
+    trans = dict(_strip(layer.struct['cases'], layer.preprocessing_))
+    ests = _strip(layer.struct['cases'], layer.estimators_)
 
     # Generate predictions
     if layer.verbose:

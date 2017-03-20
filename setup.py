@@ -28,8 +28,6 @@ setup(name='mlens',
       install_requires=['numpy>=1.11',
                         'scipy>=0.17',
                         'scikit-learn>=0.18',
-                        'pandas>=0.18',
-                        'joblib>=0.9'
                         ],
       license='MIT',
       platforms='any',
@@ -56,7 +54,7 @@ Documentation available at:
     - https://github.com/flennerhag/mlens
 
 Contact
-=============
+=======
 For questions and comments reach out to sebastianflennerhag@hotmail.com.
 
 This project is hosted at https://github.com/flennerhag/mlens

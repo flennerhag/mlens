@@ -73,11 +73,13 @@ class LayerContainer(BaseEstimator):
     def __init__(self,
                  layers=None,
                  n_jobs=-1,
+                 backend='multiprocessing',
                  raise_on_exception=False,
                  verbose=False):
 
         # True params
         self.n_jobs = n_jobs
+        self.backend = backend
         self.raise_on_exception = raise_on_exception
         self.verbose = verbose
 
@@ -228,11 +230,12 @@ class LayerContainer(BaseEstimator):
             else:
                 warnings.warn("No initialized processor to terminate.")
         self._processor.terminate()
-        delattr(self, '_processor')
+
+        del self._processor
         gc.collect()
 
-    def fit(self, X=None, y=None, return_final=True, **process_kwargs):
-        r"""Generic method for fitting all layers in the container.
+    def fit(self, X=None, y=None, return_preds=-1, **process_kwargs):
+        r"""Generic method for fitting all :class:`Layer`s in the container.
 
         Parameters
         -----------
@@ -242,12 +245,13 @@ class LayerContainer(BaseEstimator):
         y : array-like of shape = [n_samples, ]
             training labels.
 
-        return_final : str or None, optional (default = None)
-            How to handle the final prediction matrix. If ``return_final=None``
-            the prediction matrix will not be returned. If
-            ``return_final='mmap'``, a :class:`numpy.memmap` pointing to the
-            final  prediction matrix is returned. If ``return_final='array'``,
-            a :class:`numpy.ndarray` is returned.
+        return_preds : int or None (default = -1)
+            How to handle the final prediction matrix. If ``return_preds=None``
+            no predictions are returned. Else, an integer corresponding to the
+            layer count should be passed with 0-indexing. Thus, for predictions
+            from ``layer-1``, set ``return_preds=0``. If ``return_preds=-1``
+            predictions from the ultimate layer is returned. Similarly,
+            ``return_preds=-2`` returns the penultimate layer´s predictions.
 
         **process_kwargs : optional
             optional arguments to initialize processor with.
@@ -292,7 +296,7 @@ class LayerContainer(BaseEstimator):
                 print_time(t0, "Fit complete", file=pout, flush=True)
 
             # Generate output
-            out = self._post_process(processor, return_final)
+            out = self._post_process(processor, return_preds)
 
         finally:
             # Always terminate processor unless explicitly initialized before
@@ -339,7 +343,7 @@ class LayerContainer(BaseEstimator):
         try:
             processor.process('predict')
 
-            preds = processor._get_final_preds()
+            preds = processor._get_preds()
 
             if self.verbose:
                 print_time(t0, "Prediction complete", file=pout, flush=True)
@@ -351,17 +355,17 @@ class LayerContainer(BaseEstimator):
 
         return preds
 
-    def _post_process(self, processor, return_final):
+    def _post_process(self, processor, return_preds):
         """Aggregate output from processing layers and collect final preds."""
 
         out = {}
         for layer_name, layer in self.layers.items():
             out[layer_name] = getattr(layer, 'fit_data_', None)
 
-        if return_final:
-            return [out, processor._get_final_preds()]
+        if return_preds is not None:
+            return out, processor._get_preds(return_preds)
         else:
-            return [out]
+            return out
 
     def _init_layers(self, layers):
         """Return a clean ordered dictionary or copy the passed dictionary."""
@@ -372,13 +376,13 @@ class LayerContainer(BaseEstimator):
         self.layers = layers
         self.n_layers = len(self.layers)
 
-        self._layer_data = dict()
+        self.struct = dict()
         for layer_name in self.layers:
             self._store_layer_data(layer_name)
 
     def _store_layer_data(self, name):
         """Utility for storing aggregate data about an added layer."""
-        self._layer_data[name] = self.layers[name]._layer_data
+        self.struct[name] = self.layers[name].struct
 
     def get_params(self, deep=True):
         """Get parameters for this estimator.
@@ -558,7 +562,7 @@ class Layer(BaseEstimator):
 
         self._store_layer_data()
 
-    def fit(self, X, y, P, temp_folder, parallel):
+    def fit(self, X, y, P, dir, parallel):
         """Generic method for fitting and storing layer data.
 
         Any output data created during estimation is stored in the
@@ -575,15 +579,15 @@ class Layer(BaseEstimator):
         P : array-like of shape = [n_prediction_samples, n_estimators]
             prediction matrix to fill with prediction.
 
-        temp_folder : str
+        dir : str
             path to estimation folder to use during fitting.
 
         parallel : inst
             a :class:`joblib.Parallel` instance to use for parallel estimation.
 
         """
-        self.estimators_, self.preprocessing_, self.fit_data_ = \
-            self.fit_function(self, X, y, P, temp_folder, parallel)
+        (self.estimators_, self.preprocessing_, self.fit_data_) = \
+            self.fit_function(self, X, y, P, dir, parallel)
 
     def predict(self, X, P, parallel):
         """Generic method for predicting with fitted layer.
@@ -642,33 +646,33 @@ class Layer(BaseEstimator):
 
     def _store_layer_data(self):
         """Utility for storing aggregate data about the layer."""
-        self._layer_data = {}
+        self.struct = dict()
         ests = self.estimators
         prep = self.preprocessing
 
         # Store layer data
         if isinstance(ests, list):
             # No preprocessing cases. Check if there is one uniform pipeline.
-            self._layer_data['n_prep'] = \
+            self.struct['n_prep'] = \
                 0 if prep is None or len(prep) == 0 else 1
 
-            self._layer_data['n_pred'] = len(ests)
-            self._layer_data['n_est'] = len(ests)
-            self._layer_data['cases'] = [None]
+            self.struct['n_pred'] = len(ests)
+            self.struct['n_est'] = len(ests)
+            self.struct['cases'] = [None]
         else:
             # Need to number of predictions by moving through each
             # case and counting estimators.
-            self._layer_data['n_prep'] = len(prep)
+            self.struct['n_prep'] = len(prep)
 
-            self._layer_data['cases'] = sorted(prep)
+            self.struct['cases'] = sorted(prep)
 
             n_pred = 0
-            for case in self._layer_data['cases']:
+            for case in self.struct['cases']:
                 n_est = len(ests[case])
-                self._layer_data['%s-n_est' % case] = n_est
+                self.struct['%s-n_est' % case] = n_est
                 n_pred += n_est
 
-            self._layer_data['n_pred'] = n_pred
+            self.struct['n_pred'] = n_pred
 
     def get_params(self, deep=True):
         """Get parameters for this estimator.

@@ -2,6 +2,7 @@
 
 Memory profiling of mlens against Scikit-learn estimators.
 """
+
 import numpy as np
 
 from mlens.utils import print_time
@@ -18,7 +19,7 @@ from sklearn.pipeline import make_pipeline
 import time
 
 
-MAX = 100000
+MAX = int(1e5)
 SEED = 100
 SLEEP = MAX / 10000 if MAX <= 100000 else MAX / 20000
 
@@ -51,8 +52,9 @@ def build_ensemble(**kwargs):
 @profile
 def fit_ens():
     """Fit ensemble."""
-    print("Fitting ensemble...", end=" ")
-    ens = build_ensemble(shuffle=False)
+    print("Fitting ensemble...", end=" ", flush=True)
+    time.sleep(0.1)
+    ens = build_ensemble(shuffle=False, n_jobs=1, verbose=100)
     ens.fit(X, y)
     print("Done.")
 
@@ -60,7 +62,8 @@ def fit_ens():
 @profile
 def fit_gbm():
     """Fit gbm."""
-    print("Fitting GBM...", end=" ")
+    print("Fitting GBM...", end=" ", flush=True)
+    time.sleep(0.1)
     gbm = GradientBoostingRegressor()
     gbm.fit(X, y)
     print("Done.")
@@ -69,7 +72,8 @@ def fit_gbm():
 @profile
 def fit_rf():
     """Fit Random Forest."""
-    print("Fitting Random Forest...", end=" ")
+    print("Fitting Random Forest...", end=" ", flush=True)
+    time.sleep(0.1)
     rf = RandomForestRegressor(random_state=SEED)
     rf.fit(X, y)
     print("Done.")
@@ -78,7 +82,8 @@ def fit_rf():
 @profile
 def fit_KNN():
     """Fit KNN."""
-    print("Fitting KNN...", end=" ")
+    print("Fitting KNN...", end=" ", flush=True)
+    time.sleep(0.1)
     knn = make_pipeline(StandardScaler(), KNeighborsRegressor())
     knn.fit(X, y)
     print("Done.")
@@ -87,7 +92,8 @@ def fit_KNN():
 @profile
 def fit_las():
     """Fit Lasso."""
-    print("Fitting Lasso...", end=" ")
+    print("Fitting Lasso...", end=" ", flush=True)
+    time.sleep(0.1)
     ls = make_pipeline(StandardScaler(), Lasso())
     ls.fit(X, y)
     print("Done.")
@@ -96,7 +102,8 @@ def fit_las():
 @profile
 def fit_svr():
     """Fit SVR."""
-    print("Fitting Lasso...", end=" ")
+    print("Fitting Lasso...", end=" ", flush=True)
+    time.sleep(0.1)
     svr = make_pipeline(MinMaxScaler(), SVR())
     svr.fit(X, y)
     print("Done.")
@@ -112,13 +119,13 @@ if __name__ == '__main__':
     t0 = time.time()
 
     time.sleep(SLEEP)
-    fit_ens()
-
-    time.sleep(SLEEP)
     fit_gbm()
 
     time.sleep(SLEEP)
     fit_rf()
+
+    time.sleep(SLEEP)
+    fit_ens()
 
     time.sleep(SLEEP)
     fit_KNN()

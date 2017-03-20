@@ -229,10 +229,15 @@ def check_instances(instances):
     --------
         :class:`mlens.ensemble.base.Layer`
     """
-    if (instances is None) or (len(instances) is 0):
+    is_iterable = isinstance(instances, (list, tuple, dict))
+    if instances is None or is_iterable and len(instances) == 0:
         # If no instances specified, return empty list
         return []
-    elif _assert_format(instances):
+    elif not is_iterable:
+        # Instance is the estimator, wrap in list and continue
+        instances = [instances]
+
+    if _assert_format(instances):
         # If format is ok, return as is
         return instances
     else:

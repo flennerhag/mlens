@@ -184,36 +184,35 @@ def _load_trans(f, case, lim, s, raise_on_exception):
         # Assume file exists
         return pickle_load(f)
     except FileNotFoundError or TypeError as exc:
-        error_msg = ("The file %s cannot be found after %i seconds of waiting."
-                     " Check that time to fit transformers is sufficiently "
-                     "fast to complete fitting before fitting estimators. "
-                     "Consider reducing the preprocessing intensity in the "
-                     "ensemble, or increase the '__lim__' attribute to wait "
-                     "extend period of waiting on transformation to complete. "
-                     " Details:\n%r")
-
-        if raise_on_exception:
-            # Raise error immediately
-            raise ParallelProcessingError(error_msg % exc)
-
-        # Else, throw a warning and wait for transformation to finish
-        warnings.warn("Could not find preprocessing case %s in the cache (%s)."
-                      " Will check every %.1f seconds if pipeline has been "
-                      "fitted for %i seconds before aborting. "
-                      "Fitting ensembles with time consuming preprocessing "
-                      "pipelines can cause estimators to call for "
-                      "transformers that have not been fitted yet. "
-                      "Consider optimizing preprocessing before passing to "
-                      "ensemble. Details:\n%r" % (case, f, s, lim, exc),
-                      ParallelProcessingWarning)
-
+        # Check intermittently until limit is reached
         ts = time()
         while not os.path.exists(f):
             sleep(s)
             if ts > lim:
-                raise ParallelProcessingError(error_msg % exc)
+                error_msg = ("The file %s cannot be found after %i seconds of "
+                             "waiting. Check that time to fit transformers is "
+                             "sufficiently fast to complete fitting before "
+                             "fitting estimators. Consider reducing the "
+                             "preprocessing intensity in the ensemble, or "
+                             "increase the '__lim__' attribute to wait extend "
+                             "period of waiting on transformation to complete."
+                             " Details:\n%r")
 
-    return pickle_load(f)
+                if raise_on_exception:
+                    # Raise error immediately
+                    raise ParallelProcessingError(error_msg % exc)
+
+                # Else, throw a warning and wait for another time lapse
+                warnings.warn("Transformer %s not found in cache (%s). "
+                              "Will check every %.1f seconds for %i seconds "
+                              "before aborting. " % (case, f, s, lim),
+                              ParallelProcessingWarning)
+
+                # Raise error of times out again
+                raise_on_exception = True
+                ts = time()
+
+        return pickle_load(f)
 
 
 def _fit_tr(x, y, tr, tr_name, case, layer_name):

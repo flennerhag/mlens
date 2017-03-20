@@ -237,9 +237,7 @@ class StackingEnsemble(BaseEnsemble):
         return self._add(estimators=estimators,
                          preprocessing=preprocessing,
                          fit_function=fit,
-                         fit_params=None,
                          predict_function=predict_on_full,
-                         predict_params=None,
                          indexer=kf,
                          verbose=self.verbose)
 

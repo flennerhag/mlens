@@ -20,7 +20,7 @@ import gc
 import shutil
 from subprocess import check_call
 
-from ..externals.joblib import Parallel, dump, load
+from joblib import Parallel, dump, load
 
 import warnings
 
@@ -212,7 +212,7 @@ class ParallelProcessing(object):
             X = self._job.P[n - 1]
 
         # Get function to process and its variables
-        f = getattr(self.layers.layers[name], attr)
+        f = getattr(self.layers.layers[name], '%s' % attr)
         fargs = f.__func__.__code__.co_varnames
 
         # Strip variables we don't want to set from _job
@@ -227,6 +227,8 @@ class ParallelProcessing(object):
             kwargs['X'] = X
         if 'P' in fargs:
             kwargs['P'] = self._job.P[n]
+        if 'name' in fargs:
+            kwargs['name'] = name
 
         for attr in ['lim', 'sec']:
             if attr in fargs:

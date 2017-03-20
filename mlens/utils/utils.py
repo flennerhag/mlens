@@ -7,13 +7,18 @@
 
 from __future__ import division, print_function, with_statement
 
-from time import time
 import sys
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
+
+try:
+    from time import perf_counter as time
+except ImportError:
+    # Fall back on time for older versions
+    from time import time
 
 
 ###############################################################################

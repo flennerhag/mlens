@@ -67,7 +67,7 @@ class LayerContainer(BaseEstimator):
 
     """
 
-    __lim__ = 60   # Time limit for trying to find transformers in cache
+    __lim__ = 600   # Time limit for trying to find transformers in cache
     __sec__ = 0.1  # Time interval for checking if transformers exists in cache
 
     def __init__(self,
@@ -195,9 +195,7 @@ class LayerContainer(BaseEstimator):
         lyr = Layer(estimators=estimators,
                     preprocessing=preprocessing,
                     fit_function=fit_function,
-                    fit_params=fit_params,
                     predict_function=predict_function,
-                    predict_params=predict_params,
                     raise_on_exception=self.raise_on_exception,
                     **kwargs)
 
@@ -542,8 +540,6 @@ class Layer(BaseEstimator):
                  fit_function,
                  predict_function,
                  preprocessing=None,
-                 fit_params=None,
-                 predict_params=None,
                  indexer=None,
                  raise_on_exception=False,
                  verbose=False):
@@ -552,17 +548,15 @@ class Layer(BaseEstimator):
 
         self.estimators = check_instances(estimators)
         self.preprocessing = check_instances(preprocessing)
-        self.fit_function = fit_function
-        self.predict_function = predict_function
-        self.fit_params = self._format_params(fit_params)
-        self.predict_params = self._format_params(predict_params)
+        self._fit = fit_function
+        self._predict = predict_function
         self.raise_on_exception = raise_on_exception
         self.indexer = indexer
         self.verbose = verbose
 
         self._store_layer_data()
 
-    def fit(self, X, y, P, dir, parallel):
+    def fit(self, X, y, P, dir, parallel, name, lim, sec):
         """Generic method for fitting and storing layer data.
 
         Any output data created during estimation is stored in the
@@ -587,9 +581,9 @@ class Layer(BaseEstimator):
 
         """
         (self.estimators_, self.preprocessing_, self.fit_data_) = \
-            self.fit_function(self, X, y, P, dir, parallel)
+            self._fit(self, X, y, P, dir, parallel, name, lim, sec)
 
-    def predict(self, X, P, parallel):
+    def predict(self, X, P, parallel, name):
         """Generic method for predicting with fitted layer.
 
         Parameters
@@ -609,8 +603,7 @@ class Layer(BaseEstimator):
             predictions from fitted estimators in layer.
         """
         self._check_fitted()
-        return self.predict_function(self, X, P, parallel,
-                                     **self.predict_params)
+        return self._predict(self, X, P, parallel, name)
 
     def _check_fitted(self):
         """Utility function for checking that fitted estimators exist."""
@@ -730,7 +723,6 @@ class BaseEnsemble(BaseEstimator):
         """Method for predicting with all layers."""
         pass
 
-
     def __set_lim__(self, l):
         """Set the time limit for waiting on preprocessing to complete."""
         if not hasattr(self, 'layers'):
@@ -763,8 +755,6 @@ class BaseEnsemble(BaseEstimator):
              estimators,
              fit_function,
              predict_function,
-             fit_params=None,
-             predict_params=None,
              preprocessing=None,
              **kwargs):
         """Method for adding a layer.
@@ -869,9 +859,7 @@ class BaseEnsemble(BaseEstimator):
         self.layers.add(estimators=estimators,
                         preprocessing=preprocessing,
                         fit_function=fit_function,
-                        fit_params=fit_params,
                         predict_function=predict_function,
-                        predict_params=predict_params,
                         **kwargs)
         return self
 

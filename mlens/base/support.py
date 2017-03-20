@@ -9,6 +9,7 @@ Support functions used throughout mlens
 
 from __future__ import division, print_function
 
+from ..utils.checks import assert_valid_estimator
 from ..utils.exceptions import SliceError, LayerSpecificationError
 from numpy import ix_
 from collections import Counter
@@ -76,24 +77,6 @@ def check_fit_overlap(full_fit_est, fold_fit_est, layer):
                                  fold_fit_est))
 
 
-def _assert_valid_estimator(instance):
-    """Assert that an instance has a ``get_params`` and ``fit`` method."""
-    has_get_params = hasattr(instance, 'get_params')
-    has_fit = hasattr(instance, 'fit')
-
-    if not has_get_params:
-        raise TypeError("[%s] does not appear to be a valid"
-                        " estimator as it does not implement a "
-                        "'get_params' method. Type: "
-                        "%s" % (instance, type(instance)))
-
-    if not has_fit:
-        raise TypeError("[%s] does not appear to be a valid"
-                        " estimator as it does not implement a "
-                        "'fit' method. Type: "
-                        "%s" % (instance, type(instance)))
-
-
 def _format_instances(instances):
     """Format a list of instances to a list of named estimator tuples."""
     named_instances = []
@@ -107,7 +90,7 @@ def _format_instances(instances):
             instance = val[-1]
 
         # Check if it appears to be an estimator
-        _assert_valid_estimator(instance)
+        assert_valid_estimator(instance)
 
         try:
             # Format instance names
@@ -176,7 +159,7 @@ def _check_format(instance_list):
             return False
 
         # Check that the last element is a valid estimator
-        _assert_valid_estimator(element[1])
+        assert_valid_estimator(element[1])
 
     # Check that there are no duplicate names
     names = Counter([tup[0] for tup in instance_list])

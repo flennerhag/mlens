@@ -213,23 +213,23 @@ class ParallelProcessing(object):
 
         # Get function to process and its variables
         f = getattr(self.layers.layers[name], attr)
-        vars = f.__func__.__code__.co_varnames
+        fargs = f.__func__.__code__.co_varnames
 
         # Strip variables we don't want to set from _job
-        args = [a for a in vars if a not in {'parallel', 'X', 'P', 'self'}]
+        args = [a for a in fargs if a not in {'parallel', 'X', 'P', 'self'}]
 
         # Build argument list
         kwargs = {a: getattr(self._job, a) for a in args if a in
                   self._job.__slots__}
 
         kwargs['parallel'] = parallel
-        if 'X' in vars:
+        if 'X' in fargs:
             kwargs['X'] = X
-        if 'P' in vars:
+        if 'P' in fargs:
             kwargs['P'] = self._job.P[n]
 
         for attr in ['lim', 'sec']:
-            if attr in vars:
+            if attr in fargs:
                 kwargs[attr] = getattr(self.layers, '__%s__' % attr)
 
         f(**kwargs)

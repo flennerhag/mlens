@@ -223,7 +223,7 @@ def _load_trans(f, case, lim, s, raise_on_exception):
 def _fit_tr(x, y, tr, tr_name, case, layer_name):
     """Wrapper around try-except block for fitting transformer."""
     try:
-        tr.fit(x, y)
+        return tr.fit(x, y)
     except Exception as e:
         # Transformation is sequential: always throw error if one fails
         s = _name(layer_name, case)
@@ -281,16 +281,20 @@ def fit_trans(dir, case, inst, X, y, idx, name):
     # transformers can store results memmaped to the cache, which will
     # prevent the garbage collector from releasing the memmaps from memory
     # after estimation
-    xtrain = asarray(X[idx[0]:idx[1]]) if idx is not None else asarray(X)
-    ytrain = asarray(y[idx[0]:idx[1]]) if idx is not None else asarray(y)
+    x = X[idx[0]:idx[1]] if idx is not None else X
+    y = asarray(y[idx[0]:idx[1]]) if idx is not None else asarray(y)
+
+    if x.__class__.__name__[:3] not in ['csr', 'csc', 'coo', 'dok']:
+        x = asarray(x)
+
     out = []
     for tr_name, tr in inst:
         # Fit transformer
-        _fit_tr(xtrain, ytrain, tr, tr_name, case, name)
+        tr = _fit_tr(x, y, tr, tr_name, case, name)
 
         # If more than one step, transform input for next step
         if len(inst) > 1:
-            xtrain = _transform_tr(xtrain, tr, tr_name, case, name)
+            x = _transform_tr(x, tr, tr_name, case, name)
         out.append((tr_name, tr))
 
     # Write transformer list to cache
@@ -308,8 +312,11 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
     # after estimation
     tri, tei, col = idx[0], idx[1], idx[2]
 
-    x = asarray(X[tri[0]:tri[1]]) if tri is not None else asarray(X)
-    ytrain = asarray(y[tri[0]:tri[1]]) if tri is not None else asarray(y)
+    x = X[tri[0]:tri[1]] if tri is not None else X
+    y = asarray(y[tri[0]:tri[1]]) if tri is not None else asarray(y)
+
+    if x.__class__.__name__[:3] not in ['csr', 'csc', 'coo', 'dok']:
+        x = asarray(x)
 
     # Load transformers
     f = os.path.join(dir, '%s__t' % case)
@@ -320,13 +327,15 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
         x = _transform_tr(x, tr, tr_name, case, name)
 
     # Fit estimator
-    est = _fit_est(x, ytrain, inst, raise_on_exception, inst_name, case, name)
+    est = _fit_est(x, y, inst, raise_on_exception, inst_name, case, name)
 
     # Predict if asked
     # The predict loop is kept separate to allow overwrite of x, thus keeping
     # only one subset of X in memory at any given time
     if tei is not None:
-        x = asarray(X[tei[0]:tei[1]])
+        x = X[tei[0]:tei[1]]
+        if x.__class__.__name__[:3] not in ['csr', 'csc', 'coo', 'dok']:
+            x = asarray(x)
 
         for tr_name, tr in tr_list:
             x = _transform_tr(x, tr, tr_name, case, name)

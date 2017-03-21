@@ -175,14 +175,14 @@ class BlendIndex(BaseIndex):
             # Partition X
             self.n_train = int(n - self.n_test)
 
-        elif isinstance(self.train_size, int):
+        elif isinstance(self.train_size, Integral):
             self.n_train = self.train_size
 
         else:
             self.n_train = int(np.floor(self.train_size * n))
 
         _check_partial_index(self.n_samples, self.test_size, self.train_size,
-                              self.n_test, self.n_train)
+                             self.n_test, self.n_train)
 
         return self
 
@@ -335,6 +335,7 @@ class FullIndex(BaseIndex):
                 yield (tri, tei)
                 last = tei_stop
 
+
 ###############################################################################
 def _check_full_index(n_samples, n_splits, raise_on_exception):
     """Check that folds can be constructed from passed arguments."""
@@ -367,8 +368,8 @@ def _check_partial_index(n_samples, test_size, train_size,
                                   n_samples, n_test, n_train))
 
     for n, i, j in zip(('test', 'train'),
-                    (n_test, n_train),
-                    (test_size, train_size)):
+                       (n_test, n_train),
+                       (test_size, train_size)):
         if n == 0:
             raise ValueError("The %s set size is 0 with current selection ("
                              "%r): "

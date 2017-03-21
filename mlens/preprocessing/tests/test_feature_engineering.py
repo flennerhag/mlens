@@ -9,7 +9,7 @@ import numpy as np
 
 from mlens.preprocessing.feature_engineering import PredictionFeature
 from mlens.metrics.metrics import rmse_scoring
-from mlens.utils.estimator_checks import AverageRegressor
+from mlens.utils.dummy import AverageRegressor
 
 
 from sklearn.linear_model import Lasso

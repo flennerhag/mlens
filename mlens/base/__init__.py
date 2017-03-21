@@ -1,16 +1,13 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-licence: MIT
-Base modules used throughout mlens
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+
+Base modules
 """
 
-from .clone import clone_base_estimators, clone_preprocess_cases
-from .support import check_fit_overlap, safe_slice, check_instances
 from .id_train import IdTrain
-from .indexer import FullIndex
+from .indexer import FullIndex, BlendIndex
 
-__all__ = ['clone_base_estimators', 'clone_preprocess_cases',
-           'check_fit_overlap', 'safe_slice', 'check_instances',
-           'IdTrain',
-           'FullIndex']
+__all__ = ['IdTrain', 'BlendIndex', 'FullIndex']

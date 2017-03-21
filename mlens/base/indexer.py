@@ -160,26 +160,25 @@ class BlendIndex(BaseIndex):
 
     def fit(self, X):
         """Set indexer up for slicing an array of length X."""
-        n = X.shape[0]
-
-        self.n_samples = n
+        self.n_samples = X.shape[0]
 
         # Get number of test samples
-        if isinstance(self.test_size, int):
+        if isinstance(self.test_size, Integral):
             self.n_test = self.test_size
         else:
-            self.n_test = int(np.floor(self.test_size * n))
+            self.n_test = int(np.floor(self.test_size * self.n_samples))
 
         # Get number of train samples
         if self.train_size is None:
-            # Partition X
-            self.n_train = int(n - self.n_test)
+            # Partition X - we coerce a positive value here:
+            # if n_test is oversampled will get at final check
+            self.n_train = int(np.abs(self.n_samples - self.n_test))
 
         elif isinstance(self.train_size, Integral):
             self.n_train = self.train_size
 
         else:
-            self.n_train = int(np.floor(self.train_size * n))
+            self.n_train = int(np.floor(self.train_size * self.n_samples))
 
         _check_partial_index(self.n_samples, self.test_size, self.train_size,
                              self.n_test, self.n_train)
@@ -360,10 +359,11 @@ def _check_partial_index(n_samples, test_size, train_size,
                          n_test, n_train):
     """Check that folds can be constructed from passed arguments."""
 
-    if not n_test + n_train <= n_samples:
+    if n_test + n_train > n_samples:
         raise ValueError("The selection of train (%r) and test (%r) samples "
-                         "lead to a selection greater than the number of "
-                         "observations (%i). Test size: %i, train size: "
+                         "lead to a subsets greater than the number of "
+                         "observations (%i). Implied test size: %i, "
+                         "implied train size: "
                          "%i." % (test_size, train_size,
                                   n_samples, n_test, n_train))
 
@@ -377,5 +377,5 @@ def _check_partial_index(n_samples, test_size, train_size,
                              "proportion of samples to the %s set (total "
                              "samples size: %i)." % (i, j, i, i, n_samples))
 
-    if n_samples == 0:
-        raise ValueError("Sample size is 0: nothing to create subset from.")
+    if n_samples < 2:
+        raise ValueError("Sample size < 2: nothing to create subset from.")

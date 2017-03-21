@@ -455,7 +455,7 @@ def _check_column_or_1d(y, context=""):
     """Check if y can be raveled."""
     CHANGE = False
     try:
-        shape = np.shape(y)
+        s = tuple(np.shape(y))
     except Exception as e:
         CHANGE = True
         warnings.warn("%sCould not get shape of y. Consider changing the "
@@ -464,10 +464,10 @@ def _check_column_or_1d(y, context=""):
                       InputDataWarning)
         return CHANGE
 
-    if len(shape) == 2 and shape[1] == 1:
+    if len(s) == 2 and s[1] == 1:
         CHANGE = True
         warnings.warn("%sA column-vector y was passed when a 1d array was"
-                      " expected. Please change the shape of y to "
+                      " expected. Change the shape of y to "
                       "(n_samples, ), for example using ravel()." % context,
                       InputDataWarning)
 
@@ -475,10 +475,9 @@ def _check_column_or_1d(y, context=""):
 
 
 def _check_x_y(X, y):
-    """Wrapper for default arguments."""
+    """Wrapper for our default arguments - relax some Scikit-learn defaults."""
     return check_X_y(X, y,
-                     accept_sparse=True,     # Sparse input is admitted
-                     dtype="numeric",             # Native dtype preserve
+                     accept_sparse=['csr', 'csc'],  # Accept sparse csr, csc
                      order=None,             # Make no C or Fortran imposition
                      copy=False,             # Do not trigger copying
                      force_all_finite=True,  # Raise error on np.inf or np.nan
@@ -490,10 +489,9 @@ def _check_x_y(X, y):
 
 
 def _check_array(X):
-    """Wrapper for default arguments."""
+    """Wrapper for our default arguments - relax some Scikit-learn defaults."""
     return check_array(X,
-                       accept_sparse=True,  # Sparse input is admitted
-                       dtype="numeric",  # Native dtype preserve
+                       accept_sparse=['csr', 'csc'],  # Accept sparse csr, csc
                        order=None,  # Do not enforce C or Fortran
                        copy=False,  # Do not trigger copying
                        force_all_finite=True,  # Raise error on np.inf/np.nan

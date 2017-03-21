@@ -6,22 +6,39 @@ Exception handling classes.
 
 class NotFittedError(ValueError, AttributeError):
 
-    """Error class for not fitted ensembles."""
+    """Error class for an ensemble or estimator that is not fitted yet
+
+    Raised when some method has been called that expects the instance to be
+    fitted.
+    """
 
 
 class FitFailedWarning(RuntimeWarning):
 
-    """Warning for failed fitting."""
+    """Warning for a failed estimator 'fit' call."""
 
 
-class FitFailedError(RuntimeError):
+class FitFailedError(RuntimeError, TypeError):
 
-    """Error for failed fitting."""
+    """Error for failed estimator 'fit' call.
+
+    Inherits type error to accommodate Scikit-learn expectation of a
+    ``TypeError`` on failed array checks in estimators.
+    """
 
 
-class SliceError(TypeError, IndexError, ValueError, AttributeError):
+class PredictFailedError(RuntimeError, TypeError):
 
-    """Error class for failed slicing."""
+    """Error for a failed estimator 'predict' call.
+
+    Inherits type error to accommodate Scikit-learn expectation of a
+    ``TypeError`` on failed array checks in estimators.
+    """
+
+
+class PredictFailedWarning(RuntimeWarning):
+
+    """Warning for a failed estimator 'predict' call."""
 
 
 class LayerSpecificationError(TypeError, ValueError):
@@ -31,19 +48,41 @@ class LayerSpecificationError(TypeError, ValueError):
 
 class LayerSpecificationWarning(UserWarning):
 
-    """Error class for incorrectly specified layers."""
+    """Warning class if layer has been specified in a dubious form.
+
+    This warning is raised when the input does not look like expected, but
+    is not fatal and a best guess of how to fix it will be made.
+    """
 
 
 class ParallelProcessingError(AttributeError, RuntimeError):
 
-    """Error class for errors related to the ParallelProcessing class."""
+    """Error class for fatal errors related to :class:`ParallelProcessing`.
+
+    Can be subclassed for more specific error classes.
+    """
 
 
 class ParallelProcessingWarning(UserWarning):
 
-    """Warnings related to the ParallelProcessing class."""
+    """Warnings related to methods on :class:`ParallelProcessing`.
+
+    Can be subclassed for more specific warning classes.
+    """
 
 
+class InputDataWarning(UserWarning):
+
+    """Warning used to notify that an array does not behave as expected.
+
+    Raised if data looks suspicious, but not outright fatal. Used sparingly,
+    as it is often better to raise an error if input does not look like
+    expected. Debugging corrupt data during parallel estimation is difficult
+    and requires knowledge of backend operations.
+    """
+
+
+###############################################################################
 class EfficiencyWarning(UserWarning):
 
     """Warning used to notify the user of inefficient computation.
@@ -92,13 +131,4 @@ class DataConversionWarning(UserWarning):
        Moved from sklearn.utils.validation.
 
     .. note:: imported from Scikit-learn for validation compatibility.
-    """
-
-
-class InputDataWarning(UserWarning):
-
-    """Warning used to notify that an array does not behave as expected.
-
-    Probably, this is because the data is held in an object not anticipated by
-    the validation suite, and as such is likely to fail fitting.
     """

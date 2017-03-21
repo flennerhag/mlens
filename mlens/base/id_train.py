@@ -12,10 +12,7 @@ training data.
 
 from __future__ import division, print_function
 
-from .support import safe_slice
-
-from pandas import DataFrame
-from numpy import array_equal
+from numpy import array_equal, ix_
 from numpy.random import permutation
 
 
@@ -56,7 +53,7 @@ class IdTrain(object):
             dim_size = min(X.shape[i], self.size)
             sample_idx[i] = permutation(X.shape[i])[:dim_size]
 
-        sample = safe_slice(X, sample_idx[0], sample_idx[1])
+        sample = X[ix_(sample_idx[0], sample_idx[1])]
 
         self.sample_idx_ = sample_idx
         self.sample_ = sample
@@ -83,11 +80,7 @@ class IdTrain(object):
 
         try:
             # Grab sample from `X`
-            sample = safe_slice(X, idx[0], idx[1])
-
-            # Enforce ndarray representation
-            if isinstance(sample, DataFrame):
-                sample = sample.values
+            sample = X[ix_(idx[0], idx[1])]
 
             return array_equal(sample, self.sample_)
 

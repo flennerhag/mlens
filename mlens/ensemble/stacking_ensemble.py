@@ -116,7 +116,7 @@ class StackingEnsemble(BaseEnsemble):
     Examples
     --------
 
-    Instantiate ensembles with no/same preprocessing with estimator lists.
+    Instantiate ensembles with no preprocessing: use list of estimators
 
     >>> from mlens.ensemble import StackingEnsemble
     >>> from mlens.metrics.metrics import rmse_scoring
@@ -127,7 +127,7 @@ class StackingEnsemble(BaseEnsemble):
     >>> X, y = load_boston(True)
     >>>
     >>> ensemble = StackingEnsemble()
-    >>> ensemble.add([SVR(), Lasso()]).add(SVR())
+    >>> ensemble.add([SVR(), ('can name some or all est', Lasso())]).add(SVR())
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
@@ -149,7 +149,7 @@ class StackingEnsemble(BaseEnsemble):
     ...                        'sc': [StandardScaler()]}
     >>>
     >>> estimators_per_case = {'mm': [SVR()],
-    ...                        'sc': [Lasso()]}
+    ...                        'sc': [('can name some or all ests', Lasso())]}
     >>>
     >>> ensemble = StackingEnsemble()
     >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR())
@@ -169,8 +169,7 @@ class StackingEnsemble(BaseEnsemble):
                  array_check=2,
                  verbose=False,
                  n_jobs=-1,
-                 layers=None,
-                 meta_estimator=None):
+                 layers=None):
 
         self.folds = folds
         self.shuffle = shuffle
@@ -181,7 +180,6 @@ class StackingEnsemble(BaseEnsemble):
         self.verbose = verbose
         self.n_jobs = n_jobs
         self.layers = layers
-        self.meta_estimator = meta_estimator
         self.printout = 'stdout' if self.verbose >= 50 else 'stderr'
 
     def add(self, estimators, preprocessing=None, folds=None):
@@ -274,12 +272,10 @@ class StackingEnsemble(BaseEnsemble):
         self : instance
             class instance with fitted estimators.
         """
-        # Ensemble build check
         if not check_ensemble_build(self):
             # No layers instantiated. Return vacuous fit.
             return self
 
-        # Inputs check.
         X, y = check_inputs(X, y, self.array_check)
 
         if self.shuffle:
@@ -287,12 +283,10 @@ class StackingEnsemble(BaseEnsemble):
             r.shuffle(X)
             r.shuffle(y)
 
-        # Layer estimation
         ts = self._print_start()
 
-        out = self._fit_layers(X, y)
-
-        self.scores_ = set_scores(self, out)
+        self._fit_layers(X, y)
+        self.scores_ = set_scores(self)
 
         if self.verbose > 0:
             print_time(ts, 'Ensemble fitted', file=self.printout)
@@ -315,12 +309,10 @@ class StackingEnsemble(BaseEnsemble):
         y_pred : array-like, shape=[n_samples, ]
             predictions for provided input array.
         """
-        # Ensemble build check
         if not check_ensemble_build(self):
             # No layers instantiated, but raise_on_exception is False
             return
 
-        # Inputs check
         X, y = check_inputs(X, y, self.array_check)
 
         if self.shuffle:

@@ -4,7 +4,7 @@
 :copyright: 2017
 :license: MIT
 
-Checks to deploy on estimators to assert proper behavior.
+Dummy estimators and Mixins to facilitate unit testing and some benchmarking.
 """
 
 import numpy as np
@@ -25,14 +25,39 @@ class OLS(BaseEstimator):
 
     OLS is a simple estimator designed to allow for total control over
     predictions in unit testing. It implements OLS through the Normal
-    Equation, and so no learning takes places. The ``offset`` option allows
-    the user to offset predictions by a scalar value, if different instances
+    Equation, no learning takes place. The ``offset`` option allows
+    the user to offset weights by a scalar value, if different instances
     should be differentiated in their predictions.
 
     Parameters
     ----------
     offset : float (default = 0)
         scalar value to add to the coefficient vector after fitting.
+
+    Examples
+    --------
+
+    Asserting the OLS passes the Scikit-learn estimator test
+
+    >>> from sklearn.utils.estimator_checks import check_estimator
+    >>> from mlens.utils.dummy import OLS
+    >>> check_estimator(OLS)
+
+    OLS comparison with Scikit-learn's LinearRegression
+
+    >>> from numpy.testing import assert_array_equal
+    >>> from mlens.utils.dummy import OLS
+    >>> from sklearn.linear_model import LinearRegression
+    >>> from sklearn.datasets import load_boston
+    >>> X, y = load_boston(True)
+    >>>
+    >>> lr = LinearRegression(False)
+    >>> lr.fit(X, y)
+    >>>
+    >>> ols = OLS()
+    >>> ols.fit(X, y)
+    >>>
+    >>> assert_array_equal(lr.coef_, ols.coef_)
     """
 
     def __init__(self, offset=0):
@@ -40,20 +65,24 @@ class OLS(BaseEstimator):
 
     def fit(self, X, y):
         """Fit coefficient vector."""
-        X, y = check_X_y(X, y, accept_sparse='csr')
+        X, y = check_X_y(X, y, accept_sparse=False)
+
         O = np.linalg.lstsq(X, y)
+
         self.coef_ = O[0] + self.offset
         self.resid_ = O[1]
+
         return self
 
     def predict(self, X, y=None):
         """Predict with fitted weights."""
-        X = check_array(X, accept_sparse='csr')
+        X = check_array(X, accept_sparse=False)
+
         return np.dot(X, self.coef_.T)
 
 
 class Scale(BaseEstimator, TransformerMixin):
-    """Removes mean per columns in an array.
+    """Removes the learnt mean column-wise in an array.
 
     MWE of a Scikit-learn transformer, to be used for unit-tests of ensemble
     classes.
@@ -63,56 +92,57 @@ class Scale(BaseEstimator, TransformerMixin):
     copy : bool (default = True)
         Whether to copy X before transforming.
 
-
     Examples
     --------
-    >>> X
-    array([1., 2.])
-    >>> Scale().fit_transform()
-    array([-.5, .5])
+
+    Scaling elements
+
+    >>> from numpy import arange
+    >>> from mlens.utils.dummy import Scale
+    >>> X = arange(6).reshape(3, 2)
+    >>> X[:, 1] *= 2
+    >>> print('X:')
+    >>> print('%r' % X)
+    >>> print()
+    >>> print('Scaled:')
+    >>> S = Scale().fit_transform(X)
+    >>> print('%r' % S)
+    X:
+    array([[ 0,  2],
+           [ 2,  6],
+           [ 4, 10]])
+
+    Scaled:
+    array([[-2., -4.],
+           [ 0.,  0.],
+           [ 2.,  4.]])
+
+    Asserting :class:`Scale` passes the Scikit-learn estimator test
+
+    >>> from sklearn.utils.estimator_checks import check_estimator
+    >>> from mlens.utils.dummy import Scale
+    >>> check_estimator(Scale)
     """
     def __init__(self, copy=True):
         self.copy = copy
         self.__is_fitted__ = False
 
     def fit(self, X, y=None):
-        """Pass through."""
+        """Estimate mean.
+        """
+        X = check_array(X, accept_sparse='csr')
         self.__is_fitted__ = True
         self.mean_ = X.mean(axis = 0)
         return self
 
     def transform(self, X):
-        """Transform X by adjusting all elements with scale."""
+        """Transform array by adjusting all elements with scale.
+        """
         if not self.__is_fitted__:
             raise NotFittedError("Estimator not fitted.")
-
+        X = check_array(X, accept_sparse='csr')
         Xt = X.copy() if self.copy else X
         return Xt - self.mean_
-
-
-
-class AverageRegressor(BaseEstimator):
-
-    """Predicts the average of training labels.
-
-    MWP of a Scikit-learn estimator, to be used for unit-tests of ensemble
-    classes.
-    """
-
-    def __init__(self):
-        pass
-
-    def fit(self, X, y):
-        """Find average."""
-        X, y = check_X_y(X, y, accept_sparse='csr')
-        self.average_ = np.mean(y)
-        return self
-
-    def predict(self, X, y=None):
-        """Predict the average."""
-        X = check_array(X, accept_sparse='csr')
-
-        return np.ones(X.shape[0]) * self.average_
 
 
 class InitMixin(object):
@@ -137,9 +167,12 @@ class InitMixin(object):
 
     Examples
     --------
+
+    Assert the :class:`StackingEnsemble` passes the Scikit-learn estimator test
+
     >>> from sklearn.utils.estimator_checks import check_estimator
     >>> from mlens.ensemble import StackingEnsemble
-    >>> from mlens.utils.estimator_checks import InitMixin
+    >>> from mlens.utils.dummy import InitMixin
     >>>
     >>> class TestStackingEnsemble(InitMixin, StackingEnsemble):
     ...
@@ -147,7 +180,6 @@ class InitMixin(object):
     ...         super().__init__()
     >>>
     >>> check_estimator(TestStackingEnsemble)
-    [Some warning messages from mlens ONLY (not sklearn warnings)]
     """
 
     @abstractmethod
@@ -156,10 +188,12 @@ class InitMixin(object):
         # Instantiate class
         super(InitMixin, self).__init__()
 
+        # The test is parallelized and Scikit-learn estimators default to
+        # n_jobs = 1, so need to coerce ensembles to the same behavior
         self.n_jobs = 1
 
+        # Build an ensemble consisting of two OLS estimators in the first
+        # layer, and a single on top.
         if getattr(self, 'layers', None) is None:
-            self.add([AverageRegressor()])
-
-        if hasattr(self, 'meta_estimator') and self.meta_estimator is None:
-            self.add_meta(AverageRegressor())
+            getattr(self, 'add')([OLS(offset=1), OLS(offset=2)])
+            getattr(self, 'add')(OLS())

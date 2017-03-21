@@ -4,8 +4,6 @@
 :licence: MIT
 """
 
-from .feature_engineering import PredictionFeature
 from .preprocess import StandardScaler, Subset
 
-__all__ = ['StandardScaler', 'Subset',
-           'PredictionFeature']
+__all__ = ['StandardScaler', 'Subset']

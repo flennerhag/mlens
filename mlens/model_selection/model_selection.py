@@ -13,8 +13,11 @@ from __future__ import division, print_function
 import numpy as np
 from pandas import DataFrame, Series
 
-from ..base import clone_preprocess_cases, check_instances
-from ..parallel import preprocess_folds, cross_validate
+lone_preprocess_cases = None
+check_instances = None
+preprocess_folds = None
+cross_validate = None
+
 from ..utils import print_time, safe_print
 
 from time import time

@@ -62,8 +62,3 @@ def print_time(t0, message='', **kwargs):
     h, m = divmod(m, 60)
 
     safe_print(message + '%02d:%02d:%02d\n' % (h, m, s), **kwargs)
-
-
-###############################################################################
-class profiler():
-    pass

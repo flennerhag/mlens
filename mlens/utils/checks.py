@@ -14,13 +14,29 @@ from .exceptions import (NotFittedError, LayerSpecificationWarning,
                          ParallelProcessingWarning)
 
 
-def _non_null_return(*args):
-    """Utility for returning non-null values."""
-    return tuple([arg for arg in args if arg is not None])
+def check_fit_overlap(full_fit_est, fold_fit_est, layer):
+    """DEPRECATED Helper function to check that fitted estimators overlap."""
+    if not all([est in full_fit_est for est in fold_fit_est]):
+        raise ValueError('[%s] Not all estimators successfully fitted on the '
+                         'full data set were fitted during fold predictions. '
+                         'Aborting.'
+                         '\n[%s] Fitted estimators on full data: %r'
+                         '\n[%s] Fitted estimators on folds:'
+                         '%r' % (layer, layer, full_fit_est, layer,
+                                 fold_fit_est))
+
+    if not all([est in fold_fit_est for est in full_fit_est]):
+        raise ValueError('[%s] Not all estimators successfully fitted on the '
+                         'fold data were successfully fitted on the full data.'
+                         ' Aborting.'
+                         '\n[%s] Fitted estimators on full data: %r'
+                         '\n[%s] Fitted estimators on folds:'
+                         '%r' % (layer, layer, full_fit_est, layer,
+                                 fold_fit_est))
 
 
 def check_layer_output(layer, layer_name, raise_on_exception):
-    """Quick check to determine if no estimators where fitted."""
+    """DEPRECATED Quick check to determine if no estimators where fitted."""
     if not hasattr(layer, 'estimators_'):
         # If the attribute was not created during fit, the instance will not
         # function. Raise error.

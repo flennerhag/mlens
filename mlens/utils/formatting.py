@@ -9,72 +9,9 @@ Support functions used throughout mlens
 
 from __future__ import division, print_function
 
-from ..utils.checks import assert_valid_estimator
-from ..utils.exceptions import SliceError, LayerSpecificationError
-from numpy import ix_
+from .checks import assert_valid_estimator
+from .exceptions import LayerSpecificationError
 from collections import Counter
-
-
-###############################################################################
-def safe_slice(X, row_slice=None, column_slice=None, layer_name=None):
-    """Safe slice of X irrespective of whether X is DataFrame or ndarray."""
-    if (row_slice is None) and (column_slice is None):
-        # No slice specified return original
-        return X
-    else:
-        # Slice X
-        try:
-            # Wrap slicing in a try-except block to wrap traceback
-            if hasattr(X, "iloc"):
-                # Check if pandas DataFrame
-                if row_slice is None:
-                    return X.iloc[:, column_slice]
-                elif column_slice is None:
-                    return X.iloc[row_slice, :]
-                else:
-                    return X.iloc[row_slice, column_slice]
-
-            else:
-                # Assume numpy array, or similarly indexable
-                if row_slice is None:
-                    return X[:, column_slice]
-                elif column_slice is None:
-                    return X[row_slice]
-                else:
-                    return X[ix_(row_slice, column_slice)]
-
-        except Exception as e:
-            # Throw error along with some information about X
-            if layer_name is not None:
-                # Print passed layer information
-                raise SliceError(
-                    '[%s] Slicing array failed. Aborting. '
-                    'Details:\n%r\nX: %s\n%r' % (layer_name, e, type(X), X))
-            else:
-                raise SliceError('Slicing array failed. Aborting. '
-                                 'Details:\n%r\nX: %s\n%r' % (e, type(X), X))
-
-
-###############################################################################
-def check_fit_overlap(full_fit_est, fold_fit_est, layer):
-    """Helper function to check that fitted estimators overlap."""
-    if not all([est in full_fit_est for est in fold_fit_est]):
-        raise ValueError('[%s] Not all estimators successfully fitted on the '
-                         'full data set were fitted during fold predictions. '
-                         'Aborting.'
-                         '\n[%s] Fitted estimators on full data: %r'
-                         '\n[%s] Fitted estimators on folds:'
-                         '%r' % (layer, layer, full_fit_est, layer,
-                                 fold_fit_est))
-
-    if not all([est in fold_fit_est for est in full_fit_est]):
-        raise ValueError('[%s] Not all estimators successfully fitted on the '
-                         'fold data were successfully fitted on the full data.'
-                         ' Aborting.'
-                         '\n[%s] Fitted estimators on full data: %r'
-                         '\n[%s] Fitted estimators on folds:'
-                         '%r' % (layer, layer, full_fit_est, layer,
-                                 fold_fit_est))
 
 
 def _format_instances(instances):

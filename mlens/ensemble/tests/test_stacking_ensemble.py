@@ -11,7 +11,7 @@ from pandas import DataFrame
 from mlens.ensemble import StackingEnsemble
 from mlens.metrics import rmse
 from mlens.metrics.metrics import rmse_scoring
-from mlens.utils.estimator_checks import InitMixin
+from mlens.utils.dummy import InitMixin
 
 from sklearn.linear_model import Lasso
 from sklearn.neighbors import KNeighborsRegressor

@@ -4,13 +4,12 @@
 :copyright: 2017
 :licence: MIT
 
-Parallel processing core backend.
+Parallel processing job manager.
 """
 
 import numpy as np
 
-from .stacking import Stacker
-from ..base import FullIndex
+from . import Stacker
 from ..utils import check_initialized
 from ..utils.exceptions import ParallelProcessingWarning, \
     ParallelProcessingError
@@ -27,8 +26,8 @@ from joblib import Parallel, dump, load
 import warnings
 
 
-ENGINES = {'stack': Stacker}
-INDEXERS = {'full': FullIndex}
+ENGINES = {'stack': Stacker,
+           }
 
 
 class Job(object):
@@ -58,7 +57,7 @@ class ParallelProcessing(object):
     Parameters
     ----------
     layers : :class:`mlens.ensemble.base.LayerContainer`
-        The ``LayerContainer`` instance the engine is attached to.
+        The ``LayerContainer`` that instantiated the processor.
     """
 
     __slots__ = ['layers', '_initialized', '_fitted', '_job']
@@ -72,18 +71,17 @@ class ParallelProcessing(object):
         """Create a job instance for estimation."""
         self._job = Job()
 
-        # Set up temporary directory
         self._job.dir = tempfile.mkdtemp(dir=dir)
 
-        # Build mmaps for X and y (if specified)
+        # Build mmaps for inputs
         for name, arr in zip(('X', 'y'), (X, y)):
 
             if arr is None:
-                # Can happen if y is not specified, as during predictions
+                # Can happen if y is not specified (i.e. during prediction)
                 continue
 
             if isinstance(arr, str):
-                # Load file from disk. Need to dump if not memmaped for us
+                # Load file from disk. Need to dump if not memmaped already
                 if not arr.split('.')[-1] in ['mmap', 'npy', 'npz']:
                     # Try loading the file assuming a csv-like format
                     arr = self._load(arr)
@@ -102,12 +100,11 @@ class ParallelProcessing(object):
             if name is 'y' and y is not None:
                 self._job.y = self._load_mmap(f)
             else:
-                # Store X as the first input matrix in a list of input-output
-                # matrices for all layers
+                # Store X as the first input matrix in list of inputs matrices
                 self._job.P = [self._load_mmap(f)]
 
         # Append pre-allocated prediction arrays in r+ to the P list
-        # Thus, each layer n will be fitted on P[n - 1] and write to P[n]
+        # Each layer will be fitted on P[i] and write to P[i + 1]
         for name, lyr in self.layers.layers.items():
             f = os.path.join(self._job.dir, '%s.mmap' % name)
 
@@ -150,10 +147,9 @@ class ParallelProcessing(object):
 
     def process(self, attr):
         """Fit all layers in the attached :class:`LayerContainer`."""
-        # Pre-checks before starting job
         check_initialized(self)
 
-        # Use context manager to ensure same parallel job is passed along
+        # Use context manager to ensure same parallel job during entire process
         with Parallel(n_jobs=self.layers.n_jobs,
                       temp_folder=self._job.dir,
                       max_nbytes=None,

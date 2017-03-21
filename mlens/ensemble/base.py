@@ -12,7 +12,7 @@ from __future__ import division, print_function
 from collections import OrderedDict
 from abc import ABCMeta, abstractmethod
 
-from ..base import check_instances
+from ..utils import check_instances
 from ..parallel import ParallelProcessing
 from ..utils import (assert_correct_layer_format, print_time, safe_print)
 

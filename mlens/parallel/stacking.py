@@ -4,8 +4,7 @@
 :copyright: 2017
 :licence: MIT
 
-estimation function for parallel preprocessing of
-:class:`mlens.ensemble.StackingEnsemble`.
+Estimation engine for parallel preprocessing of stacked layer.
 """
 
 from numpy import asarray, hstack, arange
@@ -13,7 +12,8 @@ from numpy import asarray, hstack, arange
 from ..utils import (safe_print, print_time, pickle_load, pickle_save,
                      check_is_fitted)
 from ..utils.exceptions import (FitFailedError, FitFailedWarning,
-                                NotFittedError,
+                                NotFittedError, PredictFailedError,
+                                PredictFailedWarning,
                                 ParallelProcessingWarning,
                                 ParallelProcessingError)
 
@@ -33,6 +33,10 @@ class Stacker(object):
 
     Class for fitting a Layer using Stacking or Blending.
     """
+
+    __slots__ = ['verbose', 'layer', 'raise_', 'name',
+                 'lim', 'ival', 'dual', 'e', 'p', 'c']
+
     def __init__(self, layer, dual=True):
         self.layer = layer
 
@@ -143,8 +147,7 @@ class Stacker(object):
                                       xtest=X,
                                       pred=P,
                                       col=col,
-                                      name=self.name,
-                                      raise_on_exception=self.raise_)
+                                      name=self.name)
                  for case, (inst_name, est, (_, col)) in ests)
 
         if self.verbose:
@@ -359,16 +362,17 @@ def _slice_array(x, y, idx):
 
 
 ###############################################################################
-def predict_est(case, tr_list, inst_name, est, xtest, pred, col,
-                raise_on_exception, name):
+def predict_est(case, tr_list, inst_name, est, xtest, pred, col, name):
     """Method for predicting with fitted transformers and estimators."""
     # Transform input
     for tr_name, tr in tr_list:
         xtest = _transform_tr(xtest, tr, tr_name, case, name)
 
     # Predict into memmap
-    pred[:, col] = _predict_est(xtest, est, raise_on_exception,
-                                inst_name, case, name)
+    # Here, we coerce errors on failed predictions - all predictors that
+    # survive into the estimators_ attribute of a layer should be able to
+    # predict, otherwise the subsequent layer will get corrupt input.
+    pred[:, col] = _predict_est(xtest, est, True, inst_name, case, name)
 
 
 def fit_trans(dir, case, inst, X, y, idx, name):
@@ -529,9 +533,9 @@ def _predict_est(x, est, raise_on_exception, inst_name, case, layer_name):
         s = _name(layer_name, case)
 
         if raise_on_exception:
-            raise FitFailedError("%sCould not predict with estimator '%s'. "
-                                 "Details:\n%r" % (s, inst_name, e))
+            raise PredictFailedError("%sCould not predict with estimator '%s'."
+                                     " Details:\n%r" % (s, inst_name, e))
 
         msg = "%sCould not predict with estimator '%s'. Predictions will be" \
               "0. Details:\n%r"
-        warnings.warn(msg % (s, inst_name, e), FitFailedWarning)
+        warnings.warn(msg % (s, inst_name, e), PredictFailedWarning)

@@ -229,7 +229,8 @@ def check_instances(instances):
             # We need to check the instance list of each case
             out = {}
             for case, case_list in instances.items():
-                out['-'.join(case.split())] = _format_instances(case_list)
+                out['-'.join(case.lower().split())] = \
+                    _format_instances(case_list)
             return out
         else:
             return _format_instances(instances)

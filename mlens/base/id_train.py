@@ -1,7 +1,9 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-licence: MIT
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+
 Class for identifying a training set after an estimator has been fitted. Used
 for determining whether a `predict` or `transform` method should use
 cross validation to create predictions, or estimators fitted on full

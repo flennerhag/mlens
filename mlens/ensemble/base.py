@@ -14,11 +14,7 @@ from abc import ABCMeta, abstractmethod
 
 from ..base import check_instances
 from ..parallel import ParallelProcessing
-from ..utils import (check_is_fitted, assert_correct_layer_format,
-                     print_time, safe_print, check_layer_output)
-from ..utils.exceptions import (LayerSpecificationWarning,
-                                LayerSpecificationError,
-                                NotFittedError)
+from ..utils import (assert_correct_layer_format, print_time, safe_print)
 
 from sklearn.base import BaseEstimator
 
@@ -43,10 +39,6 @@ class LayerContainer(BaseEstimator):
         An ordered dictionary of Layer instances. To initiate a new
         ``LayerContainer`` instance, set ``layers = None``.
 
-    n_layers : int (default = None)
-        number of layers instantiated. Automatically set, normally there is no
-        reason to fiddle with this parameter.
-
     n_jobs : int (default = -1)
         Number of CPUs to use. Set ``n_jobs = -1`` for all available CPUs, and
         ``n_jobs = -2`` for all available CPUs except one, e.tc..
@@ -67,9 +59,6 @@ class LayerContainer(BaseEstimator):
 
     """
 
-    __lim__ = 600   # Time limit for trying to find transformers in cache
-    __sec__ = 0.1  # Time interval for checking if transformers exists in cache
-
     def __init__(self,
                  layers=None,
                  n_jobs=-1,
@@ -86,36 +75,39 @@ class LayerContainer(BaseEstimator):
         # Set up layer
         self._init_layers(layers)
 
-    def add(self, fit_function, predict_function, estimators,
-            preprocessing=None, fit_params=None, predict_params=None,
-            in_place=True, **kwargs):
+    def add(self, estimators, cls, preprocessing=None, inplace=True, **kwargs):
         """Method for adding a layer.
 
         Parameters
         -----------
-        fit_function : function
-            Function used for fitting the layer. The ``fit_function`` must
-            have the following API::
+        estimators: dict of lists or list
+            estimators constituting the layer. If ``preprocessing`` is
+            ``None`` or ``list``, ``estimators`` should be a ``list``.
+            The list can either contain estimator instances,
+            named tuples of estimator instances, or a combination of both. ::
 
-                (estimators_, preprocessing_, out) = fit_function(
-                layer_instance, X, y, fit_params)
+                option_1 = [estimator_1, estimator_2]
+                option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
+                option_3 = [estimator_1, ("est-2", estimator_2)]
 
-            where ``estimators_`` and ``preprocessing_`` are generic objects
-            holding fitted instances. The ``LayerContainer`` class is agnostic
-            to the object type, and only passes these along to the
-            ``predict_function`` during a ``predict`` call. The ``out``
-            variable must be a tuple of output data that at least contains
-            the training data for the subsequent layer as its **first**
-            element: ``out = (X, ...)``.
+            If different preprocessing pipelines are desired, a dictionary
+            that maps estimators to preprocessing pipelines must be passed.
+            The names of the estimator dictionary must correspond to the
+            names of the estimator dictionary. ::
 
-        predict_function : function
-            Function used for generating prediction with the fitted layer.
-            The predict_function must have the following API::
+                preprocessing_cases = {"case-1": [trans_1, trans_2].
+                                       "case-2": [alt_trans_1, alt_trans_2]}
 
-                X_pred = predict_function(layer_instance, X, y, predict_params)
+                estimators = {"case-1": [est_a, est_b].
+                              "case-2": [est_c, est_d]}
 
-            where ``X_pred`` is an array-like of shape [n_samples,
-            n_fitted_estimators] of predictions.
+            The lists for each dictionary entry can be any of ``option_1``,
+            ``option_2`` and ``option_3``.
+
+        cls : str, object
+            Type of layer, as defined by the estimation class to instantiate
+            when processing a layer. See :mod:`mlens.ensemble` for available
+            classes.
 
         preprocessing: dict of lists or list, optional (default = None)
             preprocessing pipelines for given layer. If
@@ -143,37 +135,7 @@ class LayerContainer(BaseEstimator):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-        estimators: dict of lists or list
-            estimators constituting the layer. If ``preprocessing`` is
-            ``None`` or ``list``, ``estimators`` should be a ``list``.
-            The list can either contain estimator instances,
-            named tuples of estimator instances, or a combination of both. ::
-
-                option_1 = [estimator_1, estimator_2]
-                option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
-                option_3 = [estimator_1, ("est-2", estimator_2)]
-
-            If different preprocessing pipelines are desired, a dictionary
-            that maps estimators to preprocessing pipelines must be passed.
-            The names of the estimator dictionary must correspond to the
-            names of the estimator dictionary. ::
-
-                preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                       "case-2": [alt_trans_1, alt_trans_2]}
-
-                estimators = {"case-1": [est_a, est_b].
-                              "case-2": [est_c, est_d]}
-
-            The lists for each dictionary entry can be any of ``option_1``,
-            ``option_2`` and ``option_3``.
-
-        fit_params : dict, tuple or None (default = None)
-            optional arguments passed to ``fit_function``.
-
-        predict_params : dict, tuple or None (default = None)
-            optional arguments passed to ``predict_function``.
-
-        in_place : bool (default = True)
+        inplace : bool (default = True)
             whether to return the instance (i.e. ``self``).
 
         **kwargs : optional
@@ -192,22 +154,23 @@ class LayerContainer(BaseEstimator):
             kwargs['verbose'] = self.verbose
 
         # Instantiate layer
-        lyr = Layer(estimators=estimators,
-                    preprocessing=preprocessing,
-                    fit_function=fit_function,
-                    predict_function=predict_function,
-                    raise_on_exception=self.raise_on_exception,
-                    **kwargs)
-
         self.n_layers += 1
         name = "layer-%i" % self.n_layers
 
-        # Attached to ordered dictionary
+        lyr = Layer(estimators=estimators,
+                    cls=cls,
+                    preprocessing=preprocessing,
+                    raise_on_exception=self.raise_on_exception,
+                    name=name,
+                    **kwargs)
+
+        # Attach to ordered dictionary
         self.layers[name] = lyr
 
-        self._store_layer_data(name)
+        # Summarize
+        self.summary[name] = self._get_layer_data(name)
 
-        if not in_place:
+        if not inplace:
             return self
 
     def initialize(self, X, y, dir=None):
@@ -374,13 +337,14 @@ class LayerContainer(BaseEstimator):
         self.layers = layers
         self.n_layers = len(self.layers)
 
-        self.struct = dict()
-        for layer_name in self.layers:
-            self._store_layer_data(layer_name)
+        self.summary = dict()
+        for name in self.layers:
+            self.summary[name] = self._get_layer_data(name)
 
-    def _store_layer_data(self, name):
+    def _get_layer_data(self, name,
+                        attr=('cls', 'n_prep', 'n_pred', 'n_est', 'cases')):
         """Utility for storing aggregate data about an added layer."""
-        self.struct[name] = self.layers[name].struct
+        return {k: getattr(self.layers[name], k, None) for k in attr}
 
     def get_params(self, deep=True):
         """Get parameters for this estimator.
@@ -415,12 +379,39 @@ class Layer(BaseEstimator):
 
     r"""Layer of preprocessing pipes and estimators.
 
-    Layer is an internal class that holds a layer and all associated layer
-    specific methods. It behaves as an estimator from an Scikit-learn API
-    point of view.
+    Layer is an internal class that holds a layer and its associated data
+    including an estimation procedure. It behaves as an estimator from an
+    Scikit-learn API point of view.
 
     Parameters
     ----------
+    estimators: dict of lists or list
+        estimators constituting the layer. If ``preprocessing`` is
+        ``None`` or ``list``, ``estimators`` should be a ``list``.
+        The list can either contain estimator instances,
+        named tuples of estimator instances, or a combination of both. ::
+
+            option_1 = [estimator_1, estimator_2]
+            option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
+            option_3 = [estimator_1, ("est-2", estimator_2)]
+
+        If different preprocessing pipelines are desired, a dictionary
+        that maps estimators to preprocessing pipelines must be passed.
+        The names of the estimator dictionary must correspond to the
+        names of the estimator dictionary. ::
+
+            preprocessing_cases = {"case-1": [trans_1, trans_2].
+                                   "case-2": [alt_trans_1, alt_trans_2]}
+
+            estimators = {"case-1": [est_a, est_b].
+                          "case-2": [est_c, est_d]}
+
+        The lists for each dictionary entry can be any of ``option_1``,
+        ``option_2`` and ``option_3``.
+
+    cls : str
+        type of layers. Should be the name of an accepted estimator class.
+
     preprocessing: dict of lists or list, optional (default = None)
         preprocessing pipelines for given layer. If
         the same preprocessing applies to all estimators, ``preprocessing``
@@ -447,66 +438,6 @@ class Layer(BaseEstimator):
         The lists for each dictionary entry can be any of ``option_1``,
         ``option_2`` and ``option_3``.
 
-    estimators: dict of lists or list
-        estimators constituting the layer. If ``preprocessing`` is
-        ``None`` or ``list``, ``estimators`` should be a ``list``.
-        The list can either contain estimator instances,
-        named tuples of estimator instances, or a combination of both. ::
-
-            option_1 = [estimator_1, estimator_2]
-            option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
-            option_3 = [estimator_1, ("est-2", estimator_2)]
-
-        If different preprocessing pipelines are desired, a dictionary
-        that maps estimators to preprocessing pipelines must be passed.
-        The names of the estimator dictionary must correspond to the
-        names of the estimator dictionary. ::
-
-            preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                   "case-2": [alt_trans_1, alt_trans_2]}
-
-            estimators = {"case-1": [est_a, est_b].
-                          "case-2": [est_c, est_d]}
-
-        The lists for each dictionary entry can be any of ``option_1``,
-        ``option_2`` and ``option_3``.
-
-    fit_params : dict, tuple or None (default = None)
-        optional arguments passed to ``fit_function``.
-
-    predict_params : dict, tuple or None (default = None)
-        optional arguments passed to ``predict_function``.
-
-    fit_function : function
-        Function used for fitting the layer. The ``fit_function`` must
-        have the following API::
-
-            (estimators_, preprocessing_, out) = fit_function(
-            layer_instance, X, y, fit_params)
-
-        where ``estimators_`` and ``preprocessing_`` are generic objects
-        holding fitted instances. The ``LayerContainer`` class is agnostic
-        to the object type, and only passes these along to the
-        ``predict_function`` during a ``predict`` call. The ``out``
-        variable must be a tuple of output data that at least contains
-        the training data for the subsequent layer as its **first**
-        element: ``out = (X, ...)``.
-
-    predict_function : function
-        Function used for generating prediction with the fitted layer.
-        The predict_function must have the following API::
-
-            X_pred = predict_function(layer_instance, X, y, predict_params)
-
-        where ``X_pred`` is an array-like of shape [n_samples,
-        n_fitted_estimators] of predictions.
-
-    fit_params : dict, tuple or None (default = None)
-        optional keyword arguments passed to ``fit_function``.
-
-    predict_params : dict, tuple or None (default = None)
-        optional keyword arguments passed to ``predict_function``.
-
     indexer : obj, optional
         indexing object to be used for slicing data during fitting.
 
@@ -524,6 +455,9 @@ class Layer(BaseEstimator):
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
         For verbosity in the layers themselves, use ``fit_params``.
 
+    cls_kwargs : dict or None
+        optional arguments to pass to the layer type class.
+
     Attributes
     ----------
     estimators\_ : OrderedDict, list
@@ -537,135 +471,52 @@ class Layer(BaseEstimator):
 
     def __init__(self,
                  estimators,
-                 fit_function,
-                 predict_function,
+                 cls,
                  preprocessing=None,
                  indexer=None,
                  raise_on_exception=False,
-                 verbose=False):
+                 name=None,
+                 verbose=False,
+                 cls_kwargs=None):
 
         assert_correct_layer_format(estimators, preprocessing)
 
         self.estimators = check_instances(estimators)
         self.preprocessing = check_instances(preprocessing)
-        self._fit = fit_function
-        self._predict = predict_function
-        self.raise_on_exception = raise_on_exception
+        self.cls = cls.strip().lower()
+        self.cls_kwargs = cls_kwargs
         self.indexer = indexer
+        self.raise_on_exception = raise_on_exception
+        self.name = name
         self.verbose = verbose
 
         self._store_layer_data()
 
-    def fit(self, X, y, P, dir, parallel, name, lim, sec):
-        """Generic method for fitting and storing layer data.
-
-        Any output data created during estimation is stored in the
-        ``fit_data_`` attribute.
-
-        Parameters
-        ----------
-        X : array-like of shape = [n_samples, n_features]
-            input matrix to be used for prediction.
-
-        y : array-like of shape = [n_samples, ]
-            training lables.
-
-        P : array-like of shape = [n_prediction_samples, n_estimators]
-            prediction matrix to fill with prediction.
-
-        dir : str
-            path to estimation folder to use during fitting.
-
-        parallel : inst
-            a :class:`joblib.Parallel` instance to use for parallel estimation.
-
-        """
-        (self.estimators_, self.preprocessing_, self.fit_data_) = \
-            self._fit(self, X, y, P, dir, parallel, name, lim, sec)
-
-    def predict(self, X, P, parallel, name):
-        """Generic method for predicting with fitted layer.
-
-        Parameters
-        ----------
-        X : array-like of shape = [n_samples, n_features]
-            input matrix to be used for prediction.
-
-        y : None, array-like of shape = [n_samples, ]
-            pass-through for Scikit-learn API.
-
-        parallel : inst
-            a :class:`joblib.Parallel` instance to use for parallel estimation.
-
-        Returns
-        -------
-        X_pred : array-like of shape = [n_samples, n_fitted_estimators]
-            predictions from fitted estimators in layer.
-        """
-        self._check_fitted()
-        return self._predict(self, X, P, parallel, name)
-
-    def _check_fitted(self):
-        """Utility function for checking that fitted estimators exist."""
-        check_is_fitted(self, "estimators_")
-
-        # Check that there is at least one fitted estimator
-        if isinstance(self.estimators_, (list, tuple, set)):
-            empty = len(self.estimators_) == 0
-        elif isinstance(self.estimators_, dict):
-            empty = any([len(e) == 0 for e in self.estimators_.values()])
-        else:
-            # Cannot determine shape of estimators, skip check
-            return
-
-        if empty:
-            raise NotFittedError("Cannot predict as no estimators were"
-                                 "successfully fitted.")
-
-    @staticmethod
-    def _format_params(params):
-        """Check that a fit or predict parameters are formatted as kwargs."""
-        if params is None:
-            return {}
-        elif not isinstance(params, dict):
-
-            msg = ("Wrong optional params type. 'fit_params' "
-                   " and 'predict_params' must de type 'dict' "
-                   "(type: %s).")
-
-            raise LayerSpecificationError(msg % type(params))
-
-        return params if params is not None else {}
-
     def _store_layer_data(self):
-        """Utility for storing aggregate data about the layer."""
-        self.struct = dict()
+        """Utility for storing aggregate attributes about the layer."""
         ests = self.estimators
         prep = self.preprocessing
 
         # Store layer data
         if isinstance(ests, list):
             # No preprocessing cases. Check if there is one uniform pipeline.
-            self.struct['n_prep'] = \
-                0 if prep is None or len(prep) == 0 else 1
-
-            self.struct['n_pred'] = len(ests)
-            self.struct['n_est'] = len(ests)
-            self.struct['cases'] = [None]
+            self.n_prep = 0 if prep is None or len(prep) == 0 else 1
+            self.n_pred = len(ests)
+            self.n_est = len(ests)
+            self.cases = [None]
         else:
             # Need to number of predictions by moving through each
             # case and counting estimators.
-            self.struct['n_prep'] = len(prep)
-
-            self.struct['cases'] = sorted(prep)
+            self.n_prep = len(prep)
+            self.cases = sorted(prep)
 
             n_pred = 0
-            for case in self.struct['cases']:
+            for case in self.cases:
                 n_est = len(ests[case])
-                self.struct['%s-n_est' % case] = n_est
+                setattr(self, '%s_n_est' % case, n_est)
                 n_pred += n_est
 
-            self.struct['n_pred'] = n_pred
+            self.n_pred = n_pred
 
     def get_params(self, deep=True):
         """Get parameters for this estimator.
@@ -723,132 +574,22 @@ class BaseEnsemble(BaseEstimator):
         """Method for predicting with all layers."""
         pass
 
-    def __set_lim__(self, l):
-        """Set the time limit for waiting on preprocessing to complete."""
-        if not hasattr(self, 'layers'):
-            raise AttributeError("No layer's attached to ensemble. Cannot"
-                                 "set time limit.")
-        self.layers.__lim__ = l
-
-    def __get_lim__(self):
-        """Set the time limit for waiting on preprocessing to complete."""
-        if not hasattr(self, 'layers'):
-            raise AttributeError("No layer's attached to ensemble. Cannot"
-                                 "fetch time limit.")
-        return self.layers.__lim__
-
-    def __set_sec__(self, s):
-        """Set time interval for checking if preprocessing has completed."""
-        if not hasattr(self, 'layers'):
-            raise AttributeError("No layer's attached to ensemble. Cannot"
-                                 "set time interval.")
-        self.layers.__sec__ = s
-
-    def __get_sec__(self):
-        """Set the time limit for waiting on preprocessing to complete."""
-        if not hasattr(self, 'layers'):
-            raise AttributeError("No layer's attached to ensemble. Cannot"
-                                 "fetch time interval.")
-        return self.layers.__sec__
-
     def _add(self,
              estimators,
-             fit_function,
-             predict_function,
+             cls,
+             cls_kwargs=None,
              preprocessing=None,
              **kwargs):
         """Method for adding a layer.
 
-        Parameters
-        -----------
-        fit_function : function
-            Function used for fitting the layer. The ``fit_function`` must
-            have the following API::
-
-                (estimators_, preprocessing_, out) = fit_function(
-                layer_instance, X, y, fit_params)
-
-            where ``estimators_`` and ``preprocessing_`` are generic objects
-            holding fitted instances. The ``LayerContainer`` class is agnostic
-            to the object type, and only passes these along to the
-            ``predict_function`` during a ``predict`` call. The ``out``
-            variable must be a tuple of output data that at least contains
-            the training data for the subsequent layer as its **first**
-            element: ``out = (X, ...)``.
-
-        predict_function : function
-            Function used for generating prediction with the fitted layer.
-            The predict_function must have the following API::
-
-                X_pred = predict_function(layer_instance, X, y, predict_params)
-
-            where ``X_pred`` is an array-like of shape [n_samples,
-            n_fitted_estimators] of predictions.
-
-        preprocessing: dict of lists or list, optional (default = None)
-            preprocessing pipelines for given layer. If
-            the same preprocessing applies to all estimators, ``preprocessing``
-            should be a list of transformer instances. The list can contain the
-            instances directly, named tuples of transformers,
-            or a combination of both. ::
-
-                option_1 = [transformer_1, transformer_2]
-                option_2 = [("trans-1", transformer_1),
-                            ("trans-2", transformer_2)]
-                option_3 = [transformer_1, ("trans-2", transformer_2)]
-
-             If different preprocessing pipelines are desired, a dictionary
-             that maps preprocessing pipelines must be passed. The names of the
-             preprocessing dictionary must correspond to the names of the
-             estimator dictionary. ::
-
-                 preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                        "case-2": [alt_trans_1, alt_trans_2]}
-
-                 estimators = {"case-1": [est_a, est_b].
-                               "case-2": [est_c, est_d]}
-
-             The lists for each dictionary entry can be any of 'option_1',
-             'option_2' and ``option_3``.
-
-        estimators: dict of lists or list
-            estimators constituting the layer. If ``preprocessing`` is
-            ``None`` or ``list``, ``estimators`` should be a ``list``.
-            The list can either contain estimator instances,
-            named tuples of estimator instances, or a combination of both. ::
-
-                option_1 = [estimator_1, estimator_2]
-                option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
-                option_3 = [estimator_1, ("est-2", estimator_2)]
-
-             If different preprocessing pipelines are desired, a dictionary
-             that maps estimators to preprocessing pipelines must be passed.
-             The names of the estimator dictionary must correspond to the
-             names of the estimator dictionary. ::
-
-                 preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                        "case-2": [alt_trans_1, alt_trans_2]}
-
-                 estimators = {"case-1": [est_a, est_b].
-                               "case-2": [est_c, est_d]}
-
-             The lists for each dictionary entry can be any of 'option_1',
-             'option_2' and ``option_3``.
-
-        fit_params : dict, tuple or None (default = None)
-            optional arguments passed to ``fit_function``.
-
-        predict_params : dict, tuple or None (default = None)
-            optional arguments passed to ``predict_function``.
-
-        **kwargs : optional
-            optional parameters to pass to layer at instantiation.
+        See :class:`LayerContainer` and :class:`Layer` for generic
+        requirements on arguments, and respective ensemble class for full
+        documentation.
 
         Returns
         -------
-        self : instance, optional
-            if ``in_place = True``, returns ``self`` with the layer
-            instantiated.
+        self :
+            instance with instantiated layer attached.
         """
         if getattr(self, 'layers', None) is None:
             raise_on_exception = getattr(self, 'raise_on_exception', False)
@@ -857,9 +598,9 @@ class BaseEnsemble(BaseEstimator):
                                          raise_on_exception=raise_on_exception)
 
         self.layers.add(estimators=estimators,
+                        cls=cls,
+                        cls_kwargs=cls_kwargs,
                         preprocessing=preprocessing,
-                        fit_function=fit_function,
-                        predict_function=predict_function,
                         **kwargs)
         return self
 

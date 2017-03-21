@@ -168,7 +168,11 @@ def check_initialized(inst):
 
 
 def check_process_attr(layer_container, attr):
-    """Check that all layers has the method to be used for estimation."""
+    """DEPRECATED
+
+    layers don't have estimation methods - only estimation engines do.
+
+    Check that all layers has the method to be used for estimation."""
     failed = []
     for layer_name, layer in layer_container.layers.items():
         if not hasattr(layer, attr):

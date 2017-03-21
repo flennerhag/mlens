@@ -9,7 +9,9 @@ Parallel processing core backend.
 
 import numpy as np
 
-from ..utils import check_initialized, check_process_attr
+from .stacking import Stacker
+from ..base import FullIndex
+from ..utils import check_initialized
 from ..utils.exceptions import ParallelProcessingWarning, \
     ParallelProcessingError
 
@@ -25,14 +27,8 @@ from joblib import Parallel, dump, load
 import warnings
 
 
-def _load(arr):
-    """Load array from file using default settings."""
-    try:
-        return np.genfromtxt(arr)
-    except Exception as e:
-        raise IOError("Could not load X from %s, does not "
-                      "appear to be valid as a ndarray. "
-                      "Details:\n%r" % e)
+ENGINES = {'stack': Stacker}
+INDEXERS = {'full': FullIndex}
 
 
 class Job(object):
@@ -90,7 +86,7 @@ class ParallelProcessing(object):
                 # Load file from disk. Need to dump if not memmaped for us
                 if not arr.split('.')[-1] in ['mmap', 'npy', 'npz']:
                     # Try loading the file assuming a csv-like format
-                    arr = _load(arr)
+                    arr = self._load(arr)
 
             if isinstance(arr, str):
                 # If arr remains a string, it's pointing to an mmap file
@@ -103,32 +99,59 @@ class ParallelProcessing(object):
                 dump(arr, f)
 
             # Get memmap in read-only mode (we don't want to corrupt the input)
-            try:
-                setattr(self._job, name, load(f, mmap_mode='r'))
-            except IndexError:
-                # Joblib's 'load' func fails on npy and npz: we use numpy here
-                setattr(self._job, name, np.load(f, mmap_mode='r'))
+            if name is 'y' and y is not None:
+                self._job.y = self._load_mmap(f)
+            else:
+                # Store X as the first input matrix in a list of input-output
+                # matrices for all layers
+                self._job.P = [self._load_mmap(f)]
 
-        # Pre-allocate prediction arrays in r+ (to be updated across workers)
-        self._job.P = \
-            [np.memmap(filename=os.path.join(self._job.dir,
-                                             '%s.mmap' % 'layer-%i' % n),
-                       shape=(self._job.X.shape[0],
-                              self.layers.struct['layer-%i' % n]['n_pred']),
-                       dtype=np.float,
-                       mode='w+')
-             for n in range(1, self.layers.n_layers + 1)]
+        # Append pre-allocated prediction arrays in r+ to the P list
+        # Thus, each layer n will be fitted on P[n - 1] and write to P[n]
+        for name, lyr in self.layers.layers.items():
+            f = os.path.join(self._job.dir, '%s.mmap' % name)
+
+            # We call the indexers fit method now at initialization - if there
+            # is something funky with indexing it is better to catch it now
+            # than mid-estimation
+            lyr.indexer.fit(self._job.P[0])
+
+            shape0 = lyr.indexer.n_samples
+            shape1 = lyr.n_pred
+
+            self._job.P.append(np.memmap(filename=f,
+                                         dtype=np.float,
+                                         mode='w+',
+                                         shape=(shape0, shape1)))
 
         self._initialized = 1
 
         # Release any memory before going into process
         gc.collect()
 
+    @staticmethod
+    def _load(arr):
+        """Load array from file using default settings."""
+        try:
+            return np.genfromtxt(arr)
+        except Exception as e:
+            raise IOError("Could not load X from %s, does not "
+                          "appear to be valid as a ndarray. "
+                          "Details:\n%r" % e)
+
+    @staticmethod
+    def _load_mmap(f):
+        """Load a mmap presumably dumped by joblib, otherwise try numpy."""
+        try:
+            return load(f, mmap_mode='r')
+        except IndexError:
+            # Joblib's 'load' func fails on npy and npz: use numpy.load
+            return np.load(f, mmap_mode='r')
+
     def process(self, attr):
         """Fit all layers in the attached :class:`LayerContainer`."""
         # Pre-checks before starting job
         check_initialized(self)
-        check_process_attr(self.layers, attr)
 
         # Use context manager to ensure same parallel job is passed along
         with Parallel(n_jobs=self.layers.n_jobs,
@@ -138,8 +161,8 @@ class ParallelProcessing(object):
                       verbose=self.layers.verbose,
                       backend=self.layers.backend) as parallel:
 
-            for n, name in enumerate(self.layers.layers):
-                self._partial_process(parallel, attr, n, name)
+            for n, lyr in enumerate(self.layers.layers.values()):
+                self._partial_process(n, lyr, parallel, attr)
 
         self._fitted = 1
 
@@ -151,7 +174,7 @@ class ParallelProcessing(object):
         n : int (default = -1)
             layer to retrieves as indexed from base 0 (i.e.
             predictions form layer-1 is retrieved as ``n = 0``).
-            List slicing is accepted, so ``n = -1`` retreives the final
+            List slicing is accepted, so ``n = -1`` retrieves the final
             predictions.
 
         dtype : object (default = numpy.float)
@@ -200,22 +223,18 @@ class ParallelProcessing(object):
             if flag != 0:
                 raise RuntimeError("Could not remove temporary directory.")
 
-    def _partial_process(self, parallel, attr, n, name):
+    def _partial_process(self, n, lyr, parallel, attr):
         """Generic method for processing a :class:`layer` with ``attr``."""
 
-        # Determine whether training data is X or a previous P matrix
-        if n == 0:
-            # First layer, we use X
-            X = self._job.X
-        else:
-            # Set X to previous layer's prediction matrix P
-            X = self._job.P[n - 1]
+        # Fire up the estimation instance
+        kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
+        e = ENGINES[lyr.cls](lyr, **kwd)
 
         # Get function to process and its variables
-        f = getattr(self.layers.layers[name], '%s' % attr)
+        f = getattr(e, attr)
         fargs = f.__func__.__code__.co_varnames
 
-        # Strip variables we don't want to set from _job
+        # Strip variables we don't want to set from _job directly
         args = [a for a in fargs if a not in {'parallel', 'X', 'P', 'self'}]
 
         # Build argument list
@@ -224,15 +243,9 @@ class ParallelProcessing(object):
 
         kwargs['parallel'] = parallel
         if 'X' in fargs:
-            kwargs['X'] = X
+            kwargs['X'] = self._job.P[n]
         if 'P' in fargs:
-            kwargs['P'] = self._job.P[n]
-        if 'name' in fargs:
-            kwargs['name'] = name
-
-        for attr in ['lim', 'sec']:
-            if attr in fargs:
-                kwargs[attr] = getattr(self.layers, '__%s__' % attr)
+            kwargs['P'] = self._job.P[n + 1]
 
         f(**kwargs)
 

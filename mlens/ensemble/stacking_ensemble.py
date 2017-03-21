@@ -11,12 +11,10 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..parallel.stacking import fit, predict_on_full
+from ..base import FullIndex
 from ..utils import print_time, safe_print, check_inputs, check_ensemble_build
 from ..metrics import set_scores
 
-from sklearn.base import clone
-from sklearn.model_selection import KFold
 from time import time
 
 
@@ -115,7 +113,7 @@ class StackingEnsemble(BaseEnsemble):
     >>> X, y = load_boston(True)
     >>>
     >>> ensemble = StackingEnsemble()
-    >>> ensemble.add([SVR(), Lasso()]).add_meta(SVR())
+    >>> ensemble.add([SVR(), Lasso()]).add(SVR())
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
@@ -137,7 +135,7 @@ class StackingEnsemble(BaseEnsemble):
     >>>
     >>> ensemble = StackingEnsemble()
     >>> ensemble.add(estimators_per_case, preprocessing_cases)
-    >>> ensemble.add_meta(SVR())
+    >>> ensemble.add(SVR())
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
@@ -169,7 +167,7 @@ class StackingEnsemble(BaseEnsemble):
         self.meta_estimator = meta_estimator
         self.printout = 'stdout' if self.verbose >= 50 else 'stderr'
 
-    def add(self, estimators, preprocessing=None):
+    def add(self, estimators, preprocessing=None, folds=None):
         """Add layer to ensemble.
 
         Parameters
@@ -200,8 +198,10 @@ class StackingEnsemble(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-        estimators: dict of lists or list
-            estimators constituting the layer. If ``preprocessing`` is
+        estimators: dict of lists or list or instance
+            estimators constituting the layer. If preprocessing is none and the
+            layer is meant to be the meta estimator, it is permissible to pass
+            a single instantiated estimator. If ``preprocessing`` is
             ``None`` or ``list``, ``estimators`` should be a ``list``.
             The list can either contain estimator instances,
             named tuples of estimator instances, or a combination of both. ::
@@ -224,22 +224,22 @@ class StackingEnsemble(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
+        folds : int, optional
+            Use if a different number of folds is desired than what the
+            ensemble was instantiated with.
+
         Returns
         -------
         self : instance
             ensemble instance with layer instantiated.
         """
-        if isinstance(self.folds, int):
-            kf = KFold(self.folds, self.shuffle, self.random_state)
-        else:
-            kf = self.folds
-
-        return self._add(estimators=estimators,
-                         preprocessing=preprocessing,
-                         fit_function=fit,
-                         predict_function=predict_on_full,
-                         indexer=kf,
-                         verbose=self.verbose)
+        c = folds if folds is not None else self.folds
+        return self._add(
+                estimators=estimators,
+                cls='stack',
+                preprocessing=preprocessing,
+                indexer=FullIndex(c, raise_on_exception=self.raise_on_exception),
+                verbose=self.verbose)
 
     def fit(self, X, y=None):
         """Fit ensemble.

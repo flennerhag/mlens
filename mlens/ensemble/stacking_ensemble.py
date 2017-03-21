@@ -4,8 +4,7 @@
 :copyright: 2017
 :licence: MIT
 
-Stacked ensemble class for full control over the entire model's parameters.
-Scikit-learn API allows full integration, including grid search and pipelining.
+Stacked ensemble class. Fully integrable with Scikit-learn.
 """
 
 from __future__ import division
@@ -21,50 +20,58 @@ from time import time
 
 
 class StackingEnsemble(BaseEnsemble):
-
     r"""Stacking Ensemble class.
 
-    Meta estimator class that blends a set of base estimators via a meta
-    estimator. In difference to standard stacking, where the base estimators
-    predict the same data they were fitted on, this class uses k-fold splits of
-    the the training data make base estimators predict out-of-sample training
-    data. Since base estimators predict training data as in-sample, and test
-    data as out-of-sample, standard stacking suffers from a bias in that the
-    meta estimators fits based on base estimator training error, but predicts
-    based on base estimator test error. This blends overcomes this by splitting
-    up the training set in the fitting stage, to create near identical for both
-    training and test set. Thus, as the number of folds is increased, the
-    training set grows closer in resemblance of the test set, but at the cost
-    of increased fitting time.
+    Blends a set of base estimators via a meta estimator using K-Fold
+    training set estimation. For every layer, the prediction matrix used as
+    training set by the subsequent layer or meta estimator is constructed by
+    partitioning the data into K folds, with each transformer / estimator
+    fitted of K - 1 folds and used to predict the left out fold. This process
+    is repeated until every sample in the training set has been predicted.
+
+    Every transformer / estimator is additionally fitted on the full data set,
+    and these fully fitted estimators are used to generate predictions once the
+    ensemble is fitted. Hence, the K-fold estimation technique builds the
+    training set used by subsequent layer in a manner as close to the
+    predictions it would see during prediction. This method ensures all
+    estimators (except the initial layer) are fitted on test errors of the
+    estimators in the preceding layer.
+
+    The final layer's predictions are combined through a meta learner specified
+    by the user.
+
+    Stacking is a time consuming method, as it requires several fittings of
+    every estimator in the ensemble. With large sets of data, other ensembles
+    that fits the ensemble through various combinations of subsets can be
+    much faster at little loss of performance. However, when data is noisy or
+    of high variance, the :class:`StackingEnsemble` ensure all information is
+    used during fitting.
 
     Parameters
     ----------
-    folds : int or object (default = 2)
-        number of folds to use for constructing meta estimator training set.
-        Either pass a KFold class object that accepts as ``split`` method,
-        or the number of folds in standard KFold.
+    folds : int (default = 2)
+        number of folds to use during fitting. Note: this parameter can be
+        specified on a layer-specific basis in the :attr:`add` method.
 
     shuffle : bool (default = True)
-        whether to shuffle data for creating k-fold out of sample predictions.
+        whether to shuffle data before generating folds.
 
-    as_df : bool (default = False)
-        whether to fit meta_estimator on a pandas DataFrame. Useful if meta
-        estimator allows feature importance analysis.
+    random_state : int (default = None)
+        random seed if shuffling inputs.
 
     scorer : object (default = None)
         scoring function. If a function is provided, base estimators will be
         scored on the training set assembled for fitting the meta estimator.
         Since those predictions are out-of-sample, the scores represent valid
         test scores. The scorer should be a function that accepts an array of
-        true values and an array of predictions: score = f(y_true, y_pred).
+        true values and an array of predictions: ``score = f(y_true, y_pred)``.
 
-    random_state : int (default = None)
-        seed for creating folds during fitting (if shuffle = True).
-
-    raise_on_exception : bool (default = False)
+    raise_on_exception : bool (default = True)
         whether to issue warnings on soft exceptions or raise error.
         Examples include lack of layers, bad inputs, and failed fit of an
-        estimator in a layer.
+        estimator in a layer. If set to ``False``, warnings are issued instead
+        but estimation continues unless exception is fatal. Note that this
+        can result in unexpected behavior unless the exception is anticipated.
 
     array_check : int (default = 2)
         level of strictness in checking input arrays.
@@ -99,15 +106,20 @@ class StackingEnsemble(BaseEnsemble):
         structure used for scoring is determined by ``folds``.
 
     layers : instance
-        container instance for layers see
-        :py:class:`mlens.ensemble.base.LayerContainer` for further
+        container instance for layers see :class:`LayerContainer` for further
         information.
+
+    See Also
+    --------
+    :class:`BlendEnsemble`
 
     Examples
     --------
 
     Instantiate ensembles with no/same preprocessing with estimator lists.
 
+    >>> from mlens.ensemble import StackingEnsemble
+    >>> from mlens.metrics.metrics import rmse_scoring
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
     >>> from sklearn.svm import SVR
@@ -119,9 +131,13 @@ class StackingEnsemble(BaseEnsemble):
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
+    >>> rmse_scoring(y, preds)
+    6.9553583775881407
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
+    >>> from mlens.ensemble import StackingEnsemble
+    >>> from mlens.metrics.metrics import rmse_scoring
     >>> from sklearn.datasets import load_boston
     >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
     >>> from sklearn.linear_model import Lasso
@@ -136,18 +152,19 @@ class StackingEnsemble(BaseEnsemble):
     ...                        'sc': [Lasso()]}
     >>>
     >>> ensemble = StackingEnsemble()
-    >>> ensemble.add(estimators_per_case, preprocessing_cases)
-    >>> ensemble.add(SVR())
+    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR())
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
+    >>> rmse_scoring(y, preds)
+    7.8413294010791557
     """
 
     def __init__(self,
                  folds=2,
                  shuffle=False,
-                 scorer=None,
                  random_state=None,
+                 scorer=None,
                  raise_on_exception=True,
                  array_check=2,
                  verbose=False,
@@ -300,7 +317,7 @@ class StackingEnsemble(BaseEnsemble):
         """
         # Ensemble build check
         if not check_ensemble_build(self):
-            # No layers instantiated, but raise_on_exception is false
+            # No layers instantiated, but raise_on_exception is False
             return
 
         # Inputs check
@@ -323,8 +340,7 @@ class StackingEnsemble(BaseEnsemble):
     def _print_start(self):
         """Utility for printing initial message and launching timer."""
         if self.verbose > 0:
-            safe_print('Fitting ensemble\n', file=self.printout,
-                       flush=True)
+            safe_print('Fitting ensemble\n', file=self.printout, flush=True)
             ts = time()
             return ts
         return

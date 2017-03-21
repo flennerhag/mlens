@@ -286,7 +286,7 @@ class StackingEnsemble(BaseEnsemble):
         ts = self._print_start()
 
         self._fit_layers(X, y)
-        self.scores_ = set_scores(self)
+# TODO:        self.scores_ = set_scores(self)
 
         if self.verbose > 0:
             print_time(ts, 'Ensemble fitted', file=self.printout)

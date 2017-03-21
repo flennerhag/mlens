@@ -12,6 +12,7 @@ Available CPUs: 4
 
 Ensemble architecture
 Num layers: 2
+Fit per base layer estimator: 4 + 1
 layer-1 | Estimators: ['RandomForestRegressor', 'GradientBoostingRegressor', 'ElasticNet', 'KNeighborsRegressor'].
 layer-2 | Meta Estimator: Lasso
 
@@ -46,7 +47,7 @@ if PLOT:
         PLOT = False
 
 MAX = int(1e6)
-STEP = int(2*1e5)
+STEP = int(1e5)
 COLS = 10
 
 SEED = 2017
@@ -59,9 +60,9 @@ def build_ensemble(**kwargs):
 
     ens = StackingEnsemble(**kwargs)
 
-    ens.add([RandomForestRegressor(random_state=SEED),
-             GradientBoostingRegressor(),
-             ElasticNet(copy_X=False),
+    ens.add([ElasticNet(copy_X=False),
+             RandomForestRegressor(),
+             Lasso(),
              KNeighborsRegressor()])
 
     ens.add(Lasso())
@@ -80,10 +81,11 @@ if __name__ == '__main__':
 
     cores = [int(np.floor(i)) for i in np.linspace(1, c, 3)]
 
-    ens = [build_ensemble(n_jobs=i, folds=2, shuffle=False) for i in cores]
+    ens = [build_ensemble(n_jobs=i, folds=4, shuffle=False) for i in cores]
 
     print('Ensemble architecture')
     print("Num layers: %i" % ens[0].layers.n_layers)
+    print("Fit per base layer estimator: %i + 1" % ens[0].folds)
 
     for lyr in ens[0].layers.layers:
         if int(lyr[-1]) == ens[0].layers.n_layers:
@@ -137,6 +139,6 @@ if __name__ == '__main__':
         plt.ylabel('Time to fit (sec)')
         plt.legend(frameon=False)
 
-        f = os.path.join(os.getcwd(), 'docs/img/scale_comp.png')
+        f = os.path.join('cale_comp.png')
         plt.savefig(f, bbox_inches='tight', dpi=600)
         print("done.\nFigure written to %s" % f)

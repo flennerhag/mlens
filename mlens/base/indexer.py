@@ -7,11 +7,190 @@
 Classes for partitioning training data.
 """
 
+from abc import abstractmethod
+from numbers import Integral
 import numpy as np
 import warnings
 
 
-class FullIndex(object):
+class BaseIndex(object):
+    """Base Index class."""
+
+    @abstractmethod
+    def fit(self, X):
+        """Method for storing array data.
+
+        Parameters
+        ----------
+        X : array-like
+            array to collect dimension data from.
+
+        Returns
+        -------
+        instance
+        """
+
+    @abstractmethod
+    def _gen_indices(self):
+        """Method for constructing the index generator.
+
+        Returns
+        -------
+        iterable
+        """
+
+    def generate(self, X=None, as_array=False):
+        """Generator."""
+        # Check that the instance have some array information to work with
+        if not hasattr(self, 'n_samples'):
+            if X is None:
+                raise AttributeError("No array provided to indexer. Either "
+                                     "pass an array to the 'generate' method, "
+                                     "or call the 'fit' method first or "
+                                     "initiate the instance with an array X "
+                                     "as argument.")
+            else:
+                # Need to call fit to continue
+                self.fit(X)
+
+        for tri, tei in self._gen_indices():
+
+            if as_array:
+                # return np.arrays
+                if isinstance(tri[0], tuple):
+                    # If a tuple of indices, build iteratively
+                    tri = np.hstack([np.arange(t0, t1) for t0, t1 in tri])
+                else:
+                    tri = np.arange(tri[0], tri[1])
+
+                tei = np.arange(tei[0], tei[1])
+
+            yield tri, tei
+
+
+class BlendIndex(BaseIndex):
+
+    """Indexer that generates two non-overlapping subsets of X.
+
+    Iterator that generates one training fold and one test fold that are
+    non-overlapping and that may or may not partition all of X depending on the
+    user's specification.
+
+    BlendIndex creates a singleton generator (has on iteration) that
+    yields two tuples of ``(start, stop)`` integers that can be used for
+    numpy array slicing (i.e. ``X[stop:start]``). If a full array index
+    is desired this can easily be achieved with::
+
+        for train_tup, test_tup in self.generate():
+            train_slice = numpy.hstack([numpy.arange(t0, t1) for t0, t1 in
+                                      train_tup])
+
+            test_slice = numpy.hstack([numpy.arange(t0, t1) for t0, t1 in
+                                      test_tup])
+
+    See Also
+    --------
+    :class:`FullIndex`
+
+    Examples
+    --------
+
+    Selecting an absolute test size, with train size as the remainder
+
+    >>> import numpy as np
+    >>> from mlens.base.indexer import BlendIndex
+    >>> X = np.arange(8)
+    >>> idx = BlendIndex(3)
+    >>> print('Test size: 3')
+    >>> for tri, tei in idx.generate(X):
+    ...     print('TEST (idx | array): (%i, %i) | %r ' % (tei[0], tei[1],
+    ...                                                   X[tei[0]:tei[1]]))
+    ...     print('TRAIN (idx | array): (%i, %i) | %r ' % (tri[0], tri[1],
+    ...                                                    X[tri[0]:tri[1]]))
+    Test size: 3
+    TEST (idx | array): (5, 8) | array([5, 6, 7])
+    TRAIN (idx | array): (0, 5) | array([0, 1, 2, 3, 4])
+
+    Selecting a test and train size less than the total
+
+    >>> import numpy as np
+    >>> from mlens.base.indexer import BlendIndex
+    >>> X = np.arange(8)
+    >>> idx = BlendIndex(3, 4, X)
+    >>> print('Test size: 3')
+    >>> print('Train size: 4')
+    >>> for tri, tei in idx.generate(X):
+    ...     print('TEST (idx | array): (%i, %i) | %r ' % (tei[0], tei[1],
+    ...                                                   X[tei[0]:tei[1]]))
+    ...     print('TRAIN (idx | array): (%i, %i) | %r ' % (tri[0], tri[1],
+    ...                                                    X[tri[0]:tri[1]]))
+    Test size: 3
+    Train size: 4
+    TEST (idx | array): (4, 7) | array([4, 5, 6])
+    TRAIN (idx | array): (0, 4) | array([0, 1, 2, 3])
+
+    Selecting a percentage of observations as test and train set
+
+    >>> import numpy as np
+    >>> from mlens.base.indexer import BlendIndex
+    >>> X = np.arange(8)
+    >>> idx = BlendIndex(0.25, 0.45, X)
+    >>> print('Test size: 25% * 8 = 2')
+    >>> print('Train size: 45% * 8 < 4 -> 3')
+    >>> for tri, tei in idx.generate(X):
+    ...     print('TEST (idx | array): (%i, %i) | %r ' % (tei[0], tei[1],
+    ...                                                   X[tei[0]:tei[1]]))
+    ...     print('TRAIN (idx | array): (%i, %i) | %r ' % (tri[0], tri[1],
+    ...                                                    X[tri[0]:tri[1]]))
+    Test size: 25% * 8 = 2
+    Train size: 50% * 8 < 4 ->
+    TEST (idx | array): (3, 5) | array([[3, 4]])
+    TRAIN (idx | array): (0, 3) | array([[0, 1, 2]])
+    """
+
+    def __init__(self, test_size, train_size=None,
+                 X=None, raise_on_exception=True):
+
+        self.test_size = test_size
+        self.train_size = train_size
+        self.raise_on_exception = raise_on_exception
+
+        if X is not None:
+            self.fit(X)
+
+    def fit(self, X):
+        """Set indexer up for slicing an array of length X."""
+        n = X.shape[0]
+
+        self.n_samples = n
+
+        # Get number of test samples
+        if isinstance(self.test_size, int):
+            self.n_test = self.test_size
+        else:
+            self.n_test = int(np.floor(self.test_size * n))
+
+        # Get number of train samples
+        if self.train_size is None:
+            # Partition X
+            self.n_train = int(n - self.n_test)
+
+        elif isinstance(self.train_size, int):
+            self.n_train = self.train_size
+
+        else:
+            self.n_train = int(np.floor(self.train_size * n))
+
+        _check_partial_index(self.n_samples, self.test_size, self.train_size,
+                              self.n_test, self.n_train)
+
+        return self
+
+    def _gen_indices(self):
+        yield (0, self.n_train), (self.n_train, self.n_train + self.n_test)
+
+
+class FullIndex(BaseIndex):
 
     """Indexer that generates the full size of X.
 
@@ -36,6 +215,10 @@ class FullIndex(object):
     the training set. To build get a training index, use
     ``hstack([np.arange(t0, t1) for t0, t1 in tri])``.
 
+    See Also
+    --------
+    :class:`BlendIndex`
+
     Examples
     --------
 
@@ -47,7 +230,7 @@ class FullIndex(object):
     >>> print("Data set: %r" % X)
     >>> print()
     >>>
-    >>> idx = FullIndex(X, 4)
+    >>> idx = FullIndex(4, X)
     >>>
     >>> for train, test in idx.generate(as_array=True):
     ...     print('TRAIN IDX: %32r | TEST IDX: %16r' % (train, test))
@@ -55,12 +238,12 @@ class FullIndex(object):
     >>> print()
     >>>
     >>> for train, test in idx.generate(as_array=True):
-            print('TRAIN SET: %32r | TEST SET: %16r' % (X[train], X[test]))
+    ...     print('TRAIN SET: %32r | TEST SET: %16r' % (X[train], X[test]))
     >>>
     >>> for train_idx, test_idx in idx.generate(as_array=True):
     ...     assert not any([i in X[test_idx] for i in X[train_idx]])
     >>>
-    >>>print()
+    >>> print()
     >>>
     >>> print("No overlap between train set and test set.")
     Data set: array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -85,7 +268,7 @@ class FullIndex(object):
     >>> print("Data set: %r" % X)
     >>> print()
     >>>
-    >>> idx = FullIndex(X, 1, raise_on_exception=False)
+    >>> idx = FullIndex(1, X, raise_on_exception=False)
     >>>
     >>> for train, test in idx.generate(as_array=True):
     ...     print('TRAIN IDX: %10r | TEST IDX: %10r' % (train, test))
@@ -109,7 +292,7 @@ class FullIndex(object):
     def fit(self, X):
         """Set indexer up for slicing an array of length X."""
         n = X.shape[0]
-        check_index(n, self.n_splits, self.raise_on_exception)
+        _check_full_index(n, self.n_splits, self.raise_on_exception)
 
         self.n_samples = n
 
@@ -152,33 +335,10 @@ class FullIndex(object):
                 yield (tri, tei)
                 last = tei_stop
 
-    def generate(self, X=None, as_array=False):
-        """Generator."""
-        # Check that the instance have some array information to work with
-        if not hasattr(self, 'n_samples'):
-            if X is None:
-                raise AttributeError("No array provided to indexer. Either "
-                                     "pass an array to the 'generate' method, "
-                                     "or call the 'fit' method first or "
-                                     "initiate the instance with an array X "
-                                     "as argument.")
-            else:
-                # Need to call fit to continue
-                self.fit(X)
-
-        for tri, tei in self._gen_indices():
-
-            # return np.arrays
-            if as_array:
-                tri = np.hstack([np.arange(t0, t1) for t0, t1 in tri])
-                tei = np.arange(tei[0], tei[1])
-
-            yield tri, tei
-
-
-def check_index(n_samples, n_splits, raise_on_exception):
+###############################################################################
+def _check_full_index(n_samples, n_splits, raise_on_exception):
     """Check that folds can be constructed from passed arguments."""
-    if not isinstance(n_splits, int):
+    if not isinstance(n_splits, Integral):
         raise ValueError("'n_splits' must be an integer. "
                          "type(%s) was passed." % type(n_splits))
 
@@ -193,3 +353,28 @@ def check_index(n_samples, n_splits, raise_on_exception):
     if n_splits > n_samples:
         raise ValueError("Number of splits %i is greater than the number "
                          "of samples: %i." % (n_splits, n_samples))
+
+
+def _check_partial_index(n_samples, test_size, train_size,
+                         n_test, n_train):
+    """Check that folds can be constructed from passed arguments."""
+
+    if not n_test + n_train <= n_samples:
+        raise ValueError("The selection of train (%r) and test (%r) samples "
+                         "lead to a selection greater than the number of "
+                         "observations (%i). Test size: %i, train size: "
+                         "%i." % (test_size, train_size,
+                                  n_samples, n_test, n_train))
+
+    for n, i, j in zip(('test', 'train'),
+                    (n_test, n_train),
+                    (test_size, train_size)):
+        if n == 0:
+            raise ValueError("The %s set size is 0 with current selection ("
+                             "%r): "
+                             "cannot create %s subset. Assign a greater "
+                             "proportion of samples to the %s set (total "
+                             "samples size: %i)." % (i, j, i, i, n_samples))
+
+    if n_samples == 0:
+        raise ValueError("Sample size is 0: nothing to create subset from.")

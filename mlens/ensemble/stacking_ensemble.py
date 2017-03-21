@@ -15,6 +15,8 @@ from ..base import FullIndex
 from ..utils import print_time, safe_print, check_inputs, check_ensemble_build
 from ..metrics import set_scores
 
+from ..externals.validation import check_random_state
+
 from time import time
 
 
@@ -143,11 +145,10 @@ class StackingEnsemble(BaseEnsemble):
 
     def __init__(self,
                  folds=2,
-                 shuffle=True,
-                 as_df=False,
+                 shuffle=False,
                  scorer=None,
                  random_state=None,
-                 raise_on_exception=False,
+                 raise_on_exception=True,
                  array_check=2,
                  verbose=False,
                  n_jobs=-1,
@@ -156,7 +157,6 @@ class StackingEnsemble(BaseEnsemble):
 
         self.folds = folds
         self.shuffle = shuffle
-        self.as_df = as_df
         self.scorer = scorer
         self.random_state = random_state
         self.raise_on_exception = raise_on_exception
@@ -264,6 +264,11 @@ class StackingEnsemble(BaseEnsemble):
 
         # Inputs check.
         X, y = check_inputs(X, y, self.array_check)
+
+        if self.shuffle:
+            r = check_random_state(self.random_state)
+            r.shuffle(X)
+            r.shuffle(y)
 
         # Layer estimation
         ts = self._print_start()

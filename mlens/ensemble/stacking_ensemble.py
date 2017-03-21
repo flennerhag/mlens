@@ -306,7 +306,19 @@ class StackingEnsemble(BaseEnsemble):
         # Inputs check
         X, y = check_inputs(X, y, self.array_check)
 
-        return self._predict_layers(X, y).ravel()
+        if self.shuffle:
+            r = check_random_state(self.random_state)
+            r.shuffle(X)
+            r.shuffle(y)
+
+        y = self._predict_layers(X, y)
+
+        if y.shape[1] == 1:
+            # Meta estimator is treated as a layer and thus a prediction
+            # matrix with shape [n_samples, 1] is created. Ravel before return
+            y = y.ravel()
+
+        return y
 
     def _print_start(self):
         """Utility for printing initial message and launching timer."""

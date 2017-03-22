@@ -11,12 +11,6 @@ from __future__ import division
 
 from .base import BaseEnsemble
 from ..base import BlendIndex
-from ..utils import print_time, safe_print, check_inputs, check_ensemble_build
-from ..metrics import set_scores
-
-from ..externals.validation import check_random_state
-
-from time import time
 
 
 class BlendEnsemble(BaseEnsemble):
@@ -187,16 +181,12 @@ class BlendEnsemble(BaseEnsemble):
                  n_jobs=-1,
                  layers=None):
 
+        super(BlendEnsemble, self).__init__(
+                shuffle=shuffle, random_state=random_state, scorer=scorer,
+                raise_on_exception=raise_on_exception, array_check=array_check,
+                verbose=verbose, n_jobs=n_jobs, layers=layers)
+
         self.test_size = test_size
-        self.shuffle = shuffle
-        self.scorer = scorer
-        self.random_state = random_state
-        self.raise_on_exception = raise_on_exception
-        self.array_check = array_check
-        self.verbose = verbose
-        self.n_jobs = n_jobs
-        self.layers = layers
-        self.printout = 'stdout' if self.verbose >= 50 else 'stderr'
 
     def add(self, estimators, preprocessing=None, test_size=None):
         """Add layer to ensemble.
@@ -273,83 +263,3 @@ class BlendEnsemble(BaseEnsemble):
                                    raise_on_exception=self.raise_on_exception),
                 verbose=self.verbose)
 
-    def fit(self, X, y=None):
-        """Fit ensemble.
-
-        Parameters
-        ----------
-        X : array-like of shape = [n_samples, n_features]
-            input matrix to be used for prediction.
-
-        y : array-like of shape = [n_samples, ] or None (default = None)
-            output vector to trained estimators on.
-
-        Returns
-        -------
-        self : instance
-            class instance with fitted estimators.
-        """
-        if not check_ensemble_build(self):
-            # No layers instantiated. Return vacuous fit.
-            return self
-
-        X, y = check_inputs(X, y, self.array_check)
-
-        if self.shuffle:
-            r = check_random_state(self.random_state)
-            r.shuffle(X)
-            r.shuffle(y)
-
-        ts = self._print_start()
-
-        self._fit_layers(X, y)
-# TODO:        self.scores_ = set_scores(self)
-
-        if self.verbose > 0:
-            print_time(ts, 'Ensemble fitted', file=self.printout)
-
-        return self
-
-    def predict(self, X, y=None):
-        """Predict with fitted ensemble.
-
-        Parameters
-        ----------
-        X : array-like, shape=[n_samples, n_features]
-            input matrix to be used for prediction.
-
-        y : array-like, None (default = None)
-            pass through for scikit-learn compatibility.
-
-        Returns
-        -------
-        y_pred : array-like, shape=[n_samples, ]
-            predictions for provided input array.
-        """
-        if not check_ensemble_build(self):
-            # No layers instantiated, but raise_on_exception is False
-            return
-
-        X, y = check_inputs(X, y, self.array_check)
-
-        if self.shuffle:
-            r = check_random_state(self.random_state)
-            r.shuffle(X)
-            r.shuffle(y)
-
-        y = self._predict_layers(X, y)
-
-        if y.shape[1] == 1:
-            # The meta estimator is treated as a layer and thus a prediction
-            # matrix with shape [n_samples, 1] is created. Ravel before return
-            y = y.ravel()
-
-        return y
-
-    def _print_start(self):
-        """Utility for printing initial message and launching timer."""
-        if self.verbose > 0:
-            safe_print('Fitting ensemble\n', file=self.printout, flush=True)
-            ts = time()
-            return ts
-        return

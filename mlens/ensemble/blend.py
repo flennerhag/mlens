@@ -262,4 +262,3 @@ class BlendEnsemble(BaseEnsemble):
                 indexer=BlendIndex(c,
                                    raise_on_exception=self.raise_on_exception),
                 verbose=self.verbose)
-

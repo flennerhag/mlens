@@ -6,5 +6,6 @@
 """
 
 from .super_learner import SuperLearner
+from .blend import BlendEnsemble
 
-__all__ = ['SuperLearner']
+__all__ = ['SuperLearner', 'BlendEnsemble']

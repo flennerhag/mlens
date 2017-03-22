@@ -146,7 +146,7 @@ class BaseEstimator(object):
         if self.verbose:
             print_time(t0, '%sDone' % s, file=printout)
 
-    def predict(self, X, P, dir, parallel):
+    def predict(self, X, P, parallel):
         """Predict with fitted layer."""
 
         self._check_fitted()

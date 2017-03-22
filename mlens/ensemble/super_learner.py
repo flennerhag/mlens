@@ -4,7 +4,7 @@
 :copyright: 2017
 :licence: MIT
 
-Stacked ensemble class. Fully integrable with Scikit-learn.
+Super Learner class. Fully integrable with Scikit-learn.
 """
 
 from __future__ import division
@@ -64,6 +64,17 @@ class SuperLearner(BaseEnsemble):
     "Super Learner In Prediction" (May 2010). U.C. Berkeley Division of
     Biostatistics Working Paper Series. Working Paper 266.
     http://biostats.bepress.com/ucbbiostat/paper266
+
+    Notes
+    -----
+    This implementation uses the agnostic meta learner approach, where the
+    user supplies the meta learner to be used. For the original Super Learner
+    algorithm (i.e. learn the best linear combination of the base learners),
+    the user can specify a linear regression as the meta learner.
+
+    See Also
+    --------
+    :class:`BlendEnsemble`
 
     Parameters
     ----------
@@ -126,10 +137,6 @@ class SuperLearner(BaseEnsemble):
     layers : instance
         container instance for layers see :class:`LayerContainer` for further
         information.
-
-    See Also
-    --------
-    :class:`BlendEnsemble`
 
     Examples
     --------
@@ -341,7 +348,7 @@ class SuperLearner(BaseEnsemble):
         y = self._predict_layers(X, y)
 
         if y.shape[1] == 1:
-            # Meta estimator is treated as a layer and thus a prediction
+            # The meta estimator is treated as a layer and thus a prediction
             # matrix with shape [n_samples, 1] is created. Ravel before return
             y = y.ravel()
 

@@ -42,7 +42,7 @@ Using last profile data.
 import numpy as np
 
 from mlens.utils import print_time
-from mlens.ensemble import StackingEnsemble
+from mlens.ensemble import SuperLearner
 
 from sklearn.datasets import make_friedman1
 
@@ -63,7 +63,7 @@ np.random.seed(SEED)
 def build_ensemble(**kwargs):
     """Generate ensemble."""
 
-    ens = StackingEnsemble(**kwargs)
+    ens = SuperLearner(**kwargs)
 
     est = [ElasticNet(copy_X=False),
            Lasso(copy_X=False)]

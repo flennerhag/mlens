@@ -62,7 +62,7 @@ class Temp(PredictionFeature):
 def test_estimator_behavior():
     """[PredictionFeature] Test Scikit-learn compatibility."""
     with warnings.catch_warnings(record=True) as w:
-        # Assert the StackingEnsemble passes the Scikit-learn estimator test.
+        # Assert the SuperLearner passes the Scikit-learn estimator test.
         check_estimator(Temp)
 
     # Check that all warnings were mlens warnings

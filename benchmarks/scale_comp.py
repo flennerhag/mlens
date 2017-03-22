@@ -25,7 +25,7 @@ samples | cores: 1 | cores: 2 | cores: 4 |
 import numpy as np
 
 import os
-from mlens.ensemble import StackingEnsemble
+from mlens.ensemble import SuperLearner
 from mlens.utils import print_time
 
 from sklearn.datasets import make_friedman1
@@ -58,14 +58,12 @@ np.random.seed(SEED)
 def build_ensemble(**kwargs):
     """Generate ensemble."""
 
-    ens = StackingEnsemble(**kwargs)
+    ens = SuperLearner(**kwargs)
 
-    ens.add([ElasticNet(copy_X=False),
-             RandomForestRegressor(),
-             Lasso(),
-             KNeighborsRegressor()])
+    ens.add([KNeighborsRegressor(), KNeighborsRegressor(),
+             KNeighborsRegressor(), KNeighborsRegressor()])
 
-    ens.add(Lasso())
+    ens.add(KNeighborsRegressor())
 
     return ens
 
@@ -139,6 +137,6 @@ if __name__ == '__main__':
         plt.ylabel('Time to fit (sec)')
         plt.legend(frameon=False)
 
-        f = os.path.join('cale_comp.png')
+        f = os.path.join('scale_comp.png')
         plt.savefig(f, bbox_inches='tight', dpi=600)
         print("done.\nFigure written to %s" % f)

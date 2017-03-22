@@ -25,7 +25,7 @@ Ensemble estimators
 
 .. autosummary::
 
-   StackingEnsemble
+   SuperLearner
 
 Model Selection
 ^^^^^^^^^^^^^^^

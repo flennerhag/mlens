@@ -1,264 +1,457 @@
-"""ML-Ensemble
+"""ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
 :copyright: 2017
 :licence: MIT
 
-Parallel processing job manager.
+Base class for estimation.
 """
 
-import numpy as np
+from abc import ABCMeta, abstractmethod
+from numpy import asarray, hstack, arange
 
-from . import Stacker
-from ..utils import check_initialized
-from ..utils.exceptions import ParallelProcessingWarning, \
-    ParallelProcessingError
+from ..utils import (safe_print, print_time, pickle_load, pickle_save,
+                     check_is_fitted)
+from ..utils.exceptions import (FitFailedError, FitFailedWarning,
+                                NotFittedError, PredictFailedError,
+                                PredictFailedWarning,
+                                ParallelProcessingWarning,
+                                ParallelProcessingError)
 
-from sys import platform
+from joblib import delayed
 import os
-import tempfile
-import gc
-import shutil
-from subprocess import check_call
 
-from joblib import Parallel, dump, load
+from time import time, sleep
 
 import warnings
 
 
-ENGINES = {'stack': Stacker,
-           }
+class BaseEstimator(object):
 
+    """Base class for estimating a layer in parallel.
 
-class Job(object):
+    Estimation class to be used as based for a layer estimation engined that
+    is callable by the :class:`ParallelProcess` job manager.
 
-    """Container class for holding job data.
-
-    See Also
-    --------
-    :class:`ParallelProcessing`
-    """
-
-    __slots__ = ['X', 'y', 'P', 'dir']
-
-    def __init__(self):
-        self.X = None
-        self.y = None
-        self.P = None
-        self.dir = None
-
-
-class ParallelProcessing(object):
-
-    """Parallel processing engine.
-
-    ``ParallelProcessing`` is an engine for running estimation.
+    A subclass must implement a ``_format_instance_list`` method for
+    building a list of preprocessing cases and a list of estimators that
+    will be iterated over in the call to :class:`joblib.Parallel`,
+    and a ``_get_col_id`` method for assigning a unique column and if
+    applicable, row slice, to each estimator in the estimator list.
+    The subclass ``__init__`` method should be a call to ``super``.
 
     Parameters
     ----------
-    layers : :class:`mlens.ensemble.base.LayerContainer`
-        The ``LayerContainer`` that instantiated the processor.
+    layer : :class:`Layer`
+        layer to be estimated
+
+    dual : bool
+        whether to estimate transformers separately from estimators: else,
+        the lists will be combined in one parallel for-loop.
     """
 
-    __slots__ = ['layers', '_initialized', '_fitted', '_job']
+    __metaclass__ = ABCMeta
 
-    def __init__(self, layers):
-        self.layers = layers
-        self._initialized = 0
-        self._fitted = 0
+    __slots__ = ['verbose', 'layer', 'raise_', 'name',
+                 'lim', 'ival', 'dual', 'e', 't', 'c']
 
-    def initialize(self, X, y=None, dir=None):
-        """Create a job instance for estimation."""
-        self._job = Job()
+    @abstractmethod
+    def __init__(self, layer, dual=True):
+        self.layer = layer
 
-        self._job.dir = tempfile.mkdtemp(dir=dir)
+        # Copy some layer parameters to ease notation
+        self.verbose = self.layer.verbose
+        self.raise_ = self.layer.raise_on_exception
+        self.name = self.layer.name
+        self.lim = getattr(layer, 'lim', 600)
+        self.ival = getattr(layer, 'ival', 0.1)
 
-        # Build mmaps for inputs
-        for name, arr in zip(('X', 'y'), (X, y)):
+        # Set estimator and transformer lists to loop over, and collect
+        # estimator column ids for the prediction matrix
+        self.e, self.t = self._format_instance_list()
+        self.c = self._get_col_id()
 
-            if arr is None:
-                # Can happen if y is not specified (i.e. during prediction)
-                continue
+        self.dual = dual
 
-            if isinstance(arr, str):
-                # Load file from disk. Need to dump if not memmaped already
-                if not arr.split('.')[-1] in ['mmap', 'npy', 'npz']:
-                    # Try loading the file assuming a csv-like format
-                    arr = self._load(arr)
+    def __call__(self, attr, *args, **kwargs):
+        """Generic argument agnostic call function to a Stacker method."""
+        getattr(self, attr)(*args, **kwargs)
 
-            if isinstance(arr, str):
-                # If arr remains a string, it's pointing to an mmap file
-                f = arr
-            else:
-                # Dump ndarray on disk
-                f = os.path.join(self._job.dir, '%s.mmap' % name)
-                if os.path.exists(f):
-                    os.unlink(f)
-                dump(arr, f)
+    @abstractmethod
+    def _format_instance_list(self):
+        """Formatting layer's estimator and preprocessing for parallel loop."""
 
-            # Get memmap in read-only mode (we don't want to corrupt the input)
-            if name is 'y' and y is not None:
-                self._job.y = self._load_mmap(f)
-            else:
-                # Store X as the first input matrix in list of inputs matrices
-                self._job.P = [self._load_mmap(f)]
+    @abstractmethod
+    def _get_col_id(self):
+        """Assign unique col_id to every estimator."""
 
-        # Append pre-allocated prediction arrays in r+ to the P list
-        # Each layer will be fitted on P[i] and write to P[i + 1]
-        for name, lyr in self.layers.layers.items():
-            f = os.path.join(self._job.dir, '%s.mmap' % name)
+    def _assemble(self, dir):
+        """Store fitted transformer and estimators in the layer."""
+        self.layer.estimators_ = _assemble(dir, self.e, 'e')
+        self.layer.preprocessing_ = _assemble(dir, self.t, 't')
 
-            # We call the indexers fit method now at initialization - if there
-            # is something funky with indexing it is better to catch it now
-            # than mid-estimation
-            lyr.indexer.fit(self._job.P[0])
+    def fit(self, X, y, P, dir, parallel):
+        """Fit layer."""
+        if self.verbose:
+            printout = "stderr" if self.verbose < 50 else "stdout"
+            s = _name(self.name, None)
+            safe_print('Fitting layer %s' % self.name)
+            t0 = time()
 
-            shape0 = lyr.indexer.n_samples
-            shape1 = lyr.n_pred
+        if self.dual:
 
-            self._job.P.append(np.memmap(filename=f,
-                                         dtype=np.float,
-                                         mode='w+',
-                                         shape=(shape0, shape1)))
+            parallel(delayed(fit_trans)(dir=dir,
+                                        case=case,
+                                        inst=instance_list,
+                                        X=X,
+                                        y=y,
+                                        idx=tri,
+                                        name=self.name)
+                     for case, tri, tei, instance_list in self.t)
 
-        self._initialized = 1
-
-        # Release any memory before going into process
-        gc.collect()
-
-    @staticmethod
-    def _load(arr):
-        """Load array from file using default settings."""
-        try:
-            return np.genfromtxt(arr)
-        except Exception as e:
-            raise IOError("Could not load X from %s, does not "
-                          "appear to be valid as a ndarray. "
-                          "Details:\n%r" % e)
-
-    @staticmethod
-    def _load_mmap(f):
-        """Load a mmap presumably dumped by joblib, otherwise try numpy."""
-        try:
-            return load(f, mmap_mode='r')
-        except IndexError:
-            # Joblib's 'load' func fails on npy and npz: use numpy.load
-            return np.load(f, mmap_mode='r')
-
-    def process(self, attr):
-        """Fit all layers in the attached :class:`LayerContainer`."""
-        check_initialized(self)
-
-        # Use context manager to ensure same parallel job during entire process
-        with Parallel(n_jobs=self.layers.n_jobs,
-                      temp_folder=self._job.dir,
-                      max_nbytes=None,
-                      mmap_mode='r+',
-                      verbose=self.layers.verbose,
-                      backend=self.layers.backend) as parallel:
-
-            for n, lyr in enumerate(self.layers.layers.values()):
-                self._partial_process(n, lyr, parallel, attr)
-
-        self._fitted = 1
-
-    def _get_preds(self, n=-1, dtype=np.float, order='C'):
-        """Return prediction matrix.
-
-        Parameters
-        ----------
-        n : int (default = -1)
-            layer to retrieves as indexed from base 0 (i.e.
-            predictions form layer-1 is retrieved as ``n = 0``).
-            List slicing is accepted, so ``n = -1`` retrieves the final
-            predictions.
-
-        dtype : object (default = numpy.float)
-            data type to return
-
-        order : str (default = 'C')
-            data order. See :class:`numpy.asarray` for details.
-        """
-        if not hasattr(self, '_job'):
-            raise ParallelProcessingError("Processor has been terminated: "
-                                          "cannot retrieve final prediction "
-                                          "array as the estimation cache has "
-                                          "been removed.")
-
-        return np.asarray(self._job.P[n], dtype=dtype, order=order)
-
-    def terminate(self):
-        """Remove temporary folder and all cache data."""
-
-        temp_folder = self._job.dir
-
-        # Delete the job
-        del self._job
-
-        # Collect garbage
-        gc.collect()
-
-        # Reset initialized flag
-        self._initialized = 0
-
-        # Remove temporary folder
-        try:
-            shutil.rmtree(temp_folder)
-        except OSError as e:
-            # Can fail on Windows - we try to force remove it using the CLI
-            warnings.warn("Failed to remove temporary directory with "
-                          "standard procedure. Will try command line "
-                          "interface. Details:\n%r" % e,
-                          ParallelProcessingWarning)
-
-            if "win" in platform:
-                flag = check_call(['rmdir', temp_folder, '/s', '/q'])
-            else:
-                flag = check_call(['rm', '-rf', temp_folder])
-
-            if flag != 0:
-                raise RuntimeError("Could not remove temporary directory.")
-
-    def _partial_process(self, n, lyr, parallel, attr):
-        """Generic method for processing a :class:`layer` with ``attr``."""
-
-        # Fire up the estimation instance
-        kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
-        e = ENGINES[lyr.cls](lyr, **kwd)
-
-        # Get function to process and its variables
-        f = getattr(e, attr)
-        fargs = f.__func__.__code__.co_varnames
-
-        # Strip variables we don't want to set from _job directly
-        args = [a for a in fargs if a not in {'parallel', 'X', 'P', 'self'}]
-
-        # Build argument list
-        kwargs = {a: getattr(self._job, a) for a in args if a in
-                  self._job.__slots__}
-
-        kwargs['parallel'] = parallel
-        if 'X' in fargs:
-            kwargs['X'] = self._job.P[n]
-        if 'P' in fargs:
-            kwargs['P'] = self._job.P[n + 1]
-
-        f(**kwargs)
-
-    def _process_layer(self, parallel, attr, n, name):
-        """Wrapper around process if a single layer is to be processed.
-
-        Checks is a job has been initialized, and if parallel has not been set,
-        wraps call to ``_partial_process`` around a context manager.
-        """
-        check_initialized(self)
-
-        if parallel is None:
-            with Parallel(n_jobs=self.layers.n_jobs,
-                          temp_folder=self._job.dir,
-                          max_nbytes=None,
-                          mmap_mode='r+') as parallel:
-                self._partial_process(parallel, attr, n, name)
+            parallel(delayed(fit_est)(dir=dir,
+                                      case=case,
+                                      inst_name=inst_name,
+                                      inst=instance,
+                                      X=X,
+                                      y=y,
+                                      pred=P if tei is not None else None,
+                                      idx=(tri, tei, self.c[case, inst_name]),
+                                      name=self.name,
+                                      raise_on_exception=self.raise_,
+                                      lim=None, sec=None)
+                     for case, tri, tei, instance_list in self.e
+                     for inst_name, instance in instance_list)
         else:
-            # Assume parallel was already created in a context manager
-            self._partial_process(parallel, attr, n, name)
+            parallel(delayed(_fit)(dir=dir,
+                                   case=case,
+                                   inst_name=inst_name,
+                                   inst=instance,
+                                   X=X,
+                                   y=y,
+                                   pred=P if tei is not None else None,
+                                   idx=(tri, tei, self.c[case, inst_name])
+                                   if inst_name != '__trans__' else tri,
+                                   name=self.layer.name,
+                                   raise_on_exception=self.raise_,
+                                   lim=self.lim,
+                                   sec=self.ival)
+                     for case, tri, tei, inst_list in _wrap(self.t) + self.e
+                     for inst_name, instance in inst_list)
+
+        # Load instances from cache and store as layer attributes
+        # Typically, as layer.estimators_, layer.preprocessing_
+        self._assemble(dir)
+
+        if self.verbose:
+            print_time(t0, '%sDone' % s, file=printout)
+
+    def predict(self, X, P, dir, parallel):
+        """Predict with fitted layer."""
+
+        self._check_fitted()
+
+        if self.verbose:
+            printout = "stderr" if self.verbose < 50 else "stdout"
+            s = _name(self.name, None)
+            safe_print('Predicting layer %s' % self.name)
+            t0 = time()
+
+        # Collect estimators fitted on full data
+        prep, ests = self._retrieve('full')
+
+        parallel(delayed(predict_est)(case=case,
+                                      tr_list=prep[case],
+                                      inst_name=inst_name,
+                                      est=est,
+                                      xtest=X,
+                                      pred=P,
+                                      col=col,
+                                      name=self.name)
+                 for case, (inst_name, est, (_, col)) in ests)
+
+        if self.verbose:
+            print_time(t0, '%sDone' % s, file=printout)
+
+    def _check_fitted(self):
+        """Utility function for checking that fitted estimators exist."""
+        check_is_fitted(self.layer, "estimators_")
+
+        # Check that there is at least one fitted estimator
+        if isinstance(self.layer.estimators_, (list, tuple, set)):
+            empty = len(self.layer.estimators_) == 0
+        elif isinstance(self.layer.estimators_, dict):
+            empty = any([len(e) == 0 for e in self.layer.estimators_.values()])
+        else:
+            # Cannot determine shape of estimators, skip check
+            return
+
+        if empty:
+            raise NotFittedError("Cannot predict as no estimators were"
+                                 "successfully fitted.")
+
+    def _retrieve(self, s):
+        """Get transformers and estimators fitted on folds or on full data."""
+        cs = self.layer.cases
+
+        if s == 'full':
+            # Exploit that instances fitted on full have exact case names
+            return (dict([t for t in self.layer.preprocessing_ if t[0] in cs]),
+                    [t for t in self.layer.estimators_ if t[0] in cs])
+
+        elif s == 'fold':
+            # Exploit that instances fitted on folds have case-fold_num as name
+            return (dict([t for t in self.layer.preprocessing_
+                          if t[0] not in cs]),
+                    [t for t in self.layer.estimators_ if t[0] not in cs])
+
+
+###############################################################################
+def _wrap(folded_list, name='__trans__'):
+    """Wrap the folded transformer list.
+
+    wraps a folded transformer list so that the ``tr_list`` appears as
+    one estimator with a specified name. Since all ``tr_list``s have the
+    same name, it can be used to select a transformation function or an
+    estimation function in a combined parallel fitting loop."""
+    return [(case, tri, None, [(name, instance_list)]) for
+            case, tri, tei, instance_list in folded_list]
+
+
+def _strip(cases, fitted_estimators):
+    """Strip all estimators not fitted on full data from list."""
+    return [tup for tup in fitted_estimators if tup[0] in cases]
+
+
+def _name(layer_name, case):
+    """Utility for setting error or warning message prefix."""
+    if layer_name is None and case is None:
+        # Both empty
+        out = ''
+    elif layer_name is not None and case is not None:
+        # Both full
+        out = '[%s | %s ] ' % (layer_name, case)
+    elif case is None:
+        # Case empty, layer_name full
+        out = '[%s] ' % layer_name
+    else:
+        # layer_name empty, case full
+        out = '[%s] ' % case
+    return out
+
+
+def _slice_array(x, y, idx):
+    """Build training array index and slice data."""
+    # Have to be careful in prepping data for estimation.
+    # We need to slice memmap and convert to a proper array - otherwise
+    # transformers can store results memmaped to the cache, which will
+    # prevent the garbage collector from releasing the memmaps from memory
+    # after estimation
+
+    tri = hstack([arange(t0, t1) for t0, t1 in idx]) \
+        if idx is not None else None
+
+    x = x[tri] if tri is not None else x
+    y = asarray(y[tri]) if idx is not None else asarray(y)
+
+    if x.__class__.__name__[:3] not in ['csr', 'csc', 'coo', 'dok']:
+        # numpy asarray does not work with scipy sparse. Current experimental
+        # solution is to just leave them as is.
+        x = asarray(x)
+
+    return x, y
+
+
+def _assemble(dir, instance_list, suffix):
+    """Utility for loading fitted instances."""
+    if suffix is 't':
+        return [(tup[0],
+                 pickle_load(os.path.join(dir, '%s__%s' % (tup[0], suffix))))
+                for tup in instance_list]
+    else:
+        return [(tup[0],
+                 pickle_load(os.path.join(dir,
+                                          '%s__%s__%s' % (tup[0],
+                                                          etup[0], suffix))))
+                for tup in instance_list
+                for etup in tup[-1]]
+
+
+###############################################################################
+def predict_est(case, tr_list, inst_name, est, xtest, pred, col, name):
+    """Method for predicting with fitted transformers and estimators."""
+    # Transform input
+    for tr_name, tr in tr_list:
+        xtest = _transform_tr(xtest, tr, tr_name, case, name)
+
+    # Predict into memmap
+    # Here, we coerce errors on failed predictions - all predictors that
+    # survive into the estimators_ attribute of a layer should be able to
+    # predict, otherwise the subsequent layer will get corrupt input.
+    pred[:, col] = _predict_est(xtest, est, True, inst_name, case, name)
+
+
+def fit_trans(dir, case, inst, X, y, idx, name):
+    """Fit transformers and write to cache."""
+    x, y = _slice_array(X, y, idx)
+
+    out = []
+    for tr_name, tr in inst:
+        # Fit transformer
+        tr = _fit_tr(x, y, tr, tr_name, case, name)
+
+        # If more than one step, transform input for next step
+        if len(inst) > 1:
+            x = _transform_tr(x, tr, tr_name, case, name)
+        out.append((tr_name, tr))
+
+    # Write transformer list to cache
+    f = os.path.join(dir, '%s__t' % case)
+    pickle_save(out, f)
+
+
+def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
+            name, lim, sec):
+    """Fit estimator and write to cache along with predictions."""
+    # Have to be careful in prepping data for estimation.
+    # We need to slice memmap and convert to a proper array - otherwise
+    # estimators can store results memmaped to the cache, which will
+    # prevent the garbage collector from releasing the memmaps from memory
+    # after estimation
+    x, y = _slice_array(X, y, idx[0])
+
+    # Load transformers
+    f = os.path.join(dir, '%s__t' % case)
+    tr_list = _load_trans(f, case, lim, sec, raise_on_exception)
+
+    # Transform input
+    for tr_name, tr in tr_list:
+        x = _transform_tr(x, tr, tr_name, case, name)
+
+    # Fit estimator
+    est = _fit_est(x, y, inst, raise_on_exception, inst_name, case, name)
+
+    # Predict if asked
+    # The predict loop is kept separate to allow overwrite of x, thus keeping
+    # only one subset of X in memory at any given time
+    if idx[1] is not None:
+        tei = idx[1]
+        col = idx[2]
+
+        x = X[tei[0]:tei[1]]
+        if x.__class__.__name__[:3] not in ['csr', 'csc', 'coo', 'dok']:
+            x = asarray(x)
+
+        for tr_name, tr in tr_list:
+            x = _transform_tr(x, tr, tr_name, case, name)
+
+        pred[tei[0]:tei[1], col] = \
+            _predict_est(x, est, raise_on_exception, inst_name, case, name)
+
+    # We drop tri from index and only keep tei if any predictions were made
+        idx = idx[1:]
+    else:
+        idx = (None, idx[2])
+
+    f = os.path.join(dir, '%s__%s__e' % (case, inst_name))
+    pickle_save((inst_name, est, idx), f)
+
+
+def _fit(**kwargs):
+    """Wrapper to select fit_est or fit_trans."""
+    f = fit_trans if kwargs['inst_name'] == '__trans__' else fit_est
+    f(**{k: v for k, v in kwargs.items() if k in f.__code__.co_varnames})
+
+
+###############################################################################
+def _load_trans(f, case, lim, s, raise_on_exception):
+    """Try loading transformers, and handle exception if not ready yet."""
+    try:
+        # Assume file exists
+        return pickle_load(f)
+    except FileNotFoundError or TypeError as exc:
+        msg = str(exc)
+        error_msg = ("The file %s cannot be found after %i seconds of "
+                     "waiting. Check that time to fit transformers is "
+                     "sufficiently fast to complete fitting before "
+                     "fitting estimators. Consider reducing the "
+                     "preprocessing intensity in the ensemble, or "
+                     "increase the '__lim__' attribute to wait extend "
+                     "period of waiting on transformation to complete."
+                     " Details:\n%r")
+
+        if raise_on_exception:
+            # Raise error immediately
+            raise ParallelProcessingError(error_msg % msg)
+
+        # Else, check intermittently until limit is reached
+        ts = time()
+        while not os.path.exists(f):
+            sleep(s)
+            if time() - ts > lim:
+                if raise_on_exception:
+                    raise ParallelProcessingError(error_msg % msg)
+
+                warnings.warn("Transformer %s not found in cache (%s). "
+                              "Will check every %.1f seconds for %i seconds "
+                              "before aborting. " % (case, f, s, lim),
+                              ParallelProcessingWarning)
+
+                raise_on_exception = True
+                ts = time()
+
+        return pickle_load(f)
+
+
+def _fit_tr(x, y, tr, tr_name, case, layer_name):
+    """Wrapper around try-except block for fitting transformer."""
+    try:
+        return tr.fit(x, y)
+    except Exception as e:
+        # Transformation is sequential: always throw error if one fails
+        s = _name(layer_name, case)
+        msg = "%sFitting transformer [%s] failed. Details:\n%r"
+        raise FitFailedError(msg % (s, tr_name, e))
+
+
+def _transform_tr(x, tr, tr_name, case, layer_name):
+    """Wrapper around try-except block for transformer transformation."""
+    try:
+        return tr.transform(x)
+    except Exception as e:
+        s = _name(layer_name, case)
+        msg = "%sTransformation with transformer [%s] of type (%s) failed. " \
+              "Details:\n%r"
+        raise FitFailedError(msg % (s, tr_name, tr.__class__, e))
+
+
+def _fit_est(x, y, est, raise_on_exception, inst_name, case, layer_name):
+    """Wrapper around try-except block for estimator fitting."""
+    try:
+        return est.fit(x, y)
+    except Exception as e:
+        s = _name(layer_name, case)
+
+        if raise_on_exception:
+            raise FitFailedError("%sCould not fit estimator '%s'. "
+                                 "Details:\n%r" % (s, inst_name, e))
+
+        msg = "%sCould not fit estimator '%s'. Will drop from " \
+              "ensemble. Details:\n%r"
+        warnings.warn(msg % (s, inst_name, e), FitFailedWarning)
+
+
+def _predict_est(x, est, raise_on_exception, inst_name, case, layer_name):
+    """Wrapper around try-except block for estimator predictions."""
+    try:
+        return est.predict(x)
+    except Exception as e:
+        s = _name(layer_name, case)
+
+        if raise_on_exception:
+            raise PredictFailedError("%sCould not predict with estimator '%s'."
+                                     " Details:\n%r" % (s, inst_name, e))
+
+        msg = "%sCould not predict with estimator '%s'. Predictions will be" \
+              "0. Details:\n%r"
+        warnings.warn(msg % (s, inst_name, e), PredictFailedWarning)

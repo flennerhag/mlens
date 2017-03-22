@@ -168,18 +168,18 @@ class InitMixin(object):
     Examples
     --------
 
-    Assert the :class:`StackingEnsemble` passes the Scikit-learn estimator test
+    Assert the :class:`SuperLearner` passes the Scikit-learn estimator test
 
     >>> from sklearn.utils.estimator_checks import check_estimator
-    >>> from mlens.ensemble import StackingEnsemble
+    >>> from mlens.ensemble import SuperLearner
     >>> from mlens.utils.dummy import InitMixin
     >>>
-    >>> class TestStackingEnsemble(InitMixin, StackingEnsemble):
+    >>> class TestSuperLearner(InitMixin, SuperLearner):
     ...
     ...     def __init__(self):
     ...         super().__init__()
     >>>
-    >>> check_estimator(TestStackingEnsemble)
+    >>> check_estimator(TestSuperLearner)
     """
 
     @abstractmethod

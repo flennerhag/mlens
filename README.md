@@ -14,7 +14,7 @@
 **ML Ensemble is a Python library for building fully parallelized ensembles with a Scikit-learn's API. It is fully compatible with Scikic-learn objects such as pipelines and grid search classes.**
 
 The project is in development. Currently, the following classes are implemented:
-- `StackingEnsemble`: a one-stop-shop for generating and training ensembles. See [here](mlens/examples/example.ipynb) for an example.
+- `SuperLearner`: a one-stop-shop for generating and training ensembles. See [here](mlens/examples/example.ipynb) for an example.
 - `PredictionFeature`: an sklearn compatibile class for generating a feature of out-of-sample predicitons. In pipeline, coming soon.
 - `Evaluator`: a one-stop-shop for model evaluation that allows you to compare in one table the performance of any number of models, across any number of preprocessing pipelines. By fitting all estimators in one go, grid search time is dramatically reduced as compared to grid search one pipelined model at a time. See [here](mlens/test/example_evaluator.ipynb) for an example.
 
@@ -26,10 +26,10 @@ See the [*ML-Ensemble homepage*](http://mlens.readthedocs.io/en/latest/) for ful
 
 #### PyPI
 
-Execute  
+Execute
 
 ```bash
-pip install mlens  
+pip install mlens
 ```
 
 #### Bleeding edge
@@ -45,10 +45,10 @@ To update the package, pull the latest changes from the github repo
 
 ## Usage
 
-The library utilizes the Scikit-learn API. Specify a set of base estimators, either as a list of estimators or a dictionary of preprocessing cases with associated base estimators, along with a meta estimator. In the simplest case: 
+The library utilizes the Scikit-learn API. Specify a set of base estimators, either as a list of estimators or a dictionary of preprocessing cases with associated base estimators, along with a meta estimator. In the simplest case:
 
 ```Python
-from mlens.ensemble import StackingEnsemble
+from mlens.ensemble import SuperLearner
 from sklearn.linear_model import Lasso
 from sklearn.svm import SVR
 from sklearn.datasets import load_boston
@@ -61,7 +61,7 @@ base = [SVR(), RandomForest()]
 meta = Lasso()
 
 # Ensemble
-ens = StackingEnsemble(meta, base)
+ens = SuperLearner(meta, base)
 
 ens.fit(X, y)
 predictions = ens.predict(X)
@@ -71,13 +71,13 @@ For more an example that builds in differentiated preprocessing pipelines for ba
 
 ## Roadmap
 
-The project is rapidly progressing. The parallelized backend is in place so the coming taks is to develop the front-end API for different types of ensembles need to be built. This however is a relatively straightforward task so expect major additions soon. In the pipeline of Ensembles to be implemented are currently: 
+The project is rapidly progressing. The parallelized backend is in place so the coming taks is to develop the front-end API for different types of ensembles need to be built. This however is a relatively straightforward task so expect major additions soon. In the pipeline of Ensembles to be implemented are currently:
 
 - Blending
 - Super Learner
 - Subsemble
 
-Stay tuned! 
+Stay tuned!
 
 If you'd like to contribute, don't hesitate to reach out!
 

@@ -63,11 +63,11 @@ the predictions of a `Random Forest`_ and a `Support Vector Machine`_ through a
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.svm import SVC
 
-    from mlens.ensemble import StackingEnsemble
+    from mlens.ensemble import SuperLearner
 
     # Instantiate the ensemble with the f1 scorer
     # Passing a scorer will create cv scores for every estimator in all layers
-    ensemble = StackingEnsemble(scorer=f1, random_state=seed)
+    ensemble = SuperLearner(scorer=f1, random_state=seed)
 
     # Build the first layer
     ensemble.add([RandomForestClassifier(random_state=seed), SVC()])

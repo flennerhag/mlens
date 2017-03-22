@@ -5,6 +5,6 @@
 :licence: MIT
 """
 
-from .stacking_ensemble import StackingEnsemble
+from .super_learner import SuperLearner
 
-__all__ = ['StackingEnsemble']
+__all__ = ['SuperLearner']

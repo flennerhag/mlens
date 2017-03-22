@@ -89,7 +89,7 @@ FIT TIMES
 import numpy as np
 import os
 
-from mlens.ensemble import StackingEnsemble
+from mlens.ensemble import SuperLearner
 
 from mlens.metrics import rmse
 
@@ -110,7 +110,7 @@ from time import time
 def build_ensemble(**kwargs):
     """Generate ensemble."""
 
-    ens = StackingEnsemble(**kwargs)
+    ens = SuperLearner(**kwargs)
     prep = {'Standard Scaling': [StandardScaler()],
             'Min Max Scaling': [MinMaxScaler()],
             'No Preprocessing': []}

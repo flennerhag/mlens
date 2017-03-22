@@ -19,7 +19,7 @@ from ..externals.validation import check_random_state
 from time import time
 
 
-class StackingEnsemble(BaseEnsemble):
+class SuperLearner(BaseEnsemble):
     r"""Stacking Ensemble class.
 
     Blends a set of base estimators via a meta estimator using K-Fold
@@ -44,7 +44,7 @@ class StackingEnsemble(BaseEnsemble):
     every estimator in the ensemble. With large sets of data, other ensembles
     that fits the ensemble through various combinations of subsets can be
     much faster at little loss of performance. However, when data is noisy or
-    of high variance, the :class:`StackingEnsemble` ensure all information is
+    of high variance, the :class:`SuperLearner` ensure all information is
     used during fitting.
 
     Parameters
@@ -118,7 +118,7 @@ class StackingEnsemble(BaseEnsemble):
 
     Instantiate ensembles with no preprocessing: use list of estimators
 
-    >>> from mlens.ensemble import StackingEnsemble
+    >>> from mlens.ensemble import SuperLearner
     >>> from mlens.metrics.metrics import rmse_scoring
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
@@ -126,7 +126,7 @@ class StackingEnsemble(BaseEnsemble):
     >>>
     >>> X, y = load_boston(True)
     >>>
-    >>> ensemble = StackingEnsemble()
+    >>> ensemble = SuperLearner()
     >>> ensemble.add([SVR(), ('can name some or all est', Lasso())]).add(SVR())
     >>>
     >>> ensemble.fit(X, y)
@@ -136,7 +136,7 @@ class StackingEnsemble(BaseEnsemble):
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
-    >>> from mlens.ensemble import StackingEnsemble
+    >>> from mlens.ensemble import SuperLearner
     >>> from mlens.metrics.metrics import rmse_scoring
     >>> from sklearn.datasets import load_boston
     >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
@@ -151,7 +151,7 @@ class StackingEnsemble(BaseEnsemble):
     >>> estimators_per_case = {'mm': [SVR()],
     ...                        'sc': [('can name some or all ests', Lasso())]}
     >>>
-    >>> ensemble = StackingEnsemble()
+    >>> ensemble = SuperLearner()
     >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR())
     >>>
     >>> ensemble.fit(X, y)

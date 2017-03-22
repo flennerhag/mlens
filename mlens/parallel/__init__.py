@@ -5,8 +5,9 @@
 :licence: MIT
 """
 
-from .stacking import Stacker
-from .base import ParallelProcessing
+from .stack import Stacker
+from .blend import Blender
+from .manager import ParallelProcessing
 
 __all__ = ['ParallelProcessing',
            'Stacker']

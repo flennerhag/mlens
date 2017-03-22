@@ -62,7 +62,7 @@ A key feature of ML-Ensemble is the ability to specify, for each layer, a set
 of preprocessing pipelines, and map different (or the same) sets of of
 estimators to each preprocessing pipeline. ::
 
-      ensemble = StackingEnsemble()
+      ensemble = SuperLearner()
 
       preprocessing = {'pipeline-1': list_of_transformers_1,
                        'pipeline-2': list_of_transformers_2}

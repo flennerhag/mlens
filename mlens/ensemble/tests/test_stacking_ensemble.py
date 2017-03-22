@@ -8,7 +8,7 @@ from __future__ import division, print_function, with_statement
 import numpy as np
 from pandas import DataFrame
 
-from mlens.ensemble import StackingEnsemble
+from mlens.ensemble import SuperLearner
 from mlens.metrics import rmse
 from mlens.metrics.metrics import rmse_scoring
 from mlens.utils.dummy import InitMixin
@@ -69,7 +69,7 @@ estimators = {'sc': [('ls', Lasso()), ('kn', KNeighborsRegressor())],
               'mm': [SVR()],
               'np': [('rf', RandomForestRegressor(random_state=100))]}
 
-ensemble = StackingEnsemble(folds=10, shuffle=False,
+ensemble = SuperLearner(folds=10, shuffle=False,
                             scorer=rmse._score_func, n_jobs=1,
                             random_state=100)
 ensemble.add(preprocessing=preprocessing, estimators=estimators)
@@ -78,18 +78,18 @@ ensemble.add_meta(meta)
 
 # Ensembles without preprocessing to check case handling and estimator perf
 # Named estimator tuples, implicit lack of preprocessing
-ens1 = StackingEnsemble(folds=KFold(2, random_state=100, shuffle=True),
+ens1 = SuperLearner(folds=KFold(2, random_state=100, shuffle=True),
                         random_state=100, n_jobs=-1, scorer=rmse_scoring)
 ens1.add([('svr', SVR()), ('rf', RandomForestRegressor(random_state=100))])
 ens1.add_meta(Lasso(alpha=0.001, random_state=100))
 
 # Ensemble without named tuples, implicit lack of preprocessing
-ens2 = StackingEnsemble(random_state=100, n_jobs=-1)
+ens2 = SuperLearner(random_state=100, n_jobs=-1)
 ens2.add_meta(Lasso(alpha=0.001, random_state=100))
 ens2.add([SVR(), RandomForestRegressor(random_state=100)])
 
 # Ensemble with explicit no prep pipelines
-ens3 = StackingEnsemble(random_state=100, n_jobs=-1)
+ens3 = SuperLearner(random_state=100, n_jobs=-1)
 ens3.add({'no_prep': [SVR(), RandomForestRegressor(random_state=100)]},
          {'no_prep': []})
 
@@ -97,25 +97,25 @@ ens3.add_meta(Lasso(alpha=0.001, random_state=100))
 
 # Simple ensemble for grid search
 
-grid_ens = StackingEnsemble(folds=5, shuffle=False,
+grid_ens = SuperLearner(folds=5, shuffle=False,
                             scorer=rmse_scoring, n_jobs=1,
                             random_state=100)
 grid_ens.add({'mm': [SVR()]}, {'mm': [MinMaxScaler()]})
 grid_ens.add_meta(SVR())
 
 
-class TestStackingEnsemble(InitMixin, StackingEnsemble):
-    """Wrapper around StackingEnsemble to check estimator behavior."""
+class TestSuperLearner(InitMixin, SuperLearner):
+    """Wrapper around SuperLearner to check estimator behavior."""
 
     def __init__(self):
-        super(TestStackingEnsemble, self).__init__()
+        super(TestSuperLearner, self).__init__()
 
 
 def test_estimator_behavior():
-    """[StackingEnsemble] Test Scikit-learn compatibility."""
+    """[SuperLearner] Test Scikit-learn compatibility."""
     with warnings.catch_warnings(record=True) as w:
-        # Assert the StackingEnsemble passes the Scikit-learn estimator test.
-        check_estimator(TestStackingEnsemble)
+        # Assert the SuperLearner passes the Scikit-learn estimator test.
+        check_estimator(TestSuperLearner)
 
     # Check that all warnings were mlens warnings
     if not isinstance(w, list):
@@ -130,7 +130,7 @@ def test_estimator_behavior():
 
 
 def test_no_preprocess_ensemble():
-    """[StackingEnsemble] Test without any preprocessing."""
+    """[SuperLearner] Test without any preprocessing."""
     ens1.fit(X, y)
     ens2.fit(X, y)
     ens3.fit(X, y)
@@ -151,7 +151,7 @@ def test_no_preprocess_ensemble():
 
 
 def test_preprocess_ensemble():
-    """[StackingEnsemble] Test with preprocessing."""
+    """[SuperLearner] Test with preprocessing."""
     # Check that cloning and set params work
     ens = clone(ensemble).set_params(**fit_params)
 
@@ -171,7 +171,7 @@ def test_preprocess_ensemble():
 
 
 def test_grid_search():
-    """[StackingEnsemble] Test in GridSearch."""
+    """[SuperLearner] Test in GridSearch."""
     grid_ens.set_params(**{'n_jobs': 1})
 
     grid = GridSearchCV(grid_ens, param_grid=grid_params,
@@ -184,7 +184,7 @@ def test_grid_search():
 
 
 def test_ensemble_exception_handling():
-    """[StackingEnsemble] Test exception handling."""
+    """[SuperLearner] Test exception handling."""
     # Currently this test just ensures the ensemble runs through
     ensemble.set_params(**{  # will cause error
                            'layers__layer-1__np-rf__min_samples_leaf': 1.01,

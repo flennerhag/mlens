@@ -208,7 +208,7 @@ class StackingTransformer(BaseEnsemble):
             >>>                        'sc': [StandardScaler()]}
             >>> estimators_per_case = {'mm': [SVR()],
             >>>                        'sc': [Lasso()]}
-            >>> ensemble = StackingEnsemble()
+            >>> ensemble = SuperLearner()
             >>> ensemble.add(estimators_per_case, preprocessing_cases)
 
         """

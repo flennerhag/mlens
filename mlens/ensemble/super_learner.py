@@ -20,32 +20,50 @@ from time import time
 
 
 class SuperLearner(BaseEnsemble):
-    r"""Stacking Ensemble class.
+    r"""Super Learner class.
 
-    Blends a set of base estimators via a meta estimator using K-Fold
-    training set estimation. For every layer, the prediction matrix used as
-    training set by the subsequent layer or meta estimator is constructed by
-    partitioning the data into K folds, with each transformer / estimator
-    fitted of K - 1 folds and used to predict the left out fold. This process
-    is repeated until every sample in the training set has been predicted.
+    The Super Learner (also known as the Stacking Ensemble)is an
+    supervised ensemble algorithm that uses K-fold estimation to map a
+    training set (X, y) into a prediction set (Z, y), where the predictions
+    in Z are constructed using K-Fold splits of X to ensure Z reflects test
+    errors, and that applies a user-specified meta learner to predict
+    y from Z. The algorithm in sudo code follows:
 
-    Every transformer / estimator is additionally fitted on the full data set,
-    and these fully fitted estimators are used to generate predictions once the
-    ensemble is fitted. Hence, the K-fold estimation technique builds the
-    training set used by subsequent layer in a manner as close to the
-    predictions it would see during prediction. This method ensures all
-    estimators (except the initial layer) are fitted on test errors of the
-    estimators in the preceding layer.
+        #. Specify a library of L base learners
+        #. Fit all base learners on X and store them
+        #. Split X into K folds, fit every learner in L on the training set\
+            and predict test set. Repeat until all folds have been predicted.
+        #. Construct a matrix Z by stacking the predictions per fold
+        #. Fit the meta learner on Z and store the learner
 
-    The final layer's predictions are combined through a meta learner specified
-    by the user.
+    The ensemble can be used for prediction by mapping a new test set T into a
+    prediction set Z' using the L learners fitted in (2), and then mapping Z'
+    to y' using the fitted meta learner from (5).
 
-    Stacking is a time consuming method, as it requires several fittings of
-    every estimator in the ensemble. With large sets of data, other ensembles
-    that fits the ensemble through various combinations of subsets can be
-    much faster at little loss of performance. However, when data is noisy or
-    of high variance, the :class:`SuperLearner` ensure all information is
+    The Super Learner does asymptotically as well as (up to a constant) the
+    Oracle selector. For the theory behind the Super Learner, see
+    [1]_ and [2]_ as well as references therein.
+
+    Stacking K-fold predictions to cover an entire training set is a time
+    consuming method and can be prohibitively costly for large datasets.
+    With large data, other ensembles that fits an ensemble on subsets
+    can achieve similar performance at a fraction of the training time.
+    However, when data is noisy or of high variance,
+    the :class:`SuperLearner` ensure all information is
     used during fitting.
+
+    References
+    ----------
+
+    .. [1] van der Laan, Mark J.; Polley, Eric C.; and Hubbard, Alan E.,
+    "Super Learner" (July 2007). U.C. Berkeley Division of Biostatistics
+    Working Paper Series. Working Paper 222.
+    http://biostats.bepress.com/ucbbiostat/paper222
+
+    .. [2] Polley, Eric C. and van der Laan, Mark J.,
+    "Super Learner In Prediction" (May 2010). U.C. Berkeley Division of
+    Biostatistics Working Paper Series. Working Paper 266.
+    http://biostats.bepress.com/ucbbiostat/paper266
 
     Parameters
     ----------

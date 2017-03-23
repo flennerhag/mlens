@@ -4,15 +4,26 @@
 :copyright: 2017
 :license: MIT
 
-Dummy estimators and Mixins to facilitate unit testing and some benchmarking.
+Collection of dummy estimator classes, Mixins to build transparent layers for
+unit testing.
+
+Also contains pre-made Layer, LayerContainers and data generation functions
+for unit testing.
 """
 
 import numpy as np
+import itertools
 
 from .exceptions import NotFittedError
+from ..ensemble.base import LayerContainer, Layer
+from ..externals.base import BaseEstimator, TransformerMixin, clone
+from ..externals.validation import check_array, check_X_y
+from ..parallel.manager import ENGINES
 
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils.validation import check_array, check_X_y
+from joblib import Parallel, load, dump
+import shutil
+import os
+import gc
 
 from abc import abstractmethod
 
@@ -129,10 +140,18 @@ class Scale(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         """Estimate mean.
+
+        Parameters
+        ----------
+        X : array-like
+            training data to fit transformer on.
+
+        y : array-like or None
+            pass through for pipeline.
         """
         X = check_array(X, accept_sparse='csr')
         self.__is_fitted__ = True
-        self.mean_ = X.mean(axis = 0)
+        self.mean_ = X.mean(axis=0)
         return self
 
     def transform(self, X):
@@ -177,7 +196,7 @@ class InitMixin(object):
     >>> class TestSuperLearner(InitMixin, SuperLearner):
     ...
     ...     def __init__(self):
-    ...         super().__init__()
+    ...         super(TestSuperLearner, self).__init__()
     >>>
     >>> check_estimator(TestSuperLearner)
     """
@@ -197,3 +216,353 @@ class InitMixin(object):
         if getattr(self, 'layers', None) is None:
             getattr(self, 'add')([OLS(offset=1), OLS(offset=2)])
             getattr(self, 'add')(OLS())
+
+###############################################################################
+# Pre-made Layer and LayerContainer classes
+
+PREPROCESSING = {'no': [], 'sc': [Scale()]}
+
+ESTIMATORS = {'sc': [('offs', OLS(offset=2))],
+              'no': [('offs', OLS(offset=2)), ('null', OLS())]}
+
+ECM = [OLS(offset=i) for i in range(16)]
+
+LAYERS = {('layer', 'stack'):
+          Layer(estimators=ESTIMATORS, cls='stack',
+                preprocessing=PREPROCESSING),
+          ('layer', 'blend'):
+          Layer(estimators=ESTIMATORS, cls='blend',
+                preprocessing=PREPROCESSING),
+          ('lc', 'stack'):
+          LayerContainer().add(estimators=ESTIMATORS, cls='stack',
+                               preprocessing=PREPROCESSING),
+          ('lc', 'blend'):
+              LayerContainer().add(estimators=ESTIMATORS, cls='blend',
+                                   preprocessing=PREPROCESSING),
+          ('lcm', 'stack'):
+          LayerContainer().add(estimators=ECM, cls='stack'),
+          ('lcm', 'blend'):
+          LayerContainer().add(estimators=ECM, cls='blend')
+          }
+
+###############################################################################
+# Data generation functions and Layer estimation wrappers
+
+
+def get_path():
+    """Set up a temprorary folder in the current working directory."""
+    path = os.path.join(os.getcwd(), 'tmp')
+    try:
+        shutil.rmtree(path)
+    except:
+        pass
+    os.mkdir(path)
+    return path
+
+
+def data(shape, mod):
+    """Generate X and y data with X.
+
+    Returns
+    -------
+    train : ndarray
+        generated as a sequence of  reshaped to (LEN, WIDTH)
+
+    labels : ndarray
+        generated as a step-function with a step every MOD. As such,
+        each prediction fold during cross-validation have a unique level value.
+    """
+    s = shape[0]
+    w = shape[1]
+
+    train = np.array(range(s * w), dtype='float').reshape((s, w))
+    train += 1
+
+    labels = np.zeros(train.shape[0])
+
+    increment = 10
+    for i in range(0, s, mod):
+        labels[i:i + mod] += increment
+
+        increment += 10
+
+    return train, labels
+
+
+def _store_X_y(dir, X, y):
+    """Save X and y to file in temporary directory."""
+
+    xf, yf = os.path.join(dir, 'X.npy'), os.path.join(dir, 'y.npy')
+    np.save(xf, X)
+    np.save(yf, y)
+
+    return xf, yf
+
+
+def _destroy_temp_dir(dir):
+    """Remove temporary directories created during tests."""
+    shutil.rmtree(dir)
+
+
+def _folded_ests(X, y, n_ests, indexer):
+    """Build ground truth for each fold."""
+    print('                                    FOLD OUTPUT')
+    print('-' * 80)
+    print('  EST   |'
+          '  TRI   |'
+          '  TEI   |'
+          ' TEST LABELS  |'
+          ' TRAIN LABELS |'
+          ' COEF   |'
+          ' PRED')
+    weights = []
+    F = np.zeros((X.shape[0], n_ests))
+
+    col_id = {}
+    col_ass = 0
+
+    # Sort at every occasion
+    for key in sorted(PREPROCESSING):
+        for tri, tei in indexer.generate(X, True):
+            # Sort again
+            for est_name, est in ESTIMATORS[key]:
+
+                if '%s-%s' % (key, est_name) not in col_id:
+                    col_id['%s-%s' % (key, est_name)] = col_ass
+                    col_ass += 1
+
+                xtrain = X[tri]
+                xtest = X[tei]
+
+                # Transform inputs
+                for tr in PREPROCESSING[key]:
+                    t = clone(tr)
+                    xtrain = t.fit_transform(xtrain)
+                    xtest = t.transform(xtest)
+
+                # Fit estimator
+                e = clone(est).fit(xtrain, y[tri])
+                w = e.coef_
+                weights.append(w.tolist())
+
+                # Get out-of-sample predictions
+                p = e.predict(xtest)
+                F[tei, col_id['%s-%s' % (key, est_name)]] = p
+
+                print('%s | %r | %r | %r | %r | %6r | %r' % (
+                    '%s-%s' % (key, est_name),
+                    list(tri),
+                    list(tei),
+                    [float('%.1f' % i) for i in y[tei]],
+                    [float('%.1f' % i) for i in y[tri]],
+                    [float('%.1f' % i) for i in w],
+                    [float('%.1f' % i) for i in p]))
+    return F, weights
+
+
+def _full_ests(X, y, n_ests):
+    """Get ground truth for train and predict on full data."""
+    print('\n                        FULL PREDICTION OUTPUT')
+    print('-' * 68)
+    print('  EST   |'
+          '       GROUND TRUTH       |'
+          ' COEF  |'
+          '           PRED')
+
+    P = np.zeros((X.shape[0], n_ests))
+    weights = list()
+    col_id = {}
+    col_ass = 0
+
+    # Sort at every occasion
+    for key in sorted(PREPROCESSING):
+        for est_name, est in ESTIMATORS[key]:
+
+            if '%s-%s' % (key, est_name) not in col_id:
+                col_id['%s-%s' % (key, est_name)] = col_ass
+                col_ass += 1
+
+            # Transform input
+            xtrain = X
+            xtest = X
+            for tr in PREPROCESSING[key]:
+                t = clone(tr)
+                xtrain = t.fit_transform(xtrain)
+                xtest = t.transform(xtest)
+
+            # Fit est
+            e = clone(est).fit(xtrain, y)
+            w = e.coef_
+            weights.append(w.tolist())
+
+            # Predict
+            p = e.predict(xtest)
+            P[:, col_id['%s-%s' % (key, est_name)]] = p
+
+            print('%s | %r | %r | %r' % (
+                '%s-%s' % (key, est_name),
+                [float('%.1f' % i) for i in y],
+                [float('%.1f' % i) for i in w],
+                [float('%.1f' % i) for i in p]))
+
+    return P, weights
+
+
+def ground_truth(X, y, n_ests, indexer):
+    """Set up an experiment ground truth.
+
+    Returns
+    -------
+    F : ndarray
+        Full prediction array (train errors)
+    P : ndarray
+        Folded prediction array (test errors)
+
+    Raises
+    ------
+    AssertionError :
+        Raises assertion error if any weight vectors overlap or any predictions
+        (as measured by columns in F and P) are judged to be equal.
+
+    Examples
+    --------
+    >>>ground_truth()
+                                CONSTRUCTING GROUND TRUTH
+
+                                        FOLD OUTPUT
+    -------------------------------------------------------------------------..
+      EST   |  TRI   |  TEI   | TEST LABELS  | TRAIN LABELS | COEF   | PRED
+    no-null | [2, 3] | [0, 1] | [10.0, 10.0] | [20.0, 20.0] |  [5.6] | [5.6, ..
+    no-null | [0, 1] | [2, 3] | [20.0, 20.0] | [10.0, 10.0] |  [6.0] | [18.0,..
+    sc-offs | [2, 3] | [0, 1] | [10.0, 10.0] | [20.0, 20.0] |  [2.0] | [-5.0,..
+    sc-offs | [0, 1] | [2, 3] | [20.0, 20.0] | [10.0, 10.0] |  [2.0] | [3.0, ..
+
+                            FULL PREDICTION OUTPUT
+    --------------------------------------------------------------------
+      EST   |       GROUND TRUTH       | COEF  |           PRED
+    no-null | [10.0, 10.0, 20.0, 20.0] | [5.7] | [5.7, 11.3, 17.0, 22.7]
+    sc-offs | [10.0, 10.0, 20.0, 20.0] | [6.0] | [-9.0, -3.0, 3.0, 9.0]
+
+                     SUMMARY
+    ------------------------------------------
+    no-null |   FULL: [5.7, 11.3, 17.0, 22.7]
+    no-null |  FOLDS: [5.6, 11.2, 18.0, 24.0]
+    sc-offs |   FULL: [-9.0, -3.0, 3.0, 9.0]
+    sc-offs |  FOLDS: [-5.0, -3.0, 3.0, 5.0]
+    GT              : [10.0, 10.0, 20.0, 20.0]
+
+    CHECKING UNIQUENESS... OK.
+    """
+    print('                            CONSTRUCTING GROUND TRUTH\n')
+
+    # First build folded estimations.
+    F, weights_f = _folded_ests(X, y, n_ests, indexer)
+    P, weights_p = _full_ests(X, y, n_ests)
+
+    print('\n                 SUMMARY')
+    print('-' * 42)
+    col = 0
+    for key in sorted(ESTIMATORS):
+        for est_name, est in sorted(ESTIMATORS[key]):
+            print('%s | %6s: %20r' % ('%s-%s' % (key, est_name), 'FULL',
+                                      [float('%.1f' % i) for i in P[:, col]]))
+            print('%s | %6s: %20r' % ('%s-%s' % (key, est_name), 'FOLDS',
+                                      [float('%.1f' % i) for i in F[:, col]]))
+        col += 1
+
+    print('GT              : %r' % [float('%.1f' % i) for i in y])
+
+    print('\nCHECKING UNIQUENESS...', end=' ')
+
+    try:
+        # First, assert folded preds differ from full preds:
+        for i in range(n_ests):
+            for j in range(n_ests):
+                if j > i:
+                    assert not np.equal(P[:, i], P[:, j]).any()
+                    assert not np.equal(P[:, i], F[:, j]).any()
+                    assert not np.equal(F[:, i], P[:, j]).any()
+                    for _, t in indexer.generate(X, as_array=True):
+                        assert not np.equal(F[t, i], F[t, j]).any()
+
+        # Second, assert all combinations of weights are not equal
+        for weights in [weights_f, weights_p]:
+            for a, b in itertools.combinations(weights, 2):
+                assert not np.equal(a, b).any()
+        print('OK.')
+
+    except AssertionError as exc:
+        print('ERROR:')
+        raise AssertionError(exc)
+    finally:
+        return (F, weights_f), (P, weights_p)
+
+
+def _init(train, label, n_ests):
+    """Simple temp folder initialization for testing estimation functions."""
+
+    dir = os.path.join(os.getcwd(), 'tmp/tmp')
+    try:
+        shutil.rmtree(dir)
+    except:
+        pass
+    os.mkdir(dir)
+
+    paths = {}
+    for name, arr in zip(('X', 'y'), (train, label)):
+        f = os.path.join(dir, '%s.mmap' % name)
+        paths[name] = f
+        if os.path.exists(f):
+            os.unlink(f)
+        dump(arr, f)
+
+    X = load(paths['X'], mmap_mode='r')
+    y = load(paths['y'], mmap_mode='r')
+
+    paths['P'] = os.path.join(dir, 'P.mmap')
+    shape = (y.shape[0], n_ests)
+    P = np.memmap(paths['P'], dtype=y.dtype, shape=shape, mode='w+')
+
+    return {'X': X, 'y': y, 'P': P, 'dir': dir}
+
+
+def _layer_est(layer, attr, train, label, n_ests, n_jobs, rem=True, args=None):
+    """Test the estimation routine for a layer."""
+
+    est = ENGINES[layer.cls]
+
+    job = None
+    try:
+        # Wrap in try-except to always close the tmp if asked to
+
+        # Create a cache
+        job = _init(train, label, n_ests)
+
+        # Get a parallel jobs up
+        with Parallel(n_jobs=n_jobs,
+                      temp_folder=job['dir'],
+                      max_nbytes=None) as parallel:
+
+            # Run test
+            if args is None:
+                kwargs = job
+            else:
+                kwargs = {arg: job[arg] for arg in args}
+
+            kwargs['parallel'] = parallel
+
+            e = est(layer=layer)
+            getattr(e, attr)(**kwargs)
+
+        # Check prediction output
+        preds = np.asarray(job['P'])
+
+    finally:
+        # Always remove tmp if asked
+        if rem and job is not None:
+            f = job['dir']
+            job.clear()
+            shutil.rmtree(f)
+            gc.collect()
+
+    return preds

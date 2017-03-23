@@ -25,7 +25,8 @@ class Stacker(BaseEstimator):
         """Expand the instance lists to every fold with associated indices."""
         e = _expand_instance_list(self.layer.estimators, self.layer.indexer)
 
-        t = _expand_instance_list(self.layer.preprocessing, self.layer.indexer)
+        t = _expand_instance_list(self.layer.preprocessing,
+                                  self.layer.indexer)
 
         return e, t
 

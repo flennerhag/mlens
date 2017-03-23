@@ -148,7 +148,7 @@ class BlendIndex(BaseIndex):
     TRAIN (idx | array): (0, 3) | array([[0, 1, 2]])
     """
 
-    def __init__(self, test_size, train_size=None,
+    def __init__(self, test_size=0.5, train_size=None,
                  X=None, raise_on_exception=True):
 
         self.test_size = test_size

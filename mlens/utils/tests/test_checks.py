@@ -4,11 +4,66 @@ author: Sebastian Flennerhag
 :copyirgh: 2017
 :licence: MIT
 """
+import numpy as np
 
+from mlens.utils.dummy import LAYER, LAYER_CONTAINER
 from mlens.utils.formatting import check_instances
-from mlens.utils.checks import check_fit_overlap
+from mlens.utils.exceptions import (NotFittedError, LayerSpecificationError,
+                                    LayerSpecificationWarning)
+from mlens.utils.checks import (check_fit_overlap, check_is_fitted,
+                                check_ensemble_build)
+
+from mlens.externals.base import clone
 
 
+def test_check_is_fitted():
+    """[Utils] check_is_fitted : passes fitted."""
+    lyr = clone(LAYER)
+    lyr.estimators_ = None
+    check_is_fitted(lyr, 'estimators_')
+
+
+def test_check_is_fitted():
+    """[Utils] check_is_fitted : raises error."""
+    np.testing.assert_raises(NotFittedError,
+                             check_is_fitted,
+                             LAYER, 'estimators_')
+
+
+def test_check_ensemble_build_passes():
+    """[Utils] check_ensemble_build : passes on default dummy LC."""
+    FLAG = check_ensemble_build(LAYER_CONTAINER)
+    assert FLAG is True
+
+
+def test_check_ensemble_build_no_lc():
+    """[Utils] check_ensemble_build : raises error on no LC."""
+    lc = clone(LAYER_CONTAINER)
+    del lc.layers
+    np.testing.assert_raises(AttributeError,
+                             check_ensemble_build,
+                             lc)
+
+def test_check_ensemble_build_lc_None():
+    """[Utils] check_ensemble_build : raises error on LC None."""
+    lc = clone(LAYER_CONTAINER)
+    lc.layers = None
+    lc.raise_on_exception = True
+
+    np.testing.assert_raises(LayerSpecificationError,
+                             check_ensemble_build,
+                             lc)
+
+
+def test_check_ensemble_build_lc_None_no_raise_():
+    """[Utils] check_ensemble_build : raises warning on LC None + no raise_."""
+    lc = clone(LAYER_CONTAINER)
+    lc.layers = None
+    lc.raise_on_exception = False
+
+    FLAG = np.testing.assert_warns(LayerSpecificationWarning,
+                                   check_ensemble_build, lc)
+    assert FLAG is False
 
 
 def test_check_estimators():

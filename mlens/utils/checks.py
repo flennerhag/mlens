@@ -62,13 +62,12 @@ def check_is_fitted(estimator, attr):
         ensemble instance to check.
 
     attr : str
-        attribute to assert existence of. Default is the ``layer_`` attribute
-        that holds fitted layers.
+        attribute to assert existence of.
     """
-    msg = ("This %(name)s instance is not fitted yet. Call 'fit' with "
+    msg = ("This %s instance is not fitted yet. Call 'fit' with "
            "appropriate arguments before using this method.")
     if not hasattr(estimator, attr):
-        raise NotFittedError(msg % {"name": type(estimator).__name__})
+        raise NotFittedError(msg % type(estimator).__name__)
 
 
 def check_ensemble_build(inst, attr='layers'):

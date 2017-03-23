@@ -12,6 +12,7 @@ from __future__ import division, print_function
 from collections import OrderedDict
 from abc import ABCMeta, abstractmethod
 
+from ..base import INDEXERS
 from ..utils import check_instances
 from ..parallel import ParallelProcessing
 from ..utils import (assert_correct_layer_format, print_time, safe_print,
@@ -24,7 +25,12 @@ from sklearn.base import BaseEstimator
 
 import warnings
 import gc
-from time import time
+try:
+    # Try get performance counter
+    from time import perf_counter as time
+except:
+    # Fall back on wall clock
+    from time import time
 
 
 class LayerContainer(BaseEstimator):
@@ -78,7 +84,7 @@ class LayerContainer(BaseEstimator):
         # Set up layer
         self._init_layers(layers)
 
-    def add(self, estimators, cls, preprocessing=None, inplace=True, **kwargs):
+    def add(self, estimators, cls, indexer=None, preprocessing=None, **kwargs):
         """Method for adding a layer.
 
         Parameters
@@ -107,10 +113,14 @@ class LayerContainer(BaseEstimator):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-        cls : str, object
+        cls : str
             Type of layer, as defined by the estimation class to instantiate
             when processing a layer. See :mod:`mlens.ensemble` for available
             classes.
+
+        indexer : instance or None (default = None)
+            Indexer instance to use. Defaults to the layer class
+            indexer with default settings. See :mod:`mlens.base` for details.
 
         preprocessing: dict of lists or list, optional (default = None)
             preprocessing pipelines for given layer. If
@@ -138,9 +148,6 @@ class LayerContainer(BaseEstimator):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-        inplace : bool (default = True)
-            whether to return the instance (i.e. ``self``).
-
         **kwargs : optional
             keyword arguments to be passed onto the layer at instantiation.
 
@@ -162,6 +169,7 @@ class LayerContainer(BaseEstimator):
 
         lyr = Layer(estimators=estimators,
                     cls=cls,
+                    indexer=indexer,
                     preprocessing=preprocessing,
                     raise_on_exception=self.raise_on_exception,
                     name=name,
@@ -173,8 +181,7 @@ class LayerContainer(BaseEstimator):
         # Summarize
         self.summary[name] = self._get_layer_data(name)
 
-        if not inplace:
-            return self
+        return self
 
     def initialize(self, X, y, dir=None):
         """Initialize a :class:`ParallelProcessing` engine.
@@ -313,7 +320,7 @@ class LayerContainer(BaseEstimator):
                 print_time(t0, "Prediction complete", file=pout, flush=True)
 
         finally:
-            # Always terminate processor unless explicitly initialized before
+            # Always terminate job manager unless user explicitly initialized
             if not _init:
                 processor.terminate()
 
@@ -415,6 +422,11 @@ class Layer(BaseEstimator):
     cls : str
         type of layers. Should be the name of an accepted estimator class.
 
+    indexer : instance, optional
+        Indexer instance to use. Defaults to the layer class indexer
+        instantiated with default settings. Required arguments depend on the
+        indexer. See :mod:`mlens.base` for details.
+
     preprocessing: dict of lists or list, optional (default = None)
         preprocessing pipelines for given layer. If
         the same preprocessing applies to all estimators, ``preprocessing``
@@ -440,9 +452,6 @@ class Layer(BaseEstimator):
 
         The lists for each dictionary entry can be any of ``option_1``,
         ``option_2`` and ``option_3``.
-
-    indexer : obj, optional
-        indexing object to be used for slicing data during fitting.
 
     raise_on_exception : bool (default = False)
         whether to raise an error on soft exceptions, else issue warning.
@@ -475,8 +484,8 @@ class Layer(BaseEstimator):
     def __init__(self,
                  estimators,
                  cls,
-                 preprocessing=None,
                  indexer=None,
+                 preprocessing=None,
                  raise_on_exception=False,
                  name=None,
                  verbose=False,
@@ -485,10 +494,11 @@ class Layer(BaseEstimator):
         assert_correct_layer_format(estimators, preprocessing)
 
         self.estimators = check_instances(estimators)
+        self.cls = \
+            cls.strip().lower() if not cls.islower() or ' ' in cls else cls
+        self.indexer = indexer if indexer is not None else INDEXERS[cls]()
         self.preprocessing = check_instances(preprocessing)
-        self.cls = cls.strip().lower()
         self.cls_kwargs = cls_kwargs
-        self.indexer = indexer
         self.raise_on_exception = raise_on_exception
         self.name = name
         self.verbose = verbose
@@ -590,6 +600,7 @@ class BaseEnsemble(BaseEstimator):
     def _add(self,
              estimators,
              cls,
+             indexer=None,
              cls_kwargs=None,
              preprocessing=None,
              **kwargs):
@@ -615,6 +626,7 @@ class BaseEnsemble(BaseEstimator):
 
         self.layers.add(estimators=estimators,
                         cls=cls,
+                        indexer=indexer,
                         cls_kwargs=cls_kwargs,
                         preprocessing=preprocessing,
                         **kwargs)

@@ -267,7 +267,7 @@ class SuperLearner(BaseEnsemble):
         return self._add(
                 estimators=estimators,
                 cls='stack',
-                preprocessing=preprocessing,
                 indexer=FullIndex(c,
                                   raise_on_exception=self.raise_on_exception),
+                preprocessing=preprocessing,
                 verbose=self.verbose)

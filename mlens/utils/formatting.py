@@ -35,9 +35,9 @@ def _format_instances(instances):
             # We keep the instance as a list to change possible duplicate names
             # exploiting that lists are mutable, before switching to tuple
             if instance == val:
-                tup = [instance.__class__.__name__, instance]
+                tup = [instance.__class__.__name__.lower(), instance]
             else:
-                tup = ['-'.join(val[0].split()), val[-1]]
+                tup = ['-'.join(val[0].split()).lower(), val[-1]]
 
             named_instances.append(tup)
 
@@ -115,9 +115,9 @@ def _assert_format(instances):
             if not _check_format(instance_list):
                 return False
         return True
-    else:
-        # Check the given list
-        return _check_format(instances)
+
+    # For list, check the given list
+    return _check_format(instances)
 
 
 def check_instances(instances):

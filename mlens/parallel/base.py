@@ -8,7 +8,7 @@ Base class for estimation.
 """
 
 from abc import ABCMeta, abstractmethod
-from numpy import asarray, hstack, arange
+import numpy as np
 
 from ..utils import (safe_print, print_time, pickle_load, pickle_save,
                      check_is_fitted)
@@ -52,11 +52,11 @@ class BaseEstimator(object):
 
     __metaclass__ = ABCMeta
 
-    __slots__ = ['verbose', 'layer', 'raise_', 'name',
+    __slots__ = ['verbose', 'layer', 'raise_', 'name', 'labels',
                  'lim', 'ival', 'dual', 'e', 't', 'c']
 
     @abstractmethod
-    def __init__(self, layer, dual=True):
+    def __init__(self, layer, labels=None, dual=True):
         self.layer = layer
 
         # Copy some layer parameters to ease notation
@@ -69,7 +69,7 @@ class BaseEstimator(object):
         # Set estimator and transformer lists to loop over, and collect
         # estimator column ids for the prediction matrix
         self.e, self.t = self._format_instance_list()
-        self.c = self._get_col_id()
+        self.c = self._get_col_id(labels)
 
         self.dual = dual
 
@@ -82,7 +82,7 @@ class BaseEstimator(object):
         """Formatting layer's estimator and preprocessing for parallel loop."""
 
     @abstractmethod
-    def _get_col_id(self):
+    def _get_col_id(self, labels):
         """Assign unique col_id to every estimator."""
 
     def _assemble(self, dir):
@@ -252,17 +252,17 @@ def _slice_array(x, y, idx):
     else:
         if isinstance(idx[0], tuple):
             # If a tuple of indices, build iteratively
-            tri = hstack([arange(t0, t1) for t0, t1 in idx])
+            tri = np.hstack([np.arange(t0, t1) for t0, t1 in idx])
         else:
-            tri = arange(idx[0], idx[1])
+            tri = np.arange(idx[0], idx[1])
 
     x = x[tri] if tri is not None else x
-    y = asarray(y[tri]) if idx is not None else asarray(y)
+    y = np.asarray(y[tri]) if idx is not None else np.asarray(y)
 
     if x.__class__.__name__[:3] not in ['csr', 'csc', 'coo', 'dok']:
         # numpy asarray does not work with scipy sparse. Current experimental
         # solution is to just leave them as is.
-        x = asarray(x)
+        x = np.asarray(x)
 
     return x, y
 
@@ -293,7 +293,12 @@ def predict_est(case, tr_list, inst_name, est, xtest, pred, col, name):
     # Here, we coerce errors on failed predictions - all predictors that
     # survive into the estimators_ attribute of a layer should be able to
     # predict, otherwise the subsequent layer will get corrupt input.
-    pred[:, col] = _predict_est(xtest, est, True, inst_name, case, name)
+    p = _predict_est(xtest, est, True, inst_name, case, name)
+
+    if len(p.shape) == 1:
+        pred[:, col] = p
+    else:
+        pred[:, col:col + p.shape[1]] = p
 
 
 def fit_trans(dir, case, inst, X, y, idx, name):
@@ -345,13 +350,19 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
 
         x = X[tei[0]:tei[1]]
         if x.__class__.__name__[:3] not in ['csr', 'csc', 'coo', 'dok']:
-            x = asarray(x)
+            x = np.asarray(x)
 
         for tr_name, tr in tr_list:
             x = _transform_tr(x, tr, tr_name, case, name)
 
-        pred[tei[0]:tei[1], col] = \
-            _predict_est(x, est, raise_on_exception, inst_name, case, name)
+        p = _predict_est(x, est, raise_on_exception, inst_name, case, name)
+
+        if len(p.shape) == 1:
+            pred[tei[0]:tei[1], col] = p
+        else:
+            rows = np.arange(tei[0], tei[1])
+            cols = np.arange(col, col + p.shape[1])
+            pred[np.ix_(rows, cols)] = p
 
     # We drop tri from index and only keep tei if any predictions were made
         idx = idx[1:]

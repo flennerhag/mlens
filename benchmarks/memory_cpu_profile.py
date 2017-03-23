@@ -8,9 +8,7 @@ Create memory and CPU profile plots.
 """
 import numpy as np
 
-from mlens.base import FullIndex
-from mlens.ensemble.base import LayerContainer
-from mlens.utils.dummy import OLS
+from mlens.utils.dummy import LAYERS
 from mlens.utils.utils import CMLog
 
 from time import sleep, perf_counter
@@ -23,9 +21,7 @@ from seaborn import set_palette
 
 def run():
     """Run profiling."""
-    est = [OLS(offset=i) for i in range(16)]
-    lc = LayerContainer()
-    lc.add(est, 'stack', indexer=FullIndex())
+    lc = LAYERS[('lcm', 'blend')]
 
     cm = CMLog(verbose=False)
     cm.monitor(25)
@@ -34,7 +30,7 @@ def run():
 
     t1 = int(np.floor(perf_counter() - cm._t0) * 10)
     sleep(0.1)
-    x, z = make_friedman1(int(1e6))
+    x, z = make_friedman1(int(2 * 1e6))
 
     sleep(5)
 
@@ -62,16 +58,18 @@ def plot_rss(cm, t1, t2, t3):
                 label='fit end')
     plt.xticks([i for i in [0, 50, 100, 150, 200, 250]],
                [i for i in [0, 5, 10, 15, 20, 25]])
-    plt.ylim(120, 240)
+#    plt.ylim(120, 240)
     plt.title("ML-Ensemble memory profile (working set)")
     plt.ylabel("Working set memory (MB)")
     plt.xlabel("Time (s)")
     plt.legend()
     plt.show()
-    try:
-        f.savefig("dev/img/memory_profile.png", dpi=600)
-    except:
-        f.savefig("memory_profile.png", dpi=600)
+
+    if PRINT:
+        try:
+            f.savefig("dev/img/memory_profile.png", dpi=600)
+        except:
+            f.savefig("memory_profile.png", dpi=600)
 
 
 def plot_cpu(cm, t1, t2, t3):
@@ -90,12 +88,16 @@ def plot_cpu(cm, t1, t2, t3):
     plt.ylabel("CPU utilization (%)")
     plt.xlabel("Time (s)")
     plt.legend()
-    try:
-        f.savefig("dev/cpu_profile.png", dpi=600)
-    except:
-        f.savefig("cpu_profile.png", dpi=600)
+
+    if PRINT:
+        try:
+            f.savefig("dev/cpu_profile.png", dpi=600)
+        except:
+            f.savefig("cpu_profile.png", dpi=600)
 
 if __name__ == '__main__':
+
+    PRINT = False
 
     set_palette('husl', 100)
     CM, T1, T2, T3 = run()

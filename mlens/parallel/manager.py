@@ -42,12 +42,13 @@ class Job(object):
     :class:`ParallelProcessing`
     """
 
-    __slots__ = ['X', 'y', 'P', 'dir']
+    __slots__ = ['X', 'y', 'P', 'dir', 'l']
 
     def __init__(self):
         self.X = None
         self.y = None
         self.P = None
+        self.l = None
         self.dir = None
 
 
@@ -139,11 +140,11 @@ class ParallelProcessing(object):
         s0 = lyr.indexer.n_test_samples if self.job == 'fit' else \
             lyr.indexer.n_samples
 
-        if 'proba' in self.job:
-            raise NotImplementedError("Fit and predict with proba not yet "
-                                      "implemented.")
-        else:
-            s1 = lyr.n_pred
+        s1 = lyr.n_pred
+
+        if self.job == 'predict_proba':
+            self._job.l = np.unique(self._job.y).shape[0]
+            s1 *= self._job.l
 
         return s0, s1
 
@@ -253,6 +254,7 @@ class ParallelProcessing(object):
 
         # Fire up the estimation instance
         kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
+        kwd['labels'] = self._job.l
         e = ENGINES[lyr.cls](lyr, **kwd)
 
         # Get function to process and its variables

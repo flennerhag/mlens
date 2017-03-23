@@ -18,8 +18,8 @@ class Blender(BaseEstimator):
     Class for fitting a Layer using Blending.
     """
 
-    def __init__(self, layer, dual=True):
-        super(Blender, self).__init__(layer=layer, dual=dual)
+    def __init__(self, layer, labels=None, dual=True):
+        super(Blender, self).__init__(layer=layer, labels=labels, dual=dual)
 
     def _format_instance_list(self):
         """Expand the instance lists to every fold with associated indices."""
@@ -30,9 +30,10 @@ class Blender(BaseEstimator):
 
         return e, t
 
-    def _get_col_id(self):
+    def _get_col_id(self, labels):
         """Assign unique col_id to every estimator."""
-        return _get_col_idx(self.layer.preprocessing, self.layer.estimators)
+        return _get_col_idx(self.layer.preprocessing, self.layer.estimators,
+                            labels)
 
 
 ###############################################################################
@@ -61,7 +62,7 @@ def _expand_instance_list(instance_list, indexer=None):
                     ]
 
 
-def _get_col_idx(preprocessing, estimators):
+def _get_col_idx(preprocessing, estimators, labels):
     """Utility for assigning each ``est`` in each ``prep`` a unique ``col_id``.
 
     Parameters
@@ -72,9 +73,11 @@ def _get_col_idx(preprocessing, estimators):
     estimators : dict
         dictionary of lists of estimators per preprocessing case.
     """
+    inc = 1 if labels is None else labels
+
     if isinstance(preprocessing, list) or preprocessing is None:
         # Simple iteration of list
-        idx = {(None, inst_name): i for i, (inst_name, _) in
+        idx = {(None, inst_name): int(inc * i) for i, (inst_name, _) in
                enumerate(estimators)}
     else:
         # Nested for loop required
@@ -83,5 +86,5 @@ def _get_col_idx(preprocessing, estimators):
         for case in case_list:
             for inst_name, _ in estimators[case]:
                 idx[case, inst_name] = col
-                col += 1
+                col += inc
     return idx

@@ -30,6 +30,8 @@ ENGINES = {'stack': Stacker,
            'blend': Blender,
            }
 
+JOBS = {'predict', 'fit', 'predict_proba'}
+
 
 class Job(object):
 
@@ -59,12 +61,18 @@ class ParallelProcessing(object):
     ----------
     layers : :class:`mlens.ensemble.base.LayerContainer`
         The ``LayerContainer`` that instantiated the processor.
+
+    job : str
+        The job type to manage. ``job`` must be in ``['predict', 'fit',
+        'predict_proba']``, otherwise an error will be raised.
     """
 
-    __slots__ = ['layers', '_initialized', '_fitted', '_job']
+    __slots__ = ['layers', '_initialized', '_fitted', '_job', 'job']
 
-    def __init__(self, layers):
+    def __init__(self, layers, job):
+        self._check_job(job)
         self.layers = layers
+        self.job = job
         self._initialized = 0
         self._fitted = 0
 
@@ -114,19 +122,39 @@ class ParallelProcessing(object):
             # than mid-estimation
             lyr.indexer.fit(self._job.P[0])
 
-            shape0 = lyr.indexer.n_samples
-            shape1 = lyr.n_pred
+            shape = self._get_lyr_sample_size(lyr)
 
             self._job.P.append(np.memmap(filename=f,
                                          dtype=np.float,
                                          mode='w+',
-                                         shape=(shape0, shape1)))
+                                         shape=shape))
 
         self._initialized = 1
 
         # Release any memory before going into process
         gc.collect()
 
+    def _get_lyr_sample_size(self, lyr):
+        """Decide what sample size to create P with based on the job type."""
+        s0 = lyr.indexer.n_test_samples if self.job == 'fit' else \
+            lyr.indexer.n_samples
+
+        if 'proba' in self.job:
+            raise NotImplementedError("Fit and predict with proba not yet "
+                                      "implemented.")
+        else:
+            s1 = lyr.n_pred
+
+        return s0, s1
+
+    @staticmethod
+    def _check_job(job):
+        """Check that a valid job is initialized."""
+        if job not in JOBS:
+            raise NotImplementedError('The job %s is not valid for the input '
+                                      'for the ParallelProcessing job '
+                                      'manager. Accepted jobs: %r.'
+                                      % (job, JOBS))
     @staticmethod
     def _load(arr):
         """Load array from file using default settings."""
@@ -146,7 +174,7 @@ class ParallelProcessing(object):
             # Joblib's 'load' func fails on npy and npz: use numpy.load
             return np.load(f, mmap_mode='r')
 
-    def process(self, attr):
+    def process(self):
         """Fit all layers in the attached :class:`LayerContainer`."""
         check_initialized(self)
 
@@ -159,7 +187,7 @@ class ParallelProcessing(object):
                       backend=self.layers.backend) as parallel:
 
             for n, lyr in enumerate(self.layers.layers.values()):
-                self._partial_process(n, lyr, parallel, attr)
+                self._partial_process(n, lyr, parallel, self.job)
 
         self._fitted = 1
 

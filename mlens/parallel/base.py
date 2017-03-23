@@ -247,9 +247,14 @@ def _slice_array(x, y, idx):
     # transformers can store results memmaped to the cache, which will
     # prevent the garbage collector from releasing the memmaps from memory
     # after estimation
-
-    tri = hstack([arange(t0, t1) for t0, t1 in idx]) \
-        if idx is not None else None
+    if idx is None:
+        tri = None
+    else:
+        if isinstance(idx[0], tuple):
+            # If a tuple of indices, build iteratively
+            tri = hstack([arange(t0, t1) for t0, t1 in idx])
+        else:
+            tri = arange(idx[0], idx[1])
 
     x = x[tri] if tri is not None else x
     y = asarray(y[tri]) if idx is not None else asarray(y)

@@ -315,8 +315,13 @@ def _folded_ests(X, y, n_ests, indexer):
           ' TRAIN LABELS |'
           ' COEF   |'
           ' PRED')
+
+    t = [t for _, t in indexer.generate(X, True)]
+    t = np.hstack(t)
+    t.sort()
+
     weights = []
-    F = np.zeros((X.shape[0], n_ests))
+    F = np.zeros((len(t), n_ests))
 
     col_id = {}
     col_ass = 0
@@ -360,7 +365,7 @@ def _folded_ests(X, y, n_ests, indexer):
     return F, weights
 
 
-def _full_ests(X, y, n_ests):
+def _full_ests(X, y, n_ests, indexer):
     """Get ground truth for train and predict on full data."""
     print('\n                        FULL PREDICTION OUTPUT')
     print('-' * 68)
@@ -368,6 +373,10 @@ def _full_ests(X, y, n_ests):
           '       GROUND TRUTH       |'
           ' COEF  |'
           '           PRED')
+
+    t = [t for _, t in indexer.generate(X, True)]
+    t = np.hstack(t)
+    t.sort()
 
     P = np.zeros((X.shape[0], n_ests))
     weights = list()
@@ -383,7 +392,8 @@ def _full_ests(X, y, n_ests):
                 col_ass += 1
 
             # Transform input
-            xtrain = X
+            xtrain = X[t]
+            ytrain = y[t]
             xtest = X
             for tr in PREPROCESSING[key]:
                 t = clone(tr)
@@ -391,7 +401,7 @@ def _full_ests(X, y, n_ests):
                 xtest = t.transform(xtest)
 
             # Fit est
-            e = clone(est).fit(xtrain, y)
+            e = clone(est).fit(xtrain, ytrain)
             w = e.coef_
             weights.append(w.tolist())
 
@@ -457,7 +467,7 @@ def ground_truth(X, y, n_ests, indexer):
 
     # First build folded estimations.
     F, weights_f = _folded_ests(X, y, n_ests, indexer)
-    P, weights_p = _full_ests(X, y, n_ests)
+    P, weights_p = _full_ests(X, y, n_ests, indexer)
 
     print('\n                 SUMMARY')
     print('-' * 42)
@@ -498,7 +508,7 @@ def ground_truth(X, y, n_ests, indexer):
         return (F, weights_f), (P, weights_p)
 
 
-def _init(train, label, n_ests):
+def _init(train, label, shape):
     """Simple temp folder initialization for testing estimation functions."""
 
     dir = os.path.join(os.getcwd(), 'tmp/tmp')
@@ -520,13 +530,12 @@ def _init(train, label, n_ests):
     y = load(paths['y'], mmap_mode='r')
 
     paths['P'] = os.path.join(dir, 'P.mmap')
-    shape = (y.shape[0], n_ests)
     P = np.memmap(paths['P'], dtype=y.dtype, shape=shape, mode='w+')
 
     return {'X': X, 'y': y, 'P': P, 'dir': dir}
 
 
-def _layer_est(layer, attr, train, label, n_ests, n_jobs, rem=True, args=None):
+def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
     """Test the estimation routine for a layer."""
 
     est = ENGINES[layer.cls]
@@ -536,7 +545,13 @@ def _layer_est(layer, attr, train, label, n_ests, n_jobs, rem=True, args=None):
         # Wrap in try-except to always close the tmp if asked to
 
         # Create a cache
-        job = _init(train, label, n_ests)
+        if attr == 'fit':
+            n = layer.indexer.n_test_samples
+        else:
+            n = layer.indexer.n_samples
+
+        job = _init(train, label,
+                    (n, layer.n_pred))
 
         # Get a parallel jobs up
         with Parallel(n_jobs=n_jobs,

@@ -55,7 +55,7 @@ def _expand_instance_list(instance_list, indexer=None):
         # ('inst', train_idx, test_idx, est_list)
         # Each est_list have entries (est_name, cloned_est)
         if indexer is not None:
-            return [('inst', tri, tei,
+            return [(None, tri, tei,
                      [('%s' % n, clone(e)) for n, e in instance_list])
                     for tri, tei in indexer.generate()
                     ]

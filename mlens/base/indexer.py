@@ -100,7 +100,7 @@ class BlendIndex(BaseIndex):
     >>> import numpy as np
     >>> from mlens.base.indexer import BlendIndex
     >>> X = np.arange(8)
-    >>> idx = BlendIndex(3)
+    >>> idx = BlendIndex(3, rebase=False)
     >>> print('Test size: 3')
     >>> for tri, tei in idx.generate(X):
     ...     print('TEST (idx | array): (%i, %i) | %r ' % (tei[0], tei[1],
@@ -146,13 +146,28 @@ class BlendIndex(BaseIndex):
     Train size: 50% * 8 < 4 ->
     TEST (idx | array): (3, 5) | array([[3, 4]])
     TRAIN (idx | array): (0, 3) | array([[0, 1, 2]])
+
+    Rebasing the test set to be 0-indexed
+
+    >>> import numpy as np
+    >>> from mlens.base.indexer import BlendIndex
+    >>> X = np.arange(8)
+    >>> idx = BlendIndex(3, rebase=True)
+    >>> print('Test size: 3')
+    >>> for tri, tei in idx.generate(X):
+    ...     print('TEST tuple: (%i, %i) | array: %r' % (tei[0], tei[1],
+    ...                                                 np.arange(tei[0],
+    ...                                                           tei[1])))
+    Test size: 3
+    TEST tuple: (0, 3) | array: array([0, 1, 2])
     """
 
-    def __init__(self, test_size=0.5, train_size=None,
+    def __init__(self, test_size=0.5, train_size=None, rebase=True,
                  X=None, raise_on_exception=True):
 
         self.test_size = test_size
         self.train_size = train_size
+        self.rebase = rebase
         self.raise_on_exception = raise_on_exception
 
         if X is not None:
@@ -183,10 +198,15 @@ class BlendIndex(BaseIndex):
         _check_partial_index(self.n_samples, self.test_size, self.train_size,
                              self.n_test, self.n_train)
 
+        self.n_test_samples = self.n_test
+
         return self
 
     def _gen_indices(self):
-        yield (0, self.n_train), (self.n_train, self.n_train + self.n_test)
+        if self.rebase:
+            yield (0, self.n_train), (0, self.n_test)
+        else:
+            yield (0, self.n_train), (self.n_train, self.n_train + self.n_test)
 
 
 class FullIndex(BaseIndex):
@@ -282,9 +302,9 @@ class FullIndex(BaseIndex):
     """
 
     def __init__(self, n_splits=2, X=None, raise_on_exception=True):
+
         self.n_splits = n_splits
         self.raise_on_exception = raise_on_exception
-
         if X is not None:
             self.fit(X)
 
@@ -293,7 +313,9 @@ class FullIndex(BaseIndex):
         n = X.shape[0]
         _check_full_index(n, self.n_splits, self.raise_on_exception)
 
-        self.n_samples = n
+        self.n_test_samples = self.n_samples = n
+
+        return self
 
     def _gen_indices(self):
         n_samples = self.n_samples

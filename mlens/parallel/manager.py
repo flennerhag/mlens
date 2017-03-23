@@ -30,7 +30,7 @@ ENGINES = {'stack': Stacker,
            'blend': Blender,
            }
 
-JOBS = {'predict', 'fit', 'predict_proba'}
+JOBS = {'predict', 'fit', 'fit_proba', 'predict_proba'}
 
 
 class Job(object):
@@ -142,9 +142,12 @@ class ParallelProcessing(object):
 
         s1 = lyr.n_pred
 
-        if self.job == 'predict_proba':
+        if self.job == 'fit_proba':
+            # Store num classes
             self._job.l = np.unique(self._job.y).shape[0]
-            s1 *= self._job.l
+            lyr.classes_ = self._job.l
+
+        s1 *= getattr(lyr, 'classes_', 1)
 
         return s0, s1
 

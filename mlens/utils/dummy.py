@@ -92,6 +92,55 @@ class OLS(BaseEstimator):
         return np.dot(X, self.coef_.T)
 
 
+# FIXME: Needs a quality check!
+class LogisticRegression(OLS):
+    """A Logistic Regressor through winner-takes-all comparison of P(label)."""
+
+    def fit(self, X, y):
+        """Fit one model per label."""
+        self.labels_ = np.unique(y)
+
+        models = []
+        for label in self.labels_:
+            labels = y == label
+            models.append(super(LogisticRegression,
+                                clone(self)).fit(X, labels))
+
+        self._models_ = models
+
+        self.coef_ = []
+        for l in self._models_:
+            self.coef_.extend(l.coef_)
+        self.coef_ = np.array(self.coef_)
+
+        return self
+
+    def predict_proba(self, X):
+        """Get probability predictions."""
+        preds = []
+        for m in self._models_:
+
+            p = 1 / (1 + np.exp(- m._predict(X)))
+
+            preds.append(p)
+
+        return np.vstack(preds).T
+
+    def _predict(self, X):
+        """Original OLS prediction."""
+        return super(LogisticRegression, self).predict(X)
+
+    def predict(self, X, y=None):
+        """Get label predictions."""
+        preds = self.predict_proba(X)
+
+        labels = np.zeros(X.shape[0])
+        for i in range(X.shape[0]):
+            labels[i] = self.labels_[preds[i].argmax()]
+
+        return labels
+
+
 class Scale(BaseEstimator, TransformerMixin):
     """Removes the learnt mean column-wise in an array.
 
@@ -225,7 +274,13 @@ PREPROCESSING = {'no': [], 'sc': [Scale()]}
 ESTIMATORS = {'sc': [('offs', OLS(offset=2))],
               'no': [('offs', OLS(offset=2)), ('null', OLS())]}
 
+ESTIMATORS_PROBA = {'sc': [('offs', LogisticRegression(offset=2))],
+                    'no': [('offs', LogisticRegression(offset=2)),
+                           ('null', LogisticRegression())]}
+
+
 ECM = [OLS(offset=i) for i in range(16)]
+ECM_PROBA = [LogisticRegression(offset=i) for i in range(16)]
 
 LAYERS = {('layer', 'stack'):
           Layer(estimators=ESTIMATORS, cls='stack',
@@ -244,6 +299,26 @@ LAYERS = {('layer', 'stack'):
           ('lcm', 'blend'):
           LayerContainer().add(estimators=ECM, cls='blend')
           }
+
+LAYERS_PROBA = {('layer', 'stack'):
+                Layer(estimators=ESTIMATORS_PROBA, cls='stack',
+                      preprocessing=PREPROCESSING),
+                ('layer', 'blend'):
+                    Layer(estimators=ESTIMATORS_PROBA, cls='blend',
+                          preprocessing=PREPROCESSING),
+                ('lc', 'stack'):
+                    LayerContainer().add(estimators=ESTIMATORS_PROBA,
+                                         cls='stack',
+                                         preprocessing=PREPROCESSING),
+                ('lc', 'blend'):
+                    LayerContainer().add(estimators=ESTIMATORS_PROBA,
+                                         cls='blend',
+                                         preprocessing=PREPROCESSING),
+                ('lcm', 'stack'):
+                    LayerContainer().add(estimators=ECM_PROBA, cls='stack'),
+                ('lcm', 'blend'):
+                    LayerContainer().add(estimators=ECM_PROBA, cls='blend')
+                }
 
 ###############################################################################
 # Data generation functions and Layer estimation wrappers
@@ -304,7 +379,7 @@ def _destroy_temp_dir(dir):
     shutil.rmtree(dir)
 
 
-def _folded_ests(X, y, n_ests, indexer):
+def _folded_ests(X, y, n_ests, indexer, attr, labels=1):
     """Build ground truth for each fold."""
     print('                                    FOLD OUTPUT')
     print('-' * 80)
@@ -316,12 +391,14 @@ def _folded_ests(X, y, n_ests, indexer):
           ' COEF   |'
           ' PRED')
 
+    ests = ESTIMATORS if labels == 1 else ESTIMATORS_PROBA
+
     t = [t for _, t in indexer.generate(X, True)]
     t = np.hstack(t)
     t.sort()
 
     weights = []
-    F = np.zeros((len(t), n_ests))
+    F = np.zeros((len(t), n_ests * labels))
 
     col_id = {}
     col_ass = 0
@@ -330,11 +407,11 @@ def _folded_ests(X, y, n_ests, indexer):
     for key in sorted(PREPROCESSING):
         for tri, tei in indexer.generate(X, True):
             # Sort again
-            for est_name, est in ESTIMATORS[key]:
+            for est_name, est in ests[key]:
 
                 if '%s-%s' % (key, est_name) not in col_id:
                     col_id['%s-%s' % (key, est_name)] = col_ass
-                    col_ass += 1
+                    col_ass += labels
 
                 xtrain = X[tri]
                 xtest = X[tei]
@@ -351,21 +428,29 @@ def _folded_ests(X, y, n_ests, indexer):
                 weights.append(w.tolist())
 
                 # Get out-of-sample predictions
-                p = e.predict(xtest)
-                F[tei, col_id['%s-%s' % (key, est_name)]] = p
+                p = getattr(e, attr)(xtest)
+                if labels == 1:
+                    F[tei, col_id['%s-%s' % (key, est_name)]] = p
+                else:
+                    c = col_id['%s-%s' % (key, est_name)]
+                    F[np.ix_(tei, np.arange(c, c + labels))] = p
 
-                print('%s | %r | %r | %r | %r | %6r | %r' % (
-                    '%s-%s' % (key, est_name),
-                    list(tri),
-                    list(tei),
-                    [float('%.1f' % i) for i in y[tei]],
-                    [float('%.1f' % i) for i in y[tri]],
-                    [float('%.1f' % i) for i in w],
-                    [float('%.1f' % i) for i in p]))
+                try:
+                    print('%s | %r | %r | %r | %r | %6r | %r' % (
+                        '%s-%s' % (key, est_name),
+                        list(tri),
+                        list(tei),
+                        [float('%.1f' % i) for i in y[tei]],
+                        [float('%.1f' % i) for i in y[tri]],
+                        [float('%.1f' % i) for i in w],
+                        [float('%.1f' % i) for i in p]))
+                except:
+                    pass
+
     return F, weights
 
 
-def _full_ests(X, y, n_ests, indexer):
+def _full_ests(X, y, n_ests, indexer, attr, labels=1):
     """Get ground truth for train and predict on full data."""
     print('\n                        FULL PREDICTION OUTPUT')
     print('-' * 68)
@@ -373,23 +458,23 @@ def _full_ests(X, y, n_ests, indexer):
           '       GROUND TRUTH       |'
           ' COEF  |'
           '           PRED')
-
+    ests = ESTIMATORS if labels == 1 else ESTIMATORS_PROBA
     t = [t for _, t in indexer.generate(X, True)]
     t = np.hstack(t)
     t.sort()
 
-    P = np.zeros((X.shape[0], n_ests))
+    P = np.zeros((X.shape[0], n_ests * labels))
     weights = list()
     col_id = {}
     col_ass = 0
 
     # Sort at every occasion
     for key in sorted(PREPROCESSING):
-        for est_name, est in ESTIMATORS[key]:
+        for est_name, est in ests[key]:
 
             if '%s-%s' % (key, est_name) not in col_id:
                 col_id['%s-%s' % (key, est_name)] = col_ass
-                col_ass += 1
+                col_ass += labels
 
             # Transform input
             xtrain = X[t]
@@ -406,19 +491,26 @@ def _full_ests(X, y, n_ests, indexer):
             weights.append(w.tolist())
 
             # Predict
-            p = e.predict(xtest)
-            P[:, col_id['%s-%s' % (key, est_name)]] = p
+            p = getattr(e, attr)(xtest)
+            c = col_id['%s-%s' % (key, est_name)]
+            if labels == 1:
+                P[:, c] = p
+            else:
+                P[:, c:c + labels] = p
 
-            print('%s | %r | %r | %r' % (
-                '%s-%s' % (key, est_name),
-                [float('%.1f' % i) for i in y],
-                [float('%.1f' % i) for i in w],
-                [float('%.1f' % i) for i in p]))
+            try:
+                print('%s | %r | %r | %r' % (
+                    '%s-%s' % (key, est_name),
+                    [float('%.1f' % i) for i in y],
+                    [float('%.1f' % i) for i in w],
+                    [float('%.1f' % i) for i in p]))
+            except:
+                pass
 
     return P, weights
 
 
-def ground_truth(X, y, n_ests, indexer):
+def ground_truth(X, y, indexer, attr, labels):
     """Set up an experiment ground truth.
 
     Returns
@@ -436,38 +528,50 @@ def ground_truth(X, y, n_ests, indexer):
 
     Examples
     --------
-    >>>ground_truth()
+    >>> from mlens.utils.dummy import ground_truth, data
+    >>> from mlens.base.indexer import FullIndex
+    >>> X, y = data((4, 1), 2)
+    >>> indexer = FullIndex(X=X)
+    >>> (F, wf), (P, wp) = ground_truth(X, y, indexer, 'predict', 1)
                                 CONSTRUCTING GROUND TRUTH
-
                                         FOLD OUTPUT
-    -------------------------------------------------------------------------..
+    --------------------------------------------------------------------------------
       EST   |  TRI   |  TEI   | TEST LABELS  | TRAIN LABELS | COEF   | PRED
-    no-null | [2, 3] | [0, 1] | [10.0, 10.0] | [20.0, 20.0] |  [5.6] | [5.6, ..
-    no-null | [0, 1] | [2, 3] | [20.0, 20.0] | [10.0, 10.0] |  [6.0] | [18.0,..
-    sc-offs | [2, 3] | [0, 1] | [10.0, 10.0] | [20.0, 20.0] |  [2.0] | [-5.0,..
-    sc-offs | [0, 1] | [2, 3] | [20.0, 20.0] | [10.0, 10.0] |  [2.0] | [3.0, ..
+    no-offs | [2, 3] | [0, 1] | [10.0, 10.0] | [20.0, 20.0] |  [7.6] | [7.6, 15.2]
+    no-null | [2, 3] | [0, 1] | [10.0, 10.0] | [20.0, 20.0] |  [5.6] | [5.6, 11.2]
+    no-offs | [0, 1] | [2, 3] | [20.0, 20.0] | [10.0, 10.0] |  [8.0] | [24.0, 32.0]
+    no-null | [0, 1] | [2, 3] | [20.0, 20.0] | [10.0, 10.0] |  [6.0] | [18.0, 24.0]
+    sc-offs | [2, 3] | [0, 1] | [10.0, 10.0] | [20.0, 20.0] |  [2.0] | [-5.0, -3.0]
+    sc-offs | [0, 1] | [2, 3] | [20.0, 20.0] | [10.0, 10.0] |  [2.0] | [3.0, 5.0]
 
                             FULL PREDICTION OUTPUT
     --------------------------------------------------------------------
       EST   |       GROUND TRUTH       | COEF  |           PRED
+    no-offs | [10.0, 10.0, 20.0, 20.0] | [7.7] | [7.7, 15.3, 23.0, 30.7]
     no-null | [10.0, 10.0, 20.0, 20.0] | [5.7] | [5.7, 11.3, 17.0, 22.7]
     sc-offs | [10.0, 10.0, 20.0, 20.0] | [6.0] | [-9.0, -3.0, 3.0, 9.0]
 
                      SUMMARY
     ------------------------------------------
-    no-null |   FULL: [5.7, 11.3, 17.0, 22.7]
-    no-null |  FOLDS: [5.6, 11.2, 18.0, 24.0]
-    sc-offs |   FULL: [-9.0, -3.0, 3.0, 9.0]
-    sc-offs |  FOLDS: [-5.0, -3.0, 3.0, 5.0]
+    no-null |   FULL: [7.7, 15.3, 23.0, 30.7]
+    no-null |  FOLDS: [7.6, 15.2, 24.0, 32.0]
+    no-offs |   FULL: [7.7, 15.3, 23.0, 30.7]
+    no-offs |  FOLDS: [7.6, 15.2, 24.0, 32.0]
+    sc-offs |   FULL: [5.7, 11.3, 17.0, 22.7]
+    sc-offs |  FOLDS: [5.6, 11.2, 18.0, 24.0]
     GT              : [10.0, 10.0, 20.0, 20.0]
 
     CHECKING UNIQUENESS... OK.
     """
     print('                            CONSTRUCTING GROUND TRUTH\n')
 
-    # First build folded estimations.
-    F, weights_f = _folded_ests(X, y, n_ests, indexer)
-    P, weights_p = _full_ests(X, y, n_ests, indexer)
+    # Build predictions matrices.
+    N = 0
+    for case in ESTIMATORS:
+        N += len(ESTIMATORS[case])
+
+    F, weights_f = _folded_ests(X, y, N, indexer, attr, labels)
+    P, weights_p = _full_ests(X, y, N, indexer, attr, labels)
 
     print('\n                 SUMMARY')
     print('-' * 42)
@@ -486,8 +590,8 @@ def ground_truth(X, y, n_ests, indexer):
 
     try:
         # First, assert folded preds differ from full preds:
-        for i in range(n_ests):
-            for j in range(n_ests):
+        for i in range(N):
+            for j in range(N):
                 if j > i:
                     assert not np.equal(P[:, i], P[:, j]).any()
                     assert not np.equal(P[:, i], F[:, j]).any()
@@ -545,13 +649,16 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
         # Wrap in try-except to always close the tmp if asked to
 
         # Create a cache
-        if attr == 'fit':
+        if 'fit' in attr:
             n = layer.indexer.n_test_samples
         else:
             n = layer.indexer.n_samples
 
-        job = _init(train, label,
-                    (n, layer.n_pred))
+        s = layer.n_pred
+        if '_proba' in attr:
+            s *= np.unique(label).shape[0]
+
+        job = _init(train, label, (n, s))
 
         # Get a parallel jobs up
         with Parallel(n_jobs=n_jobs,

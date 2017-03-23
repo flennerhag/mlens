@@ -45,6 +45,9 @@ class BaseEstimator(object):
     layer : :class:`Layer`
         layer to be estimated
 
+    labels : classification labels. Only necessary for
+    ``fit_proba`` and ``predict_proba``.
+
     dual : bool
         whether to estimate transformers separately from estimators: else,
         the lists will be combined in one parallel for-loop.
@@ -90,8 +93,24 @@ class BaseEstimator(object):
         self.layer.estimators_ = _assemble(dir, self.e, 'e')
         self.layer.preprocessing_ = _assemble(dir, self.t, 't')
 
+    def fit_proba(self, X, y, P, dir, parallel):
+        """Fit and predict class probabilities."""
+        self._fit( X, y, P, dir, parallel, 'predict_proba')
+
     def fit(self, X, y, P, dir, parallel):
-        """Fit layer."""
+        """Fit and predict through standard predict method."""
+        self._fit(X, y, P, dir, parallel, 'predict')
+
+    def predict_proba(self, X, P, parallel):
+        """Fit and predict class probabilities."""
+        self._predict(X, P, parallel, 'predict_proba')
+
+    def predict(self, X, P, parallel):
+        """Fit and predict through standard predict method."""
+        self._predict(X, P, parallel, 'predict')
+
+    def _fit(self, X, y, P, dir, parallel, attr):
+        """Fit layer through given attribute."""
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
             s = _name(self.name, None)
@@ -119,9 +138,10 @@ class BaseEstimator(object):
                                       idx=(tri, tei, self.c[case, inst_name]),
                                       name=self.name,
                                       raise_on_exception=self.raise_,
-                                      lim=None, sec=None)
+                                      lim=None, sec=None, attr=attr)
                      for case, tri, tei, instance_list in self.e
                      for inst_name, instance in instance_list)
+
         else:
             parallel(delayed(_fit)(dir=dir,
                                    case=case,
@@ -135,7 +155,8 @@ class BaseEstimator(object):
                                    name=self.layer.name,
                                    raise_on_exception=self.raise_,
                                    lim=self.lim,
-                                   sec=self.ival)
+                                   sec=self.ival,
+                                   attr=attr)
                      for case, tri, tei, inst_list in _wrap(self.t) + self.e
                      for inst_name, instance in inst_list)
 
@@ -146,7 +167,7 @@ class BaseEstimator(object):
         if self.verbose:
             print_time(t0, '%sDone' % s, file=printout)
 
-    def predict(self, X, P, parallel):
+    def _predict(self, X, P, parallel, attr):
         """Predict with fitted layer."""
 
         self._check_fitted()
@@ -167,7 +188,8 @@ class BaseEstimator(object):
                                       xtest=X,
                                       pred=P,
                                       col=col,
-                                      name=self.name)
+                                      name=self.name,
+                                      attr=attr)
                  for case, (inst_name, est, (_, col)) in ests)
 
         if self.verbose:
@@ -283,7 +305,7 @@ def _assemble(dir, instance_list, suffix):
 
 
 ###############################################################################
-def predict_est(case, tr_list, inst_name, est, xtest, pred, col, name):
+def predict_est(case, tr_list, inst_name, est, xtest, pred, col, name, attr):
     """Method for predicting with fitted transformers and estimators."""
     # Transform input
     for tr_name, tr in tr_list:
@@ -293,12 +315,12 @@ def predict_est(case, tr_list, inst_name, est, xtest, pred, col, name):
     # Here, we coerce errors on failed predictions - all predictors that
     # survive into the estimators_ attribute of a layer should be able to
     # predict, otherwise the subsequent layer will get corrupt input.
-    p = _predict_est(xtest, est, True, inst_name, case, name)
+    p = _predict_est(xtest, est, True, inst_name, case, name, attr)
 
     if len(p.shape) == 1:
         pred[:, col] = p
     else:
-        pred[:, col:col + p.shape[1]] = p
+        pred[:, np.arange(col, col + p.shape[1])] = p
 
 
 def fit_trans(dir, case, inst, X, y, idx, name):
@@ -321,7 +343,7 @@ def fit_trans(dir, case, inst, X, y, idx, name):
 
 
 def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
-            name, lim, sec):
+            name, lim, sec, attr):
     """Fit estimator and write to cache along with predictions."""
     # Have to be careful in prepping data for estimation.
     # We need to slice memmap and convert to a proper array - otherwise
@@ -355,7 +377,8 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
         for tr_name, tr in tr_list:
             x = _transform_tr(x, tr, tr_name, case, name)
 
-        p = _predict_est(x, est, raise_on_exception, inst_name, case, name)
+        p = _predict_est(x, est, raise_on_exception,
+                         inst_name, case, name, attr)
 
         if len(p.shape) == 1:
             pred[tei[0]:tei[1], col] = p
@@ -457,17 +480,18 @@ def _fit_est(x, y, est, raise_on_exception, inst_name, case, layer_name):
         warnings.warn(msg % (s, inst_name, e), FitFailedWarning)
 
 
-def _predict_est(x, est, raise_on_exception, inst_name, case, layer_name):
+def _predict_est(x, est, raise_on_exception, inst_name, case, name, attr):
     """Wrapper around try-except block for estimator predictions."""
     try:
-        return est.predict(x)
+        return getattr(est, attr)(x)
     except Exception as e:
-        s = _name(layer_name, case)
+        s = _name(name, case)
 
         if raise_on_exception:
-            raise PredictFailedError("%sCould not predict with estimator '%s'."
-                                     " Details:\n%r" % (s, inst_name, e))
+            raise PredictFailedError("%sCould not call '%s' with estimator "
+                                     "'%s'. Details:\n"
+                                     "%r" % (s, attr, inst_name, e))
 
-        msg = "%sCould not predict with estimator '%s'. Predictions will be" \
-              "0. Details:\n%r"
-        warnings.warn(msg % (s, inst_name, e), PredictFailedWarning)
+        msg = "%sCould not call '%s' with estimator '%s'. Predictions set " \
+              "to 0. Details:\n%r"
+        warnings.warn(msg % (s, attr, inst_name, e), PredictFailedWarning)

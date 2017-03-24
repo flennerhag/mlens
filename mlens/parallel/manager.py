@@ -115,7 +115,10 @@ class ParallelProcessing(object):
 
         # Append pre-allocated prediction arrays in r+ to the P list
         # Each layer will be fitted on P[i] and write to P[i + 1]
-        for name, lyr in self.layers.layers.items():
+        for i, (name, lyr) in enumerate(self.layers.layers.items()):
+            # Keep track of final layer - don't want to predict_proba
+            final = self.layers.n_layers == i + 1
+
             f = os.path.join(self._job.dir, '%s.mmap' % name)
 
             # We call the indexers fit method now at initialization - if there
@@ -123,7 +126,7 @@ class ParallelProcessing(object):
             # than mid-estimation
             lyr.indexer.fit(self._job.P[0])
 
-            shape = self._get_lyr_sample_size(lyr)
+            shape = self._get_lyr_sample_size(lyr, final)
 
             self._job.P.append(np.memmap(filename=f,
                                          dtype=np.float,
@@ -135,14 +138,14 @@ class ParallelProcessing(object):
         # Release any memory before going into process
         gc.collect()
 
-    def _get_lyr_sample_size(self, lyr):
+    def _get_lyr_sample_size(self, lyr, final):
         """Decide what sample size to create P with based on the job type."""
         s0 = lyr.indexer.n_test_samples if self.job == 'fit' else \
             lyr.indexer.n_samples
 
         s1 = lyr.n_pred
 
-        if self.job == 'fit_proba':
+        if not final and self.job == 'fit_proba':
             # Store num classes
             self._job.l = np.unique(self._job.y).shape[0]
             lyr.classes_ = self._job.l
@@ -191,7 +194,10 @@ class ParallelProcessing(object):
                       backend=self.layers.backend) as parallel:
 
             for n, lyr in enumerate(self.layers.layers.values()):
-                self._partial_process(n, lyr, parallel, self.job)
+                final = self.layers.n_layers == n + 1
+                job = self.job.split('_')[0] if final else self.job
+
+                self._partial_process(n, lyr, parallel, job)
 
         self._fitted = 1
 

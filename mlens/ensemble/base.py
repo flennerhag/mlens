@@ -653,6 +653,7 @@ class BaseEnsemble(BaseEstimator):
 
     @abstractmethod
     def __init__(self,
+                 proba=False,
                  shuffle=False,
                  random_state=None,
                  scorer=None,
@@ -662,6 +663,7 @@ class BaseEnsemble(BaseEstimator):
                  layers=None,
                  array_check=2):
 
+        self.proba = proba
         self.shuffle = shuffle
         self.random_state = random_state
         self.scorer = scorer
@@ -738,7 +740,10 @@ class BaseEnsemble(BaseEstimator):
             r.shuffle(X)
             r.shuffle(y)
 
-        self.layers.fit(X, y)
+        if self.proba:
+            self.layers.fit_proba(X, y)
+        else:
+            self.layers.fit(X, y)
 
         # TODO:        self.scores_ = set_scores(self)
 
@@ -771,7 +776,10 @@ class BaseEnsemble(BaseEstimator):
             r.shuffle(X)
             r.shuffle(y)
 
-        y = self.layers.predict(X, y)
+        if self.proba:
+            y = self.layers.predict_proba(X, y)
+        else:
+            y = self.layers.predict(X, y)
 
         if y.shape[1] == 1:
             # The meta estimator is treated as a layer and thus a prediction

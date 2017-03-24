@@ -181,6 +181,7 @@ class SuperLearner(BaseEnsemble):
 
     def __init__(self,
                  folds=2,
+                 proba=False,
                  shuffle=False,
                  random_state=None,
                  scorer=None,
@@ -191,9 +192,10 @@ class SuperLearner(BaseEnsemble):
                  layers=None):
 
         super(SuperLearner, self).__init__(
-                shuffle=shuffle, random_state=random_state, scorer=scorer,
-                raise_on_exception=raise_on_exception, verbose=verbose,
-                n_jobs=n_jobs, layers=layers, array_check=array_check)
+                proba=proba, shuffle=shuffle, random_state=random_state,
+                scorer=scorer, raise_on_exception=raise_on_exception,
+                verbose=verbose, n_jobs=n_jobs, layers=layers,
+                array_check=array_check)
 
         self.folds = folds
 

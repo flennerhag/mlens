@@ -95,7 +95,7 @@ class BaseEstimator(object):
 
     def fit_proba(self, X, y, P, dir, parallel):
         """Fit and predict class probabilities."""
-        self._fit( X, y, P, dir, parallel, 'predict_proba')
+        self._fit(X, y, P, dir, parallel, 'predict_proba')
 
     def fit(self, X, y, P, dir, parallel):
         """Fit and predict through standard predict method."""
@@ -371,7 +371,7 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
         col = idx[2]
 
         x = X[tei[0]:tei[1]]
-        if x.__class__.__name__[:3] not in ['csr', 'csc', 'coo', 'dok']:
+        if x.__class__.__name__[:3] not in ['csr', 'csc']:
             x = np.asarray(x)
 
         for tr_name, tr in tr_list:

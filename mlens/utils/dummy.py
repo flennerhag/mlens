@@ -677,7 +677,12 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
             getattr(e, attr)(**kwargs)
 
         # Check prediction output
-        preds = np.asarray(job['P'])
+        P = job['P']
+        P.flush()
+        preds = np.asarray(P)
+
+    except Exception as e:
+        raise RuntimeError("Could not estimate layer:\n%r" % e)
 
     finally:
         # Always remove tmp if asked

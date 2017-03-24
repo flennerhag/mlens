@@ -172,6 +172,7 @@ class BlendEnsemble(BaseEnsemble):
 
     def __init__(self,
                  test_size=0.5,
+                 proba=False,
                  shuffle=False,
                  random_state=None,
                  scorer=None,
@@ -182,9 +183,10 @@ class BlendEnsemble(BaseEnsemble):
                  layers=None):
 
         super(BlendEnsemble, self).__init__(
-                shuffle=shuffle, random_state=random_state, scorer=scorer,
-                raise_on_exception=raise_on_exception, array_check=array_check,
-                verbose=verbose, n_jobs=n_jobs, layers=layers)
+                proba=proba, shuffle=shuffle, random_state=random_state,
+                scorer=scorer, raise_on_exception=raise_on_exception,
+                array_check=array_check, verbose=verbose, n_jobs=n_jobs,
+                layers=layers)
 
         self.test_size = test_size
 

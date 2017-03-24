@@ -7,7 +7,7 @@ Nosetests for :class:`mlens.base`
 
 import numpy as np
 
-from mlens.base import IdTrain, FullIndex, BlendIndex
+from mlens.base import IdTrain, FoldIndex, BlendIndex
 
 SEED = 100
 np.random.seed(SEED)
@@ -28,7 +28,7 @@ def test_id_train():
 
 ###############################################################################
 def test_full_index_is_fitted():
-    """[Base] FullIndex: check fit methods."""
+    """[Base] FoldIndex: check fit methods."""
     idx = FullIndex(4)
     assert not hasattr(idx, 'n_samples')
     idx.fit(X)
@@ -44,7 +44,7 @@ def test_full_index_is_fitted():
 
 
 def test_full_tuple_shape():
-    """[Base] FullIndex: test the tuple shape on generation."""
+    """[Base] FoldIndex: test the tuple shape on generation."""
     tups = [(tri, tei) for tri, tei in FullIndex(5, X).generate()]
 
     assert tups == [(((1, 5),)       , (0, 1)),
@@ -56,7 +56,7 @@ def test_full_tuple_shape():
 
 
 def test_full_array_shape():
-    """[Base] FullIndex: test the array shape on generation."""
+    """[Base] FoldIndex: test the array shape on generation."""
     tr = [np.array([2, 3, 4]),  np.array([0, 1, 4]), np.array([0, 1, 2, 3])]
     te = [np.array([0, 1]), np.array([2, 3]), np.array([4])]
 
@@ -67,31 +67,31 @@ def test_full_array_shape():
 
 
 def test_full_raises_on_oversampling():
-    """[Base] FullIndex: check raises error."""
+    """[Base] FoldIndex: check raises error."""
     with np.testing.assert_raises(ValueError):
         FullIndex(100, X)
 
 
 def test_full_raises_on_fold_1():
-    """[Base] FullIndex: check raises error on folds=1."""
+    """[Base] FoldIndex: check raises error on folds=1."""
     with np.testing.assert_raises(ValueError):
         FullIndex(1, X)
 
 
 def test_full_warns_on_fold_1():
-    """[Base] FullIndex: check warns on folds=1 if not raise_on_exception."""
+    """[Base] FoldIndex: check warns on folds=1 if not raise_on_exception."""
     with np.testing.assert_warns(UserWarning):
         FullIndex(1, X, raise_on_exception=False)
 
 
 def test_full_raises_on_float():
-    """[Base] FullIndex: check raises error on float."""
+    """[Base] FoldIndex: check raises error on float."""
     with np.testing.assert_raises(ValueError):
         FullIndex(0.5, X)
 
 
 def test_full_raises_on_empty():
-    """[Base] FullIndex: check raises error on singular array."""
+    """[Base] FoldIndex: check raises error on singular array."""
     with np.testing.assert_raises(ValueError):
         FullIndex(2, np.empty(1))
 

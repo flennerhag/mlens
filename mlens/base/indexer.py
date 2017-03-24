@@ -151,7 +151,7 @@ class BlendIndex(BaseIndex):
 
     See Also
     --------
-    :class:`FullIndex`
+    :class:`FoldIndex`
 
     Examples
     --------
@@ -270,7 +270,7 @@ class BlendIndex(BaseIndex):
             yield (0, self.n_train), (self.n_train, self.n_train + self.n_test)
 
 
-class FullIndex(BaseIndex):
+class FoldIndex(BaseIndex):
 
     """Indexer that generates the full size of X.
 
@@ -305,7 +305,7 @@ class FullIndex(BaseIndex):
     Creating arrays of folds and checking overlap
 
     >>> import numpy as np
-    >>> from mlens.base.indexer import FullIndex
+    >>> from mlens.base.indexer import FoldIndex
     >>> X = np.arange(10)
     >>> print("Data set: %r" % X)
     >>> print()
@@ -343,7 +343,7 @@ class FullIndex(BaseIndex):
     Passing only one fold with raise_on_exception set to False
 
     >>> import numpy as np
-    >>> from mlens.base.indexer import FullIndex
+    >>> from mlens.base.indexer import FoldIndex
     >>> X = np.arange(3)
     >>> print("Data set: %r" % X)
     >>> print()
@@ -380,7 +380,7 @@ class FullIndex(BaseIndex):
 
     def _gen_indices(self):
         """Generate K-Fold iterator."""
-        return super(FullIndex, self)._gen_indices()
+        return super(FoldIndex, self)._gen_indices()
 
 
 class SubSampleIndexer(BaseIndex):
@@ -400,7 +400,7 @@ class SubSampleIndexer(BaseIndex):
 
     See Also
     --------
-    :class:`FullIndex`
+    :class:`FoldIndex`
 
     References
     ----------
@@ -524,7 +524,7 @@ class SubSampleIndexer(BaseIndex):
         T = self._build_test_sets()
 
         if T is None:
-            # Standard FullIndex case
+            # Standard FoldIndex case
             super(SubSampleIndexer, self)._gen_indices()
         else:
             # For each partition, for each fold, get the global test fold
@@ -554,6 +554,27 @@ class SubSampleIndexer(BaseIndex):
                     yield tri, tei
                     t_last += t_size
                 p_last += p_size
+
+
+class FullIndex(BaseIndex):
+    """Vacuous indexer to be used with final layers.
+
+    FoldIndex is a compatibility class that stores the sample size to be
+    predicted and yields a None, None index upon generation, although it
+    is preferred to avoid calling FoldIndex for transparency.
+    """
+    def __init__(self, X=None, **kwargs):
+        if X is not None:
+            self.fit(X)
+
+    def fit(self, X):
+        """Store dimensionality data about X."""
+        self.n_samples = X.shape[0]
+        self.n_test_samples = X.shape[0]
+
+    def _gen_indices(self):
+        """Vacuous generator to ensure training data is not sliced."""
+        yield None, None
 
 
 ###############################################################################

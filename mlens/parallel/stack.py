@@ -8,7 +8,7 @@ Estimation engine for parallel preprocessing of stacked layer.
 """
 
 from .base import BaseEstimator
-from sklearn.base import clone
+from ..externals.base import clone
 
 
 ###############################################################################

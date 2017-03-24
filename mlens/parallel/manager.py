@@ -9,7 +9,7 @@ Parallel processing job manager.
 
 import numpy as np
 
-from . import Stacker, Blender
+from . import Stacker, Blender, SingleRun
 from ..utils import check_initialized
 from ..utils.exceptions import ParallelProcessingWarning, \
     ParallelProcessingError
@@ -26,8 +26,10 @@ from joblib import Parallel, dump, load
 import warnings
 
 
-ENGINES = {'stack': Stacker,
+ENGINES = {'full': SingleRun,
+           'stack': Stacker,
            'blend': Blender,
+           'subset': Stacker,
            }
 
 JOBS = {'predict', 'fit', 'fit_proba', 'predict_proba'}

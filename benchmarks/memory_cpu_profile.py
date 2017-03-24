@@ -21,7 +21,7 @@ from seaborn import set_palette
 
 def run():
     """Run profiling."""
-    lc = LAYERS[('lcm', 'blend')]
+    lc = LAYERS[('lcm', 'stack')]
 
     cm = CMLog(verbose=False)
     cm.monitor(25)
@@ -30,7 +30,7 @@ def run():
 
     t1 = int(np.floor(perf_counter() - cm._t0) * 10)
     sleep(0.1)
-    x, z = make_friedman1(int(2 * 1e6))
+    x, z = make_friedman1(int(1e6))
 
     sleep(5)
 

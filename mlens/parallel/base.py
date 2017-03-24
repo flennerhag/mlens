@@ -262,7 +262,7 @@ def _name(layer_name, case):
     return out
 
 
-def _slice_array(x, y, idx):
+def _slice_array(x, y, idx, return_idx=False):
     """Build training array index and slice data."""
     # Have to be careful in prepping data for estimation.
     # We need to slice memmap and convert to a proper array - otherwise
@@ -270,23 +270,25 @@ def _slice_array(x, y, idx):
     # prevent the garbage collector from releasing the memmaps from memory
     # after estimation
     if idx is None:
-        tri = None
+        idx = None
     else:
         if isinstance(idx[0], tuple):
             # If a tuple of indices, build iteratively
-            tri = np.hstack([np.arange(t0, t1) for t0, t1 in idx])
+            idx = np.hstack([np.arange(t0, t1) for t0, t1 in idx])
         else:
-            tri = np.arange(idx[0], idx[1])
+            idx = np.arange(idx[0], idx[1])
 
-    x = x[tri] if tri is not None else x
-    y = np.asarray(y[tri]) if idx is not None else np.asarray(y)
+    x = x[idx] if idx is not None else x
+
+    if y is not None:
+        y = np.asarray(y[idx]) if idx is not None else np.asarray(y)
 
     if x.__class__.__name__[:3] not in ['csr', 'csc', 'coo', 'dok']:
         # numpy asarray does not work with scipy sparse. Current experimental
         # solution is to just leave them as is.
         x = np.asarray(x)
 
-    return x, y
+    return x, y, idx
 
 
 def _assemble(dir, instance_list, suffix):
@@ -325,7 +327,7 @@ def predict_est(case, tr_list, inst_name, est, xtest, pred, col, name, attr):
 
 def fit_trans(dir, case, inst, X, y, idx, name):
     """Fit transformers and write to cache."""
-    x, y = _slice_array(X, y, idx)
+    x, y, _ = _slice_array(X, y, idx)
 
     out = []
     for tr_name, tr in inst:
@@ -350,7 +352,7 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
     # estimators can store results memmaped to the cache, which will
     # prevent the garbage collector from releasing the memmaps from memory
     # after estimation
-    x, y = _slice_array(X, y, idx[0])
+    x, y, _ = _slice_array(X, y, idx[0])
 
     # Load transformers
     f = os.path.join(dir, '%s__t' % case)
@@ -370,9 +372,7 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
         tei = idx[1]
         col = idx[2]
 
-        x = X[tei[0]:tei[1]]
-        if x.__class__.__name__[:3] not in ['csr', 'csc']:
-            x = np.asarray(x)
+        x, _, tei = _slice_array(X, None, tei, True)
 
         for tr_name, tr in tr_list:
             x = _transform_tr(x, tr, tr_name, case, name)
@@ -381,11 +381,10 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
                          inst_name, case, name, attr)
 
         if len(p.shape) == 1:
-            pred[tei[0]:tei[1], col] = p
+            pred[tei, col] = p
         else:
-            rows = np.arange(tei[0], tei[1])
             cols = np.arange(col, col + p.shape[1])
-            pred[np.ix_(rows, cols)] = p
+            pred[np.ix_(tei, cols)] = p
 
     # We drop tri from index and only keep tei if any predictions were made
         idx = idx[1:]

@@ -4,74 +4,87 @@
 :copyright: 2017
 :licence: MIT
 
-Super Learner class. Fully integrable with Scikit-learn.
+Subsemble class. Fully integrable with Scikit-learn.
 """
 
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import FoldIndex
+from ..base import SubSampleIndexer, FullIndex
+from ..utils import check_instances
+from ..externals.base import clone
 
 
-class SuperLearner(BaseEnsemble):
-    r"""Super Learner class.
+class Subsemble(BaseEnsemble):
+    r"""Subsemble class.
 
-    The Super Learner (also known as the Stacking Ensemble)is an
-    supervised ensemble algorithm that uses K-fold estimation to map a
-    training set (X, y) into a prediction set (Z, y), where the predictions
-    in Z are constructed using K-Fold splits of X to ensure Z reflects test
-    errors, and that applies a user-specified meta learner to predict
-    y from Z. The algorithm in sudo code follows:
+    Subsemble is a supervised ensemble algorithm that uses subsets of
+    the full data to fit a layer, and within each subset K-fold estimation
+    to map a training set (X, y) into a prediction set (Z, y), where Z is a
+    matrix of prediction from each estimator on each subset (thus of shape
+    shape [n_samples, (n_partitions * n_estimators)]). Z is constructed
+    using K-Fold splits of each partition of X to ensure Z reflects test
+    errors within each partition. A final user-specified meta learner is
+    fitted to the final ensemble layer's prediction, to learn the best
+    combination of subset-specific estimator predictions.
+    The algorithm in sudo code follows:
 
-        #. Specify a library of L base learners
-        #. Fit all base learners on X and store them
-        #. Split X into K folds, fit every learner in L on the training set\
-            and predict test set. Repeat until all folds have been predicted.
-        #. Construct a matrix Z by stacking the predictions per fold
-        #. Fit the meta learner on Z and store the learner
+        1. For each layer in the ensemble, do:
+            a. Specify a library of L base learners
+            b. Specify a partition strategy and partition X into J partitions
+            c. Fit all base learners on every partition and store them
+            d. Split every partition into K folds, fit every learner in L on \
+                the training set. Collect the kth fold from all partitions \
+                    and predict.
+            e. Construct a matrix Z by stacking the predictions
+        2. Fit the meta learner on Z and store the learner
 
     The ensemble can be used for prediction by mapping a new test set T into a
-    prediction set Z' using the L learners fitted in (2), and then mapping Z'
-    to y' using the fitted meta learner from (5).
+    prediction set Z' using the L learners fitted in (1.a), and then mapping Z'
+    to y' using the fitted meta learner from (2).
 
-    The Super Learner does asymptotically as well as (up to a constant) the
-    Oracle selector. For the theory behind the Super Learner, see
-    [1]_ and [2]_ as well as references therein.
+    The Subsemble does asymptotically as well as (up to a constant) the
+    Oracle selector. For the theory behind the Subsemble, see
+    [1]_ and references therein.
 
-    Stacking K-fold predictions to cover an entire training set is a time
-    consuming method and can be prohibitively costly for large datasets.
-    With large data, other ensembles that fits an ensemble on subsets
-    can achieve similar performance at a fraction of the training time.
-    However, when data is noisy or of high variance,
-    the :class:`SuperLearner` ensure all information is
-    used during fitting.
+    By partitioning the data into subset and fitting on those, a Subsemble
+    can reduce training time considerably if estimators does not scale
+    linearly. Moreover, Subsemble allows estimators to learn different
+    patterns from each subset, and so can improve the overall performance
+    by achieving a tighter fit on each subset. Since all observations in the
+    training set are predicted, no information is lost between layers.
+    Subsemble is performant on small,  medium and large data and is a
+    competitive alternative to the :class:`SuperLearner`.
+
 
     References
     ----------
-
-    .. [1] van der Laan, Mark J.; Polley, Eric C.; and Hubbard, Alan E.,
-    "Super Learner" (July 2007). U.C. Berkeley Division of Biostatistics
-    Working Paper Series. Working Paper 222.
-    http://biostats.bepress.com/ucbbiostat/paper222
-
-    .. [2] Polley, Eric C. and van der Laan, Mark J.,
-    "Super Learner In Prediction" (May 2010). U.C. Berkeley Division of
-    Biostatistics Working Paper Series. Working Paper 266.
-    http://biostats.bepress.com/ucbbiostat/paper266
+    .. [1] Sapp, S., van der Laan, M. J., & Canny, J. (2014).
+    Subsemble: an  ensemble method for combining subset-specific algorithm
+    fits. Journal of Applied Statistics, 41(6), 1247–1259.
+    http://doi.org/10.1080/02664763.2013.864263
 
     Notes
     -----
-    This implementation uses the agnostic meta learner approach, where the
-    user supplies the meta learner to be used. For the original Super Learner
-    algorithm (i.e. learn the best linear combination of the base learners),
-    the user can specify a linear regression as the meta learner.
+    This implementation splits X into partitions sequentially, i.e. without
+    randomizing indices, unless the ``shuffle`` parameter is set to ``True``.
+    In this case, any input data ``X`` will be shuffled before partitioned.
+    However, the splitting is naive, in that no learning is involved in
+    splitting data. Supervised partitioning is under development.
 
     See Also
     --------
-    :class:`BlendEnsemble`, :class:`Subsemble`
+    :class:`BlendEnsemble`, :class:`SuperLearner`
 
     Parameters
     ----------
+    partitions : int (default = 2)
+        number of partitions to split data into. For each layer,
+        increasing partitions increases the number of estimators in the
+        ensemble by a factor equal to the number of estimators.
+        Note: this parameter can be specified on a layer-specific basis in the
+        :attr:`add` method.
+
     folds : int (default = 2)
         number of folds to use during fitting. Note: this parameter can be
         specified on a layer-specific basis in the :attr:`add` method.
@@ -98,7 +111,6 @@ class SuperLearner(BaseEnsemble):
 
     array_check : int (default = 2)
         level of strictness in checking input arrays.
-
             - ``array_check = 0`` will not check ``X`` or ``y``
             - ``array_check = 1`` will check ``X`` and ``y`` for \
             inconsistencies and warn when format looks suspicious, \
@@ -109,7 +121,6 @@ class SuperLearner(BaseEnsemble):
 
     verbose : int or bool (default = False)
         level of verbosity.
-
             - ``verbose = 0`` silent (same as ``verbose = False``)
             - ``verbose = 1`` messages at start and finish \
             (same as ``verbose = True``)
@@ -137,7 +148,7 @@ class SuperLearner(BaseEnsemble):
 
     Instantiate ensembles with no preprocessing: use list of estimators
 
-    >>> from mlens.ensemble import SuperLearner
+    >>> from mlens.ensemble import Subsemble
     >>> from mlens.metrics.metrics import rmse_scoring
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
@@ -145,8 +156,9 @@ class SuperLearner(BaseEnsemble):
     >>>
     >>> X, y = load_boston(True)
     >>>
-    >>> ensemble = SuperLearner()
-    >>> ensemble.add([SVR(), ('can name some or all est', Lasso())]).add(SVR())
+    >>> ensemble = Subsemble()
+    >>> ensemble.add([SVR(), ('can name some or all est', Lasso())])
+    >>> ensemble.add(SVR(), meta=True)
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
@@ -155,7 +167,7 @@ class SuperLearner(BaseEnsemble):
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
-    >>> from mlens.ensemble import SuperLearner
+    >>> from mlens.ensemble import Subsemble
     >>> from mlens.metrics.metrics import rmse_scoring
     >>> from sklearn.datasets import load_boston
     >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
@@ -170,7 +182,7 @@ class SuperLearner(BaseEnsemble):
     >>> estimators_per_case = {'mm': [SVR()],
     ...                        'sc': [('can name some or all ests', Lasso())]}
     >>>
-    >>> ensemble = SuperLearner()
+    >>> ensemble = Subsemble()
     >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR())
     >>>
     >>> ensemble.fit(X, y)
@@ -180,6 +192,7 @@ class SuperLearner(BaseEnsemble):
     """
 
     def __init__(self,
+                 partitions=2,
                  folds=2,
                  proba=False,
                  shuffle=False,
@@ -191,15 +204,21 @@ class SuperLearner(BaseEnsemble):
                  n_jobs=-1,
                  layers=None):
 
-        super(SuperLearner, self).__init__(
+        super(Subsemble, self).__init__(
                 proba=proba, shuffle=shuffle, random_state=random_state,
                 scorer=scorer, raise_on_exception=raise_on_exception,
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
                 array_check=array_check)
 
+        self.partitions = partitions
         self.folds = folds
 
-    def add(self, estimators, preprocessing=None, folds=None):
+    def add_meta(self, estimators, preprocessing=None):
+        """Add meta estimator."""
+        return self.add(estimators, preprocessing, meta=True)
+
+    def add(self, estimators, preprocessing=None, meta=False,
+            partitions=None, folds=None):
         """Add layer to ensemble.
 
         Parameters
@@ -256,6 +275,17 @@ class SuperLearner(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
+        meta : bool
+            indicator if the layer added is the final meta estimator. This will
+            prevent folded or blended fits of the estimators and only fit them
+            once on the full input data.
+
+        partitions : int, optional
+            number of partitions to split data into. Increasing partitions
+            increases the number of estimators in the layer by a factor equal
+            to the number of estimators. Specifying this parameter overrides
+            the ensemble-wide parameter.
+
         folds : int, optional
             Use if a different number of folds is desired than what the
             ensemble was instantiated with.
@@ -266,10 +296,38 @@ class SuperLearner(BaseEnsemble):
             ensemble instance with layer instantiated.
         """
         c = folds if folds is not None else self.folds
+        p = partitions if partitions is not None else self.partitions
+
+        if meta:
+            idx = FullIndex()
+            ests = estimators
+            prep = preprocessing
+            cls = 'full'
+        else:
+            idx = SubSampleIndexer(p, c,
+                                   raise_on_exception=self.raise_on_exception)
+            ests = _expand_estimators(estimators, p)
+            prep = _expand_estimators(preprocessing, p)
+            cls = 'subset'
+
         return self._add(
-                estimators=estimators,
-                cls='stack',
-                indexer=FoldIndex(c,
-                                  raise_on_exception=self.raise_on_exception),
-                preprocessing=preprocessing,
+                cls=cls,
+                estimators=ests,
+                preprocessing=prep,
+                indexer=idx,
                 verbose=self.verbose)
+
+
+def _expand_estimators(instances, p):
+    """Expand estimator instances on a partition basis."""
+    instances = check_instances(instances)
+    if isinstance(instances, (list, tuple, set)):
+        # No preprocessing cases to worry about
+        return [('%s-j%i' % (n, i + 1), clone(e)) for n, e in instances
+                for i in range(p)]
+    else:
+        # Need to expand list for each preprocessing case
+        return {case: [('%s-j%i' % (n, i + 1), clone(e))]
+                for case, instance_list in instances.items()
+                for n, e in enumerate(instance_list)
+                for i in range(p)}

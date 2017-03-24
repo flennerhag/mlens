@@ -13,6 +13,39 @@ import numpy as np
 import warnings
 
 
+def _prune_train(start_below, stop_below, start_above, stop_above):
+    """Checks if indices above or below are empty (i, i) and removes them."""
+    if start_below == stop_below:
+        tri = ((start_above, stop_above),)
+
+    elif start_above == stop_above:
+        tri = ((start_below, stop_below),)
+
+    else:
+        tri = ((start_below, stop_below), (start_above, stop_above))
+    return tri
+
+
+def _partition(n, p):
+    """Get partition sizes for a given number of samples and partitions.
+
+    This method will split n samples into p partitions evenly sized partitions.
+    If there is a remainder from the split, the r first folds will be
+    incremented by 1.
+
+    Parameters
+    ----------
+    n : int
+        number of samples
+
+    p : int
+        number of partitions
+    """
+    sizes = (n // p) * np.ones(p, dtype=np.int)
+    sizes[:n % p] += 1
+    return sizes
+
+
 class BaseIndex(object):
     """Base Index class."""
 
@@ -34,10 +67,38 @@ class BaseIndex(object):
     def _gen_indices(self):
         """Method for constructing the index generator.
 
+        Default is the standard K-Fold.
+
         Returns
         -------
         iterable
         """
+        n_samples = getattr(self, 'n_samples')
+        n_splits = getattr(self, 'n_splits')
+
+        if n_splits == 1:
+            # Return the full index as both training and test set
+            yield ((0, n_samples),), (0, n_samples)
+        else:
+            # Get the length of the test sets
+            tei_len = _partition(n_samples, n_splits)
+
+            last = 0
+            for size in tei_len:
+
+                # Test set
+                tei_start, tei_stop = last, last + size
+                tei = (tei_start, tei_stop)
+
+                # Train set
+                tri_start_below, tri_stop_below = 0, tei_start
+                tri_start_above, tri_stop_above = tei_stop, n_samples
+
+                tri = _prune_train(tri_start_below, tri_stop_below,
+                                   tri_start_above, tri_stop_above)
+
+                yield tri, tei
+                last = tei_stop
 
     def generate(self, X=None, as_array=False):
         """Generator."""
@@ -318,43 +379,181 @@ class FullIndex(BaseIndex):
         return self
 
     def _gen_indices(self):
+        """Generate K-Fold iterator."""
+        return super(FullIndex, self)._gen_indices()
+
+
+class SubSampleIndexer(BaseIndex):
+
+    r"""Subsample index generator.
+
+    Generates a cross-validation folds according to the following strategy:
+        1. split ``X`` into ``J`` partitions
+        2. for each partition
+            (a) for each fold v, create train index of all idx not in v
+            (b) concatenate all the fold v indices into a test index for \
+                fold v that spans all partitions.
+
+    If ``J`` is set to 1, the SubSampleIndexer reduces to the
+    :class:`FullIndexer`, which returns standard K-Fold train and test set
+    indices.
+
+    See Also
+    --------
+    :class:`FullIndex`
+
+    References
+    ----------
+    .. [1] Sapp, S., van der Laan, M. J., & Canny, J. (2014).
+    Subsemble: an  ensemble method for combining subset-specific algorithm
+    fits. Journal of Applied Statistics, 41(6), 1247–1259.
+    http://doi.org/10.1080/02664763.2013.864263
+
+    Parameters
+    ----------
+    n_partitions : int (default = 2)
+        Number of partitions to split data in. If ``n_partitions=1``,
+        :class:`SubsambleIndex` reduces to standard K-Fold.
+
+    n_splits : int (default = 2)
+        Number of splits to create in each partition. ``n_splits`` can
+        not be
+        1 if ``n_partition > 1``. Note that if ``n_splits = 1``, both the
+        train and test set will index the full data.
+
+    X : array-like of shape [n_samples,] , optional
+        the training set to partition. The training label array is also,
+        accepted, as only the first dimension is used. If ``X`` is not
+        passed
+        at instantiation, the ``fit`` method must be called before
+        ``generate``, or ``X`` must be passed as an argument of
+        ``generate``.
+
+    raise_on_exception : bool (default = True)
+        whether to warn on suspicious slices or raise an error.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> X = np.arange(20).reshape(10, 2)
+    >>> idx = SubSampleIndexer(3, X=X)
+    >>> for i, (tri, tei) in enumerate(idx.generate()):
+    ...     fold = i % 2 + 1
+    ...     part = i % 3 + 1
+    ...     train = np.hstack([np.arange(t0, t1) for t0, t1 in tri])
+    ...     test = np.hstack([np.arange(t0, t1) for t0, t1 in tei])
+    >>>     print("J = %i | v = %i | "
+    ...           "train: %15r | test: % r" % (part, fold, train, test))
+    J = 1 | v = 1 | train:   array([2, 3]) | test: array([0, 1, 4, 5, 7, 8])
+    J = 2 | v = 2 | train:   array([0, 1]) | test: array([2, 3, 6, 9])
+    J = 3 | v = 1 | train:      array([6]) | test: array([0, 1, 4, 5, 7, 8])
+    J = 1 | v = 2 | train:   array([4, 5]) | test: array([2, 3, 6, 9])
+    J = 2 | v = 1 | train:      array([9]) | test: array([0, 1, 4, 5, 7, 8])
+    J = 3 | v = 2 | train:   array([7, 8]) | test: array([2, 3, 6, 9])
+    """
+
+    def __init__(self, n_partitions=2, n_splits=2,
+                 X=None, raise_on_exception=True):
+
+        self.n_partitions = n_partitions
+        self.n_splits = n_splits
+        self.raise_on_exception = raise_on_exception
+        if X is not None:
+            self.fit(X)
+
+    def fit(self, X):
+        """Set indexer up for slicing an array of length X."""
+        n = X.shape[0]
+        _check_subsample_index(n, self.n_partitions, self.n_splits,
+                               self.raise_on_exception)
+
+        self.n_samples = self.n_test_samples = n
+        return self
+
+    def _build_test_sets(self):
+        """Build global test folds for each split of every partition."""
+        n_partitions = self.n_partitions
         n_samples = self.n_samples
         n_splits = self.n_splits
 
-        if n_splits == 1:
-            # Return the full index as both training and test set
-            yield ((0, n_samples),),  (0, n_samples)
+        if n_partitions == 1:
+            # This corresponds to the FullIndexer case
+            return
         else:
 
-            # Get the length of the test set. If n_samples mod n_splits is
-            #  not 0, increment n_remainder folds by 1
-            tei_len = (n_samples // n_splits) * np.ones(n_splits, dtype=np.int)
-            tei_len[:n_samples % n_splits] += 1
+            # --- Create global test set folds ---
+            # In each partition, the test set spans all partitions
+            # Hence we must run through all partitions once first to
+            # register
+            # the global test set fold for each split of the n_splits
 
-            last = 0  # counter for where last test index stopped
-            for size in tei_len:
-                tei_start, tei_stop = last, last + size
-                tri_start_below, tri_stop_below = 0, tei_start
-                tri_start_above, tri_stop_above = tei_stop, n_samples
+            # Partition sizes
+            p_len = _partition(n_samples, n_partitions)
 
-                # Build test set tuple
-                tei = (tei_start, tei_stop)
+            # Since the splitting is sequential and deterministic,
+            # we build a
+            # list of global test set indices. Hence, for any split, the
+            # test index will be a tuple of indexes of test folds from each
+            # partition. By concatenating these slices, the full test fold
+            # is constructed.
+            tei = [[] for _ in range(n_splits)]
+            p_last = 0
+            for p_size in p_len:
+                p_start, p_stop = p_last, p_last + p_size
 
-                # Build train set tuple(s)
-                # Check if the first tuple is (0, 0) - if so drop
-                if tri_start_below == tri_stop_below:
-                    tri = ((tri_start_above, tri_stop_above),)
+                t_len = _partition(p_stop - p_start, n_splits)
 
-                # Check if the first tuple is (n, n) - if so drop
-                elif tri_start_below == tri_stop_below:
-                    tri = ((tri_start_above, tri_stop_above),)
+                # Append the partition's test fold indices to the
+                # global directory for that fold number.
+                t_last = p_start
+                for i, t_size in enumerate(t_len):
+                    t_start, t_stop = t_last, t_last + t_size
 
-                else:
-                    tri = ((tri_start_below, tri_stop_below),
-                           (tri_start_above, tri_stop_above))
+                    tei[i] += [(t_start, t_stop)]
+                    t_last += t_size
 
-                yield (tri, tei)
-                last = tei_stop
+                p_last += p_size
+
+        return tei
+
+    def _gen_indices(self):
+        n_partitions = self.n_partitions
+        n_samples = self.n_samples
+        n_splits = self.n_splits
+
+        T = self._build_test_sets()
+
+        if T is None:
+            # Standard FullIndex case
+            super(SubSampleIndexer, self)._gen_indices()
+        else:
+            # For each partition, for each fold, get the global test fold
+            # from T and index the partition samples not in T as train set
+            p_len = _partition(n_samples, n_partitions)
+
+            p_last = 0
+            for p_size in p_len:
+                p_start, p_stop = p_last, p_last + p_size
+
+                t_len = _partition(p_stop - p_start, n_splits)
+
+                t_last = p_start
+                for i, t_size in enumerate(t_len):
+                    t_start, t_stop = t_last, t_last + t_size
+
+                    # Get global test set indices
+                    tei = T[i]
+
+                    # Construct train set
+                    tri_start_below, tri_stop_below = p_start, t_start
+                    tri_start_above, tri_stop_above = t_stop, p_stop
+
+                    tri = _prune_train(tri_start_below, tri_stop_below,
+                                       tri_start_above, tri_stop_above)
+
+                    yield tri, tei
+                    t_last += t_size
+                p_last += p_size
 
 
 ###############################################################################
@@ -401,3 +600,27 @@ def _check_partial_index(n_samples, test_size, train_size,
 
     if n_samples < 2:
         raise ValueError("Sample size < 2: nothing to create subset from.")
+
+
+def _check_subsample_index(n_samples, n_partitions, n_splits, raise_):
+    """Check input validity of the SubsampleIndexer."""
+    if not isinstance(n_partitions, Integral):
+        raise ValueError("'n_partitions' must be an integer. "
+                         "type(%s) was passed." % type(n_partitions))
+
+    if not isinstance(n_splits, Integral):
+        raise ValueError("'n_splits' must be an integer. "
+                         "type(%s) was passed." % type(n_splits))
+
+    if n_splits <= 1:
+        if raise_ or n_partitions > 1:
+            raise ValueError("Need at least 2 folds for splitting partitions. "
+                             "Got %i." % n_splits)
+        else:
+            if n_partitions == 1 and n_splits == 1:
+                warnings.warn("'n_splits' is 1, will return full index as "
+                              "both training set and test set.")
+    s = n_partitions * n_splits
+    if s > n_samples:
+        raise ValueError("Number of total splits %i is greater than the "
+                         "number of samples: %i." % (s, n_samples))

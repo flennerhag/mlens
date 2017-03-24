@@ -10,7 +10,7 @@ Blend Ensemble class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import BlendIndex
+from ..base import BlendIndex, FullIndex
 
 
 class BlendEnsemble(BaseEnsemble):
@@ -137,12 +137,13 @@ class BlendEnsemble(BaseEnsemble):
     >>> X, y = load_boston(True)
     >>>
     >>> ensemble = BlendEnsemble()
-    >>> ensemble.add([SVR(), ('can name some or all est', Lasso())]).add(SVR())
+    >>> ensemble.add([SVR(), ('can name some or all est', Lasso())])
+    >>> ensemble.add_meta(SVR())
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse_scoring(y, preds)
-    6.9553583775881407
+    7.2309909413577111
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
@@ -162,12 +163,13 @@ class BlendEnsemble(BaseEnsemble):
     ...                        'sc': [('can name some or all ests', Lasso())]}
     >>>
     >>> ensemble = BlendEnsemble()
-    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR())
+    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR(),
+    ...                                                            meta=True)
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse_scoring(y, preds)
-    7.8413294010791557
+    7.5812611042457716
     """
 
     def __init__(self,
@@ -190,7 +192,7 @@ class BlendEnsemble(BaseEnsemble):
 
         self.test_size = test_size
 
-    def add(self, estimators, preprocessing=None, test_size=None):
+    def add(self, estimators, preprocessing=None, test_size=None, meta=False):
         """Add layer to ensemble.
 
         Parameters
@@ -251,16 +253,27 @@ class BlendEnsemble(BaseEnsemble):
             Use if a different test set size is desired for layer than what the
             ensemble was instantiated with.
 
+        meta : bool (default = False)
+            indicator if the layer added is the final meta estimator. This will
+            prevent folded or blended fits of the estimators and only fit them
+            once on the full input data.
+
         Returns
         -------
         self : instance
             ensemble instance with layer instantiated.
         """
         c = test_size if test_size is not None else self.test_size
+
+        if meta:
+            cls = 'full'
+            idx = FullIndex()
+        else:
+            cls = 'blend'
+            idx = BlendIndex(c, raise_on_exception=self.raise_on_exception)
         return self._add(
                 estimators=estimators,
-                cls='blend',
+                cls=cls,
                 preprocessing=preprocessing,
-                indexer=BlendIndex(c,
-                                   raise_on_exception=self.raise_on_exception),
+                indexer=idx,
                 verbose=self.verbose)

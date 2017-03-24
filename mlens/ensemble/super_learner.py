@@ -10,7 +10,7 @@ Super Learner class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import FoldIndex
+from ..base import FoldIndex, FullIndex
 
 
 class SuperLearner(BaseEnsemble):
@@ -146,7 +146,8 @@ class SuperLearner(BaseEnsemble):
     >>> X, y = load_boston(True)
     >>>
     >>> ensemble = SuperLearner()
-    >>> ensemble.add([SVR(), ('can name some or all est', Lasso())]).add(SVR())
+    >>> ensemble.add([SVR(), ('can name some or all est', Lasso())])
+    >>> ensemble.add_meta(SVR())
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
@@ -171,7 +172,8 @@ class SuperLearner(BaseEnsemble):
     ...                        'sc': [('can name some or all ests', Lasso())]}
     >>>
     >>> ensemble = SuperLearner()
-    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR())
+    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR(),
+    ...                                                            meta=True)
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
@@ -199,7 +201,14 @@ class SuperLearner(BaseEnsemble):
 
         self.folds = folds
 
-    def add(self, estimators, preprocessing=None, folds=None):
+    def add_meta(self, estimator):
+        """Meta Learner.
+
+        Meta learner to be used for final predictions.
+        """
+        return self.add(estimators=estimator, meta=True)
+
+    def add(self, estimators, preprocessing=None, folds=None, meta=False):
         """Add layer to ensemble.
 
         Parameters
@@ -260,16 +269,28 @@ class SuperLearner(BaseEnsemble):
             Use if a different number of folds is desired than what the
             ensemble was instantiated with.
 
+        meta : bool (default = False)
+            indicator if the layer added is the final meta estimator. This will
+            prevent folded or blended fits of the estimators and only fit them
+            once on the full input data.
+
         Returns
         -------
         self : instance
             ensemble instance with layer instantiated.
         """
         c = folds if folds is not None else self.folds
+
+        if meta:
+            idx = FullIndex()
+            cls = 'full'
+        else:
+            idx = FoldIndex(c, raise_on_exception=self.raise_on_exception)
+            cls = 'stack'
+
         return self._add(
                 estimators=estimators,
-                cls='stack',
-                indexer=FoldIndex(c,
-                                  raise_on_exception=self.raise_on_exception),
+                cls=cls,
+                indexer=idx,
                 preprocessing=preprocessing,
                 verbose=self.verbose)

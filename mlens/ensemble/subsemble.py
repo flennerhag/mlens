@@ -213,9 +213,9 @@ class Subsemble(BaseEnsemble):
         self.partitions = partitions
         self.folds = folds
 
-    def add_meta(self, estimators, preprocessing=None):
+    def add_meta(self, estimators):
         """Add meta estimator."""
-        return self.add(estimators, preprocessing, meta=True)
+        return self.add(estimators, meta=True)
 
     def add(self, estimators, preprocessing=None, meta=False,
             partitions=None, folds=None):

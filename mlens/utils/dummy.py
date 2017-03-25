@@ -15,7 +15,9 @@ import numpy as np
 import itertools
 
 from .exceptions import NotFittedError
+from ..base import INDEXERS
 from ..ensemble.base import LayerContainer, Layer
+from ..ensemble.subsemble import _expand_estimators
 from ..externals.base import BaseEstimator, TransformerMixin, clone
 from ..externals.validation import check_array, check_X_y
 from ..parallel.manager import ENGINES
@@ -85,7 +87,7 @@ class OLS(BaseEstimator):
 
         return self
 
-    def predict(self, X, y=None):
+    def predict(self, X):
         """Predict with fitted weights."""
         X = check_array(X, accept_sparse=False)
 
@@ -98,6 +100,8 @@ class LogisticRegression(OLS):
 
     def fit(self, X, y):
         """Fit one model per label."""
+        X, y = check_X_y(X, y, accept_sparse=False)
+
         self.labels_ = np.unique(y)
 
         models = []
@@ -108,15 +112,17 @@ class LogisticRegression(OLS):
 
         self._models_ = models
 
-        self.coef_ = []
+        coef_ = []
         for l in self._models_:
-            self.coef_.extend(l.coef_)
-        self.coef_ = np.array(self.coef_)
+            coef_.extend(l.coef_)
+        self.coef_ = np.array(coef_)
 
         return self
 
     def predict_proba(self, X):
         """Get probability predictions."""
+        X = check_array(X, accept_sparse=False)
+
         preds = []
         for m in self._models_:
 
@@ -130,8 +136,10 @@ class LogisticRegression(OLS):
         """Original OLS prediction."""
         return super(LogisticRegression, self).predict(X)
 
-    def predict(self, X, y=None):
+    def predict(self, X):
         """Get label predictions."""
+        X = check_array(X, accept_sparse=False)
+
         preds = self.predict_proba(X)
 
         labels = np.zeros(X.shape[0])
@@ -269,7 +277,7 @@ class InitMixin(object):
 ###############################################################################
 # Pre-made Layer and LayerContainer classes
 
-PREPROCESSING = {'no': [], 'sc': [Scale()]}
+PREPROCESSING = {'no': [], 'sc': [('scale', Scale())]}
 
 ESTIMATORS = {'sc': [('offs', OLS(offset=2))],
               'no': [('offs', OLS(offset=2)), ('null', OLS())]}
@@ -282,46 +290,27 @@ ESTIMATORS_PROBA = {'sc': [('offs', LogisticRegression(offset=2))],
 ECM = [OLS(offset=i) for i in range(16)]
 ECM_PROBA = [LogisticRegression(offset=i) for i in range(16)]
 
-LAYERS = {('layer', 'stack'):
-          Layer(estimators=ESTIMATORS, cls='stack',
-                preprocessing=PREPROCESSING),
-          ('layer', 'blend'):
-          Layer(estimators=ESTIMATORS, cls='blend',
-                preprocessing=PREPROCESSING),
-          ('lc', 'stack'):
-          LayerContainer().add(estimators=ESTIMATORS, cls='stack',
-                               preprocessing=PREPROCESSING),
-          ('lc', 'blend'):
-              LayerContainer().add(estimators=ESTIMATORS, cls='blend',
-                                   preprocessing=PREPROCESSING),
-          ('lcm', 'stack'):
-          LayerContainer().add(estimators=ECM, cls='stack'),
-          ('lcm', 'blend'):
-          LayerContainer().add(estimators=ECM, cls='blend')
-          }
-
-LAYERS_PROBA = {('layer', 'stack'):
-                Layer(estimators=ESTIMATORS_PROBA, cls='stack',
-                      preprocessing=PREPROCESSING),
-                ('layer', 'blend'):
-                    Layer(estimators=ESTIMATORS_PROBA, cls='blend',
-                          preprocessing=PREPROCESSING),
-                ('lc', 'stack'):
-                    LayerContainer().add(estimators=ESTIMATORS_PROBA,
-                                         cls='stack',
-                                         preprocessing=PREPROCESSING),
-                ('lc', 'blend'):
-                    LayerContainer().add(estimators=ESTIMATORS_PROBA,
-                                         cls='blend',
-                                         preprocessing=PREPROCESSING),
-                ('lcm', 'stack'):
-                    LayerContainer().add(estimators=ECM_PROBA, cls='stack'),
-                ('lcm', 'blend'):
-                    LayerContainer().add(estimators=ECM_PROBA, cls='blend')
-                }
 
 ###############################################################################
 # Data generation functions and Layer estimation wrappers
+
+def get_layers(cls, proba, folds):
+    """Standardized setup for unit testing of Layer and LayerContainer."""
+    layer = Layer(estimators=ESTIMATORS,
+                  cls=cls,
+                  indexer=INDEXERS[cls](folds),
+                  proba=proba,
+                  preprocessing=PREPROCESSING)
+
+    lc = LayerContainer().add(estimators=ESTIMATORS,
+                              cls=cls,
+                              proba=proba,
+                              indexer=INDEXERS[cls](folds),
+                              preprocessing=PREPROCESSING)
+
+    lcm = LayerContainer().add(estimators=ECM_PROBA, cls=cls)
+
+    return layer, lc, lcm
 
 
 def get_path():
@@ -335,7 +324,7 @@ def get_path():
     return path
 
 
-def data(shape, mod):
+def data(shape, m):
     """Generate X and y data with X.
 
     Returns
@@ -356,8 +345,8 @@ def data(shape, mod):
     labels = np.zeros(train.shape[0])
 
     increment = 10
-    for i in range(0, s, mod):
-        labels[i:i + mod] += increment
+    for i in range(0, s, m):
+        labels[i:i + m] += increment
 
         increment += 10
 
@@ -379,32 +368,40 @@ def _destroy_temp_dir(dir):
     shutil.rmtree(dir)
 
 
-def _folded_ests(X, y, n_ests, indexer, attr, labels=1):
+def _folded_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
     """Build ground truth for each fold."""
     print('                                    FOLD OUTPUT')
-    print('-' * 80)
+    print('-' * 100)
     print('  EST   |'
-          '  TRI   |'
-          '  TEI   |'
-          ' TEST LABELS  |'
-          ' TRAIN LABELS |'
-          ' COEF   |'
-          ' PRED')
+          '    TRI    |'
+          '   TEI     |'
+          '     TEST LABELS    |'
+          '     TRAIN LABELS   |'
+          '      COEF     |'
+          '        PRED')
 
     ests = ESTIMATORS if labels == 1 else ESTIMATORS_PROBA
 
+    if subsets > 1:
+        ests = _expand_estimators(ests, subsets)
+
+    if subsets > 1:
+        prep = _expand_estimators(PREPROCESSING, subsets)
+    else:
+        prep = PREPROCESSING
+
     t = [t for _, t in indexer.generate(X, True)]
-    t = np.hstack(t)
+    t = np.unique(np.hstack(t))
     t.sort()
 
     weights = []
-    F = np.zeros((len(t), n_ests * labels))
+    F = np.zeros((len(t), n_ests * subsets * labels))
 
     col_id = {}
     col_ass = 0
 
     # Sort at every occasion
-    for key in sorted(PREPROCESSING):
+    for key in sorted(prep):
         for tri, tei in indexer.generate(X, True):
             # Sort again
             for est_name, est in ests[key]:
@@ -417,7 +414,7 @@ def _folded_ests(X, y, n_ests, indexer, attr, labels=1):
                 xtest = X[tei]
 
                 # Transform inputs
-                for tr in PREPROCESSING[key]:
+                for _, tr in prep[key]:
                     t = clone(tr)
                     xtrain = t.fit_transform(xtrain)
                     xtest = t.transform(xtest)
@@ -436,7 +433,7 @@ def _folded_ests(X, y, n_ests, indexer, attr, labels=1):
                     F[np.ix_(tei, np.arange(c, c + labels))] = p
 
                 try:
-                    print('%s | %r | %r | %r | %r | %6r | %r' % (
+                    print('%s | %r | %r | %r | %r | %13r | %r' % (
                         '%s-%s' % (key, est_name),
                         list(tri),
                         list(tei),
@@ -450,26 +447,34 @@ def _folded_ests(X, y, n_ests, indexer, attr, labels=1):
     return F, weights
 
 
-def _full_ests(X, y, n_ests, indexer, attr, labels=1):
+def _full_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
     """Get ground truth for train and predict on full data."""
     print('\n                        FULL PREDICTION OUTPUT')
-    print('-' * 68)
+    print('-' * 100)
     print('  EST   |'
-          '       GROUND TRUTH       |'
-          ' COEF  |'
+          '             GROUND TRUTH             |'
+          '    COEF     |'
           '           PRED')
     ests = ESTIMATORS if labels == 1 else ESTIMATORS_PROBA
-    t = [t for _, t in indexer.generate(X, True)]
-    t = np.hstack(t)
-    t.sort()
 
-    P = np.zeros((X.shape[0], n_ests * labels))
+    if subsets > 1:
+        ests = _expand_estimators(ests, subsets)
+
+    if subsets > 1:
+        prep = _expand_estimators(PREPROCESSING, subsets)
+    else:
+        prep = PREPROCESSING
+
+    tei = [t for _, t in indexer.generate(X, True)]
+    tei = np.unique(np.hstack(tei))
+
+    P = np.zeros((X.shape[0], n_ests * subsets * labels))
     weights = list()
     col_id = {}
     col_ass = 0
 
     # Sort at every occasion
-    for key in sorted(PREPROCESSING):
+    for key in sorted(prep):
         for est_name, est in ests[key]:
 
             if '%s-%s' % (key, est_name) not in col_id:
@@ -477,10 +482,10 @@ def _full_ests(X, y, n_ests, indexer, attr, labels=1):
                 col_ass += labels
 
             # Transform input
-            xtrain = X[t]
-            ytrain = y[t]
+            xtrain = X[tei]
+            ytrain = y[tei]
             xtest = X
-            for tr in PREPROCESSING[key]:
+            for _, tr in prep[key]:
                 t = clone(tr)
                 xtrain = t.fit_transform(xtrain)
                 xtest = t.transform(xtest)
@@ -499,7 +504,7 @@ def _full_ests(X, y, n_ests, indexer, attr, labels=1):
                 P[:, c:c + labels] = p
 
             try:
-                print('%s | %r | %r | %r' % (
+                print('%s | %r | %11r | %r' % (
                     '%s-%s' % (key, est_name),
                     [float('%.1f' % i) for i in y],
                     [float('%.1f' % i) for i in w],
@@ -510,7 +515,7 @@ def _full_ests(X, y, n_ests, indexer, attr, labels=1):
     return P, weights
 
 
-def ground_truth(X, y, indexer, attr, labels):
+def ground_truth(X, y, indexer, attr, labels, subsets=1):
     """Set up an experiment ground truth.
 
     Returns
@@ -576,19 +581,19 @@ def ground_truth(X, y, indexer, attr, labels):
     for case in ESTIMATORS:
         N += len(ESTIMATORS[case])
 
-    F, weights_f = _folded_ests(X, y, N, indexer, attr, labels)
-    P, weights_p = _full_ests(X, y, N, indexer, attr, labels)
+    F, weights_f = _folded_ests(X, y, N, indexer, attr, labels, subsets)
+    P, weights_p = _full_ests(X, y, N, indexer, attr, labels, subsets)
 
     print('\n                 SUMMARY')
     print('-' * 42)
     col = 0
     for key in sorted(ESTIMATORS):
-        for est_name, est in sorted(ESTIMATORS[key]):
+        for est_name, est in ESTIMATORS[key]:
             print('%s | %6s: %20r' % ('%s-%s' % (key, est_name), 'FULL',
                                       [float('%.1f' % i) for i in P[:, col]]))
             print('%s | %6s: %20r' % ('%s-%s' % (key, est_name), 'FOLDS',
                                       [float('%.1f' % i) for i in F[:, col]]))
-        col += 1
+            col += 1
 
     print('GT              : %r' % [float('%.1f' % i) for i in y])
 
@@ -599,16 +604,15 @@ def ground_truth(X, y, indexer, attr, labels):
         for i in range(N):
             for j in range(N):
                 if j > i:
-                    assert not np.equal(P[:, i], P[:, j]).any()
-                    assert not np.equal(P[:, i], F[:, j]).any()
-                    assert not np.equal(F[:, i], P[:, j]).any()
-                    for _, t in indexer.generate(X, as_array=True):
-                        assert not np.equal(F[t, i], F[t, j]).any()
+                    assert not np.equal(P[:, i], P[:, j]).all()
+                    assert not np.equal(P[:, i], F[:, j]).all()
+                    assert not np.equal(F[:, i], P[:, j]).all()
+                    assert not np.equal(F[:, i], F[:, j]).all()
 
         # Second, assert all combinations of weights are not equal
         for weights in [weights_f, weights_p]:
             for a, b in itertools.combinations(weights, 2):
-                assert not np.equal(a, b).any()
+                assert not np.equal(a, b).all()
         print('OK.')
 
     except AssertionError as exc:

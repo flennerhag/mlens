@@ -183,7 +183,6 @@ class SuperLearner(BaseEnsemble):
 
     def __init__(self,
                  folds=2,
-                 proba=False,
                  shuffle=False,
                  random_state=None,
                  scorer=None,
@@ -194,7 +193,7 @@ class SuperLearner(BaseEnsemble):
                  layers=None):
 
         super(SuperLearner, self).__init__(
-                proba=proba, shuffle=shuffle, random_state=random_state,
+                shuffle=shuffle, random_state=random_state,
                 scorer=scorer, raise_on_exception=raise_on_exception,
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
                 array_check=array_check)
@@ -208,37 +207,12 @@ class SuperLearner(BaseEnsemble):
         """
         return self.add(estimators=estimator, meta=True)
 
-    def add(self, estimators, preprocessing=None, folds=None, meta=False):
+    def add(self, estimators, preprocessing=None,
+            folds=None, proba=False, meta=False):
         """Add layer to ensemble.
 
         Parameters
         ----------
-        preprocessing: dict of lists or list, optional (default = None)
-            preprocessing pipelines for given layer. If
-            the same preprocessing applies to all estimators, ``preprocessing``
-            should be a list of transformer instances. The list can contain the
-            instances directly, named tuples of transformers,
-            or a combination of both. ::
-
-                option_1 = [transformer_1, transformer_2]
-                option_2 = [("trans-1", transformer_1),
-                            ("trans-2", transformer_2)]
-                option_3 = [transformer_1, ("trans-2", transformer_2)]
-
-            If different preprocessing pipelines are desired, a dictionary
-            that maps preprocessing pipelines must be passed. The names of the
-            preprocessing dictionary must correspond to the names of the
-            estimator dictionary. ::
-
-                preprocessing_cases = {"case-1": [trans_1, trans_2],
-                                       "case-2": [alt_trans_1, alt_trans_2]}
-
-                estimators = {"case-1": [est_a, est_b],
-                              "case-2": [est_c, est_d]}
-
-            The lists for each dictionary entry can be any of ``option_1``,
-            ``option_2`` and ``option_3``.
-
         estimators: dict of lists or list or instance
             estimators constituting the layer. If preprocessing is none and the
             layer is meant to be the meta estimator, it is permissible to pass
@@ -265,9 +239,41 @@ class SuperLearner(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
+        preprocessing: dict of lists or list, optional (default = None)
+            preprocessing pipelines for given layer. If
+            the same preprocessing applies to all estimators, ``preprocessing``
+            should be a list of transformer instances. The list can contain the
+            instances directly, named tuples of transformers,
+            or a combination of both. ::
+
+                option_1 = [transformer_1, transformer_2]
+                option_2 = [("trans-1", transformer_1),
+                            ("trans-2", transformer_2)]
+                option_3 = [transformer_1, ("trans-2", transformer_2)]
+
+            If different preprocessing pipelines are desired, a dictionary
+            that maps preprocessing pipelines must be passed. The names of the
+            preprocessing dictionary must correspond to the names of the
+            estimator dictionary. ::
+
+                preprocessing_cases = {"case-1": [trans_1, trans_2],
+                                       "case-2": [alt_trans_1, alt_trans_2]}
+
+                estimators = {"case-1": [est_a, est_b],
+                              "case-2": [est_c, est_d]}
+
+            The lists for each dictionary entry can be any of ``option_1``,
+            ``option_2`` and ``option_3``.
+
+
         folds : int, optional
             Use if a different number of folds is desired than what the
             ensemble was instantiated with.
+
+        proba : bool
+            whether layer should predict class probabilities. Note: setting
+            ``proba=True`` will attempt to call an estimator´s
+            ``predict_proba`` method.
 
         meta : bool (default = False)
             indicator if the layer added is the final meta estimator. This will
@@ -293,4 +299,5 @@ class SuperLearner(BaseEnsemble):
                 cls=cls,
                 indexer=idx,
                 preprocessing=preprocessing,
+                proba=proba,
                 verbose=self.verbose)

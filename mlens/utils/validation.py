@@ -501,7 +501,7 @@ def _check_array(X):
                        )
 
 
-def check_inputs(X, y, check_level=0):
+def check_inputs(X, y=None, check_level=0):
     r"""Pre-checks on input arrays X and y.
 
     Checks input data according to ``check_level`` to ensure format is roughly

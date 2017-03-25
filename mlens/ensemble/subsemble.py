@@ -163,7 +163,7 @@ class Subsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse_scoring(y, preds)
-    6.9553583775881407
+    8.09231406987338
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
@@ -188,7 +188,7 @@ class Subsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse_scoring(y, preds)
-    7.8413294010791557
+    8.5322565779152839
     """
 
     def __init__(self,
@@ -300,20 +300,16 @@ class Subsemble(BaseEnsemble):
 
         if meta:
             idx = FullIndex()
-            ests = estimators
-            prep = preprocessing
             cls = 'full'
         else:
             idx = SubSampleIndexer(p, c,
                                    raise_on_exception=self.raise_on_exception)
-            ests = _expand_estimators(estimators, p)
-            prep = _expand_estimators(preprocessing, p)
             cls = 'subset'
 
         return self._add(
                 cls=cls,
-                estimators=ests,
-                preprocessing=prep,
+                estimators=estimators,
+                preprocessing=preprocessing,
                 indexer=idx,
                 verbose=self.verbose)
 
@@ -327,7 +323,8 @@ def _expand_estimators(instances, p):
                 for i in range(p)]
     else:
         # Need to expand list for each preprocessing case
-        return {case: [('%s-j%i' % (n, i + 1), clone(e))]
+        return {case: [('%s-j%i' % (n, i + 1), clone(e))
+                for n, e in instance_list
+                for i in range(p)]
                 for case, instance_list in instances.items()
-                for n, e in enumerate(instance_list)
-                for i in range(p)}
+                }

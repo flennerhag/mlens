@@ -32,7 +32,7 @@ ENGINES = {'full': SingleRun,
            'subset': Stacker,
            }
 
-JOBS = {'predict', 'fit', 'fit_proba', 'predict_proba'}
+JOBS = ['predict', 'fit']
 
 
 class Job(object):
@@ -44,9 +44,10 @@ class Job(object):
     :class:`ParallelProcessing`
     """
 
-    __slots__ = ['X', 'y', 'P', 'dir', 'l']
+    __slots__ = ['X', 'y', 'P', 'dir', 'l', 'j']
 
-    def __init__(self):
+    def __init__(self, job):
+        self.j = job
         self.X = None
         self.y = None
         self.P = None
@@ -70,18 +71,17 @@ class ParallelProcessing(object):
         'predict_proba']``, otherwise an error will be raised.
     """
 
-    __slots__ = ['layers', '_initialized', '_fitted', '_job', 'job']
+    __slots__ = ['layers', '_initialized', '_fitted', '_job']
 
-    def __init__(self, layers, job):
-        self._check_job(job)
+    def __init__(self, layers):
         self.layers = layers
-        self.job = job
         self._initialized = 0
         self._fitted = 0
 
-    def initialize(self, X, y=None, dir=None):
+    def initialize(self, job, X, y=None, dir=None):
         """Create a job instance for estimation."""
-        self._job = Job()
+        self._check_job(job)
+        self._job = Job(job)
 
         self._job.dir = tempfile.mkdtemp(dir=dir)
 
@@ -117,9 +117,7 @@ class ParallelProcessing(object):
 
         # Append pre-allocated prediction arrays in r+ to the P list
         # Each layer will be fitted on P[i] and write to P[i + 1]
-        for i, (name, lyr) in enumerate(self.layers.layers.items()):
-            # Keep track of final layer - don't want to predict_proba
-            final = self.layers.n_layers == i + 1
+        for name, lyr in self.layers.layers.items():
 
             f = os.path.join(self._job.dir, '%s.mmap' % name)
 
@@ -128,7 +126,7 @@ class ParallelProcessing(object):
             # than mid-estimation
             lyr.indexer.fit(self._job.P[0])
 
-            shape = self._get_lyr_sample_size(lyr, final)
+            shape = self._get_lyr_sample_size(lyr)
 
             self._job.P.append(np.memmap(filename=f,
                                          dtype=np.float,
@@ -140,19 +138,26 @@ class ParallelProcessing(object):
         # Release any memory before going into process
         gc.collect()
 
-    def _get_lyr_sample_size(self, lyr, final):
+    def _get_lyr_sample_size(self, lyr):
         """Decide what sample size to create P with based on the job type."""
-        s0 = lyr.indexer.n_test_samples if self.job == 'fit' else \
+        # Sample size is full for prediction, for fitting
+        # it can be less if predictions are not generated for full train set
+        s0 = lyr.indexer.n_test_samples if self._job.j == 'fit' else \
             lyr.indexer.n_samples
 
+        # Number of prediction columns depends on:
+        # 1. number of estimators in layer
+        # 2. if predict_proba, number of classes in training set
+        # 3. number of subsets (default is one for all data)
+        # Note that 1. and 2. are encoded in n_pred (see Layer) but 2.
+        # depends on the data and thus has to be handled by the manager.
         s1 = lyr.n_pred
 
-        if not final and self.job == 'fit_proba':
-            # Store num classes
-            self._job.l = np.unique(self._job.y).shape[0]
-            lyr.classes_ = self._job.l
+        if lyr.proba:
+            if self._job.j == 'fit':
+                lyr.classes_ = self._job.l = np.unique(self._job.y).shape[0]
 
-        s1 *= getattr(lyr, 'classes_', 1)
+            s1 *= lyr.classes_
 
         return s0, s1
 
@@ -163,7 +168,8 @@ class ParallelProcessing(object):
             raise NotImplementedError('The job %s is not valid for the input '
                                       'for the ParallelProcessing job '
                                       'manager. Accepted jobs: %r.'
-                                      % (job, JOBS))
+                                      % (job, list(JOBS)))
+
     @staticmethod
     def _load(arr):
         """Load array from file using default settings."""
@@ -196,10 +202,7 @@ class ParallelProcessing(object):
                       backend=self.layers.backend) as parallel:
 
             for n, lyr in enumerate(self.layers.layers.values()):
-                final = self.layers.n_layers == n + 1
-                job = self.job.split('_')[0] if final else self.job
-
-                self._partial_process(n, lyr, parallel, job)
+                self._partial_process(n, lyr, parallel)
 
         self._fitted = 1
 
@@ -260,7 +263,7 @@ class ParallelProcessing(object):
             if flag != 0:
                 raise RuntimeError("Could not remove temporary directory.")
 
-    def _partial_process(self, n, lyr, parallel, attr):
+    def _partial_process(self, n, lyr, parallel):
         """Generic method for processing a :class:`layer` with ``attr``."""
 
         # Fire up the estimation instance
@@ -269,7 +272,7 @@ class ParallelProcessing(object):
         e = ENGINES[lyr.cls](lyr, **kwd)
 
         # Get function to process and its variables
-        f = getattr(e, attr)
+        f = getattr(e, self._job.j)
         fargs = f.__func__.__code__.co_varnames
 
         # Strip variables we don't want to set from _job directly

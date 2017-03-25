@@ -117,16 +117,17 @@ class BaseIndex(object):
         for tri, tei in self._gen_indices():
 
             if as_array:
-                # return np.arrays
-                if isinstance(tri[0], tuple):
-                    # If a tuple of indices, build iteratively
-                    tri = np.hstack([np.arange(t0, t1) for t0, t1 in tri])
-                else:
-                    tri = np.arange(tri[0], tri[1])
-
-                tei = np.arange(tei[0], tei[1])
+                tri = self._build_range(tri)
+                tei = self._build_range(tei)
 
             yield tri, tei
+
+    @staticmethod
+    def _build_range(idx):
+        if isinstance(idx[0], tuple):
+            return np.hstack([np.arange(t0, t1) for t0, t1 in idx])
+        else:
+            return np.arange(idx[0], idx[1])
 
 
 class BlendIndex(BaseIndex):
@@ -435,11 +436,12 @@ class SubSampleIndexer(BaseIndex):
     Examples
     --------
     >>> import numpy as np
+    >>> from mlens.base import SubSampleIndexer
     >>> X = np.arange(20).reshape(10, 2)
     >>> idx = SubSampleIndexer(3, X=X)
     >>> for i, (tri, tei) in enumerate(idx.generate()):
     ...     fold = i % 2 + 1
-    ...     part = i % 3 + 1
+    ...     part = i // 2 + 1
     ...     train = np.hstack([np.arange(t0, t1) for t0, t1 in tri])
     ...     test = np.hstack([np.arange(t0, t1) for t0, t1 in tei])
     >>>     print("J = %i | v = %i | "

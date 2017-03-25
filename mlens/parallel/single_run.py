@@ -35,6 +35,10 @@ class SingleRun(BaseEstimator):
         return _get_col_idx(self.layer.preprocessing, self.layer.estimators,
                             labels)
 
+    def fit_proba(self, X, y, P, dir, parallel):
+        """If a layer has been declared meta, we return class predictions."""
+        return self.fit(X, y, P, dir, parallel)
+
 
 ###############################################################################
 def _expand_instance_list(instance_list):

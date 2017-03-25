@@ -21,7 +21,11 @@ from ..utils.exceptions import (FitFailedError, FitFailedWarning,
 from joblib import delayed
 import os
 
-from time import time, sleep
+from time import sleep
+try:
+    from time import perf_counter as time_
+except ImportError:
+    from time import time as time_
 
 import warnings
 
@@ -55,7 +59,7 @@ class BaseEstimator(object):
 
     __metaclass__ = ABCMeta
 
-    __slots__ = ['verbose', 'layer', 'raise_', 'name', 'labels',
+    __slots__ = ['verbose', 'layer', 'raise_', 'name', 'labels', 'proba',
                  'lim', 'ival', 'dual', 'e', 't', 'c']
 
     @abstractmethod
@@ -66,6 +70,7 @@ class BaseEstimator(object):
         self.verbose = self.layer.verbose
         self.raise_ = self.layer.raise_on_exception
         self.name = self.layer.name
+        self.proba = self.layer.proba
         self.lim = getattr(layer, 'lim', 600)
         self.ival = getattr(layer, 'ival', 0.1)
 
@@ -93,29 +98,15 @@ class BaseEstimator(object):
         self.layer.estimators_ = _assemble(dir, self.e, 'e')
         self.layer.preprocessing_ = _assemble(dir, self.t, 't')
 
-    def fit_proba(self, X, y, P, dir, parallel):
-        """Fit and predict class probabilities."""
-        self._fit(X, y, P, dir, parallel, 'predict_proba')
-
     def fit(self, X, y, P, dir, parallel):
-        """Fit and predict through standard predict method."""
-        self._fit(X, y, P, dir, parallel, 'predict')
-
-    def predict_proba(self, X, P, parallel):
-        """Fit and predict class probabilities."""
-        self._predict(X, P, parallel, 'predict_proba')
-
-    def predict(self, X, P, parallel):
-        """Fit and predict through standard predict method."""
-        self._predict(X, P, parallel, 'predict')
-
-    def _fit(self, X, y, P, dir, parallel, attr):
         """Fit layer through given attribute."""
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
             s = _name(self.name, None)
             safe_print('Fitting layer %s' % self.name)
-            t0 = time()
+            t0 = time_()
+
+        pred_method = 'predict' if not self.proba else 'predict_proba'
 
         if self.dual:
 
@@ -138,7 +129,9 @@ class BaseEstimator(object):
                                       idx=(tri, tei, self.c[case, inst_name]),
                                       name=self.name,
                                       raise_on_exception=self.raise_,
-                                      lim=None, sec=None, attr=attr)
+                                      lim=None,
+                                      sec=None,
+                                      attr=pred_method)
                      for case, tri, tei, instance_list in self.e
                      for inst_name, instance in instance_list)
 
@@ -156,7 +149,7 @@ class BaseEstimator(object):
                                    raise_on_exception=self.raise_,
                                    lim=self.lim,
                                    sec=self.ival,
-                                   attr=attr)
+                                   attr=pred_method)
                      for case, tri, tei, inst_list in _wrap(self.t) + self.e
                      for inst_name, instance in inst_list)
 
@@ -167,7 +160,7 @@ class BaseEstimator(object):
         if self.verbose:
             print_time(t0, '%sDone' % s, file=printout)
 
-    def _predict(self, X, P, parallel, attr):
+    def predict(self, X, P, parallel):
         """Predict with fitted layer."""
 
         self._check_fitted()
@@ -176,7 +169,9 @@ class BaseEstimator(object):
             printout = "stderr" if self.verbose < 50 else "stdout"
             s = _name(self.name, None)
             safe_print('Predicting layer %s' % self.name)
-            t0 = time()
+            t0 = time_()
+
+        pred_method = 'predict' if not self.proba else 'predict_proba'
 
         # Collect estimators fitted on full data
         prep, ests = self._retrieve('full')
@@ -189,7 +184,7 @@ class BaseEstimator(object):
                                       pred=P,
                                       col=col,
                                       name=self.name,
-                                      attr=attr)
+                                      attr=pred_method)
                  for case, (inst_name, est, (_, col)) in ests)
 
         if self.verbose:
@@ -423,10 +418,10 @@ def _load_trans(f, case, lim, s, raise_on_exception):
             raise ParallelProcessingError(error_msg % msg)
 
         # Else, check intermittently until limit is reached
-        ts = time()
+        ts = time_()
         while not os.path.exists(f):
             sleep(s)
-            if time() - ts > lim:
+            if time_() - ts > lim:
                 if raise_on_exception:
                     raise ParallelProcessingError(error_msg % msg)
 
@@ -436,7 +431,7 @@ def _load_trans(f, case, lim, s, raise_on_exception):
                               ParallelProcessingWarning)
 
                 raise_on_exception = True
-                ts = time()
+                ts = time_()
 
         return pickle_load(f)
 

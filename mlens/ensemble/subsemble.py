@@ -10,7 +10,7 @@ Subsemble class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import SubSampleIndexer, FullIndex
+from ..base import SubsetIndex, FullIndex
 from ..utils import check_instances
 from ..externals.base import clone
 
@@ -305,8 +305,8 @@ class Subsemble(BaseEnsemble):
             idx = FullIndex()
         else:
             cls = 'subset'
-            idx = SubSampleIndexer(p, c,
-                                   raise_on_exception=self.raise_on_exception)
+            idx = SubsetIndex(p, c,
+                              raise_on_exception=self.raise_on_exception)
 
         return self._add(cls=cls,
                          estimators=estimators,

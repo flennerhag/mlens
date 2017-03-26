@@ -58,7 +58,7 @@ def _expand_instance_list(instance_list, indexer):
 
     >>> import numpy as np
     >>> from mlens.utils.dummy import OLS
-    >>> from mlens.base import SubSampleIndexer
+    >>> from mlens.base import SubsetIndex
     >>> from mlens.parallel.subset import _expand_instance_list
     >>> X = np.arange(12)
     >>> indexer = SubSampleIndexer(3, 2, X=X)
@@ -70,7 +70,7 @@ def _expand_instance_list(instance_list, indexer):
 
     >>> import numpy as np
     >>> from mlens.utils.dummy import OLS
-    >>> from mlens.base import SubSampleIndexer
+    >>> from mlens.base import SubsetIndex
     >>> from mlens.parallel.subset import _expand_instance_list
     >>> X = np.arange(12)
     >>> indexer = SubSampleIndexer(3, 2, X=X)

@@ -217,7 +217,7 @@ class Subsemble(BaseEnsemble):
         return self.add(estimators, meta=True)
 
     def add(self, estimators, preprocessing=None, meta=False,
-            partitions=None, folds=None):
+            partitions=None, folds=None, proba=False):
         """Add layer to ensemble.
 
         Parameters
@@ -289,6 +289,9 @@ class Subsemble(BaseEnsemble):
             Use if a different number of folds is desired than what the
             ensemble was instantiated with.
 
+        proba : bool (default = False)
+            whether to call ``predict_proba`` on base learners.
+
         Returns
         -------
         self : instance
@@ -309,4 +312,5 @@ class Subsemble(BaseEnsemble):
                          estimators=estimators,
                          preprocessing=preprocessing,
                          indexer=idx,
+                         proba=proba,
                          verbose=self.verbose)

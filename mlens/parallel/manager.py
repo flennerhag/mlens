@@ -9,7 +9,7 @@ Parallel processing job manager.
 
 import numpy as np
 
-from . import Stacker, Blender, SingleRun
+from . import Stacker, Blender, SingleRun, SubStacker
 from ..utils import check_initialized
 from ..utils.exceptions import ParallelProcessingWarning, \
     ParallelProcessingError
@@ -29,7 +29,7 @@ import warnings
 ENGINES = {'full': SingleRun,
            'stack': Stacker,
            'blend': Blender,
-           'subset': Stacker,
+           'subset': SubStacker,
            }
 
 JOBS = ['predict', 'fit']
@@ -234,20 +234,9 @@ class ParallelProcessing(object):
     def terminate(self):
         """Remove temporary folder and all cache data."""
 
-        temp_folder = self._job.dir
-
-        # Delete the job
-        del self._job
-
-        # Collect garbage
-        gc.collect()
-
-        # Reset initialized flag
-        self._initialized = 0
-
         # Remove temporary folder
         try:
-            shutil.rmtree(temp_folder)
+            shutil.rmtree(self._job.dir)
         except OSError as e:
             # Can fail on Windows - we try to force remove it using the CLI
             warnings.warn("Failed to remove temporary directory with "
@@ -256,19 +245,25 @@ class ParallelProcessing(object):
                           ParallelProcessingWarning)
 
             if "win" in platform:
-                flag = check_call(['rmdir', temp_folder, '/s', '/q'])
+                flag = check_call(['rmdir', self._job.dir, '/s', '/q'])
             else:
-                flag = check_call(['rm', '-rf', temp_folder])
+                flag = check_call(['rm', '-rf', self._job.dir])
 
             if flag != 0:
                 raise RuntimeError("Could not remove temporary directory.")
+
+        # Release job from memory
+        del self._job
+
+        gc.collect()
+
+        self._initialized = 0
 
     def _partial_process(self, n, lyr, parallel):
         """Generic method for processing a :class:`layer` with ``attr``."""
 
         # Fire up the estimation instance
         kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
-        kwd['labels'] = self._job.l
         e = ENGINES[lyr.cls](lyr, **kwd)
 
         # Get function to process and its variables
@@ -289,21 +284,3 @@ class ParallelProcessing(object):
             kwargs['P'] = self._job.P[n + 1]
 
         f(**kwargs)
-
-    def _process_layer(self, parallel, attr, n, name):
-        """Wrapper around process if a single layer is to be processed.
-
-        Checks is a job has been initialized, and if parallel has not been set,
-        wraps call to ``_partial_process`` around a context manager.
-        """
-        check_initialized(self)
-
-        if parallel is None:
-            with Parallel(n_jobs=self.layers.n_jobs,
-                          temp_folder=self._job.dir,
-                          max_nbytes=None,
-                          mmap_mode='r+') as parallel:
-                self._partial_process(parallel, attr, n, name)
-        else:
-            # Assume parallel was already created in a context manager
-            self._partial_process(parallel, attr, n, name)

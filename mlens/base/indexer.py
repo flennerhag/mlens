@@ -437,8 +437,15 @@ class SubSampleIndexer(BaseIndex):
     --------
     >>> import numpy as np
     >>> from mlens.base import SubSampleIndexer
-    >>> X = np.arange(20).reshape(10, 2)
+    >>> X = np.arange(10)
     >>> idx = SubSampleIndexer(3, X=X)
+    >>>
+    >>> print('Partitions of X:')
+    >>> print('J = 1: %r' % X[0:4])
+    >>> print('J = 2: %r' % X[4:7])
+    >>> print('J = 3: %r' % X[7:9])
+    >>> print()
+    >>> print('SubsampleIndexer splits:')
     >>> for i, (tri, tei) in enumerate(idx.generate()):
     ...     fold = i % 2 + 1
     ...     part = i // 2 + 1
@@ -446,11 +453,17 @@ class SubSampleIndexer(BaseIndex):
     ...     test = np.hstack([np.arange(t0, t1) for t0, t1 in tei])
     >>>     print("J = %i | v = %i | "
     ...           "train: %15r | test: % r" % (part, fold, train, test))
+    Partitions of X:
+    J = 1: array([0, 1, 2, 3])
+    J = 2: array([4, 5, 6])
+    J = 3: array([7, 8])
+
+    SubsampleIndexer splits:
     J = 1 | v = 1 | train:   array([2, 3]) | test: array([0, 1, 4, 5, 7, 8])
-    J = 2 | v = 2 | train:   array([0, 1]) | test: array([2, 3, 6, 9])
-    J = 3 | v = 1 | train:      array([6]) | test: array([0, 1, 4, 5, 7, 8])
-    J = 1 | v = 2 | train:   array([4, 5]) | test: array([2, 3, 6, 9])
-    J = 2 | v = 1 | train:      array([9]) | test: array([0, 1, 4, 5, 7, 8])
+    J = 1 | v = 2 | train:   array([0, 1]) | test: array([2, 3, 6, 9])
+    J = 2 | v = 1 | train:      array([6]) | test: array([0, 1, 4, 5, 7, 8])
+    J = 2 | v = 2 | train:   array([4, 5]) | test: array([2, 3, 6, 9])
+    J = 3 | v = 1 | train:      array([9]) | test: array([0, 1, 4, 5, 7, 8])
     J = 3 | v = 2 | train:   array([7, 8]) | test: array([2, 3, 6, 9])
     """
 
@@ -471,6 +484,30 @@ class SubSampleIndexer(BaseIndex):
 
         self.n_samples = self.n_test_samples = n
         return self
+
+    def partition(self, X=None):
+        """Get partition indices for training full subset estimators."""
+        if not hasattr(self, 'n_samples'):
+            if X is None:
+                raise AttributeError("No array provided to indexer. Either "
+                                     "pass an array to the 'generate' method, "
+                                     "or call the 'fit' method first or "
+                                     "initiate the instance with an array X "
+                                     "as argument.")
+            else:
+                # Need to call fit to continue
+                self.fit(X)
+
+        if self.n_partitions == 1:
+            # Return a None index
+            return
+        else:
+            # Return the partition indices.
+            p_len = _partition(self.n_samples, self.n_partitions)
+            p_last = 0
+            for p_size in p_len:
+                yield p_last, p_last + p_size
+                p_last += p_size
 
     def _build_test_sets(self):
         """Build global test folds for each split of every partition."""

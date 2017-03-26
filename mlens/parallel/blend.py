@@ -18,8 +18,8 @@ class Blender(BaseEstimator):
     Class for fitting a Layer using Blending.
     """
 
-    def __init__(self, layer, labels=None, dual=True):
-        super(Blender, self).__init__(layer=layer, labels=labels, dual=dual)
+    def __init__(self, layer, dual=True):
+        super(Blender, self).__init__(layer=layer, dual=dual)
 
     def _format_instance_list(self):
         """Expand the instance lists to every fold with associated indices."""
@@ -30,10 +30,10 @@ class Blender(BaseEstimator):
 
         return e, t
 
-    def _get_col_id(self, labels):
+    def _get_col_id(self):
         """Assign unique col_id to every estimator."""
-        return _get_col_idx(self.layer.preprocessing, self.layer.estimators,
-                            labels)
+        c = getattr(self.layer, 'classes_', 1)
+        return _get_col_idx(self.layer.preprocessing, self.layer.estimators, c)
 
 
 ###############################################################################

@@ -17,7 +17,6 @@ import itertools
 from .exceptions import NotFittedError
 from ..base import INDEXERS
 from ..ensemble.base import LayerContainer, Layer
-from ..ensemble.subsemble import _expand_estimators
 from ..externals.base import BaseEstimator, TransformerMixin, clone
 from ..externals.validation import check_array, check_X_y
 from ..parallel.manager import ENGINES
@@ -96,7 +95,52 @@ class OLS(BaseEstimator):
 
 # FIXME: Needs a quality check!
 class LogisticRegression(OLS):
-    """A Logistic Regressor through winner-takes-all comparison of P(label)."""
+    """No frill Logistic Regressor w. one-vs-rest estimation of P(label).
+
+    MWE of a Scikit-learn classifier.
+
+    LogisticRegression is a simple classifier estimator designed for
+    transparency in unit testing. It implements a Logistic
+    Regression with one-vs-rest strategy of classification.
+
+    The estimator is a wrapper around the :class:`OLS`. The OLS
+    prediction is squashed using the Sigmoid function, and classification
+    is done by picking the label with the highest probability.
+
+    The ``offset`` option allows the user to offset weights in the OLS by a
+    scalar value, if different instances should be differentiated in their
+    predictions.
+
+    Parameters
+    ----------
+    offset : float (default = 0)
+        scalar value to add to the coefficient vector after fitting.
+
+    Examples
+    --------
+
+    Asserting the LogisticRegression passes the Scikit-learn estimator test
+
+    >>> from sklearn.utils.estimator_checks import check_estimator
+    >>> from mlens.utils.dummy import LogisticRegression
+    >>> check_estimator(LogisticRegression)
+
+    Comparison with Scikit-learn's LogisticRegression
+
+    >>> from mlens.utils.dummy import LogisticRegression as mlensL
+    >>> from sklearn.linear_model import LogisticRegression as sklearnL
+    >>> from sklearn.datasets import make_classification
+    >>> X, y = make_classification()
+    >>>
+    >>> slr = sklearnL()
+    >>> slr.fit(X, y)
+    >>>
+    >>> mlr = mlensL()
+    >>> mlr.fit(X, y)
+    >>>
+    >>> (mlr.predict(X) == slr.predict(X)).sum() / y.shape
+    array([ 0.98])
+    """
 
     def fit(self, X, y):
         """Fit one model per label."""
@@ -162,6 +206,11 @@ class Scale(BaseEstimator, TransformerMixin):
 
     Examples
     --------
+    Asserting :class:`Scale` passes the Scikit-learn estimator test
+
+    >>> from sklearn.utils.estimator_checks import check_estimator
+    >>> from mlens.utils.dummy import Scale
+    >>> check_estimator(Scale)
 
     Scaling elements
 
@@ -184,12 +233,6 @@ class Scale(BaseEstimator, TransformerMixin):
     array([[-2., -4.],
            [ 0.,  0.],
            [ 2.,  4.]])
-
-    Asserting :class:`Scale` passes the Scikit-learn estimator test
-
-    >>> from sklearn.utils.estimator_checks import check_estimator
-    >>> from mlens.utils.dummy import Scale
-    >>> check_estimator(Scale)
     """
     def __init__(self, copy=True):
         self.copy = copy
@@ -294,18 +337,18 @@ ECM_PROBA = [LogisticRegression(offset=i) for i in range(16)]
 ###############################################################################
 # Data generation functions and Layer estimation wrappers
 
-def get_layers(cls, proba, folds):
+def get_layers(cls, proba, *args, **kwargs):
     """Standardized setup for unit testing of Layer and LayerContainer."""
     layer = Layer(estimators=ESTIMATORS,
                   cls=cls,
-                  indexer=INDEXERS[cls](folds),
+                  indexer=INDEXERS[cls](*args, **kwargs),
                   proba=proba,
                   preprocessing=PREPROCESSING)
 
     lc = LayerContainer().add(estimators=ESTIMATORS,
                               cls=cls,
                               proba=proba,
-                              indexer=INDEXERS[cls](folds),
+                              indexer=INDEXERS[cls](*args, **kwargs),
                               preprocessing=PREPROCESSING)
 
     lcm = LayerContainer().add(estimators=ECM_PROBA, cls=cls)
@@ -381,14 +424,7 @@ def _folded_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
           '        PRED')
 
     ests = ESTIMATORS if labels == 1 else ESTIMATORS_PROBA
-
-    if subsets > 1:
-        ests = _expand_estimators(ests, subsets)
-
-    if subsets > 1:
-        prep = _expand_estimators(PREPROCESSING, subsets)
-    else:
-        prep = PREPROCESSING
+    prep = PREPROCESSING
 
     t = [t for _, t in indexer.generate(X, True)]
     t = np.unique(np.hstack(t))
@@ -456,14 +492,7 @@ def _full_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
           '    COEF     |'
           '           PRED')
     ests = ESTIMATORS if labels == 1 else ESTIMATORS_PROBA
-
-    if subsets > 1:
-        ests = _expand_estimators(ests, subsets)
-
-    if subsets > 1:
-        prep = _expand_estimators(PREPROCESSING, subsets)
-    else:
-        prep = PREPROCESSING
+    prep = PREPROCESSING
 
     tei = [t for _, t in indexer.generate(X, True)]
     tei = np.unique(np.hstack(tei))

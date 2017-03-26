@@ -18,8 +18,8 @@ class Stacker(BaseEstimator):
     Class for fitting a Layer using Stacking.
     """
 
-    def __init__(self, layer, labels=None, dual=True):
-        super(Stacker, self).__init__(layer=layer, labels=labels, dual=dual)
+    def __init__(self, layer, dual=True):
+        super(Stacker, self).__init__(layer=layer, dual=dual)
 
     def _format_instance_list(self):
         """Expand the instance lists to every fold with associated indices."""
@@ -30,11 +30,12 @@ class Stacker(BaseEstimator):
 
         return e, t
 
-    def _get_col_id(self, labels):
+    def _get_col_id(self):
         """Assign unique col_id to every estimator."""
+        c = getattr(self.layer, 'classes_', 1)
         return _get_col_idx(self.layer.preprocessing,
                             self.layer.estimators,
-                            self.e, labels)
+                            self.e, c)
 
 
 ###############################################################################

@@ -20,8 +20,8 @@ class SingleRun(BaseEstimator):
     Class for fitting a estimators in a layer without any sub-fits.
     """
 
-    def __init__(self, layer, labels=None, dual=True):
-        super(SingleRun, self).__init__(layer=layer, labels=labels, dual=dual)
+    def __init__(self, layer, dual=True):
+        super(SingleRun, self).__init__(layer=layer, dual=dual)
 
     def _format_instance_list(self):
         """Expand the instance lists to every fold with associated indices."""
@@ -30,10 +30,10 @@ class SingleRun(BaseEstimator):
 
         return e, t
 
-    def _get_col_id(self, labels):
+    def _get_col_id(self):
         """Assign unique col_id to every estimator."""
-        return _get_col_idx(self.layer.preprocessing, self.layer.estimators,
-                            labels)
+        c = getattr(self.layer, 'classes_', 1)
+        return _get_col_idx(self.layer.preprocessing, self.layer.estimators, c)
 
     def fit_proba(self, X, y, P, dir, parallel):
         """If a layer has been declared meta, we return class predictions."""

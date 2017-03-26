@@ -59,11 +59,11 @@ class BaseEstimator(object):
 
     __metaclass__ = ABCMeta
 
-    __slots__ = ['verbose', 'layer', 'raise_', 'name', 'labels', 'proba',
+    __slots__ = ['verbose', 'layer', 'raise_', 'name', 'classes', 'proba',
                  'lim', 'ival', 'dual', 'e', 't', 'c']
 
     @abstractmethod
-    def __init__(self, layer, labels=None, dual=True):
+    def __init__(self, layer, dual=True):
         self.layer = layer
 
         # Copy some layer parameters to ease notation
@@ -77,7 +77,7 @@ class BaseEstimator(object):
         # Set estimator and transformer lists to loop over, and collect
         # estimator column ids for the prediction matrix
         self.e, self.t = self._format_instance_list()
-        self.c = self._get_col_id(labels)
+        self.c = self._get_col_id()
 
         self.dual = dual
 
@@ -90,7 +90,7 @@ class BaseEstimator(object):
         """Formatting layer's estimator and preprocessing for parallel loop."""
 
     @abstractmethod
-    def _get_col_id(self, labels):
+    def _get_col_id(self):
         """Assign unique col_id to every estimator."""
 
     def _assemble(self, dir):
@@ -209,18 +209,16 @@ class BaseEstimator(object):
 
     def _retrieve(self, s):
         """Get transformers and estimators fitted on folds or on full data."""
-        cs = self.layer.cases
+        p = self.layer.n_pred
 
         if s == 'full':
-            # Exploit that instances fitted on full have exact case names
-            return (dict([t for t in self.layer.preprocessing_ if t[0] in cs]),
-                    [t for t in self.layer.estimators_ if t[0] in cs])
+            return (dict([t for t in self.layer.preprocessing_[:p]]),
+                    [t for t in self.layer.estimators_[:p]])
 
         elif s == 'fold':
             # Exploit that instances fitted on folds have case-fold_num as name
-            return (dict([t for t in self.layer.preprocessing_
-                          if t[0] not in cs]),
-                    [t for t in self.layer.estimators_ if t[0] not in cs])
+            return (dict([t for t in self.layer.preprocessing_[p:]]),
+                    [t for t in self.layer.estimators_[p:]])
 
 
 ###############################################################################

@@ -125,7 +125,7 @@ def build_ensemble(**kwargs):
 
     ens.add(est, prep)
 
-    ens.add(GradientBoostingRegressor())
+    ens.add(GradientBoostingRegressor(), meta=True)
 
     return ens
 

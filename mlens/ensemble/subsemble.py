@@ -183,7 +183,7 @@ class Subsemble(BaseEnsemble):
     ...                        'sc': [('can name some or all ests', Lasso())]}
     >>>
     >>> ensemble = Subsemble()
-    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR())
+    >>> ensemble.add(estimators_per_case, preprocessing_cases).add_meta(SVR())
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
@@ -194,7 +194,6 @@ class Subsemble(BaseEnsemble):
     def __init__(self,
                  partitions=2,
                  folds=2,
-                 proba=False,
                  shuffle=False,
                  random_state=None,
                  scorer=None,
@@ -205,7 +204,7 @@ class Subsemble(BaseEnsemble):
                  layers=None):
 
         super(Subsemble, self).__init__(
-                proba=proba, shuffle=shuffle, random_state=random_state,
+                shuffle=shuffle, random_state=random_state,
                 scorer=scorer, raise_on_exception=raise_on_exception,
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
                 array_check=array_check)
@@ -299,32 +298,15 @@ class Subsemble(BaseEnsemble):
         p = partitions if partitions is not None else self.partitions
 
         if meta:
-            idx = FullIndex()
             cls = 'full'
+            idx = FullIndex()
         else:
+            cls = 'subset'
             idx = SubSampleIndexer(p, c,
                                    raise_on_exception=self.raise_on_exception)
-            cls = 'subset'
 
-        return self._add(
-                cls=cls,
-                estimators=estimators,
-                preprocessing=preprocessing,
-                indexer=idx,
-                verbose=self.verbose)
-
-
-def _expand_estimators(instances, p):
-    """Expand estimator instances on a partition basis."""
-    instances = check_instances(instances)
-    if isinstance(instances, (list, tuple, set)):
-        # No preprocessing cases to worry about
-        return [('%s-j%i' % (n, i + 1), clone(e)) for n, e in instances
-                for i in range(p)]
-    else:
-        # Need to expand list for each preprocessing case
-        return {case: [('%s-j%i' % (n, i + 1), clone(e))
-                for n, e in instance_list
-                for i in range(p)]
-                for case, instance_list in instances.items()
-                }
+        return self._add(cls=cls,
+                         estimators=estimators,
+                         preprocessing=preprocessing,
+                         indexer=idx,
+                         verbose=self.verbose)

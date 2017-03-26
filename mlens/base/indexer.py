@@ -697,22 +697,18 @@ class SubsetIndex(BaseIndex):
                 # Need to call fit to continue
                 self.fit(X)
 
-        if self.n_partitions == 1:
-            # Return a None index
-            return
-        else:
-            # Return the partition indices.
-            parts = _partition(self.n_samples, self.n_partitions)
-            last = 0
-            for size in parts:
-                idx = last, last + size
+        # Return the partition indices.
+        parts = _partition(self.n_samples, self.n_partitions)
+        last = 0
+        for size in parts:
+            idx = last, last + size
 
-                if as_array:
-                    idx = self._build_range(idx)
+            if as_array:
+                idx = self._build_range(idx)
 
-                yield idx
+            yield idx
 
-                last += size
+            last += size
 
     def _build_test_sets(self):
         """Build global test folds for each split of every partition.
@@ -726,43 +722,38 @@ class SubsetIndex(BaseIndex):
         n_samples = self.n_samples
         n_splits = self.n_splits
 
-        if n_partitions == 1:
-            # This corresponds to the FullIndexer case
-            return
-        else:
+        # --- Create global test set folds ---
+        # In each partition, the test set spans all partitions
+        # Hence we must run through all partitions once first to
+        # register
+        # the global test set fold for each split of the n_splits
 
-            # --- Create global test set folds ---
-            # In each partition, the test set spans all partitions
-            # Hence we must run through all partitions once first to
-            # register
-            # the global test set fold for each split of the n_splits
+        # Partition sizes
+        p_len = _partition(n_samples, n_partitions)
 
-            # Partition sizes
-            p_len = _partition(n_samples, n_partitions)
+        # Since the splitting is sequential and deterministic,
+        # we build a
+        # list of global test set indices. Hence, for any split, the
+        # test index will be a tuple of indexes of test folds from each
+        # partition. By concatenating these slices, the full test fold
+        # is constructed.
+        tei = [[] for _ in range(n_splits)]
+        p_last = 0
+        for p_size in p_len:
+            p_start, p_stop = p_last, p_last + p_size
 
-            # Since the splitting is sequential and deterministic,
-            # we build a
-            # list of global test set indices. Hence, for any split, the
-            # test index will be a tuple of indexes of test folds from each
-            # partition. By concatenating these slices, the full test fold
-            # is constructed.
-            tei = [[] for _ in range(n_splits)]
-            p_last = 0
-            for p_size in p_len:
-                p_start, p_stop = p_last, p_last + p_size
+            t_len = _partition(p_stop - p_start, n_splits)
 
-                t_len = _partition(p_stop - p_start, n_splits)
+            # Append the partition's test fold indices to the
+            # global directory for that fold number.
+            t_last = p_start
+            for i, t_size in enumerate(t_len):
+                t_start, t_stop = t_last, t_last + t_size
 
-                # Append the partition's test fold indices to the
-                # global directory for that fold number.
-                t_last = p_start
-                for i, t_size in enumerate(t_len):
-                    t_start, t_stop = t_last, t_last + t_size
+                tei[i] += [(t_start, t_stop)]
+                t_last += t_size
 
-                    tei[i] += [(t_start, t_stop)]
-                    t_last += t_size
-
-                p_last += p_size
+            p_last += p_size
 
         return tei
 
@@ -783,37 +774,33 @@ class SubsetIndex(BaseIndex):
 
         T = self._build_test_sets()
 
-        if T is None:
-            # Standard FoldIndex case
-            super(SubsetIndex, self)._gen_indices()
-        else:
-            # For each partition, for each fold, get the global test fold
-            # from T and index the partition samples not in T as train set
-            p_len = _partition(n_samples, n_partitions)
+        # For each partition, for each fold, get the global test fold
+        # from T and index the partition samples not in T as train set
+        p_len = _partition(n_samples, n_partitions)
 
-            p_last = 0
-            for p_size in p_len:
-                p_start, p_stop = p_last, p_last + p_size
+        p_last = 0
+        for p_size in p_len:
+            p_start, p_stop = p_last, p_last + p_size
 
-                t_len = _partition(p_stop - p_start, n_splits)
+            t_len = _partition(p_stop - p_start, n_splits)
 
-                t_last = p_start
-                for i, t_size in enumerate(t_len):
-                    t_start, t_stop = t_last, t_last + t_size
+            t_last = p_start
+            for i, t_size in enumerate(t_len):
+                t_start, t_stop = t_last, t_last + t_size
 
-                    # Get global test set indices
-                    tei = T[i]
+                # Get global test set indices
+                tei = T[i]
 
-                    # Construct train set
-                    tri_start_below, tri_stop_below = p_start, t_start
-                    tri_start_above, tri_stop_above = t_stop, p_stop
+                # Construct train set
+                tri_start_below, tri_stop_below = p_start, t_start
+                tri_start_above, tri_stop_above = t_stop, p_stop
 
-                    tri = _prune_train(tri_start_below, tri_stop_below,
-                                       tri_start_above, tri_stop_above)
+                tri = _prune_train(tri_start_below, tri_stop_below,
+                                   tri_start_above, tri_stop_above)
 
-                    yield tri, tei
-                    t_last += t_size
-                p_last += p_size
+                yield tri, tei
+                t_last += t_size
+            p_last += p_size
 
 
 class FullIndex(BaseIndex):

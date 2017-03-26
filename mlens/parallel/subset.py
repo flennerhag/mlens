@@ -91,10 +91,10 @@ def _expand_instance_list(instance_list, indexer):
         # Estimators to be fitted on full data. List entries have format:
         # (case, no_train_idx, no_test_idx, est_list)
         # Each est_list have entries (inst_name, cloned_est)
-        ls.extend(('%s__j%i' % (case, j), None, None,
+        ls.extend(('%s__j%i' % (case, j), (t0, t1), None,
                   [(n, clone(e)) for n, e in instance_list[case]])
                   for case in sorted(instance_list)
-                  for j in range(partitions))
+                  for j, (t0, t1) in enumerate(indexer.partition()))
 
         # --- Folds ---
         # Estimators to be fitted on each fold. List entries have format:
@@ -118,9 +118,9 @@ def _expand_instance_list(instance_list, indexer):
         # Estimators to be fitted on full data. List entries have format:
         # (no_case, no_train_idx, no_test_idx, est_list)
         # Each est_list have entries (inst_name, cloned_est)
-        ls.extend(('j%i' % i, None, None,
+        ls.extend(('j%i' % i, (t0, t1), None,
                   [(n, clone(e)) for n, e in instance_list])
-                  for i in range(partitions))
+                  for i, (t0, t1) in enumerate(indexer.partition()))
 
         # --- Folds ---
         # Estimators to be fitted on each fold. List entries have format:

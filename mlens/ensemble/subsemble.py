@@ -163,7 +163,7 @@ class Subsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse_scoring(y, preds)
-    8.09231406987338
+    9.2393246953908577
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
@@ -188,7 +188,7 @@ class Subsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse_scoring(y, preds)
-    8.5322565779152839
+    9.0115741283454458
     """
 
     def __init__(self,

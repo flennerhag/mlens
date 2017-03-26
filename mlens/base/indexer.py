@@ -14,7 +14,29 @@ import warnings
 
 
 def _prune_train(start_below, stop_below, start_above, stop_above):
-    """Checks if indices above or below are empty (i, i) and removes them."""
+    """Checks if indices above or below are empty and remove them.
+
+    A utility function for checking if the train indices below the a given
+    test set range are (0, 0), or if indices above the test set range is
+    (n, n). In this case, these will lead to an empty array and therefore
+    can safely be removed to create a single training set index range.
+
+    Parameters
+    ----------
+    start_below : int
+        index number starting below the test set. Should always be the same
+        for all test sets.
+
+     stop_below : int
+        the index number at which the test set is starting on.
+
+    start_above : int
+    the index number at which the test set ends.
+
+    stop_above : int
+        The end of the data set (n). Should always be the same for all test
+        sets.
+    """
     if start_below == stop_below:
         tri = ((start_above, stop_above),)
 
@@ -29,17 +51,32 @@ def _prune_train(start_below, stop_below, start_above, stop_above):
 def _partition(n, p):
     """Get partition sizes for a given number of samples and partitions.
 
-    This method will split n samples into p partitions evenly sized partitions.
-    If there is a remainder from the split, the r first folds will be
-    incremented by 1.
+    This method will give an array containing the sizes of ``p`` partitions
+    given a total sample size of ``n``. If there is a remainder from the
+    split, the r first folds will be incremented by 1.
 
     Parameters
     ----------
     n : int
-        number of samples
+        number of samples.
 
     p : int
-        number of partitions
+        number of partitions.
+
+    Examples
+    --------
+
+    Return sample sizes of 2 partitions given a total of 4 samples
+
+    >>> from mlens.base.indexer import _partition
+    >>> _partition(4, 2)
+    array([2, 2])
+
+    Return sample sizes of 3 partitions given a total of 8 samples
+
+    >>> from mlens.base.indexer import _partition
+    >>> _partition(8, 3)
+    array([3, 3, 2])
     """
     sizes = (n // p) * np.ones(p, dtype=np.int)
     sizes[:n % p] += 1
@@ -47,7 +84,13 @@ def _partition(n, p):
 
 
 class BaseIndex(object):
-    """Base Index class."""
+
+    """Base Index class.
+
+    Specification of indexer-wide methods and attributes that we can always
+    expect to find in any indexer. Helps to provide a uniform interface
+    during parallel estimation.
+    """
 
     @abstractmethod
     def fit(self, X):
@@ -55,23 +98,32 @@ class BaseIndex(object):
 
         Parameters
         ----------
-        X : array-like
+        X : array-like of shape [n_samples, optional]
             array to collect dimension data from.
 
         Returns
         -------
-        instance
+        instance :
+            indexer with stores sample size data.
+
+        Notes
+        -----
+        Fitting an indexer stores nothing that points to the array
+        or memmap ``X``. Only the ``shape`` attribute of ``X`` is called.
         """
 
     @abstractmethod
     def _gen_indices(self):
         """Method for constructing the index generator.
 
-        Default is the standard K-Fold.
+        This should be modified by each indexer class to build the desired
+        index. Currently, the Default is the standard K-Fold as this method
+        is returned by Subset-based indexer when number of subsets is ``1``.
 
         Returns
         -------
-        iterable
+        iterable :
+            a generator of ``train_index, test_index``.
         """
         n_samples = getattr(self, 'n_samples')
         n_splits = getattr(self, 'n_splits')
@@ -101,7 +153,33 @@ class BaseIndex(object):
                 last = tei_stop
 
     def generate(self, X=None, as_array=False):
-        """Generator."""
+        """Front-end generator method.
+
+        Generator for training and test set indices based on the
+        generator specification in ``_gen_indicies``.
+
+        Parameters
+        ----------
+        X : array-like, optional
+            If instance has not been fitted, the training set ``X`` must be
+            passed to the ``generate`` method, which will call ``fit`` before
+            proceeding. If already fitted, ``X`` can be omitted.
+
+        as_array : bool (default = False)
+            whether to return train and test indices as a pair of tuple(s)
+            or numpy arrays. If the returned tuples are singular they can be
+            used on an array X with standard slicing syntax
+            (``X[start:stop]``), but if a list of tuples is returned
+            slicing ``X`` properly requires first building a list or array
+            of index numbers from the list of tuples. This can be achieved
+            either by setting ``as_array`` to ``True``, or running ::
+
+                for train_tup, test_tup in indexer.generate():
+                    train_idx = \
+                        np.hstack([np.arange(t0, t1) for t0, t1 in train_tup])
+
+            when slicing is required.
+        """
         # Check that the instance have some array information to work with
         if not hasattr(self, 'n_samples'):
             if X is None:
@@ -124,6 +202,26 @@ class BaseIndex(object):
 
     @staticmethod
     def _build_range(idx):
+        """Build an array of indexes from a list or tuple of index tuples.
+
+        Given an index object containing tuples of ``(start, stop)`` indexes
+        ``_build_range`` will return an array that concatenate all elements
+        between each ``start`` and ``stop`` number.
+
+        Examples
+        --------
+        Single slice (convex slicing)
+
+        >>> from mlens.base.indexer import BaseIndex
+        >>> BaseIndex._build_range((0, 6))
+        array([0, 1, 2, 3, 4, 5])
+
+        Several slices (non-convex slicing)
+
+        >>> from mlens.base.indexer import BaseIndex
+        >>> BaseIndex._build_range([(0, 2), (4, 6)])
+        array([0, 1, 4, 5])
+        """
         if isinstance(idx[0], tuple):
             return np.hstack([np.arange(t0, t1) for t0, t1 in idx])
         else:
@@ -132,7 +230,7 @@ class BaseIndex(object):
 
 class BlendIndex(BaseIndex):
 
-    """Indexer that generates two non-overlapping subsets of X.
+    """Indexer that generates two non-overlapping subsets of ``X``.
 
     Iterator that generates one training fold and one test fold that are
     non-overlapping and that may or may not partition all of X depending on the
@@ -150,9 +248,40 @@ class BlendIndex(BaseIndex):
             test_slice = numpy.hstack([numpy.arange(t0, t1) for t0, t1 in
                                       test_tup])
 
+    Parameters
+    ----------
+    test_size : int or float (default = 0.5)
+        Size of the test set. If ``float``, assumed to be proportion of full
+        data set.
+
+    train_size : int or float, optional
+        Size of test set. If not specified (i.e. ``train_size = None``,
+        train_size is equal to ``n_samples - test_size``. If ``float``, assumed
+        to be a proportion of full data set. If ``train_size`` + ``test_size``
+        amount to less than the observations in the full data set, a subset
+        of specified size will be used.
+
+    rebase : bool (default = True)
+        whether to rebase the test set indices to be 0-indexed. This is often
+        required when populating a pre-allocated prediction matrix of
+        dimensionality n_test_samples. If set to ``False``, the original
+        index numbering from the full data set will be retained. See
+        examples for further details.
+
+    X : array-like of shape [n_samples,] , optional
+        the training set to partition. The training label array is also,
+        accepted, as only the first dimension is used. If ``X`` is not
+        passed
+        at instantiation, the ``fit`` method must be called before
+        ``generate``, or ``X`` must be passed as an argument of
+        ``generate``.
+
+    raise_on_exception : bool (default = True)
+        whether to warn on suspicious slices or raise an error.
+
     See Also
     --------
-    :class:`FoldIndex`
+    :class:`FoldIndex`, :class:`SubsetIndex`
 
     Examples
     --------
@@ -162,7 +291,7 @@ class BlendIndex(BaseIndex):
     >>> import numpy as np
     >>> from mlens.base.indexer import BlendIndex
     >>> X = np.arange(8)
-    >>> idx = BlendIndex(3, rebase=False)
+    >>> idx = BlendIndex(3, rebase=True)
     >>> print('Test size: 3')
     >>> for tri, tei in idx.generate(X):
     ...     print('TEST (idx | array): (%i, %i) | %r ' % (tei[0], tei[1],
@@ -224,8 +353,12 @@ class BlendIndex(BaseIndex):
     TEST tuple: (0, 3) | array: array([0, 1, 2])
     """
 
-    def __init__(self, test_size=0.5, train_size=None, rebase=True,
-                 X=None, raise_on_exception=True):
+    def __init__(self,
+                 test_size=0.5,
+                 train_size=None,
+                 rebase=True,
+                 X=None,
+                 raise_on_exception=True):
 
         self.test_size = test_size
         self.train_size = train_size
@@ -236,7 +369,18 @@ class BlendIndex(BaseIndex):
             self.fit(X)
 
     def fit(self, X):
-        """Set indexer up for slicing an array of length X."""
+        """Method for storing array data.
+
+        Parameters
+        ----------
+        X : array-like of shape [n_samples, optional]
+            array to collect dimension data from.
+
+        Returns
+        -------
+        instance :
+            indexer with stores sample size data.
+        """
         self.n_samples = X.shape[0]
 
         # Get number of test samples
@@ -265,6 +409,7 @@ class BlendIndex(BaseIndex):
         return self
 
     def _gen_indices(self):
+        """Return train and test set index generator."""
         if self.rebase:
             yield (0, self.n_train), (0, self.n_test)
         else:
@@ -273,7 +418,7 @@ class BlendIndex(BaseIndex):
 
 class FoldIndex(BaseIndex):
 
-    """Indexer that generates the full size of X.
+    """Indexer that generates the full size of ``X``.
 
     K-Fold iterator that generates fold index tuples.
 
@@ -292,13 +437,16 @@ class FoldIndex(BaseIndex):
 
     Warnings
     --------
-    Slicing only works for the test set, which is convex, but typically not for
-    the training set. To build get a training index, use
-    ``hstack([np.arange(t0, t1) for t0, t1 in tri])``.
+    Simple clicing (i.e. ``X[start:stop]`` generally does not work for the
+    train set, which often requires concatenating the train index range
+    below the current test set, and the train index range above the current
+    test set. To build get a training index, use ::
+
+        ``hstack([np.arange(t0, t1) for t0, t1 in train_index_tuples])``.
 
     See Also
     --------
-    :class:`BlendIndex`
+    :class:`BlendIndex`, :class:`SubsetIndex`
 
     Examples
     --------
@@ -311,7 +459,7 @@ class FoldIndex(BaseIndex):
     >>> print("Data set: %r" % X)
     >>> print()
     >>>
-    >>> idx = FullIndex(4, X)
+    >>> idx = FoldIndex(4, X)
     >>>
     >>> for train, test in idx.generate(as_array=True):
     ...     print('TRAIN IDX: %32r | TEST IDX: %16r' % (train, test))
@@ -341,7 +489,7 @@ class FoldIndex(BaseIndex):
 
     No overlap between train set and test set.
 
-    Passing only one fold with raise_on_exception set to False
+    Passing ``n_splits = 1`` without raising exception.
 
     >>> import numpy as np
     >>> from mlens.base.indexer import FoldIndex
@@ -349,12 +497,10 @@ class FoldIndex(BaseIndex):
     >>> print("Data set: %r" % X)
     >>> print()
     >>>
-    >>> idx = FullIndex(1, X, raise_on_exception=False)
+    >>> idx = FoldIndex(1, X, raise_on_exception=False)
     >>>
     >>> for train, test in idx.generate(as_array=True):
     ...     print('TRAIN IDX: %10r | TEST IDX: %10r' % (train, test))
-    Data set: array([0, 1, 2])
-
     /../mlens/base/indexer.py:167: UserWarning: 'n_splits' is 1, will return
     full index as both training set and test set.
     warnings.warn("'n_splits' is 1, will return full index as "
@@ -363,15 +509,30 @@ class FoldIndex(BaseIndex):
     TRAIN IDX: array([0, 1, 2]) | TEST IDX: array([0, 1, 2])
     """
 
-    def __init__(self, n_splits=2, X=None, raise_on_exception=True):
+    def __init__(self,
+                 n_splits=2,
+                 X=None,
+                 raise_on_exception=True):
 
         self.n_splits = n_splits
         self.raise_on_exception = raise_on_exception
+
         if X is not None:
             self.fit(X)
 
     def fit(self, X):
-        """Set indexer up for slicing an array of length X."""
+        """Method for storing array data.
+
+        Parameters
+        ----------
+        X : array-like of shape [n_samples, optional]
+            array to collect dimension data from.
+
+        Returns
+        -------
+        instance :
+            indexer with stores sample size data.
+        """
         n = X.shape[0]
         _check_full_index(n, self.n_splits, self.raise_on_exception)
 
@@ -384,11 +545,11 @@ class FoldIndex(BaseIndex):
         return super(FoldIndex, self)._gen_indices()
 
 
-class SubSampleIndexer(BaseIndex):
+class SubsetIndex(BaseIndex):
 
     r"""Subsample index generator.
 
-    Generates a cross-validation folds according to the following strategy:
+    Generates cross-validation folds according to the following strategy:
         1. split ``X`` into ``J`` partitions
         2. for each partition
             (a) for each fold v, create train index of all idx not in v
@@ -401,7 +562,7 @@ class SubSampleIndexer(BaseIndex):
 
     See Also
     --------
-    :class:`FoldIndex`
+    :class:`FoldIndex`, :class:`BlendIndex`
 
     References
     ----------
@@ -414,19 +575,17 @@ class SubSampleIndexer(BaseIndex):
     ----------
     n_partitions : int (default = 2)
         Number of partitions to split data in. If ``n_partitions=1``,
-        :class:`SubsambleIndex` reduces to standard K-Fold.
+        :class:`SubsetIndex` reduces to standard K-Fold.
 
     n_splits : int (default = 2)
         Number of splits to create in each partition. ``n_splits`` can
-        not be
-        1 if ``n_partition > 1``. Note that if ``n_splits = 1``, both the
-        train and test set will index the full data.
+        not be 1 if ``n_partition > 1``. Note that if ``n_splits = 1``,
+        both the train and test set will index the full data.
 
     X : array-like of shape [n_samples,] , optional
         the training set to partition. The training label array is also,
         accepted, as only the first dimension is used. If ``X`` is not
-        passed
-        at instantiation, the ``fit`` method must be called before
+        passed at instantiation, the ``fit`` method must be called before
         ``generate``, or ``X`` must be passed as an argument of
         ``generate``.
 
@@ -436,48 +595,72 @@ class SubSampleIndexer(BaseIndex):
     Examples
     --------
     >>> import numpy as np
-    >>> from mlens.base import SubSampleIndexer
+    >>> from mlens.base import SubsetIndex
     >>> X = np.arange(10)
-    >>> idx = SubSampleIndexer(3, X=X)
+    >>> idx = SubsetIndex(3, X=X)
     >>>
-    >>> print('Partitions of X:')
-    >>> print('J = 1: %r' % X[0:4])
-    >>> print('J = 2: %r' % X[4:7])
-    >>> print('J = 3: %r' % X[7:9])
+    >>> print('Expected partitions of X:')
+    >>> print('J = 1: {!r}'.format(X[0:4]))
+    >>> print('J = 2: {!r}'.format(X[4:7]))
+    >>> print('J = 3: {!r}'.format(X[7:10]))
     >>> print()
-    >>> print('SubsampleIndexer splits:')
+    >>> print('SubsetIndexer partitions:')
+    >>> for i, part in enumerate(idx.partition(as_array=True)):
+    ...     print('J = {}: {!r}'.format(i + 1, part))
+    >>> print()
+    >>> print('SubsetIndexer folds on partitions:')
     >>> for i, (tri, tei) in enumerate(idx.generate()):
     ...     fold = i % 2 + 1
     ...     part = i // 2 + 1
     ...     train = np.hstack([np.arange(t0, t1) for t0, t1 in tri])
     ...     test = np.hstack([np.arange(t0, t1) for t0, t1 in tei])
-    >>>     print("J = %i | v = %i | "
-    ...           "train: %15r | test: % r" % (part, fold, train, test))
-    Partitions of X:
+    >>>     print("J = %i | f = %i | "
+    ...           "train: %15r | test: %r" % (part, fold, train, test))
+    Expected partitions of X:
     J = 1: array([0, 1, 2, 3])
     J = 2: array([4, 5, 6])
-    J = 3: array([7, 8])
+    J = 3: array([7, 8, 9])
 
-    SubsampleIndexer splits:
-    J = 1 | v = 1 | train:   array([2, 3]) | test: array([0, 1, 4, 5, 7, 8])
-    J = 1 | v = 2 | train:   array([0, 1]) | test: array([2, 3, 6, 9])
-    J = 2 | v = 1 | train:      array([6]) | test: array([0, 1, 4, 5, 7, 8])
-    J = 2 | v = 2 | train:   array([4, 5]) | test: array([2, 3, 6, 9])
-    J = 3 | v = 1 | train:      array([9]) | test: array([0, 1, 4, 5, 7, 8])
-    J = 3 | v = 2 | train:   array([7, 8]) | test: array([2, 3, 6, 9])
+    SubsetIndexer partitions:
+    J = 1: array([0, 1, 2, 3])
+    J = 2: array([4, 5, 6])
+    J = 3: array([7, 8, 9])
+
+    SubsetIndexer folds on partitions:
+    J = 1 | f = 1 | train:   array([2, 3]) | test: array([0, 1, 4, 5, 7, 8])
+    J = 1 | f = 2 | train:   array([0, 1]) | test: array([2, 3, 6, 9])
+    J = 2 | f = 1 | train:      array([6]) | test: array([0, 1, 4, 5, 7, 8])
+    J = 2 | f = 2 | train:   array([4, 5]) | test: array([2, 3, 6, 9])
+    J = 3 | f = 1 | train:      array([9]) | test: array([0, 1, 4, 5, 7, 8])
+    J = 3 | f = 2 | train:   array([7, 8]) | test: array([2, 3, 6, 9])
     """
 
-    def __init__(self, n_partitions=2, n_splits=2,
-                 X=None, raise_on_exception=True):
+    def __init__(self,
+                 n_partitions=2,
+                 n_splits=2,
+                 X=None,
+                 raise_on_exception=True):
 
         self.n_partitions = n_partitions
         self.n_splits = n_splits
         self.raise_on_exception = raise_on_exception
+
         if X is not None:
             self.fit(X)
 
     def fit(self, X):
-        """Set indexer up for slicing an array of length X."""
+        """Method for storing array data.
+
+        Parameters
+        ----------
+        X : array-like of shape [n_samples, optional]
+            array to collect dimension data from.
+
+        Returns
+        -------
+        instance :
+            indexer with stores sample size data.
+        """
         n = X.shape[0]
         _check_subsample_index(n, self.n_partitions, self.n_splits,
                                self.raise_on_exception)
@@ -485,8 +668,24 @@ class SubSampleIndexer(BaseIndex):
         self.n_samples = self.n_test_samples = n
         return self
 
-    def partition(self, X=None):
-        """Get partition indices for training full subset estimators."""
+    def partition(self, X=None, as_array=False):
+        """Get partition indices for training full subset estimators.
+
+        Returns the index range for each partition of X.
+
+        Parameters
+        ----------
+        X : array-like of shape [n_samples,] , optional
+            the training set to partition. The training label array is also,
+            accepted, as only the first dimension is used. If ``X`` is not
+            passed at instantiation, the ``fit`` method must be called before
+            ``generate``, or ``X`` must be passed as an argument of
+            ``generate``.
+
+        as_array : bool (default = False)
+            whether to return partition as an index array. Otherwise tuples
+            of ``(start, stop)`` indices are returned.
+        """
         if not hasattr(self, 'n_samples'):
             if X is None:
                 raise AttributeError("No array provided to indexer. Either "
@@ -503,14 +702,26 @@ class SubSampleIndexer(BaseIndex):
             return
         else:
             # Return the partition indices.
-            p_len = _partition(self.n_samples, self.n_partitions)
-            p_last = 0
-            for p_size in p_len:
-                yield p_last, p_last + p_size
-                p_last += p_size
+            parts = _partition(self.n_samples, self.n_partitions)
+            last = 0
+            for size in parts:
+                idx = last, last + size
+
+                if as_array:
+                    idx = self._build_range(idx)
+
+                yield idx
+
+                last += size
 
     def _build_test_sets(self):
-        """Build global test folds for each split of every partition."""
+        """Build global test folds for each split of every partition.
+
+        This method runs through each partition and fold to register all the
+        test set indices across partitions. For each test fold ``i``, the test
+        set indices are thus the union of fold ``i`` indices across all ``J``
+        partitions.
+        """
         n_partitions = self.n_partitions
         n_samples = self.n_samples
         n_splits = self.n_splits
@@ -556,6 +767,16 @@ class SubSampleIndexer(BaseIndex):
         return tei
 
     def _gen_indices(self):
+        """Create generator for subsample.
+
+        Generate indices of training set and test set for
+            - each partition
+            - each fold in the partition
+
+        Note that the test index return is *global*, i.e. it contains the
+        test indices of that fold across partitions. See Examples for
+        further details.
+        """
         n_partitions = self.n_partitions
         n_samples = self.n_samples
         n_splits = self.n_splits
@@ -564,7 +785,7 @@ class SubSampleIndexer(BaseIndex):
 
         if T is None:
             # Standard FoldIndex case
-            super(SubSampleIndexer, self)._gen_indices()
+            super(SubsetIndex, self)._gen_indices()
         else:
             # For each partition, for each fold, get the global test fold
             # from T and index the partition samples not in T as train set
@@ -596,13 +817,17 @@ class SubSampleIndexer(BaseIndex):
 
 
 class FullIndex(BaseIndex):
+
     """Vacuous indexer to be used with final layers.
 
     FoldIndex is a compatibility class that stores the sample size to be
-    predicted and yields a None, None index upon generation, although it
-    is preferred to avoid calling FoldIndex for transparency.
+    predicted and yields a ``None, None`` index upon generation.
+    However, it is preferable to build code that avoids call the ``generate``
+    method when the indexer is known to be an instance of :class:`FoldIndex`
+    for transparency and maintainability.
     """
-    def __init__(self, X=None, **kwargs):
+
+    def __init__(self, X=None):
         if X is not None:
             self.fit(X)
 
@@ -636,10 +861,8 @@ def _check_full_index(n_samples, n_splits, raise_on_exception):
                          "of samples: %i." % (n_splits, n_samples))
 
 
-def _check_partial_index(n_samples, test_size, train_size,
-                         n_test, n_train):
+def _check_partial_index(n_samples, test_size, train_size, n_test, n_train):
     """Check that folds can be constructed from passed arguments."""
-
     if n_test + n_train > n_samples:
         raise ValueError("The selection of train (%r) and test (%r) samples "
                          "lead to a subsets greater than the number of "
@@ -668,11 +891,15 @@ def _check_subsample_index(n_samples, n_partitions, n_splits, raise_):
         raise ValueError("'n_partitions' must be an integer. "
                          "type(%s) was passed." % type(n_partitions))
 
+    if not n_partitions > 0:
+        raise ValueError("'n_partitions' must be a positive integer. "
+                         "{} was passed.".format(n_partitions))
+
     if not isinstance(n_splits, Integral):
         raise ValueError("'n_splits' must be an integer. "
                          "type(%s) was passed." % type(n_splits))
 
-    if n_splits <= 1:
+    if n_splits == 1:
         if raise_ or n_partitions > 1:
             raise ValueError("Need at least 2 folds for splitting partitions. "
                              "Got %i." % n_splits)

@@ -8,14 +8,14 @@ Base modules
 """
 
 from .id_train import IdTrain
-from .indexer import FoldIndex, BlendIndex, SubSampleIndexer, FullIndex
+from .indexer import FoldIndex, BlendIndex, SubsetIndex, FullIndex
 
 
 INDEXERS = {'stack': FoldIndex,
             'blend': BlendIndex,
-            'subset': SubSampleIndexer,
+            'subset': SubsetIndex,
             'full': FullIndex}
 
 
-__all__ = ['IdTrain', 'BlendIndex', 'FoldIndex', 'SubSampleIndexer',
+__all__ = ['IdTrain', 'BlendIndex', 'FoldIndex', 'SubsetIndex',
            'FullIndex']

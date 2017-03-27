@@ -57,7 +57,7 @@ class BaseEstimator(object):
     __metaclass__ = ABCMeta
 
     __slots__ = ['verbose', 'layer', 'raise_', 'name', 'classes', 'proba',
-                 'lim', 'ival', 'dual', 'e', 't', 'c']
+                 'lim', 'ival', 'dual', 'e', 't', 'c', 'scorer']
 
     @abstractmethod
     def __init__(self, layer, dual=True):
@@ -68,6 +68,7 @@ class BaseEstimator(object):
         self.raise_ = self.layer.raise_on_exception
         self.name = self.layer.name
         self.proba = self.layer.proba
+        self.scorer = self.layer.scorer
         self.lim = getattr(layer, 'lim', 600)
         self.ival = getattr(layer, 'ival', 0.1)
 
@@ -92,8 +93,46 @@ class BaseEstimator(object):
 
     def _assemble(self, dir):
         """Store fitted transformer and estimators in the layer."""
-        self.layer.estimators_ = _assemble(dir, self.e, 'e')
         self.layer.preprocessing_ = _assemble(dir, self.t, 't')
+        self.layer.estimators_, s = _assemble(dir, self.e, 'e')
+
+        if self.scorer is not None and self.layer.cls is not 'full':
+            self.layer.scores_ = self._build_scores(s)
+
+    def _build_scores(self, s):
+        """Build a cv-score mapping."""
+        scores = dict()
+
+        # Build shell dictionary with main estimators as keys
+        for k, v in s[:self.layer.n_pred]:
+            case_name, est_name = k.split('___')
+
+            if case_name == '':
+                name = est_name
+            else:
+                name = '%s__%s' % (case_name, est_name)
+
+            scores[name] = []
+
+        # Populate with list of scores from folds
+        for k, v in s[self.layer.n_pred:]:
+            case_name, est_name = k.split('___')
+
+            est_name = '__'.join(est_name.split('__')[:-1])
+
+            if '__' not in case_name:
+                name = est_name
+            else:
+                case_name = case_name.split('__')[0]
+                name = '%s__%s' % (case_name, est_name)
+
+            scores[name].append(v)
+
+        # Aggregate to get cross-validated mean scores
+        for k, v in scores.items():
+            scores[k] = _mean_score(v, self.raise_, k, self.name)
+
+        return scores
 
     def fit(self, X, y, P, dir, parallel):
         """Fit layer through given attribute."""
@@ -128,7 +167,8 @@ class BaseEstimator(object):
                                       raise_on_exception=self.raise_,
                                       lim=None,
                                       sec=None,
-                                      attr=pred_method)
+                                      attr=pred_method,
+                                      scorer=self.scorer)
                      for case, tri, tei, instance_list in self.e
                      for inst_name, instance in instance_list)
 
@@ -146,7 +186,8 @@ class BaseEstimator(object):
                                    raise_on_exception=self.raise_,
                                    lim=self.lim,
                                    sec=self.ival,
-                                   attr=pred_method)
+                                   attr=pred_method,
+                                   scorer=self.scorer)
                      for case, tri, tei, inst_list in _wrap(self.t) + self.e
                      for inst_name, instance in inst_list)
 
@@ -288,12 +329,22 @@ def _assemble(dir, instance_list, suffix):
                  pickle_load(os.path.join(dir, '%s__%s' % (tup[0], suffix))))
                 for tup in instance_list]
     else:
-        return [(tup[0],
-                 pickle_load(os.path.join(dir,
-                                          '%s__%s__%s' % (tup[0],
-                                                          etup[0], suffix))))
-                for tup in instance_list
-                for etup in tup[-1]]
+        # We iterate over estimators to split out the estimator info and the
+        # scoring info (if any)
+        ests_ = []
+        scores_ = []
+        for tup in instance_list:
+            for etup in tup[-1]:
+                f = os.path.join(dir, '%s__%s__%s' % (tup[0], etup[0], suffix))
+                loaded = pickle_load(f)
+
+                # split out the scores, the final element in the l tuple
+                ests_.append((tup[0], loaded[:-1]))
+
+                case = '%s___' % tup[0] if tup[0] is not None else '___'
+                scores_.append((case + etup[0], loaded[-1]))
+
+        return ests_, scores_
 
 
 ###############################################################################
@@ -335,14 +386,14 @@ def fit_trans(dir, case, inst, X, y, idx, name):
 
 
 def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
-            name, lim, sec, attr):
+            name, lim, sec, attr, scorer=None):
     """Fit estimator and write to cache along with predictions."""
     # Have to be careful in prepping data for estimation.
     # We need to slice memmap and convert to a proper array - otherwise
     # estimators can store results memmaped to the cache, which will
     # prevent the garbage collector from releasing the memmaps from memory
     # after estimation
-    x, y, _ = _slice_array(X, y, idx[0])
+    x, z, _ = _slice_array(X, y, idx[0])
 
     # Load transformers
     f = os.path.join(dir, '%s__t' % case)
@@ -353,7 +404,7 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
         x = _transform_tr(x, tr, tr_name, case, name)
 
     # Fit estimator
-    est = _fit_est(x, y, inst, raise_on_exception, inst_name, case, name)
+    est = _fit_est(x, z, inst, raise_on_exception, inst_name, case, name)
 
     # Predict if asked
     # The predict loop is kept separate to allow overwrite of x, thus keeping
@@ -362,7 +413,7 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
         tei = idx[1]
         col = idx[2]
 
-        x, _, tei = _slice_array(X, None, tei, True)
+        x, z, tei = _slice_array(X, y, tei, True)
 
         for tr_name, tr in tr_list:
             x = _transform_tr(x, tr, tr_name, case, name)
@@ -376,13 +427,19 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
             cols = np.arange(col, col + p.shape[1])
             pred[np.ix_(tei, cols)] = p
 
+        try:
+            s = scorer(z, p)
+        except Exception:
+            s = None
+
     # We drop tri from index and only keep tei if any predictions were made
         idx = idx[1:]
     else:
         idx = (None, idx[2])
+        s = None
 
     f = os.path.join(dir, '%s__%s__e' % (case, inst_name))
-    pickle_save((inst_name, est, idx), f)
+    pickle_save((inst_name, est, idx, s), f)
 
 
 def _fit(**kwargs):
@@ -484,3 +541,16 @@ def _predict_est(x, est, raise_on_exception, inst_name, case, name, attr):
         msg = "%sCould not call '%s' with estimator '%s'. Predictions set " \
               "to 0. Details:\n%r"
         warnings.warn(msg % (s, attr, inst_name, e), PredictFailedWarning)
+
+
+def _mean_score(v, raise_, k, layer_name):
+    """Exception handling wrapper for getting the mean of list of scores."""
+    try:
+        return np.mean(v)
+    except Exception as e:
+        s = _name(layer_name, None)
+        msg = "%sCould not score instance %s. Details\n%r" % (s, k, e)
+        if raise_:
+            raise ParallelProcessingError(msg)
+        else:
+            warnings.warn(msg, ParallelProcessingWarning)

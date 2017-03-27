@@ -154,7 +154,7 @@ class Subsemble(BaseEnsemble):
     >>>
     >>> X, y = load_boston(True)
     >>>
-    >>> ensemble = Subsemble()
+    >>> ensemble = Subsemble(scorer=rmse_scoring)
     >>> ensemble.add([SVR(), ('can name some or all est', Lasso())])
     >>> ensemble.add(SVR(), meta=True)
     >>>

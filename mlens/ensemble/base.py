@@ -201,7 +201,7 @@ class LayerContainer(BaseEstimator):
         del self._processor
         gc.collect()
 
-    def fit(self, X=None, y=None, return_preds=-1, **process_kwargs):
+    def fit(self, X=None, y=None, return_preds=None, **process_kwargs):
         r"""Fit instance by calling ``predict_proba`` in the first layer.
 
         Similar to ``fit``, but will call the ``predict_proba`` method on
@@ -333,7 +333,10 @@ class LayerContainer(BaseEstimator):
 
         out = {}
         for layer_name, layer in self.layers.items():
-            out[layer_name] = getattr(layer, 'fit_data_', None)
+            if layer.cls != 'full':
+                # Layers of class 'full' make no cv predictions since they are
+                # fitted on all data.
+                out[layer_name] = getattr(layer, 'scores_', None)
 
         if return_preds is not None:
             return out, processor._get_preds(return_preds)
@@ -497,6 +500,7 @@ class Layer(BaseEstimator):
                  preprocessing=None,
                  proba=False,
                  partitions=1,
+                 scorer=None,
                  raise_on_exception=False,
                  name=None,
                  verbose=False,
@@ -512,6 +516,7 @@ class Layer(BaseEstimator):
         self.cls_kwargs = cls_kwargs
         self.proba = proba
         self.partitions = partitions
+        self.scorer = scorer
         self.raise_on_exception = raise_on_exception
         self.name = name
         self.verbose = verbose
@@ -643,6 +648,7 @@ class BaseEnsemble(BaseEstimator):
                         cls=cls,
                         indexer=indexer,
                         preprocessing=preprocessing,
+                        scorer=self.scorer,
                         **kwargs)
         return self
 
@@ -673,9 +679,7 @@ class BaseEnsemble(BaseEstimator):
             r.shuffle(X)
             r.shuffle(y)
 
-        self.layers.fit(X, y)
-
-        # TODO:        self.scores_ = set_scores(self)
+        self.scores_ = self.layers.fit(X, y)
 
         return self
 

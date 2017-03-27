@@ -10,7 +10,7 @@ Scoring functions
 from __future__ import division, print_function
 
 import numpy as np
-from ..externals import make_scorer
+from ..externals.sklearn.scorer import make_scorer
 
 
 def score_matrix(y_preds, y_true, scorer, column_names=None, prefix=None):

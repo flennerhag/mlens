@@ -6,14 +6,12 @@ author: Sebastian Flennerhag
 """
 import numpy as np
 
+from mlens.externals.sklearn.base import clone
+from mlens.utils.checks import check_ensemble_build, check_fit_overlap, \
+    check_is_fitted
 from mlens.utils.dummy import LAYER, LAYER_CONTAINER
-from mlens.utils.formatting import check_instances
-from mlens.utils.exceptions import (NotFittedError, LayerSpecificationError,
-                                    LayerSpecificationWarning)
-from mlens.utils.checks import (check_fit_overlap, check_is_fitted,
-                                check_ensemble_build)
-
-from mlens.externals.base import clone
+from mlens.utils.exceptions import LayerSpecificationError, \
+    LayerSpecificationWarning, NotFittedError
 
 
 def test_check_is_fitted():

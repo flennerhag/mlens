@@ -9,8 +9,8 @@ such as when fitting a final layer (meta estimator) that does not require
 propagating predictions.
 """
 
-from .base import BaseEstimator
-from ..externals.base import clone
+from .estimation import BaseEstimator
+from ..externals.sklearn.base import clone
 
 
 ###############################################################################

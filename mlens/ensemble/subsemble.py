@@ -10,9 +10,7 @@ Subsemble class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import SubsetIndex, FullIndex
-from ..utils import check_instances
-from ..externals.base import clone
+from ..base import FullIndex, SubsetIndex
 
 
 class Subsemble(BaseEnsemble):

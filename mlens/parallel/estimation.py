@@ -49,9 +49,6 @@ class BaseEstimator(object):
     layer : :class:`Layer`
         layer to be estimated
 
-    labels : classification labels. Only necessary for
-    ``fit_proba`` and ``predict_proba``.
-
     dual : bool
         whether to estimate transformers separately from estimators: else,
         the lists will be combined in one parallel for-loop.

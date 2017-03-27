@@ -11,22 +11,21 @@ Also contains pre-made Layer, LayerContainers and data generation functions
 for unit testing.
 """
 
-import numpy as np
+import gc
 import itertools
+import os
+import shutil
+from abc import abstractmethod
+
+import numpy as np
+from joblib import Parallel, dump, load
 
 from .exceptions import NotFittedError
+from ..externals.sklearn.base import BaseEstimator, TransformerMixin, clone
+from ..externals.sklearn.validation import check_X_y, check_array
 from ..base import INDEXERS
-from ..ensemble.base import LayerContainer, Layer
-from ..externals.base import BaseEstimator, TransformerMixin, clone
-from ..externals.validation import check_array, check_X_y
+from ..ensemble.base import Layer, LayerContainer
 from ..parallel.manager import ENGINES
-
-from joblib import Parallel, load, dump
-import shutil
-import os
-import gc
-
-from abc import abstractmethod
 
 
 class OLS(BaseEstimator):

@@ -9,17 +9,15 @@ extends it to a soft check that issues warnings but don't force change the
 inputs.
 """
 
+import warnings
+
 import numpy as np
 import scipy.sparse as sp
 
-from ..externals.validation import (check_X_y, check_array,
-                                    check_consistent_length)
 from ..externals import six
-from ..externals.validation import _shape_repr, _num_samples
-from ..utils.exceptions import NonBLASDotWarning, InputDataWarning
-
-import warnings
-
+from mlens.externals.sklearn.validation import check_X_y, _num_samples, \
+    _shape_repr, check_array, check_consistent_length
+from ..utils.exceptions import InputDataWarning, NonBLASDotWarning
 
 FLOAT_DTYPES = (np.float64, np.float32, np.float16)
 

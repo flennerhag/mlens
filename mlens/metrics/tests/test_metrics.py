@@ -5,10 +5,9 @@
 
 from __future__ import division, print_function
 
-import mlens.metrics as metrics
-from sklearn.linear_model import Lasso
-
 import numpy as np
+from mlens import metrics
+from mlens.utils.dummy import OLS
 
 SEED = 100
 

@@ -10,14 +10,13 @@ Scoring functions
 from __future__ import division, print_function
 
 import numpy as np
-from pandas import DataFrame
 from ..externals import make_scorer
 
 
 def score_matrix(y_preds, y_true, scorer, column_names=None, prefix=None):
-    """Function for scoring a matrix"""
-    y_preds = y_preds if not isinstance(y_preds, DataFrame) else y_preds.values
+    """DEPRECATED
 
+    Function for scoring a matrix"""
     if column_names is None:
         column_names = ['preds_%i' % (i + 1) for i in range(y_preds.shape[1])]
 

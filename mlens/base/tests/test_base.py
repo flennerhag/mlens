@@ -10,9 +10,6 @@ import numpy as np
 from mlens.base import IdTrain, FoldIndex, BlendIndex, SubsetIndex, FullIndex
 from mlens.base.indexer import _partition, _prune_train
 
-SEED = 100
-np.random.seed(SEED)
-
 X = np.arange(25).reshape(5, 5)
 
 

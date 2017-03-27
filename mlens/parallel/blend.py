@@ -7,8 +7,8 @@
 Estimation engine for parallel preprocessing of blend layer.
 """
 
-from .base import BaseEstimator
-from ..externals.base import clone
+from .estimation import BaseEstimator
+from ..externals.sklearn.base import clone
 
 
 ###############################################################################

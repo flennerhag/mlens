@@ -9,22 +9,18 @@ Base classes for ensemble layer management.
 
 from __future__ import division, print_function
 
-from collections import OrderedDict
+import gc
+import warnings
 from abc import ABCMeta, abstractmethod
+from collections import OrderedDict
+
 
 from ..base import INDEXERS
-from ..utils import check_instances
 from ..parallel import ParallelProcessing
-from ..utils import (assert_correct_layer_format, print_time, safe_print,
-                     check_inputs, check_ensemble_build)
-
-from ..metrics import set_scores
-from ..externals.validation import check_random_state
-from sklearn.base import BaseEstimator
-
-
-import warnings
-import gc
+from ..externals.sklearn.base import BaseEstimator
+from ..externals.sklearn.validation import check_random_state
+from ..utils import assert_correct_layer_format, check_ensemble_build, \
+    check_inputs, check_instances, print_time, safe_print
 try:
     # Try get performance counter
     from time import perf_counter as time

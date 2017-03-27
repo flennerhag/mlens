@@ -7,7 +7,6 @@
 
 from __future__ import division, print_function
 
-from pandas import DataFrame, Series
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import StandardScaler as StandardScaler_
 
@@ -26,6 +25,11 @@ class StandardScaler(StandardScaler_):
     --------
     :class:`sklearn.preprocessing.StandardScaler`
     """
+
+    def __init__(self, copy=True, with_mean=True, with_std=True):
+        super(StandardScaler, self).__init__(copy=copy,
+                                             with_mean=with_mean,
+                                             with_std=with_std)
 
     def transform(self, X, y=None, copy=None):
         """Perform standardization by centering and scaling.
@@ -49,9 +53,9 @@ class StandardScaler(StandardScaler_):
         X_scaled : array-like of shape = [n_samples, n_features]
             The scaled data.
         """
-        if isinstance(X, DataFrame):
+        if X.__class__.__name__ == 'DataFrame':
             X.loc[:, :] = super(StandardScaler, self).transform(X, y, copy)
-        elif isinstance(X, Series):
+        elif X.__class__.__name__ == 'Series':
             X.loc[:] = super(StandardScaler, self).transform(X, y, copy)
         else:
             X = super(StandardScaler, self).transform(X, y, copy)
@@ -88,7 +92,7 @@ class Subset(BaseEstimator, TransformerMixin):
         y : array-like of shape = [n_samples, n_features]
             pass-through for Scikit-learn pipeline compatibility.
         """
-        self.is_df_ = isinstance(X, (DataFrame, Series))
+        self.is_df_ = X.__class__.__name__ in ['DataFrame', 'Series']
 
         if self.subset is not None:
             self.use_loc_ = any([isinstance(x, str) for x in self.subset])

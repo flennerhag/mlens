@@ -10,7 +10,7 @@ Scikit-learn API allows full integration, including grid search and pipelining.
 
 from __future__ import division
 
-from mlens.ensemble.base import BaseEnsemble
+from ..ensemble.base import BaseEnsemble
 
 # TODO: need to create functions for predicting the training set.
 # Kill this import - cannot use these functions!

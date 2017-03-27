@@ -1,10 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""
 
-"""SCIKIT-LEARN
-
-date: 10/02/2017
-Imports from Scikit-learn to reconstruct the make_scorer for pickling scorers.
+Scikit-learn imports to reconstruct the ``make_scorer`` function.
 
 ========================================================================
 The :mod:`sklearn.metrics.scorer` submodule implements a flexible
@@ -27,14 +23,13 @@ ground truth labeling (or ``None`` in the case of unsupervised models).
 #          Arnaud Joly <arnaud.v.joly@gmail.com>
 # License: Simplified BSD
 
-from abc import ABCMeta, abstractmethod
 import warnings
+from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
-# --- Changed paths ---
-from . import six
-from .is_regressor import is_regressor
+from .. import six
+from .base import is_regressor
 from .type_of_target import type_of_target
 
 

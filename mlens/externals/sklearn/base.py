@@ -1,4 +1,7 @@
-"""Clone,  BaseEstimator and TransformerMixin code from Scikit-learn's base.py
+"""
+
+Import of ``clone``, ``BaseEstimator`` and ``TransformerMixin`` from
+Scikit-learn's  ``base.py``
 
 **original**
 
@@ -12,8 +15,8 @@ import warnings
 
 import numpy as np
 from scipy import sparse
-from . import six
-from .funcsigs import signature
+from .. import six
+from ..funcsigs import signature
 
 __version__ = '0.18.1'
 

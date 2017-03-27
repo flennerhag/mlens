@@ -1,4 +1,7 @@
-"""Utilities for input validation"""
+"""
+
+Scikit-learn utilities for input validation.
+"""
 
 # Authors: Olivier Grisel
 #          Gael Varoquaux
@@ -15,14 +18,14 @@ import numbers
 import numpy as np
 import scipy.sparse as sp
 
-from . import six
-from ..utils.exceptions import NotFittedError, NonBLASDotWarning, \
+from .. import six
+from ...utils.exceptions import NotFittedError, NonBLASDotWarning, \
     DataConversionWarning
 
 try:
     from inspect import signature
 except ImportError:
-    from .funcsigs import signature
+    from mlens.externals.funcsigs import signature
 
 FLOAT_DTYPES = (np.float64, np.float32, np.float16)
 

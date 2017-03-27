@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""
 
-"""SCIKIT-LEARN
-
-date: 10/02/2017
 Imports from the utils.multiclass module of Scikit-learn.
 """
 
@@ -19,7 +15,7 @@ from scipy.sparse.base import spmatrix
 from scipy.sparse import dok_matrix
 from scipy.sparse import lil_matrix
 
-from .six import string_types
+from ..six import string_types
 
 import numpy as np
 

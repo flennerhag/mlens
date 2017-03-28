@@ -154,11 +154,7 @@ class LogisticRegression(OLS):
                                 clone(self)).fit(X, labels))
 
         self._models_ = models
-
-        coef_ = []
-        for l in self._models_:
-            coef_.extend(l.coef_)
-        self.coef_ = np.array(coef_)
+        self.coef_ = np.vstack([l.coef_ for l in self._models_])
 
         return self
 

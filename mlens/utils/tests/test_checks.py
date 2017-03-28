@@ -7,13 +7,32 @@ author: Sebastian Flennerhag
 import numpy as np
 
 from mlens.externals.sklearn.base import clone
-from mlens.utils.checks import check_ensemble_build, check_fit_overlap, \
-    check_is_fitted
-from mlens.utils.dummy import get_layers
+from mlens.utils.checks import check_ensemble_build, assert_valid_estimator, \
+    check_is_fitted, assert_correct_layer_format, check_initialized
+
+from mlens.utils.dummy import get_layers, OLS, Scale
 from mlens.utils.exceptions import LayerSpecificationError, \
-    LayerSpecificationWarning, NotFittedError
+    LayerSpecificationWarning, NotFittedError, ParallelProcessingError, \
+    ParallelProcessingWarning
 
 LAYER, LAYER_CONTAINER, _ = get_layers('stack', False)
+
+
+class Tmp(object):
+
+    """Temporary class for mimicking ParallelProcessing status."""
+
+    def __init__(self, lyr, _initialized, _fitted):
+        self._initialized = _initialized
+        self._fitted = _fitted
+        self.layers = lyr
+
+class Lyr(object):
+
+    """Temporary layer class for storing raise on exception."""
+
+    def __init__(self, raise_on_exception):
+        self.raise_on_exception = raise_on_exception
 
 
 def test_check_is_fitted():
@@ -36,7 +55,7 @@ def test_check_ensemble_build_no_lc():
     np.testing.assert_raises(AttributeError, check_ensemble_build, lc)
 
 
-def test_check_ensemble_build_lc_None():
+def test_check_ensemble_build_lc_none():
     """[Utils] check_ensemble_build : raises error on LC None."""
     lc = clone(LAYER_CONTAINER)
     lc.raise_on_exception = True
@@ -45,7 +64,7 @@ def test_check_ensemble_build_lc_None():
     np.testing.assert_raises(LayerSpecificationError, check_ensemble_build, lc)
 
 
-def test_check_ensemble_build_lc_None_no_raise_():
+def test_check_ensemble_build_lc_none_no_raise_():
     """[Utils] check_ensemble_build : raises warning on LC None + no raise_."""
     lc = clone(LAYER_CONTAINER)
     lc.layers = None
@@ -56,32 +75,92 @@ def test_check_ensemble_build_lc_None_no_raise_():
     assert FLAG is False
 
 
-def test_check_estimators():
-    """[Base] Test that fitted estimator overlap is correctly checked."""
-    fold_fit_incomplete = ['a']
-    fold_fit_complete = ['a', 'b']
+def test_assert_valid_estimator():
+    """[Utils] assert_valid_estimator: check passes valid estimator."""
+    assert_valid_estimator(OLS())
 
-    full_fit_incomplete = ['a']
-    full_fit_complete = ['a', 'b']
 
-    check_fit_overlap(fold_fit_complete, full_fit_complete, 'layer-1')
+def test_assert_valid_estimator_fails_class():
+    """[Utils] assert_valid_estimator: check fails uninstantiated estimator."""
+    np.testing.assert_raises(TypeError, assert_valid_estimator, OLS)
 
-    try:
-        check_fit_overlap(fold_fit_incomplete, full_fit_complete, 'layer-1')
-    except ValueError as e:
-        assert issubclass(e.__class__, ValueError)
-        assert str(e) == \
-               ("[layer-1] Not all estimators successfully fitted on "
-                "the full data set were fitted during fold predictions. "
-                "Aborting.\n[layer-1] Fitted estimators on full data: ['a']\n"
-                "[layer-1] Fitted estimators on folds:['a', 'b']")
 
-    try:
-        check_fit_overlap(fold_fit_complete, full_fit_incomplete, 'layer-1')
-    except ValueError as e:
-        assert issubclass(e.__class__, ValueError)
-        assert str(e) == \
-               ("[layer-1] Not all estimators successfully fitted on the fold "
-                "data were successfully fitted on the full data. Aborting.\n"
-                "[layer-1] Fitted estimators on full data: ['a', 'b']\n"
-                "[layer-1] Fitted estimators on folds:['a']")
+def test_assert_valid_estimator_fails_type():
+    """[Utils] assert_valid_estimator: check fails non-estimator."""
+    np.testing.assert_raises(TypeError, assert_valid_estimator, 1)
+
+
+def test_assert_correct_layer_format_1():
+    """[Utils] assert_correct_layer_format: prep - none, est - list."""
+    assert_correct_layer_format([OLS()], [])
+
+
+def test_assert_correct_layer_format_2():
+    """[Utils] assert_correct_layer_format: prep - list, est - list."""
+    assert_correct_layer_format([OLS()], [Scale()])
+
+
+def test_assert_correct_layer_format_3():
+    """[Utils] assert_correct_layer_format: prep - dict, est - dict."""
+    assert_correct_layer_format({'a': [OLS()]}, {'a': [Scale()]})
+
+
+def test_assert_correct_layer_format_fails_dict_list():
+    """[Utils] assert_correct_layer_format: prep - list, est - dict."""
+    np.testing.assert_raises(LayerSpecificationError,
+                             assert_correct_layer_format,
+                             {'a': [OLS()]}, [])
+
+
+def test_assert_correct_layer_format_fails_dict_none():
+    """[Utils] assert_correct_layer_format: prep - none, est - dict."""
+    np.testing.assert_raises(LayerSpecificationError,
+                             assert_correct_layer_format,
+                             {'a': [OLS()]}, None)
+
+
+def test_assert_correct_layer_format_list_dict():
+    """[Utils] assert_correct_layer_format: prep - dict, est - list."""
+    np.testing.assert_raises(LayerSpecificationError,
+                             assert_correct_layer_format,
+                             [OLS()], {'a': [Scale()]})
+
+
+def test_assert_correct_layer_format_tuple():
+    """[Utils] assert_correct_layer_format: prep - dict, est - list."""
+    np.testing.assert_raises(LayerSpecificationError,
+                             assert_correct_layer_format,
+                             [OLS()], (Scale()))
+
+def test_assert_correct_layer_format_dict_keys():
+    """[Utils] assert_correct_layer_format: assert raises on no key overlap."""
+    np.testing.assert_raises(LayerSpecificationError,
+                             assert_correct_layer_format,
+                             {'a': [OLS()]}, {'b': [Scale()]})
+
+
+def test_check_initialized():
+    """[Utils] check_initialized: passes initialized."""
+
+    check_initialized(Tmp(Lyr(True), 1, 0))
+
+
+def test_check_initialized_fails():
+    """[Utils] check_initialized: fails not initialized."""
+
+    np.testing.assert_raises(ParallelProcessingError,
+                             check_initialized, Tmp(Lyr(True), 0, 0))
+
+
+def test_check_initialized_fails_fitted():
+    """[Utils] check_initialized: fails initialized and fitted."""
+
+    np.testing.assert_raises(ParallelProcessingError,
+                             check_initialized, Tmp(Lyr(True), 1, 1))
+
+
+def test_check_initialized_warns_fitted():
+    """[Utils] check_initialized: warns initialized and fitted if not raise."""
+
+    np.testing.assert_warns(ParallelProcessingWarning,
+                            check_initialized, Tmp(Lyr(False), 1, 1))

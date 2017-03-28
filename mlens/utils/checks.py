@@ -4,7 +4,7 @@
 :copyright: 2017
 :licence: MIT
 
-Quick checks that an estimator is built as expected.
+Controls that an estimator was built as expected.
 """
 
 import warnings
@@ -12,45 +12,6 @@ from .exceptions import (NotFittedError, LayerSpecificationWarning,
                          LayerSpecificationError, FitFailedError,
                          FitFailedWarning, ParallelProcessingError,
                          ParallelProcessingWarning)
-
-
-def check_fit_overlap(full_fit_est, fold_fit_est, layer):
-    """DEPRECATED Helper function to check that fitted estimators overlap."""
-    if not all([est in full_fit_est for est in fold_fit_est]):
-        raise ValueError('[%s] Not all estimators successfully fitted on the '
-                         'full data set were fitted during fold predictions. '
-                         'Aborting.'
-                         '\n[%s] Fitted estimators on full data: %r'
-                         '\n[%s] Fitted estimators on folds:'
-                         '%r' % (layer, layer, full_fit_est, layer,
-                                 fold_fit_est))
-
-    if not all([est in fold_fit_est for est in full_fit_est]):
-        raise ValueError('[%s] Not all estimators successfully fitted on the '
-                         'fold data were successfully fitted on the full data.'
-                         ' Aborting.'
-                         '\n[%s] Fitted estimators on full data: %r'
-                         '\n[%s] Fitted estimators on folds:'
-                         '%r' % (layer, layer, full_fit_est, layer,
-                                 fold_fit_est))
-
-
-def check_layer_output(layer, layer_name, raise_on_exception):
-    """DEPRECATED Quick check to determine if no estimators where fitted."""
-    if not hasattr(layer, 'estimators_'):
-        # If the attribute was not created during fit, the instance will not
-        # function. Raise error.
-        raise FitFailedError("[%s] Fit failed. The 'fit_function' did "
-                             "not return expected output: the layer [%s] is "
-                             "missing the 'estimators_' attribute with "
-                             "fitted estimators." % (layer_name, layer_name))
-
-    ests = layer.estimators_
-    if ests is None or len(ests) == 0:
-        msg = "[%s] No estimators in layer was fitted."
-        if raise_on_exception:
-            raise FitFailedError(msg % layer_name)
-        warnings.warn(msg % layer_name, FitFailedWarning)
 
 
 def check_is_fitted(estimator, attr):
@@ -107,39 +68,42 @@ def assert_valid_estimator(instance):
     has_fit = hasattr(instance, 'fit')
 
     if not has_get_params:
-        raise TypeError("[%s] does not appear to be a valid"
+        raise TypeError("'%s' does not appear to be a valid"
                         " estimator as it does not implement a "
                         "'get_params' method. Type: "
                         "%s" % (instance, type(instance)))
 
     if not has_fit:
-        raise TypeError("[%s] does not appear to be a valid"
+        raise TypeError("'%s' does not appear to be a valid"
                         " estimator as it does not implement a "
                         "'fit' method. Type: "
                         "%s" % (instance, type(instance)))
+
+    try:
+        instance.get_params()
+    except TypeError:
+        raise TypeError("'%s' does not appear to be an instance of an "
+                        "estimator class, but the class itself." % instance)
 
 
 def assert_correct_layer_format(estimators, preprocessing):
     """Initial check to assert layer can be constructed."""
     if (preprocessing is None) or (isinstance(preprocessing, list)):
-        # Either no preprocessing or uniform preprocessing
         if isinstance(estimators, dict):
+            # Either no or uniform preprocessing >> estimators should be list
             msg = ("Preprocessing is either 'None' or 'list': 'estimators' "
-                   "must be of type 'list' (%s type passed).")
+                   "must be of type 'list'. Got %s.")
             raise LayerSpecificationError(msg % type(estimators))
-        elif not isinstance(estimators, list):
-            # Assume estimators is a singular estimator instance - check valid
-            assert_valid_estimator(estimators)
     else:
         # Check that both estimators and preprocessing are dicts
         if not isinstance(preprocessing, dict):
             msg = ("Unexpected format of 'preprocessing'. Needs to be "
-                   " of type 'None' or 'list' or 'dict'  (%s type passed).")
+                   " of type 'None' or 'list' or 'dict'. Got %s .")
             raise LayerSpecificationError(msg % type(preprocessing))
 
         if not isinstance(estimators, dict):
             msg = ("Unexpected format of 'estimators'. Needs to be "
-                   "'dict' when preprocessing is 'dict' (%s type passed).")
+                   "'dict' when preprocessing is 'dict'. Got %s.")
             raise LayerSpecificationError(msg % type(estimators))
 
         # Check that keys overlap
@@ -180,21 +144,3 @@ def check_initialized(inst):
                           "processing job has not been "
                           "terminated. Will refit using previous job's cache.",
                           ParallelProcessingWarning)
-
-
-def check_process_attr(layer_container, attr):
-    """DEPRECATED
-
-    layers don't have estimation methods - only estimation engines do.
-
-    Check that all layers has the method to be used for estimation."""
-    failed = []
-    for layer_name, layer in layer_container.layers.items():
-        if not hasattr(layer, attr):
-            failed.append(layer_name)
-
-    if failed:
-        msg = ("Layers '%r' do not have the estimation method '%s'. "
-               "Ensure the 'LayerContainer' class and its layers are "
-               "correctly specified.")
-        raise LayerSpecificationError(msg % (failed, attr))

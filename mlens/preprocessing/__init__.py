@@ -1,9 +1,10 @@
 """
+
 :author: Sebastian Flennerhag
 :copyright: 2017
 :licence: MIT
 """
 
-from .preprocess import StandardScaler, Subset
+from .preprocess import Subset
 
-__all__ = ['StandardScaler', 'Subset']
+__all__ = ['Subset']

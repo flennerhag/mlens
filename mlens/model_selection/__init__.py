@@ -5,8 +5,6 @@
 """
 
 from .model_selection import Evaluator
-from .ensemble_transfomer import StackingTransformer
 
 
-__all__ = ['Evaluator',
-           'StackingTransformer']
+__all__ = ['Evaluator']

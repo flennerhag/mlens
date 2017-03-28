@@ -7,60 +7,7 @@
 
 from __future__ import division, print_function
 
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import StandardScaler as StandardScaler_
-
-
-class StandardScaler(StandardScaler_):
-
-    """Standardize input data.
-
-    Wrapper around Scikit-learn's ``StandardScaler`` that preserves the input
-    data's original type. Specifically, if the input array is a pandas
-    ``DataFrame``, the standardized data is returned as a ``DataFrame``, and if
-    the input data is a NumPy ``ndarray``, the standardized data is returned as
-    a ``ndarray``.
-
-    See Also
-    --------
-    :class:`sklearn.preprocessing.StandardScaler`
-    """
-
-    def __init__(self, copy=True, with_mean=True, with_std=True):
-        super(StandardScaler, self).__init__(copy=copy,
-                                             with_mean=with_mean,
-                                             with_std=with_std)
-
-    def transform(self, X, y=None, copy=None):
-        """Perform standardization by centering and scaling.
-
-        Same as the original ``transform`` method, but preserves the
-        input type.
-
-        Parameters
-        ----------
-        X : array-like of shape = [n_samples, n_features]
-            The data used to scale along the features axis.
-
-        y : array-like of shape = [n_samples, n_features]
-            pass-through for Scikit-learn pipeline compatibility.
-
-        copy : bool (default = None)
-            whether to copy X before transforming.
-
-        Returns
-        -------
-        X_scaled : array-like of shape = [n_samples, n_features]
-            The scaled data.
-        """
-        if X.__class__.__name__ == 'DataFrame':
-            X.loc[:, :] = super(StandardScaler, self).transform(X, y, copy)
-        elif X.__class__.__name__ == 'Series':
-            X.loc[:] = super(StandardScaler, self).transform(X, y, copy)
-        else:
-            X = super(StandardScaler, self).transform(X, y, copy)
-
-        return X
+from ..externals.sklearn.base import BaseEstimator, TransformerMixin
 
 
 class Subset(BaseEstimator, TransformerMixin):

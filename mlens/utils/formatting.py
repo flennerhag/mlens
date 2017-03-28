@@ -4,7 +4,7 @@
 :copyright: 2017
 :licence: MIT
 
-Support functions used throughout mlens
+Formatting of instance lists.
 """
 
 from __future__ import division, print_function

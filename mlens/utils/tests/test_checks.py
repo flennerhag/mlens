@@ -9,16 +9,11 @@ import numpy as np
 from mlens.externals.sklearn.base import clone
 from mlens.utils.checks import check_ensemble_build, check_fit_overlap, \
     check_is_fitted
-from mlens.utils.dummy import LAYER, LAYER_CONTAINER
+from mlens.utils.dummy import get_layers
 from mlens.utils.exceptions import LayerSpecificationError, \
     LayerSpecificationWarning, NotFittedError
 
-
-def test_check_is_fitted():
-    """[Utils] check_is_fitted : passes fitted."""
-    lyr = clone(LAYER)
-    lyr.estimators_ = None
-    check_is_fitted(lyr, 'estimators_')
+LAYER, LAYER_CONTAINER, _ = get_layers('stack', False)
 
 
 def test_check_is_fitted():
@@ -38,19 +33,16 @@ def test_check_ensemble_build_no_lc():
     """[Utils] check_ensemble_build : raises error on no LC."""
     lc = clone(LAYER_CONTAINER)
     del lc.layers
-    np.testing.assert_raises(AttributeError,
-                             check_ensemble_build,
-                             lc)
+    np.testing.assert_raises(AttributeError, check_ensemble_build, lc)
+
 
 def test_check_ensemble_build_lc_None():
     """[Utils] check_ensemble_build : raises error on LC None."""
     lc = clone(LAYER_CONTAINER)
-    lc.layers = None
     lc.raise_on_exception = True
+    lc.layers = None
 
-    np.testing.assert_raises(LayerSpecificationError,
-                             check_ensemble_build,
-                             lc)
+    np.testing.assert_raises(LayerSpecificationError, check_ensemble_build, lc)
 
 
 def test_check_ensemble_build_lc_None_no_raise_():

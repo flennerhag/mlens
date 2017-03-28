@@ -6,6 +6,6 @@
 """
 
 from ..externals.sklearn.scorer import make_scorer
-from .metrics import score_matrix, set_scores, rmse, mape, wape
+from .metrics import (rmse, mape, wape)
 
-__all__ = ['score_matrix', 'set_scores', 'rmse', 'mape', 'wape', 'make_scorer']
+__all__ = ['rmse', 'mape', 'wape', 'make_scorer']

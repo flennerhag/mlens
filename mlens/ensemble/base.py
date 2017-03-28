@@ -703,12 +703,11 @@ class BaseEnsemble(BaseEstimator):
             # No layers instantiated, but raise_on_exception is False
             return
 
-        X, y = check_inputs(X, check_level=self.array_check)
+        X, _ = check_inputs(X, check_level=self.array_check)
 
         if self.shuffle:
             r = check_random_state(self.random_state)
             r.shuffle(X)
-            r.shuffle(y)
 
         y = self.layers.predict(X)
 

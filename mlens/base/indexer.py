@@ -393,7 +393,7 @@ class BlendIndex(BaseIndex):
         if self.train_size is None:
             # Partition X - we coerce a positive value here:
             # if n_test is oversampled will get at final check
-            self.n_train = int(np.abs(self.n_samples - self.n_test))
+            self.n_train = int(np.floor(np.abs(self.n_samples - self.n_test)))
 
         elif isinstance(self.train_size, Integral):
             self.n_train = self.train_size

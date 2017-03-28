@@ -174,7 +174,6 @@ class BlendEnsemble(BaseEnsemble):
 
     def __init__(self,
                  test_size=0.5,
-                 proba=False,
                  shuffle=False,
                  random_state=None,
                  scorer=None,
@@ -185,14 +184,22 @@ class BlendEnsemble(BaseEnsemble):
                  layers=None):
 
         super(BlendEnsemble, self).__init__(
-                proba=proba, shuffle=shuffle, random_state=random_state,
+                shuffle=shuffle, random_state=random_state,
                 scorer=scorer, raise_on_exception=raise_on_exception,
                 array_check=array_check, verbose=verbose, n_jobs=n_jobs,
                 layers=layers)
 
         self.test_size = test_size
 
-    def add(self, estimators, preprocessing=None, test_size=None, meta=False):
+    def add_meta(self, estimator):
+        """Meta Learner.
+
+        Compatibility method for adding a meta learner to be used for final
+        predictions.
+        """
+        return self.add(estimators=estimator)
+
+    def add(self, estimators, preprocessing=None, test_size=None, proba=False):
         """Add layer to ensemble.
 
         Parameters
@@ -253,10 +260,8 @@ class BlendEnsemble(BaseEnsemble):
             Use if a different test set size is desired for layer than what the
             ensemble was instantiated with.
 
-        meta : bool (default = False)
-            indicator if the layer added is the final meta estimator. This will
-            prevent folded or blended fits of the estimators and only fit them
-            once on the full input data.
+        proba : bool (default = False)
+            whether to call ``predict_proba`` on base learners.
 
         Returns
         -------
@@ -265,15 +270,12 @@ class BlendEnsemble(BaseEnsemble):
         """
         c = test_size if test_size is not None else self.test_size
 
-        if meta:
-            cls = 'full'
-            idx = FullIndex()
-        else:
-            cls = 'blend'
-            idx = BlendIndex(c, raise_on_exception=self.raise_on_exception)
+        cls = 'blend'
+        idx = BlendIndex(c, raise_on_exception=self.raise_on_exception)
         return self._add(
                 estimators=estimators,
                 cls=cls,
                 preprocessing=preprocessing,
                 indexer=idx,
+                proba=proba,
                 verbose=self.verbose)

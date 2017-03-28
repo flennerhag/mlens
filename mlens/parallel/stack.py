@@ -168,7 +168,11 @@ def _get_col_idx(instance_list, n_main, labels):
     for meta_name_w_fold, _, _, estimator_list in instance_list[n_main:]:
 
         # 'meta_name__f0' > 'meta_name'
-        meta_name = '__'.join(meta_name_w_fold.split('__')[:-1])
+        try:
+            # Fails if meta_name is None
+            meta_name = '__'.join(meta_name_w_fold.split('__')[:-1])
+        except AttributeError:
+            meta_name = None
 
         # Assign a column to estimators in belonging to the case__fold entry
         for est_name_w_fold, _ in estimator_list:

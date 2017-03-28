@@ -44,11 +44,10 @@ class Job(object):
     :class:`ParallelProcessing`
     """
 
-    __slots__ = ['X', 'y', 'P', 'dir', 'l', 'j']
+    __slots__ = ['y', 'P', 'dir', 'l', 'j']
 
     def __init__(self, job):
         self.j = job
-        self.X = None
         self.y = None
         self.P = None
         self.l = None

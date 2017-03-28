@@ -5,10 +5,8 @@
 
 from __future__ import division, print_function
 
-from mlens.preprocessing import Subset, StandardScaler
+from mlens.preprocessing import Subset
 import numpy as np
-from pandas import DataFrame
-from sklearn.preprocessing import StandardScaler as StandardScaler_
 
 # training data
 np.random.seed(100)
@@ -24,28 +22,16 @@ X[:, 2] *= 5
 X[:, 3] *= 3
 X[:, 4] /= 10
 
-sc1 = StandardScaler()
-sc2 = StandardScaler_()
 
-sub1 = Subset([1, 2])
-sub2 = Subset()
-
-
-def test_standard_scaler_df():
-    """[Preprocessing] StandardScaler: test against sklearn parent class."""
-    Z = DataFrame(X)
-    Zout = sc1.fit_transform(Z)
-    Xout = sc2.fit_transform(X)
-    Xout = DataFrame(Xout)
-    np.array_equal(Xout, Zout)
-
+sub = Subset([0, 1])
 
 def test_subset_1():
     """[Preprocessing] Subset: assert correct subset."""
-    assert sub1.fit_transform(X).shape[1] == 2
+    assert sub.fit_transform(X).shape[1] == 2
 
 
 def test_subset_2():
     """[Preprocessing] Subset: assert X is returned for empty subset."""
-    out = sub2.fit_transform(X)
+    sub.set_params(**{'subset': None})
+    out = sub.fit_transform(X)
     assert id(out) == id(X)

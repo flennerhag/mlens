@@ -638,9 +638,10 @@ def ground_truth(X, y, indexer, attr, labels, subsets=1):
         for j in range(N):
             if j > i:
                 assert not np.equal(P[:, i], P[:, j]).all()
-                assert not np.equal(P[:, i], F[:, j]).all()
-                assert not np.equal(F[:, i], P[:, j]).all()
                 assert not np.equal(F[:, i], F[:, j]).all()
+                if P.shape[0] == F.shape[0]:
+                    assert not np.equal(P[:, i], F[:, j]).all()
+                    assert not np.equal(F[:, i], P[:, j]).all()
 
     # Second, assert all combinations of weights are not equal
     for weights in [weights_f, weights_p]:

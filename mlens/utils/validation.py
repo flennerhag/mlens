@@ -30,13 +30,15 @@ def _get_context(estimator=None):
     """Get context name for warning messages."""
     if estimator is not None:
         if isinstance(estimator, six.string_types):
-            estimator_name = estimator
+            estimator_name = estimator.lower()
         else:
-            estimator_name = estimator.__class__.__name__
-    else:
-        estimator_name = "Estimator"
+            estimator_name = estimator.__class__.__name__.lower()
 
-    return "[%s] " % estimator_name if estimator is not None else ""
+        estimator_name = "[%s] " % estimator_name
+    else:
+        estimator_name = ""
+
+    return estimator_name
 
 
 def soft_check_array(array, accept_sparse=True, dtype=None,
@@ -113,15 +115,16 @@ def soft_check_array(array, accept_sparse=True, dtype=None,
     if dtype_numeric:
         # We want to check that the dtype is numeric.
         if dtype_orig is not None and dtype_orig.kind == "O":
-            # Raise warning that conversion is needed
             dtype = np.float64
         else:
             dtype = None
 
-    if isinstance(dtype, (list, tuple)):
-        wrong_dtype = dtype_orig is not None and dtype_orig not in dtype
-    else:
-        wrong_dtype = dtype_orig is not None and dtype_orig != dtype
+    wrong_dtype = False
+    if dtype is not None:
+        if isinstance(dtype, (list, tuple)):
+            wrong_dtype = dtype_orig is not None and dtype_orig not in dtype
+        else:
+            wrong_dtype = dtype_orig is not None and dtype_orig != dtype
 
     if wrong_dtype:
         CHANGE = True
@@ -194,7 +197,7 @@ def soft_check_array(array, accept_sparse=True, dtype=None,
         if n_samples < ensure_min_samples:
             CHANGE = True
             msg = ("%sFound array with %d sample(s) (shape=%s) "
-                   "while a minimum of %d is required%s.")
+                   "while a minimum of %d is required.")
             warnings.warn(msg % (context, n_samples, shape_repr,
                                  ensure_min_samples), InputDataWarning)
 
@@ -210,10 +213,11 @@ def soft_check_array(array, accept_sparse=True, dtype=None,
             n_features = np.inf
 
         if n_features < ensure_min_features:
+            CHANGE = True
             msg = ("%sFound array with %d feature(s) (shape=%s) while "
                    " a minimum of %d is required.")
             warnings.warn(msg % (context, n_features, shape_repr,
-                                 ensure_min_features))
+                                 ensure_min_features), InputDataWarning)
 
     if CHANGE:
         warnings.warn("%sInput data failed initial test. Estimation may fail. "
@@ -407,7 +411,7 @@ def soft_check_x_y(X, y, accept_sparse=True, dtype=None,
 
     # ------ Check y ------
     if multi_output:
-        CHANGE_y = soft_check_array(y, 'csr',
+        CHANGE_y = soft_check_array(y, accept_sparse=['csr'],
                                     force_all_finite=force_all_finite,
                                     ensure_2d=False, dtype=dtype,
                                     estimator=estimator)
@@ -455,12 +459,13 @@ def _check_column_or_1d(y, context=""):
     try:
         s = tuple(np.shape(y))
     except Exception as e:
-        CHANGE = True
-        warnings.warn("%sCould not get shape of y. Consider changing the "
-                      "shape of y to n_samples, ), "
-                      "for example using ravel(). Details:\n%r" % (context, e),
-                      InputDataWarning)
-        return CHANGE
+        raise ValueError("%sCould not get shape of y. "
+                         "y should be an ndarray or scipy sparse csr "
+                         "/csc matrix of shape (n_samples, ). Got %s."
+                         "Details:\n%r" % (context, type(y), e))
+
+    if len(s) == 0:
+        raise ValueError("%sy is empty: y = %r." % (context, y))
 
     if len(s) == 2 and s[1] == 1:
         CHANGE = True
@@ -468,6 +473,13 @@ def _check_column_or_1d(y, context=""):
                       " expected. Change the shape of y to "
                       "(n_samples, ), for example using ravel()." % context,
                       InputDataWarning)
+
+    if len(s) == 2 and s[1] > 1:
+        CHANGE = True
+        warnings.warn("%sA matrix y was passed for as for labels. "
+                      "Most estimators expect a one dimensional label vector."
+                      "Consider changing the shape of y to (n_samples, )." %
+                      context, InputDataWarning)
 
     return CHANGE
 

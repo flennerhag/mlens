@@ -546,7 +546,7 @@ def _predict_est(x, est, raise_on_exception, inst_name, case, name, attr):
 def _mean_score(v, raise_, k, layer_name):
     """Exception handling wrapper for getting the mean of list of scores."""
     try:
-        return np.mean(v)
+        return np.mean(v), np.std(v)
     except Exception as e:
         s = _name(layer_name, None)
         msg = "%sCould not score instance %s. Details\n%r" % (s, k, e)

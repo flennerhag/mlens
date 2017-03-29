@@ -3,11 +3,19 @@
 """
 
 import numpy as np
+import os
+try:
+    from contextlib import redirect_stdout
+except ImportError:
+    from mlens.externals.fixes import redirect as redirect_stdout
 
-
+from mlens.base import FoldIndex, SubsetIndex, BlendIndex
+from mlens.ensemble.base import Layer, LayerContainer
 from mlens.utils.dummy import OLS, LogisticRegression, Scale, InitMixin
 from mlens.utils.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \
     ECM, ECM_PROBA
+from mlens.utils.dummy import get_layers, get_path, destroy_temp_dir, data, \
+    ground_truth, _layer_est
 
 from mlens.utils import assert_correct_layer_format
 from mlens.utils.formatting import _assert_format
@@ -197,3 +205,75 @@ def test_estimator_lists():
 
 def test_get_layers():
     """[Utils] testing: test dummy estimator and preprocessing formatting."""
+    for p in [False, True]:
+        for cls in ['stack', 'blend', 'subset']:
+            layer, lc, lcm = get_layers(cls, p)
+
+            assert isinstance(layer, Layer)
+            assert isinstance(lc, LayerContainer)
+            assert isinstance(lcm, LayerContainer)
+
+
+def test_tmp_dir():
+    """[Utils] testing: test tmp dir open and close."""
+    path = get_path()
+    assert os.path.exists(path)
+
+    destroy_temp_dir(path)
+    assert not os.path.exists(path)
+
+
+def test_ground_truth():
+    """[Utils] testing: test ground truth for stacking."""
+
+    gf = np.array([[ 17.        ,  11.        , -42.        ],
+                   [ 29.        ,  15.        , -30.        ],
+                   [ 39.64705882,  17.64705882,  -6.35294118],
+                   [ 52.35294118,  22.35294118,   6.35294118],
+                   [ 63.        ,  25.        ,  30.        ],
+                   [ 75.        ,  29.        ,  42.        ]])
+
+    gwf = np.array([[ -5.        ,  11.        ],
+                    [ -7.        ,   9.        ],
+                    [ -1.52941176,   7.88235294],
+                    [ -3.52941176,   5.88235294],
+                    [ -3.        ,   9.        ],
+                    [ -5.        ,   7.        ],
+                    [  3.        ,   3.        ],
+                    [  3.17647059,   3.17647059],
+                    [  3.        ,   3.        ]])
+
+    gp = np.array([[ 14.57142857,   8.57142857, -31.42857143],
+                   [ 27.14285714,  13.14285714, -18.85714286],
+                   [ 39.71428571,  17.71428571,  -6.28571429],
+                   [ 52.28571429,  22.28571429,   6.28571429],
+                   [ 64.85714286,  26.85714286,  18.85714286],
+                   [ 77.42857143,  31.42857143,  31.42857143]])
+
+    gwp = np.array([[-2.        ,  8.28571429],
+                    [-4.        ,  6.28571429],
+                    [ 3.14285714,  3.14285714]])
+
+
+    t, z = data((6, 2), 2)
+
+    indexer = FoldIndex(3, X=t)
+
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
+        (F, wf), (P, wp) = ground_truth(t, z, indexer, 'predict', 1)
+
+    np.testing.assert_array_almost_equal(F, gf)
+    np.testing.assert_array_almost_equal(wf, gwf)
+    np.testing.assert_array_almost_equal(P, gp)
+    np.testing.assert_array_almost_equal(wp, gwp)
+
+
+def test_layer_est():
+    """[Utils] layer_estimation: testing layer estimation wrapper."""
+    layer, _, _ = get_layers('stack', False)
+    layer.indexer.fit(X)
+    out = _layer_est(layer, 'fit', X, y, 1)
+
+    assert isinstance(out, np.ndarray)
+    assert out.shape[0] == X.shape[0]
+    assert out.shape[1] == layer.n_pred

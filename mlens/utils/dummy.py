@@ -411,7 +411,7 @@ def _store_X_y(dir, X, y):
     return xf, yf
 
 
-def _destroy_temp_dir(dir):
+def destroy_temp_dir(dir):
     """Remove temporary directories created during tests."""
     shutil.rmtree(dir)
 
@@ -633,33 +633,28 @@ def ground_truth(X, y, indexer, attr, labels, subsets=1):
 
     print('\nCHECKING UNIQUENESS...', end=' ')
 
-    try:
-        # First, assert folded preds differ from full preds:
-        for i in range(N):
-            for j in range(N):
-                if j > i:
-                    assert not np.equal(P[:, i], P[:, j]).all()
-                    assert not np.equal(P[:, i], F[:, j]).all()
-                    assert not np.equal(F[:, i], P[:, j]).all()
-                    assert not np.equal(F[:, i], F[:, j]).all()
+    # First, assert folded preds differ from full preds:
+    for i in range(N):
+        for j in range(N):
+            if j > i:
+                assert not np.equal(P[:, i], P[:, j]).all()
+                assert not np.equal(P[:, i], F[:, j]).all()
+                assert not np.equal(F[:, i], P[:, j]).all()
+                assert not np.equal(F[:, i], F[:, j]).all()
 
-        # Second, assert all combinations of weights are not equal
-        for weights in [weights_f, weights_p]:
-            for a, b in itertools.combinations(weights, 2):
-                assert not np.equal(a, b).all()
-        print('OK.')
+    # Second, assert all combinations of weights are not equal
+    for weights in [weights_f, weights_p]:
+        for a, b in itertools.combinations(weights, 2):
+            assert not np.equal(a, b).all()
+    print('OK.')
 
-    except AssertionError as exc:
-        print('ERROR:')
-        raise AssertionError(exc)
-    finally:
-        return (F, weights_f), (P, weights_p)
+    return (F, weights_f), (P, weights_p)
 
 
 def _init(train, label, shape):
     """Simple temp folder initialization for testing estimation functions."""
 
-    dir = os.path.join(os.getcwd(), 'tmp/tmp')
+    dir = os.path.join(os.getcwd(), 'tmp')
     try:
         shutil.rmtree(dir)
     except:

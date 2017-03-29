@@ -87,6 +87,9 @@ class OLS(BaseEstimator):
 
     def predict(self, X):
         """Predict with fitted weights."""
+        if not hasattr(self, 'coef_'):
+            raise NotFittedError("Estimator not fitted. Call 'fit' first.")
+
         X = check_array(X, accept_sparse=False)
 
         return np.dot(X, self.coef_.T)
@@ -160,6 +163,9 @@ class LogisticRegression(OLS):
 
     def predict_proba(self, X):
         """Get probability predictions."""
+        if not hasattr(self, '_models_'):
+            raise NotFittedError("Estimator not fitted. Call 'fit' first.")
+
         X = check_array(X, accept_sparse=False)
 
         preds = []
@@ -177,6 +183,9 @@ class LogisticRegression(OLS):
 
     def predict(self, X):
         """Get label predictions."""
+        if not hasattr(self, '_models_'):
+            raise NotFittedError("Estimator not fitted. Call 'fit' first.")
+
         X = check_array(X, accept_sparse=False)
 
         preds = self.predict_proba(X)
@@ -310,7 +319,8 @@ class InitMixin(object):
         # layer, and a single on top.
         if getattr(self, 'layers', None) is None:
             getattr(self, 'add')([OLS(offset=1), OLS(offset=2)])
-            getattr(self, 'add')(OLS())
+            getattr(self, 'add_meta')(OLS())
+
 
 ###############################################################################
 # Pre-made Layer and LayerContainer classes
@@ -325,8 +335,8 @@ ESTIMATORS_PROBA = {'sc': [('offs', LogisticRegression(offset=2))],
                            ('null', LogisticRegression())]}
 
 
-ECM = [OLS(offset=i) for i in range(16)]
-ECM_PROBA = [LogisticRegression(offset=i) for i in range(16)]
+ECM = [('ols-%i' % i, OLS(offset=i)) for i in range(16)]
+ECM_PROBA = [('lr-%i' % i, LogisticRegression(offset=i)) for i in range(16)]
 
 
 ###############################################################################

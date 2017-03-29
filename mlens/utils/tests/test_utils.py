@@ -89,25 +89,27 @@ def test_recorder():
 
 def test_cm():
     """[Utils] CMLog: test logging."""
+
     cm = utils.CMLog(verbose=True)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
         cm.monitor(0.3)
 
         while not hasattr(cm, 'cpu'):
+            sleep(0.3)
             cm.collect()
-            sleep(0.5)
 
     assert len(cm.cpu) == 3
     assert len(cm.rss) == 3
     assert len(cm.vms) == 3
 
+    # Check that it overwrites
     with open(os.devnull, 'w') as f, redirect_stdout(f):
         cm.monitor(0.2)
 
         while not hasattr(cm, 'cpu'):
             cm.collect()
-            sleep(0.1)
+            sleep(0.2)
 
     assert len(cm.cpu) == 2
     assert len(cm.rss) == 2

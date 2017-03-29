@@ -201,17 +201,15 @@ class CMLog(object):
         t0, i = _time(), 0
         cpu, rss, vms = [], [], []
 
-        for line in self._out.stdout:
+        out = self._out.communicate()
+        out = out[0].decode().strip().split('\n')
+        for line in out:
 
-            c, r, v = str(line).split(',')
+            c, r, v = line.split(' , ')
 
-            c = float(c.split("'")[1].strip())
-            r = int(r.strip())
-            v = int(v.strip().split("\\")[0])
-
-            cpu.append(c)
-            rss.append(r)
-            vms.append(v)
+            cpu.append(float(c))
+            rss.append(int(r))
+            vms.append(int(v))
 
             i += 1
 
@@ -226,6 +224,8 @@ class CMLog(object):
         # Clear job data
         del self._t0
         del self._stop
+
+        self._out.terminate()
         del self._out
 
 

@@ -261,13 +261,6 @@ class BlendIndex(BaseIndex):
         amount to less than the observations in the full data set, a subset
         of specified size will be used.
 
-    rebase : bool (default = True)
-        whether to rebase the test set indices to be 0-indexed. This is often
-        required when populating a pre-allocated prediction matrix of
-        dimensionality n_test_samples. If set to ``False``, the original
-        index numbering from the full data set will be retained. See
-        examples for further details.
-
     X : array-like of shape [n_samples,] , optional
         the training set to partition. The training label array is also,
         accepted, as only the first dimension is used. If ``X`` is not
@@ -356,13 +349,11 @@ class BlendIndex(BaseIndex):
     def __init__(self,
                  test_size=0.5,
                  train_size=None,
-                 rebase=True,
                  X=None,
                  raise_on_exception=True):
 
         self.test_size = test_size
         self.train_size = train_size
-        self.rebase = rebase
         self.raise_on_exception = raise_on_exception
 
         if X is not None:
@@ -410,10 +401,9 @@ class BlendIndex(BaseIndex):
 
     def _gen_indices(self):
         """Return train and test set index generator."""
-        if self.rebase:
-            yield (0, self.n_train), (0, self.n_test)
-        else:
-            yield (0, self.n_train), (self.n_train, self.n_train + self.n_test)
+        # Blended train set is from 0 to n, with test set from n to N
+        # There is no iteration.
+        yield (0, self.n_train), (self.n_train, self.n_train + self.n_test)
 
 
 class FoldIndex(BaseIndex):

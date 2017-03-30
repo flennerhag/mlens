@@ -120,20 +120,9 @@ def test_blend_index_is_fitted():
     for attr in attrs: assert hasattr(idx, attr)
 
 
-def test_blend_index_rebase():
-    """[Base] BlendIndex: test rebase option."""
-    for tri, tei in BlendIndex(0.45, 0.55, True, X).generate():
-        assert tei[0] == 0
-        assert tei[1] == 2
-
-    for tri, tei in BlendIndex(0.45, 0.55, False, X).generate():
-        assert tei[0] == 2
-        assert tei[1] == 4
-
-
 def test_blend_tuple_shape():
     """[Base] BlendIndex: test the tuple shape on generation."""
-    tup = [(tri, tei) for tri, tei in BlendIndex(0.4, 0.5, False).generate(X)]
+    tup = [(tri, tei) for tri, tei in BlendIndex(0.4, 0.5).generate(X)]
 
     assert tup == [((0, 2), (2, 4))]
 
@@ -143,7 +132,7 @@ def test_blend_array_shape():
     tr = np.array([0, 1])
     te = np.array([2, 3])
 
-    for tri, tei in BlendIndex(0.45, 0.55, False, X=X).generate(as_array=True):
+    for tri, tei in BlendIndex(0.45, 0.55, X=X).generate(as_array=True):
 
         np.testing.assert_array_equal(tri, tr)
         np.testing.assert_array_equal(tei, te)

@@ -272,7 +272,7 @@ class SuperLearner(BaseEnsemble):
 
         proba : bool
             whether layer should predict class probabilities. Note: setting
-            ``proba=True`` will attempt to call an estimator´s
+            ``proba=True`` will attempt to call an the estimators
             ``predict_proba`` method.
 
         meta : bool (default = False)

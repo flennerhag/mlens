@@ -372,7 +372,7 @@ class ParallelEvaluation(object):
                           ParallelProcessingWarning)
 
             if "win" in platform:
-                flag = check_call(['rmdir', self._job.dir, '/s', '/q'])
+                flag = check_call(['rmdir', '/s', '/q', self._job.dir])
             else:
                 flag = check_call(['rm', '-rf', self._job.dir])
 

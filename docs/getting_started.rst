@@ -42,9 +42,6 @@ the same imports several times, we put all common imports here. ::
     X = data.data[idx]
     y = data.target[idx]
 
-    # We induce non-uniform noise to make the problem more challenging
-    for i in range(X.shape[1]):
-        X[:, i] += np.random.chisquare(1, X.shape[0]) * i
 
 .. _ensemble-guide:
 
@@ -85,13 +82,14 @@ the predictions of a `Random Forest`_ and a `Support Vector Machine`_ through a
 We can now check how well each estimator in the layers of the ensemble::
 
     >>> ensemble.scores_
-    {'layer-1--svc': 0.47999999999999998,
-     'layer-1--randomforestclassifier': 0.64000000000000001}
+      {'layer-1':
+         {'randomforestclassifier': 0.83926031294452352,
+          'svc': 0.89402560455192037}}
 
 To round off, let's see how the ensemble as a whole fared. ::
 
     >>> f1(preds, y[75:])
-    0.66666666666666663
+    0.95999999999999996
 
 .. _model-selection-guide:
 

@@ -11,7 +11,8 @@ from sklearn.metrics import accuracy_score
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 
 from time import perf_counter
 
@@ -41,9 +42,16 @@ estimators = {'subsemble': Subsemble(),
               'super_learner': SuperLearner(),
               'blend_ensemble': BlendEnsemble()}
 
+base_learners = [RandomForestClassifier(n_estimators=500,
+                                        max_depth=10,
+                                        min_samples_split=50,
+                                        max_features=0.6),
+                 LogisticRegression(C=1e5),
+                 GradientBoostingClassifier()]
+
 for clf in estimators.values():
-    clf.add([RandomForestClassifier(), LogisticRegression(), LinearSVC()])
-    clf.add_meta(GradientBoostingClassifier())
+    clf.add([RandomForestClassifier(), LogisticRegression(), MLPClassifier()])
+    clf.add_meta(SVC())
 
 
 times, scores = {k: [] for k in estimators}, {k: [] for k in estimators}

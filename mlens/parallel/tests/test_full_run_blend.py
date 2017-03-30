@@ -45,6 +45,7 @@ def test_layer_fit():
     d = layer.estimators_
     ests = [(c, tup) for c, tup in d if c in ['sc', 'no']]
     w = [tup[1][1].coef_.tolist() for tup in ests]
+
     assert w == wf
 
 
@@ -76,6 +77,7 @@ def test_lc_fit():
     d = lc.layers['layer-1'].estimators_
     ests = [(c, tup) for c, tup in d if c in ['sc', 'no']]
     w = [tup[1][1].coef_.tolist() for tup in ests]
+
     assert w == wf
 
 

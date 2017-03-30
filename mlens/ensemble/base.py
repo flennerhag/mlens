@@ -223,7 +223,8 @@ class LayerContainer(BaseEstimator):
             layer count should be passed with 0-indexing. Thus, for predictions
             from ``layer-1``, set ``return_preds=0``. If ``return_preds=-1``
             predictions from the ultimate layer is returned. Similarly,
-            ``return_preds=-2`` returns the penultimate layer´s predictions.
+            ``return_preds=-2`` returns the predictions in the penultimate
+            layer.
 
         **process_kwargs : optional
             optional arguments to initialize processor with.
@@ -459,7 +460,7 @@ class Layer(BaseEstimator):
         ``option_2`` and ``option_3``.
 
     proba : bool (default = False)
-        whether to call `predict_proba` on the layer´s estimators when
+        whether to call `predict_proba` on the estimators in the layer when
         predicting.
 
     partitions : int (default = 1)

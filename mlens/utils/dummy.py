@@ -20,6 +20,7 @@ import shutil
 from abc import abstractmethod
 
 import numpy as np
+import warnings
 from joblib import Parallel, dump, load
 
 from .exceptions import NotFittedError
@@ -677,7 +678,10 @@ def ground_truth(X, y, indexer, attr, labels, subsets=1, verbose=True):
     if labels == 1:
         for weights in [weights_f, weights_p]:
             for a, b in itertools.combinations(weights, 2):
-                assert not np.equal(a, b).all()
+                if not np.equal(a, b).all():
+                    warnings.warn("Identical coefficient vectors detected. "
+                                  "Consider changing ground truth design.")
+
 
     if verbose:
         print('OK.')

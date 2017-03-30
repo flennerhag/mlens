@@ -90,7 +90,7 @@ import numpy as np
 import os
 
 from mlens.ensemble import SuperLearner
-
+from mlens.utils import safe_print
 from mlens.metrics import rmse
 
 from sklearn.datasets import make_friedman1
@@ -131,12 +131,12 @@ def build_ensemble(**kwargs):
 
 if __name__ == '__main__':
 
-    print("\nML-ENSEMBLE\n")
-    print("Benchmark of ML-ENSEMBLE against Scikit-learn estimators "
+    safe_print("\nML-ENSEMBLE\n")
+    safe_print("Benchmark of ML-ENSEMBLE against Scikit-learn estimators "
           "on the friedman1 dataset.\n")
-    print("Scoring metric: Root Mean Squared Error.\n")
+    safe_print("Scoring metric: Root Mean Squared Error.\n")
 
-    print("Available CPUs: %i\n" % os.cpu_count())
+    safe_print("Available CPUs: %i\n" % os.cpu_count())
 
     SEED = 2017
     np.random.seed(SEED)
@@ -163,74 +163,74 @@ if __name__ == '__main__':
 
     sizes = range(mi, mx, step)
 
-    print('Ensemble architecture')
-    print("Num layers: %i" % ens_multi.layers.n_layers)
+    safe_print('Ensemble architecture')
+    safe_print("Num layers: %i" % ens_multi.layers.n_layers)
 
     for layer in ens_multi.layers.layers:
         for case in ens_multi.layers.summary[layer]['cases']:
             if case is None:
                 continue
             el = ens_multi.layers.layers[layer].estimators[case]
-            print('%s | %s - Estimators: %r.' % (layer, case,
+            safe_print('%s | %s - Estimators: %r.' % (layer, case,
                                                  [e for e, _ in el]))
-    print("%s | %s" % ('layer-2', '(meta) ' +
+    safe_print("%s | %s" % ('layer-2', '(meta) ' +
                        ens_multi.layers.layers['layer-2'].estimators[0][0]))
 
-    print("\nBenchmark estimators", end=": ")
+    safe_print("\nBenchmark estimators", end=": ")
     for name in sorted(names):
         if name == 'Ensemble':
             continue
-        print(name, end=" ")
-    print('\n')
+        safe_print(name, end=" ")
+    safe_print('\n')
 
-    print('Data')
-    print('Features: %i' % 10)
-    print('Training set sizes: from %i to %i with step size %i.\n' % (
+    safe_print('Data')
+    safe_print('Features: %i' % 10)
+    safe_print('Training set sizes: from %i to %i with step size %i.\n' % (
           np.floor(mi / 2),
           np.floor((mx - step) / 2),
           np.floor(step/2)))
 
-    print('SCORES')
-    print('%6s' % 'size', end=' | ')
+    safe_print('SCORES')
+    safe_print('%6s' % 'size', end=' | ')
 
     for name in sorted(names):
-        print('%s' % names[name], end=' | ')
-    print()
+        safe_print('%s' % names[name], end=' | ')
+    safe_print()
 
     for size in sizes:
         n = int(np.floor(size / 2))
 
         X, y = make_friedman1(n_samples=size, random_state=SEED)
 
-        print('%6i' % n, end=' | ')
+        safe_print('%6i' % n, end=' | ')
         for name in sorted(names):
-            e = clone( ESTIMATORS[names[name]])
+            e = clone(ESTIMATORS[names[name]])
             t0 = time()
             e.fit(X[:n], y[:n])
             t1 = time() - t0
             times[names[name]].append(t1)
 
-            s = rmse(e, X[n:], y[n:])
+            s = rmse(y[n:], e.predict(X[n:]))
             scores[names[name]].append(s)
 
-            print('%8.2f' % (-s), end=' | ')
+            safe_print('%8.2f' % (s), end=' | ', flush=True)
 
-        print()
+        safe_print()
 
-    print('\nFIT TIMES')
-    print('%6s' % 'size', end=' | ')
+    safe_print('\nFIT TIMES')
+    safe_print('%6s' % 'size', end=' | ')
 
     for name in sorted(names):
-        print('%s' % names[name], end=' | ')
-    print()
+        safe_print('%s' % names[name], end=' | ')
+    safe_print()
 
     for i, size in enumerate(sizes):
         n = int(np.floor(size / 2))
-        print('%6i' % n, end=' | ')
+        safe_print('%6i' % n, end=' | ')
 
         for name in sorted(names):
 
             t = times[names[name]][i]
             m, s = divmod(t, 60)
-            print('%5d:%02d' % (m, s), end=' | ')
-        print()
+            safe_print('%5d:%02d' % (m, s), end=' | ')
+        safe_print()

@@ -361,6 +361,11 @@ class ParallelEvaluation(object):
     def terminate(self):
         """Remove temporary folder and all cache data."""
 
+        # Release job from memory
+        del self._job
+
+        gc.collect()
+
         # Remove temporary folder
         try:
             shutil.rmtree(self._job.dir)
@@ -372,16 +377,11 @@ class ParallelEvaluation(object):
                           ParallelProcessingWarning)
 
             if "win" in platform:
-                flag = check_call(['rmdir /s /q', self._job.dir])
+                flag = check_call(["rmdir %s /s /q" % self._job.dir])
             else:
                 flag = check_call(['rm', '-rf', self._job.dir])
 
             if flag != 0:
                 raise RuntimeError("Could not remove temporary directory.")
-
-        # Release job from memory
-        del self._job
-
-        gc.collect()
 
         self._initialized = 0

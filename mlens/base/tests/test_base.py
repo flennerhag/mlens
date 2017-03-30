@@ -16,7 +16,7 @@ X = np.arange(25).reshape(5, 5)
 ###############################################################################
 def test_id_train():
     """[Base] Test IdTrain class for checking training and test matrices."""
-    id_train = IdTrain(size=4)
+    id_train = IdTrain(size=5)
     id_train.fit(X)
 
     assert id_train.is_train(X)

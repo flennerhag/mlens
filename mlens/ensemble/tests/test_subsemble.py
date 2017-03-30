@@ -48,7 +48,7 @@ F, P = ground_truth()
 
 
 def test_subset_fit():
-    """[LayerContainer] Subset: 'fit' and 'predict' runs correctly."""
+    """[Subsemble] 'fit' and 'predict' runs correctly."""
     meta = OLS()
     meta.fit(F, y)
     g = meta.predict(P)

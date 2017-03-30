@@ -24,7 +24,7 @@ X, y = data((LEN, WIDTH), MOD)
 
 
 def test_run():
-    """[SuperLearner] 'fit' and 'predict' runs correctly."""
+    """[Blend] 'fit' and 'predict' runs correctly."""
     meta = OLS()
     meta.fit(F, y[3:])
     g = meta.predict(P)

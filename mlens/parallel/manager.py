@@ -236,10 +236,14 @@ class ParallelProcessing(object):
 
     def terminate(self):
         """Remove temporary folder and all cache data."""
+        path = self._job.dir
+
+        # Release job from memory
+        del self._job
 
         # Remove temporary folder
         try:
-            shutil.rmtree(self._job.dir)
+            shutil.rmtree(path)
         except OSError as e:
             # Can fail on Windows - we try to force remove it using the CLI
             warnings.warn("Failed to remove temporary directory with "
@@ -248,16 +252,14 @@ class ParallelProcessing(object):
                           ParallelProcessingWarning)
 
             if "win" in platform:
-                flag = check_call(['rmdir', self._job.dir, '/s', '/q'])
+                flag = check_call(['rmdir %s /s /q' % path])
             else:
-                flag = check_call(['rm', '-rf', self._job.dir])
+                flag = check_call(['rm', '-rf', path])
 
             if flag != 0:
                 raise RuntimeError("Could not remove temporary directory.")
 
-        # Release job from memory
-        del self._job
-
+        del path
         gc.collect()
 
         self._initialized = 0
@@ -360,15 +362,14 @@ class ParallelEvaluation(object):
 
     def terminate(self):
         """Remove temporary folder and all cache data."""
+        path = self._job.dir
 
         # Release job from memory
         del self._job
 
-        gc.collect()
-
         # Remove temporary folder
         try:
-            shutil.rmtree(self._job.dir)
+            shutil.rmtree(path)
         except OSError as e:
             # Can fail on Windows - we try to force remove it using the CLI
             warnings.warn("Failed to remove temporary directory with "
@@ -384,4 +385,6 @@ class ParallelEvaluation(object):
             if flag != 0:
                 raise RuntimeError("Could not remove temporary directory.")
 
+        del path
+        gc.collect()
         self._initialized = 0

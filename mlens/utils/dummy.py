@@ -673,8 +673,6 @@ def ground_truth(X, y, indexer, attr, labels, subsets=1, verbose=True):
 
     # Second, assert all combinations of weights are not equal
     if labels == 1:
-        # This can be too stringent with the dummy LogisticRegression
-        # We skip it here.
         for weights in [weights_f, weights_p]:
             for a, b in itertools.combinations(weights, 2):
                 assert not np.equal(a, b).all()

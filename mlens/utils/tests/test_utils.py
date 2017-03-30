@@ -79,41 +79,41 @@ def test_recorder():
         with redirect_stdout(l):
             utils._recorder(pid, 0.2, 0.1)
 
-    entries = ''.join(l.log).split('\n')
-    if entries[-1] == '':
-        entries = entries[:-1]
+        entries = ''.join(l.log).split('\n')
+        if entries[-1] == '':
+            entries = entries[:-1]
 
-    assert len(entries) == 2
-    assert len(entries[0].split(',')) == 3
+        assert len(entries) == 2
+        assert len(entries[0].split(',')) == 3
 
 
 def test_cm():
     """[Utils] CMLog: test logging."""
+    if psutil is not None:
+        cm = utils.CMLog(verbose=True)
 
-    cm = utils.CMLog(verbose=True)
+        with open(os.devnull, 'w') as f, redirect_stdout(f):
+            cm.monitor(0.3)
 
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
-        cm.monitor(0.3)
+            while not hasattr(cm, 'cpu'):
+                sleep(0.3)
+                cm.collect()
 
-        while not hasattr(cm, 'cpu'):
-            sleep(0.3)
-            cm.collect()
+        assert len(cm.cpu) == 3
+        assert len(cm.rss) == 3
+        assert len(cm.vms) == 3
 
-    assert len(cm.cpu) == 3
-    assert len(cm.rss) == 3
-    assert len(cm.vms) == 3
+        # Check that it overwrites
+        with open(os.devnull, 'w') as f, redirect_stdout(f):
+            cm.monitor(0.2)
 
-    # Check that it overwrites
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
-        cm.monitor(0.2)
+            while not hasattr(cm, 'cpu'):
+                cm.collect()
+                sleep(0.2)
 
-        while not hasattr(cm, 'cpu'):
-            cm.collect()
-            sleep(0.2)
-
-    assert len(cm.cpu) == 2
-    assert len(cm.rss) == 2
-    assert len(cm.vms) == 2
+        assert len(cm.cpu) == 2
+        assert len(cm.rss) == 2
+        assert len(cm.vms) == 2
 
 
 def test_cm_exception():

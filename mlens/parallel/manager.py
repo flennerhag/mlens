@@ -4,12 +4,12 @@
 :copyright: 2017
 :licence: MIT
 
-Parallel processing job manager.
+Parallel processing job managers.
 """
 
 import numpy as np
 
-from . import Stacker, Blender, SingleRun, SubStacker
+from . import Stacker, Blender, SingleRun, SubStacker, Evaluation
 from ..utils import check_initialized
 from ..utils.exceptions import ParallelProcessingWarning, \
     ParallelProcessingError
@@ -30,18 +30,40 @@ ENGINES = {'full': SingleRun,
            'stack': Stacker,
            'blend': Blender,
            'subset': SubStacker,
+           'evaluation': Evaluation
            }
 
 JOBS = ['predict', 'fit']
 
 
+###############################################################################
+def _load(arr):
+    """Load array from file using default settings."""
+    try:
+        return np.genfromtxt(arr)
+    except Exception as e:
+        raise IOError("Could not load X from %s, does not "
+                      "appear to be valid as a ndarray. "
+                      "Details:\n%r" % e)
+
+
+def _load_mmap(f):
+    """Load a mmap presumably dumped by joblib, otherwise try numpy."""
+    try:
+        return load(f, mmap_mode='r')
+    except IndexError:
+        # Joblib's 'load' func fails on npy and npz: use numpy.load
+        return np.load(f, mmap_mode='r')
+
+
+###############################################################################
 class Job(object):
 
     """Container class for holding job data.
 
     See Also
     --------
-    :class:`ParallelProcessing`
+    :class:`ParallelProcessing`, :class:`ParallelEvaluation`
     """
 
     __slots__ = ['y', 'P', 'dir', 'l', 'j']
@@ -54,11 +76,12 @@ class Job(object):
         self.dir = None
 
 
+###############################################################################
 class ParallelProcessing(object):
 
     """Parallel processing engine.
 
-    ``ParallelProcessing`` is an engine for running estimation.
+    Engine for running ensemble estimation.
 
     Parameters
     ----------
@@ -95,7 +118,7 @@ class ParallelProcessing(object):
                 # Load file from disk. Need to dump if not memmaped already
                 if not arr.split('.')[-1] in ['mmap', 'npy', 'npz']:
                     # Try loading the file assuming a csv-like format
-                    arr = self._load(arr)
+                    arr = _load(arr)
 
             if isinstance(arr, str):
                 # If arr remains a string, it's pointing to an mmap file
@@ -109,10 +132,10 @@ class ParallelProcessing(object):
 
             # Get memmap in read-only mode (we don't want to corrupt the input)
             if name is 'y' and y is not None:
-                self._job.y = self._load_mmap(f)
+                self._job.y = _load_mmap(f)
             else:
                 # Store X as the first input matrix in list of inputs matrices
-                self._job.P = [self._load_mmap(f)]
+                self._job.P = [_load_mmap(f)]
 
         # Append pre-allocated prediction arrays in r+ to the P list
         # Each layer will be fitted on P[i] and write to P[i + 1]
@@ -168,25 +191,6 @@ class ParallelProcessing(object):
                                       'for the ParallelProcessing job '
                                       'manager. Accepted jobs: %r.'
                                       % (job, list(JOBS)))
-
-    @staticmethod
-    def _load(arr):
-        """Load array from file using default settings."""
-        try:
-            return np.genfromtxt(arr)
-        except Exception as e:
-            raise IOError("Could not load X from %s, does not "
-                          "appear to be valid as a ndarray. "
-                          "Details:\n%r" % e)
-
-    @staticmethod
-    def _load_mmap(f):
-        """Load a mmap presumably dumped by joblib, otherwise try numpy."""
-        try:
-            return load(f, mmap_mode='r')
-        except IndexError:
-            # Joblib's 'load' func fails on npy and npz: use numpy.load
-            return np.load(f, mmap_mode='r')
 
     def process(self):
         """Fit all layers in the attached :class:`LayerContainer`."""
@@ -283,3 +287,101 @@ class ParallelProcessing(object):
             kwargs['P'] = self._job.P[n + 1]
 
         f(**kwargs)
+
+
+###############################################################################
+class ParallelEvaluation(object):
+
+    """Parallel cross-validation engine.
+
+    Parameters
+    ----------
+    evaluator : :class:`Evaluator`
+        The ``Evaluator`` that instantiated the processor.
+    """
+
+    __slots__ = ['evaluator', '_initialized', '_job']
+
+    def __init__(self, evaluator):
+        self.evaluator = evaluator
+        self._initialized = 0
+
+    def initialize(self, X, y=None, dir=None):
+        """Create cache and memmap X and y."""
+        self._job = Job('evaluate')
+
+        self._job.dir = tempfile.mkdtemp(dir=dir)
+
+        # Build mmaps for inputs
+        for name, arr in zip(('X', 'y'), (X, y)):
+
+            if isinstance(arr, str):
+                # Load file from disk. Need to dump if not memmaped already
+                if not arr.split('.')[-1] in ['mmap', 'npy', 'npz']:
+                    # Try loading the file assuming a csv-like format
+                    arr = _load(arr)
+
+            if isinstance(arr, str):
+                # If arr remains a string, it's pointing to an mmap file
+                f = arr
+            else:
+                # Dump ndarray on disk
+                f = os.path.join(self._job.dir, '%s.mmap' % name)
+                if os.path.exists(f):
+                    os.unlink(f)
+                dump(arr, f)
+
+            # Get memmap in read-only mode (we don't want to corrupt the input)
+            if name is 'y':
+                self._job.y = _load_mmap(f)
+            else:
+                self._job.P = _load_mmap(f)
+
+        self._initialized = 1
+
+        # Release any memory before going into process
+        gc.collect()
+
+    def process(self, attr):
+        """Fit all layers in the attached :class:`LayerContainer`."""
+        check_initialized(self)
+
+        # Use context manager to ensure same parallel job during entire process
+        with Parallel(n_jobs=self.evaluator.n_jobs,
+                      temp_folder=self._job.dir,
+                      max_nbytes=None,
+                      mmap_mode='r+',
+                      verbose=self.evaluator.verbose,
+                      backend=self.evaluator.backend) as parallel:
+
+            f = ENGINES['evaluation'](self.evaluator)
+
+            getattr(f, attr)(parallel, self._job.P, self._job.y, self._job.dir)
+
+    def terminate(self):
+        """Remove temporary folder and all cache data."""
+
+        # Remove temporary folder
+        try:
+            shutil.rmtree(self._job.dir)
+        except OSError as e:
+            # Can fail on Windows - we try to force remove it using the CLI
+            warnings.warn("Failed to remove temporary directory with "
+                          "standard procedure. Will try command line "
+                          "interface. Details:\n%r" % e,
+                          ParallelProcessingWarning)
+
+            if "win" in platform:
+                flag = check_call(['rmdir', self._job.dir, '/s', '/q'])
+            else:
+                flag = check_call(['rm', '-rf', self._job.dir])
+
+            if flag != 0:
+                raise RuntimeError("Could not remove temporary directory.")
+
+        # Release job from memory
+        del self._job
+
+        gc.collect()
+
+        self._initialized = 0

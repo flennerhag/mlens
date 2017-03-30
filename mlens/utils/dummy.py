@@ -11,6 +11,8 @@ Also contains pre-made Layer, LayerContainers and data generation functions
 for unit testing.
 """
 
+from __future__ import division, print_function
+
 import gc
 import itertools
 import os

@@ -118,10 +118,11 @@ def test_cm():
 
 def test_cm_exception():
     """[Utils] CMLog: test collecting un-monitored returns None."""
-    cm = utils.CMLog(verbose=False)
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
-        out = cm.collect()
-    assert out is None
+    if psutil is not None:
+        cm = utils.CMLog(verbose=False)
+        with open(os.devnull, 'w') as f, redirect_stdout(f):
+            out = cm.collect()
+        assert out is None
 
 
 def test_pickle():

@@ -2,6 +2,7 @@
 
 """
 
+
 import numpy as np
 import os
 try:
@@ -9,7 +10,7 @@ try:
 except ImportError:
     from mlens.externals.fixes import redirect as redirect_stdout
 
-from mlens.base import FoldIndex, SubsetIndex, BlendIndex
+from mlens.base import FoldIndex
 from mlens.ensemble.base import Layer, LayerContainer
 from mlens.utils.dummy import OLS, LogisticRegression, Scale, InitMixin
 from mlens.utils.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \

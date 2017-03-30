@@ -558,7 +558,7 @@ class SubsetIndex(BaseIndex):
     ----------
     .. [1] Sapp, S., van der Laan, M. J., & Canny, J. (2014).
     Subsemble: an  ensemble method for combining subset-specific algorithm
-    fits. Journal of Applied Statistics, 41(6), 1247–1259.
+    fits. Journal of Applied Statistics, 41(6), 1247-1259.
     http://doi.org/10.1080/02664763.2013.864263
 
     Parameters

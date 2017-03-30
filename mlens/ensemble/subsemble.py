@@ -147,26 +147,26 @@ class Subsemble(BaseEnsemble):
     Instantiate ensembles with no preprocessing: use list of estimators
 
     >>> from mlens.ensemble import Subsemble
-    >>> from mlens.metrics.metrics import rmse_scoring
+    >>> from mlens.metrics.metrics import rmse
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
     >>> from sklearn.svm import SVR
     >>>
     >>> X, y = load_boston(True)
     >>>
-    >>> ensemble = Subsemble(scorer=rmse_scoring)
+    >>> ensemble = Subsemble()
     >>> ensemble.add([SVR(), ('can name some or all est', Lasso())])
     >>> ensemble.add(SVR(), meta=True)
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
-    >>> rmse_scoring(y, preds)
+    >>> rmse(y, preds)
     9.2393246953908577
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
     >>> from mlens.ensemble import Subsemble
-    >>> from mlens.metrics.metrics import rmse_scoring
+    >>> from mlens.metrics.metrics import rmse
     >>> from sklearn.datasets import load_boston
     >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
     >>> from sklearn.linear_model import Lasso
@@ -185,7 +185,7 @@ class Subsemble(BaseEnsemble):
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
-    >>> rmse_scoring(y, preds)
+    >>> rmse(y, preds)
     9.0115741283454458
     """
 
@@ -295,14 +295,13 @@ class Subsemble(BaseEnsemble):
         self : instance
             ensemble instance with layer instantiated.
         """
-        c = folds if folds is not None else self.folds
-        p = partitions if partitions is not None else self.partitions
-
         if meta:
             cls = 'full'
             idx = FullIndex()
         else:
             cls = 'subset'
+            p = partitions if partitions is not None else self.partitions
+            c = folds if folds is not None else self.folds
             idx = SubsetIndex(p, c,
                               raise_on_exception=self.raise_on_exception)
 

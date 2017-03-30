@@ -138,7 +138,7 @@ class SuperLearner(BaseEnsemble):
     Instantiate ensembles with no preprocessing: use list of estimators
 
     >>> from mlens.ensemble import SuperLearner
-    >>> from mlens.metrics.metrics import rmse_scoring
+    >>> from mlens.metrics.metrics import rmse
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
     >>> from sklearn.svm import SVR
@@ -151,13 +151,13 @@ class SuperLearner(BaseEnsemble):
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
-    >>> rmse_scoring(y, preds)
+    >>> rmse(y, preds)
     6.9553583775881407
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
     >>> from mlens.ensemble import SuperLearner
-    >>> from mlens.metrics.metrics import rmse_scoring
+    >>> from mlens.metrics.metrics import rmse
     >>> from sklearn.datasets import load_boston
     >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
     >>> from sklearn.linear_model import Lasso
@@ -177,7 +177,7 @@ class SuperLearner(BaseEnsemble):
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
-    >>> rmse_scoring(y, preds)
+    >>> rmse(y, preds)
     7.8413294010791557
     """
 

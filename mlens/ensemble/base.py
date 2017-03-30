@@ -19,7 +19,7 @@ from ..base import INDEXERS
 from ..parallel import ParallelProcessing
 from ..externals.sklearn.base import BaseEstimator
 from ..externals.sklearn.validation import check_random_state
-from ..utils import assert_correct_layer_format, check_ensemble_build, \
+from ..utils import assert_correct_format, check_ensemble_build, \
     check_inputs, check_instances, print_time, safe_print
 try:
     # Try get performance counter
@@ -506,7 +506,7 @@ class Layer(BaseEstimator):
                  verbose=False,
                  cls_kwargs=None):
 
-        assert_correct_layer_format(estimators, preprocessing)
+        assert_correct_format(estimators, preprocessing)
 
         self.estimators = check_instances(estimators)
         self.cls = \

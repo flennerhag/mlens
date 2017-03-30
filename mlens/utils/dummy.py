@@ -344,20 +344,32 @@ ECM_PROBA = [('lr-%i' % i, LogisticRegression(offset=i)) for i in range(16)]
 
 def get_layers(cls, proba, *args, **kwargs):
     """Standardized setup for unit testing of Layer and LayerContainer."""
-    layer = Layer(estimators=ESTIMATORS,
-                  cls=cls,
-                  indexer=INDEXERS[cls](*args, **kwargs),
-                  proba=proba,
-                  preprocessing=PREPROCESSING)
+    if not proba:
+        layer = Layer(estimators=ESTIMATORS,
+                      cls=cls,
+                      indexer=INDEXERS[cls](*args, **kwargs),
+                      preprocessing=PREPROCESSING)
 
-    lc = LayerContainer().add(estimators=ESTIMATORS,
-                              cls=cls,
-                              proba=proba,
-                              indexer=INDEXERS[cls](*args, **kwargs),
-                              preprocessing=PREPROCESSING)
+        lc = LayerContainer().add(estimators=ESTIMATORS,
+                                  cls=cls,
+                                  indexer=INDEXERS[cls](*args, **kwargs),
+                                  preprocessing=PREPROCESSING)
 
-    lcm = LayerContainer().add(estimators=ECM_PROBA, cls=cls)
+        lcm = LayerContainer().add(estimators=ECM, cls=cls)
+    else:
+        layer = Layer(estimators=ESTIMATORS_PROBA,
+                      cls=cls,
+                      proba=True,
+                      indexer=INDEXERS[cls](*args, **kwargs),
+                      preprocessing=PREPROCESSING)
 
+        lc = LayerContainer().add(estimators=ESTIMATORS_PROBA,
+                                  cls=cls,
+                                  proba=True,
+                                  indexer=INDEXERS[cls](*args, **kwargs),
+                                  preprocessing=PREPROCESSING)
+
+        lcm = LayerContainer().add(estimators=ECM_PROBA, proba=True, cls=cls)
     return layer, lc, lcm
 
 
@@ -416,17 +428,19 @@ def destroy_temp_dir(dir):
     shutil.rmtree(dir)
 
 
-def _folded_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
+def _folded_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1,
+                 verbose=True):
     """Build ground truth for each fold."""
-    print('                                    FOLD OUTPUT')
-    print('-' * 100)
-    print('  EST   |'
-          '    TRI    |'
-          '   TEI     |'
-          '     TEST LABELS    |'
-          '     TRAIN LABELS   |'
-          '      COEF     |'
-          '        PRED')
+    if verbose:
+        print('                                    FOLD OUTPUT')
+        print('-' * 100)
+        print('  EST   |'
+              '    TRI    |'
+              '   TEI     |'
+              '     TEST LABELS    |'
+              '     TRAIN LABELS   |'
+              '      COEF     |'
+              '        PRED')
 
     ests = ESTIMATORS if labels == 1 else ESTIMATORS_PROBA
     prep = PREPROCESSING
@@ -436,7 +450,7 @@ def _folded_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
     t.sort()
 
     weights = []
-    F = np.zeros((len(t), n_ests * subsets * labels))
+    F = np.zeros((len(t), n_ests * subsets * labels), dtype=np.float)
 
     col_id = {}
     col_ass = 0
@@ -467,42 +481,49 @@ def _folded_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
 
                 # Get out-of-sample predictions
                 p = getattr(e, attr)(xtest)
+
+                rebase = X.shape[0] - F.shape[0]
+                fix = tei - rebase
+
                 if labels == 1:
-                    F[tei, col_id['%s-%s' % (key, est_name)]] = p
+                    F[fix, col_id['%s-%s' % (key, est_name)]] = p
                 else:
                     c = col_id['%s-%s' % (key, est_name)]
-                    F[np.ix_(tei, np.arange(c, c + labels))] = p
+                    F[np.ix_(fix, np.arange(c, c + labels))] = p
 
                 try:
-                    print('%s | %r | %r | %r | %r | %13r | %r' % (
-                        '%s-%s' % (key, est_name),
-                        list(tri),
-                        list(tei),
-                        [float('%.1f' % i) for i in y[tei]],
-                        [float('%.1f' % i) for i in y[tri]],
-                        [float('%.1f' % i) for i in w],
-                        [float('%.1f' % i) for i in p]))
+                    if verbose:
+                        print('%s | %r | %r | %r | %r | %13r | %r' % (
+                            '%s-%s' % (key, est_name),
+                            list(tri),
+                            list(tei),
+                            [float('%.1f' % i) for i in y[tei]],
+                            [float('%.1f' % i) for i in y[tri]],
+                            [float('%.1f' % i) for i in w],
+                            [float('%.1f' % i) for i in p]))
                 except:
                     pass
 
     return F, weights
 
 
-def _full_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
+def _full_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1, verbose=True):
     """Get ground truth for train and predict on full data."""
-    print('\n                        FULL PREDICTION OUTPUT')
-    print('-' * 100)
-    print('  EST   |'
-          '             GROUND TRUTH             |'
-          '    COEF     |'
-          '           PRED')
+    if verbose:
+        print('\n                        FULL PREDICTION OUTPUT')
+        print('-' * 100)
+        print('  EST   |'
+              '             GROUND TRUTH             |'
+              '    COEF     |'
+              '           PRED')
+
     ests = ESTIMATORS if labels == 1 else ESTIMATORS_PROBA
     prep = PREPROCESSING
 
-    tei = [t for _, t in indexer.generate(X, True)]
-    tei = np.unique(np.hstack(tei))
+    tri = [t for t, _ in indexer.generate(X, True)]
+    tri = np.unique(np.hstack(tri))
 
-    P = np.zeros((X.shape[0], n_ests * subsets * labels))
+    P = np.zeros((X.shape[0], n_ests * subsets * labels), dtype=np.float)
     weights = list()
     col_id = {}
     col_ass = 0
@@ -516,9 +537,11 @@ def _full_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
                 col_ass += labels
 
             # Transform input
-            xtrain = X[tei]
-            ytrain = y[tei]
+            xtrain = X[tri]
+            ytrain = y[tri]
+
             xtest = X
+
             for _, tr in prep[key]:
                 t = clone(tr)
                 xtrain = t.fit_transform(xtrain)
@@ -538,18 +561,19 @@ def _full_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1):
                 P[:, c:c + labels] = p
 
             try:
-                print('%s | %r | %11r | %r' % (
-                    '%s-%s' % (key, est_name),
-                    [float('%.1f' % i) for i in y],
-                    [float('%.1f' % i) for i in w],
-                    [float('%.1f' % i) for i in p]))
+                if verbose:
+                    print('%s | %r | %11r | %r' % (
+                        '%s-%s' % (key, est_name),
+                        [float('%.1f' % i) for i in y],
+                        [float('%.1f' % i) for i in w],
+                        [float('%.1f' % i) for i in p]))
             except:
                 pass
 
     return P, weights
 
 
-def ground_truth(X, y, indexer, attr, labels, subsets=1):
+def ground_truth(X, y, indexer, attr, labels, subsets=1, verbose=True):
     """Set up an experiment ground truth.
 
     Returns
@@ -608,46 +632,55 @@ def ground_truth(X, y, indexer, attr, labels, subsets=1):
 
     CHECKING UNIQUENESS... OK.
     """
-    print('                            CONSTRUCTING GROUND TRUTH\n')
+    if verbose:
+        print('                            CONSTRUCTING GROUND TRUTH\n')
 
     # Build predictions matrices.
     N = 0
     for case in ESTIMATORS:
         N += len(ESTIMATORS[case])
 
-    F, weights_f = _folded_ests(X, y, N, indexer, attr, labels, subsets)
-    P, weights_p = _full_ests(X, y, N, indexer, attr, labels, subsets)
+    F, weights_f = _folded_ests(X, y, N, indexer, attr, labels, subsets, verbose)
+    P, weights_p = _full_ests(X, y, N, indexer, attr, labels, subsets, verbose)
 
-    print('\n                 SUMMARY')
-    print('-' * 42)
+    if verbose:
+        print('\n                 SUMMARY')
+        print('-' * 42)
     col = 0
     for key in sorted(ESTIMATORS):
         for est_name, est in ESTIMATORS[key]:
-            print('%s | %6s: %20r' % ('%s-%s' % (key, est_name), 'FULL',
-                                      [float('%.1f' % i) for i in P[:, col]]))
-            print('%s | %6s: %20r' % ('%s-%s' % (key, est_name), 'FOLDS',
-                                      [float('%.1f' % i) for i in F[:, col]]))
+            if verbose:
+                print('%s | %6s: %20r' % ('%s-%s' % (key, est_name), 'FULL',
+                                          [float('%.1f' % i) for i in P[:, col]]))
+                print('%s | %6s: %20r' % ('%s-%s' % (key, est_name), 'FOLDS',
+                                          [float('%.1f' % i) for i in F[:, col]]))
             col += 1
 
-    print('GT              : %r' % [float('%.1f' % i) for i in y])
+    if verbose:
+        print('GT              : %r' % [float('%.1f' % i) for i in y])
 
-    print('\nCHECKING UNIQUENESS...', end=' ')
+        print('\nCHECKING UNIQUENESS...', end=' ')
 
     # First, assert folded preds differ from full preds:
     for i in range(N):
         for j in range(N):
             if j > i:
-                assert not np.equal(P[:, i], P[:, j]).all()
-                assert not np.equal(F[:, i], F[:, j]).all()
                 if P.shape[0] == F.shape[0]:
+                    assert not np.equal(P[:, i], P[:, j]).all()
+                    assert not np.equal(F[:, i], F[:, j]).all()
                     assert not np.equal(P[:, i], F[:, j]).all()
                     assert not np.equal(F[:, i], P[:, j]).all()
 
     # Second, assert all combinations of weights are not equal
-    for weights in [weights_f, weights_p]:
-        for a, b in itertools.combinations(weights, 2):
-            assert not np.equal(a, b).all()
-    print('OK.')
+    if labels == 1:
+        # This can be too stringent with the dummy LogisticRegression
+        # We skip it here.
+        for weights in [weights_f, weights_p]:
+            for a, b in itertools.combinations(weights, 2):
+                assert not np.equal(a, b).all()
+
+    if verbose:
+        print('OK.')
 
     return (F, weights_f), (P, weights_p)
 
@@ -674,7 +707,7 @@ def _init(train, label, shape):
     y = load(paths['y'], mmap_mode='r')
 
     paths['P'] = os.path.join(dir, 'P.mmap')
-    P = np.memmap(paths['P'], dtype=y.dtype, shape=shape, mode='w+')
+    P = np.memmap(paths['P'], dtype=np.float, shape=shape, mode='w+')
 
     return {'X': X, 'y': y, 'P': P, 'dir': dir}
 
@@ -694,15 +727,20 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
         else:
             n = layer.indexer.n_samples
 
-        s = layer.n_pred
-        if '_proba' in attr:
-            s *= np.unique(label).shape[0]
+        s1 = layer.n_pred
 
-        job = _init(train, label, (n, s))
+        if layer.proba:
+            if 'fit' in attr:
+                layer.classes_ = np.unique(label).shape[0]
+
+            s1 *= layer.classes_
+
+        job = _init(train, label, (n, s1))
 
         # Get a parallel jobs up
         with Parallel(n_jobs=n_jobs,
                       temp_folder=job['dir'],
+                      mmap_mode='r+',
                       max_nbytes=None) as parallel:
 
             # Run test

@@ -17,7 +17,7 @@ from mlens.utils.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \
 from mlens.utils.dummy import get_layers, get_path, destroy_temp_dir, data, \
     ground_truth, _layer_est
 
-from mlens.utils import assert_correct_layer_format
+from mlens.utils import assert_correct_format
 from mlens.utils.formatting import _assert_format
 
 from mlens.utils.exceptions import NotFittedError
@@ -191,10 +191,10 @@ def test_init_mixin():
 
 def test_estimator_lists():
     """[Utils] testing: test dummy estimator and preprocessing formatting."""
-    assert_correct_layer_format(ESTIMATORS_PROBA, PREPROCESSING)
-    assert_correct_layer_format(ESTIMATORS, PREPROCESSING)
-    assert_correct_layer_format(ECM, None)
-    assert_correct_layer_format(ECM_PROBA, None)
+    assert_correct_format(ESTIMATORS_PROBA, PREPROCESSING)
+    assert_correct_format(ESTIMATORS, PREPROCESSING)
+    assert_correct_format(ECM, None)
+    assert_correct_format(ECM_PROBA, None)
 
     assert _assert_format(ESTIMATORS)
     assert _assert_format(ESTIMATORS_PROBA)

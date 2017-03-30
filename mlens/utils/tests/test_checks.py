@@ -8,7 +8,7 @@ import numpy as np
 
 from mlens.externals.sklearn.base import clone
 from mlens.utils.checks import check_ensemble_build, assert_valid_estimator, \
-    check_is_fitted, assert_correct_layer_format, check_initialized
+    check_is_fitted, assert_correct_format, check_initialized
 
 from mlens.utils.dummy import get_layers, OLS, Scale
 from mlens.utils.exceptions import LayerSpecificationError, \
@@ -91,51 +91,51 @@ def test_assert_valid_estimator_fails_type():
 
 
 def test_assert_correct_layer_format_1():
-    """[Utils] assert_correct_layer_format: prep - none, est - list."""
-    assert_correct_layer_format([OLS()], [])
+    """[Utils] assert_correct_format: prep - none, est - list."""
+    assert_correct_format([OLS()], [])
 
 
 def test_assert_correct_layer_format_2():
-    """[Utils] assert_correct_layer_format: prep - list, est - list."""
-    assert_correct_layer_format([OLS()], [Scale()])
+    """[Utils] assert_correct_format: prep - list, est - list."""
+    assert_correct_format([OLS()], [Scale()])
 
 
 def test_assert_correct_layer_format_3():
-    """[Utils] assert_correct_layer_format: prep - dict, est - dict."""
-    assert_correct_layer_format({'a': [OLS()]}, {'a': [Scale()]})
+    """[Utils] assert_correct_format: prep - dict, est - dict."""
+    assert_correct_format({'a': [OLS()]}, {'a': [Scale()]})
 
 
 def test_assert_correct_layer_format_fails_dict_list():
-    """[Utils] assert_correct_layer_format: prep - list, est - dict."""
+    """[Utils] assert_correct_format: prep - list, est - dict."""
     np.testing.assert_raises(LayerSpecificationError,
-                             assert_correct_layer_format,
+                             assert_correct_format,
                              {'a': [OLS()]}, [])
 
 
 def test_assert_correct_layer_format_fails_dict_none():
-    """[Utils] assert_correct_layer_format: prep - none, est - dict."""
+    """[Utils] assert_correct_format: prep - none, est - dict."""
     np.testing.assert_raises(LayerSpecificationError,
-                             assert_correct_layer_format,
+                             assert_correct_format,
                              {'a': [OLS()]}, None)
 
 
 def test_assert_correct_layer_format_list_dict():
-    """[Utils] assert_correct_layer_format: prep - dict, est - list."""
+    """[Utils] assert_correct_format: prep - dict, est - list."""
     np.testing.assert_raises(LayerSpecificationError,
-                             assert_correct_layer_format,
+                             assert_correct_format,
                              [OLS()], {'a': [Scale()]})
 
 
 def test_assert_correct_layer_format_tuple():
-    """[Utils] assert_correct_layer_format: prep - dict, est - list."""
+    """[Utils] assert_correct_format: prep - dict, est - list."""
     np.testing.assert_raises(LayerSpecificationError,
-                             assert_correct_layer_format,
+                             assert_correct_format,
                              [OLS()], (Scale()))
 
 def test_assert_correct_layer_format_dict_keys():
-    """[Utils] assert_correct_layer_format: assert raises on no key overlap."""
+    """[Utils] assert_correct_format: assert raises on no key overlap."""
     np.testing.assert_raises(LayerSpecificationError,
-                             assert_correct_layer_format,
+                             assert_correct_format,
                              {'a': [OLS()]}, {'b': [Scale()]})
 
 

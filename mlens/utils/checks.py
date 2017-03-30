@@ -86,7 +86,7 @@ def assert_valid_estimator(instance):
                         "estimator class, but the class itself." % instance)
 
 
-def assert_correct_layer_format(estimators, preprocessing):
+def assert_correct_format(estimators, preprocessing):
     """Initial check to assert layer can be constructed."""
     if (preprocessing is None) or (isinstance(preprocessing, list)):
         if isinstance(estimators, dict):
@@ -130,7 +130,7 @@ def check_initialized(inst):
               "'initialize' before calling 'fit'."
         raise ParallelProcessingError(msg)
 
-    if inst._fitted:
+    if getattr(inst, '_fitted', None):
         if inst.layers.raise_on_exception:
             raise ParallelProcessingError("This instance is already "
                                           "fitted and its parallel "

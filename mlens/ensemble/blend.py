@@ -129,7 +129,7 @@ class BlendEnsemble(BaseEnsemble):
     Instantiate ensembles with no preprocessing: use list of estimators
 
     >>> from mlens.ensemble import BlendEnsemble
-    >>> from mlens.metrics.metrics import rmse_scoring
+    >>> from mlens.metrics.metrics import rmse
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
     >>> from sklearn.svm import SVR
@@ -142,13 +142,13 @@ class BlendEnsemble(BaseEnsemble):
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
-    >>> rmse_scoring(y, preds)
+    >>> rmse(y, preds)
     7.2309909413577111
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
     >>> from mlens.ensemble import BlendEnsemble
-    >>> from mlens.metrics.metrics import rmse_scoring
+    >>> from mlens.metrics.metrics import rmse
     >>> from sklearn.datasets import load_boston
     >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
     >>> from sklearn.linear_model import Lasso
@@ -168,7 +168,7 @@ class BlendEnsemble(BaseEnsemble):
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
-    >>> rmse_scoring(y, preds)
+    >>> rmse(y, preds)
     7.5812611042457716
     """
 
@@ -197,9 +197,10 @@ class BlendEnsemble(BaseEnsemble):
         Compatibility method for adding a meta learner to be used for final
         predictions.
         """
-        return self.add(estimators=estimator)
+        return self.add(estimators=estimator, meta=True)
 
-    def add(self, estimators, preprocessing=None, test_size=None, proba=False):
+    def add(self, estimators, preprocessing=None, test_size=None,
+            proba=False, meta=False):
         """Add layer to ensemble.
 
         Parameters
@@ -261,17 +262,24 @@ class BlendEnsemble(BaseEnsemble):
             ensemble was instantiated with.
 
         proba : bool (default = False)
-            whether to call ``predict_proba`` on base learners.
+            Whether to call ``predict_proba`` on base learners.
+
+        meta : bool (default = False)
+            Whether the layer should be treated as the final meta estimator.
 
         Returns
         -------
         self : instance
             ensemble instance with layer instantiated.
         """
-        c = test_size if test_size is not None else self.test_size
+        if meta:
+            cls = 'full'
+            idx = FullIndex()
+        else:
+            c = test_size if test_size is not None else self.test_size
+            cls = 'blend'
+            idx = BlendIndex(c, raise_on_exception=self.raise_on_exception)
 
-        cls = 'blend'
-        idx = BlendIndex(c, raise_on_exception=self.raise_on_exception)
         return self._add(
                 estimators=estimators,
                 cls=cls,

@@ -132,10 +132,10 @@ class ParallelProcessing(object):
 
             # Get memmap in read-only mode (we don't want to corrupt the input)
             if name is 'y' and y is not None:
-                self._job.y = _load_mmap(f)
+                self._job.y = _load_mmap(str(f))
             else:
                 # Store X as the first input matrix in list of inputs matrices
-                self._job.P = [_load_mmap(f)]
+                self._job.P = [_load_mmap(str(f))]
 
         # Append pre-allocated prediction arrays in r+ to the P list
         # Each layer will be fitted on P[i] and write to P[i + 1]
@@ -240,6 +240,7 @@ class ParallelProcessing(object):
 
         # Release job from memory
         del self._job
+        gc.collect()
 
         # Remove temporary folder
         try:
@@ -252,7 +253,7 @@ class ParallelProcessing(object):
                           ParallelProcessingWarning)
 
             if "win" in platform:
-                flag = check_call(['rmdir %s /s /q' % path])
+                flag = check_call(['rmdir', '/S', '/Q', path])
             else:
                 flag = check_call(['rm', '-rf', path])
 
@@ -260,7 +261,6 @@ class ParallelProcessing(object):
                 raise RuntimeError("Could not remove temporary directory.")
 
         del path
-        gc.collect()
 
         self._initialized = 0
 

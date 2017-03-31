@@ -764,8 +764,12 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
         # Always remove tmp if asked
         if rem and job is not None:
             f = job['dir']
-            job.clear()
-            shutil.rmtree(f)
+            del job
             gc.collect()
+            try:
+                shutil.rmtree(f)
+            except OSError:
+                warnings.warn(
+                    "Failed to destroy temporary test cache at %s" % dir)
 
     return preds

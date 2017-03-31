@@ -687,18 +687,9 @@ def _init(train, label, shape):
     """Simple temp folder initialization for testing estimation functions."""
 
     dir = os.path.join(os.getcwd(), 'tmp')
-    if os.path.exists(dir):
-        os.unlink(dir)
-        try:
-            shutil.rmtree(dir)
-        except OSError:
-            # Can fail on windows
-            dlc = subprocess.Popen('rmdir /S /Q %s' % dir,
-                                   shell=True,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
 
-    os.mkdir(dir)
+    if not os.path.exists(dir):
+        os.mkdir(dir)
 
     paths = {}
     for name, arr in zip(('X', 'y'), (train, label)):

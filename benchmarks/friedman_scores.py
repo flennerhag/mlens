@@ -133,7 +133,7 @@ if __name__ == '__main__':
 
     safe_print("\nML-ENSEMBLE\n")
     safe_print("Benchmark of ML-ENSEMBLE against Scikit-learn estimators "
-          "on the friedman1 dataset.\n")
+               "on the friedman1 dataset.\n")
     safe_print("Scoring metric: Root Mean Squared Error.\n")
 
     safe_print("Available CPUs: %i\n" % os.cpu_count())

@@ -270,7 +270,7 @@ def test_ground_truth():
 
 
 def test_layer_est():
-    """[Utils] layer_estimation: testing layer estimation wrapper."""
+    """[Utils] _layer_est: testing layer estimation wrapper."""
     layer, _, _ = get_layers('stack', False)
     layer.indexer.fit(X)
     out = _layer_est(layer, 'fit', X, y, 1)

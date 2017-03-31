@@ -79,13 +79,19 @@ def _expand_instance_list(instance_list, indexer):
     >>> from mlens.parallel.stack import _expand_instance_list
     >>> X = np.arange(12)
     >>> indexer = FoldIndex(3, X=X)
-    >>> instance_list = {'a': [('%i' % i, OLS(0)) for i in range(2)],
+    >>> instance_list = {'a': [('%i' % i, OLS()) for i in range(2)],
     ...                  'b': [('%i' % i, OLS(1)) for i in range(1)]}
     >>> _expand_instance_list(instance_list, indexer)
     [list of estimation tuples, beginning with main estimators]
     """
     splits = indexer.n_splits
-    if isinstance(instance_list, dict):
+
+    if instance_list is None or len(instance_list) == 0:
+        # Capture cases when there is no preprocessing to avoid running a
+        # parallel job.
+        return None
+
+    elif isinstance(instance_list, dict):
         # We need to build fit list on a case basis
 
         # --- Full data ---

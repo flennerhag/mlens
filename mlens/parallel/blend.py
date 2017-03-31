@@ -39,7 +39,12 @@ class Blender(BaseEstimator):
 ###############################################################################
 def _expand_instance_list(instance_list, indexer=None):
     """Build a list of estimation tuples with train and test indices."""
-    if isinstance(instance_list, dict):
+    if instance_list is None or len(instance_list) == 0:
+        # Capture cases when there is no preprocessing to avoid running a
+        # parallel job.
+        return None
+
+    elif isinstance(instance_list, dict):
         # List entries have format:
         # (case, train_idx, test_idx, est_list)
         # Each est_list have entries (est_name, cloned_est)

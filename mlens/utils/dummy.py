@@ -690,7 +690,12 @@ def _init(train, label, shape):
     try:
         shutil.rmtree(dir)
     except:
-        pass
+        # This can fail on Windows
+        dlc = subprocess.Popen('rmdir /S /Q %s' % dir,
+                               shell=True,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+
     os.mkdir(dir)
 
     paths = {}
@@ -770,7 +775,8 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
             except OSError:
                 try:
                     dlc = subprocess.Popen('rmdir /S /Q %s' % f,
-                                           shell=True, stdout=subprocess.PIPE,
+                                           shell=True,
+                                           stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE)
                 except OSError:
                     warnings.warn("Could not close temp dir %s." % f)

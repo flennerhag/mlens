@@ -6,17 +6,18 @@
 
 Parallel processing job managers.
 """
-
 import numpy as np
 
 from . import Stacker, Blender, SingleRun, SubStacker, Evaluation
 from ..utils import check_initialized
-from ..utils.exceptions import ParallelProcessingError
+from ..utils.exceptions import ParallelProcessingError, \
+    ParallelProcessingWarning
 
 import os
-import tempfile
 import gc
-
+import tempfile
+import shutil
+import warnings
 from joblib import Parallel, dump, load
 
 
@@ -82,10 +83,6 @@ class ParallelProcessing(object):
     ----------
     layers : :class:`mlens.ensemble.base.LayerContainer`
         The ``LayerContainer`` that instantiated the processor.
-
-    job : str
-        The job type to manage. ``job`` must be in ``['predict', 'fit',
-        'predict_proba']``, otherwise an error will be raised.
     """
 
     __slots__ = ['layers', '_initialized', '_fitted', '_job']
@@ -100,8 +97,13 @@ class ParallelProcessing(object):
         self._check_job(job)
         self._job = Job(job)
 
-        self._job.tmp = tempfile.TemporaryDirectory(prefix='mlens_', dir=dir)
-        self._job.dir = self._job.tmp.name
+        try:
+            # Fails on python 2
+            self._job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
+                                                        dir=dir)
+            self._job.dir = self._job.tmp.name
+        except:
+            self._job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
 
         # Build mmaps for inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -234,13 +236,31 @@ class ParallelProcessing(object):
         """Remove temporary folder and all cache data."""
 
         # Delete all contents from cache
-        self._job.tmp.cleanup()
+        try:
+            self._job.tmp.cleanup()
 
-        # Release memory
-        del self._job
-        gc.collect()
+        except:
+            # Fall back on shutil for python 2
+            try:
+                shutil.rmtree(self._job.dir)
+            except OSError:
+                # This can fail on Windows
+                warnings.warn("Failed to delete cache at %s. Will be removed "
+                              "on reboot. Consider manual removal (rmdir)" %
+                              self._job.dir, ParallelProcessingWarning)
 
-        self._initialized = 0
+        finally:
+            # Always release process memory
+            del self._job
+
+            gc.collect()
+
+            if not len(gc.garbage) == 0:
+                warnings.warn("Clearing process memory failed, "
+                              "uncollectable : %r." % gc.garbage,
+                              ParallelProcessingWarning)
+
+            self._initialized = 0
 
     def _partial_process(self, n, lyr, parallel):
         """Generic method for processing a :class:`layer` with ``attr``."""
@@ -343,11 +363,29 @@ class ParallelEvaluation(object):
     def terminate(self):
         """Remove temporary folder and all cache data."""
 
-        # Remove cache
-        self._job.tmp.cleanup()
+        # Delete all contents from cache
+        try:
+            self._job.tmp.cleanup()
 
-        # Clear parent process memory
-        del self._job
-        gc.collect()
+        except:
+            # Fall back on shutil for python 2
+            try:
+                shutil.rmtree(self._job.dir)
+            except OSError:
+                # This can fail on Windows
+                warnings.warn("Failed to delete cache at %s. Will be removed "
+                              "on reboot. Consider manual removal (rmdir)" %
+                              self._job.dir, ParallelProcessingWarning)
 
-        self._initialized = 0
+        finally:
+            # Always release process memory
+            del self._job
+
+            gc.collect()
+
+            if not len(gc.garbage) == 0:
+                warnings.warn("Clearing process memory failed, "
+                              "uncollectable : %r." % gc.garbage,
+                              ParallelProcessingWarning)
+
+            self._initialized = 0

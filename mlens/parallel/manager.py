@@ -46,7 +46,7 @@ def _load_mmap(f):
     """Load a mmap presumably dumped by joblib, otherwise try numpy."""
     try:
         return load(f, mmap_mode='r')
-    except IndexError:
+    except (IndexError, KeyError):
         # Joblib's 'load' func fails on npy and npz: use numpy.load
         return np.load(f, mmap_mode='r')
 
@@ -130,10 +130,10 @@ class ParallelProcessing(object):
 
             # Get memmap in read-only mode (we don't want to corrupt the input)
             if name is 'y' and y is not None:
-                self._job.y = _load_mmap(str(f))
+                self._job.y = _load_mmap(f)
             else:
                 # Store X as the first input matrix in list of inputs matrices
-                self._job.P = [_load_mmap(str(f))]
+                self._job.P = [_load_mmap(f)]
 
         # Append pre-allocated prediction arrays in r+ to the P list
         # Each layer will be fitted on P[i] and write to P[i + 1]

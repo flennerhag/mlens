@@ -428,7 +428,10 @@ def _store_X_y(dir, X, y):
 
 def destroy_temp_dir(dir):
     """Remove temporary directories created during tests."""
-    shutil.rmtree(dir)
+    try:
+        shutil.rmtree(dir)
+    except OSError:
+        warnings.warn("Failed to destroy temporary test cache at %s" % dir)
 
 
 def _folded_ests(X, y, n_ests, indexer, attr, labels=1, subsets=1,

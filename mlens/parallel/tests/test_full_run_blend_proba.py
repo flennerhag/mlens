@@ -10,6 +10,7 @@ from mlens.externals.sklearn.base import clone
 from mlens.utils.dummy import destroy_temp_dir, _layer_est, _store_X_y, \
     get_layers, get_path, ground_truth
 
+np.random.seed(10)
 X = np.arange(24).reshape(12, 2)
 
 y = np.ones(12)

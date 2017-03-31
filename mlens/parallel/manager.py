@@ -12,6 +12,7 @@ from . import Stacker, Blender, SingleRun, SubStacker, Evaluation
 from ..utils import check_initialized
 from ..utils.exceptions import ParallelProcessingError, \
     ParallelProcessingWarning
+from ..externals.fixes import onerror
 
 import os
 import gc
@@ -38,7 +39,7 @@ def _load(arr):
         return np.genfromtxt(arr)
     except Exception as e:
         raise IOError("Could not load X from %s, does not "
-                      "appear to be valid as a ndarray. "
+                      "appear to be a valid ndarray. "
                       "Details:\n%r" % e)
 
 
@@ -240,9 +241,10 @@ class ParallelProcessing(object):
             self._job.tmp.cleanup()
 
         except:
-            # Fall back on shutil for python 2
+            # Fall back on shutil
             try:
-                shutil.rmtree(self._job.dir)
+                shutil.rmtree(self._job.dir, onerror=onerror)
+
             except OSError:
                 # This can fail on Windows
                 warnings.warn("Failed to delete cache at %s. Will be removed "

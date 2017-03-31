@@ -687,16 +687,25 @@ def _init(train, label, shape):
     """Simple temp folder initialization for testing estimation functions."""
 
     dir = os.path.join(os.getcwd(), 'tmp')
+
+    # Some fail safes before setting up cache
     try:
+        # Remove dir if already exists
         shutil.rmtree(dir)
     except:
-        # This can fail on Windows
+        pass
+
+    try:
+        # Shutil can fail to remove the dir on windows,
+        # if mkdir fails we do a force removal and try again.
+        os.mkdir(dir)
+    except:
+        # Force remove and try again
         dlc = subprocess.Popen('rmdir /S /Q %s' % dir,
                                shell=True,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
-
-    os.mkdir(dir)
+        os.mkdir(dir)
 
     paths = {}
     for name, arr in zip(('X', 'y'), (train, label)):

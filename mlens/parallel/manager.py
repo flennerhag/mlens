@@ -310,8 +310,13 @@ class ParallelEvaluation(object):
         """Create cache and memmap X and y."""
         self._job = Job('evaluate')
 
-        self._job.tmp = tempfile.mkdtemp(dir=dir)
-        self._job.dir = self._job.tmp.name
+        try:
+            # Fails on python 2
+            self._job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
+                                                        dir=dir)
+            self._job.dir = self._job.tmp.name
+        except:
+            self._job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
 
         # Build mmaps for inputs
         for name, arr in zip(('X', 'y'), (X, y)):

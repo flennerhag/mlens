@@ -674,15 +674,6 @@ def ground_truth(X, y, indexer, attr, labels, subsets=1, verbose=True):
                     assert not np.equal(P[:, i], F[:, j]).all()
                     assert not np.equal(F[:, i], P[:, j]).all()
 
-    # Second, assert all combinations of weights are not equal
-    if labels == 1:
-        for weights in [weights_f, weights_p]:
-            for a, b in itertools.combinations(weights, 2):
-                if not np.equal(a, b).all():
-                    warnings.warn("Identical coefficient vectors detected. "
-                                  "Consider changing ground truth design.")
-
-
     if verbose:
         print('OK.')
 

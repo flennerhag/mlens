@@ -11,19 +11,13 @@ import numpy as np
 
 from . import Stacker, Blender, SingleRun, SubStacker, Evaluation
 from ..utils import check_initialized
-from ..utils.exceptions import ParallelProcessingWarning, \
-    ParallelProcessingError
+from ..utils.exceptions import ParallelProcessingError
 
-from sys import platform
 import os
 import tempfile
 import gc
-import shutil
-from subprocess import check_call
 
 from joblib import Parallel, dump, load
-
-import warnings
 
 
 ENGINES = {'full': SingleRun,
@@ -66,13 +60,14 @@ class Job(object):
     :class:`ParallelProcessing`, :class:`ParallelEvaluation`
     """
 
-    __slots__ = ['y', 'P', 'dir', 'l', 'j']
+    __slots__ = ['y', 'P', 'dir', 'l', 'j', 'tmp']
 
     def __init__(self, job):
         self.j = job
         self.y = None
         self.P = None
         self.l = None
+        self.tmp = None
         self.dir = None
 
 
@@ -105,7 +100,8 @@ class ParallelProcessing(object):
         self._check_job(job)
         self._job = Job(job)
 
-        self._job.dir = tempfile.mkdtemp(dir=dir)
+        self._job.tmp = tempfile.TemporaryDirectory(prefix='mlens_', dir=dir)
+        self._job.dir = self._job.tmp.name
 
         # Build mmaps for inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -139,14 +135,14 @@ class ParallelProcessing(object):
 
         # Append pre-allocated prediction arrays in r+ to the P list
         # Each layer will be fitted on P[i] and write to P[i + 1]
-        for name, lyr in self.layers.layers.items():
+        for n, (name, lyr) in enumerate(self.layers.layers.items()):
 
             f = os.path.join(self._job.dir, '%s.mmap' % name)
 
             # We call the indexers fit method now at initialization - if there
             # is something funky with indexing it is better to catch it now
             # than mid-estimation
-            lyr.indexer.fit(self._job.P[0])
+            lyr.indexer.fit(self._job.P[n])
 
             shape = self._get_lyr_sample_size(lyr)
 
@@ -236,31 +232,13 @@ class ParallelProcessing(object):
 
     def terminate(self):
         """Remove temporary folder and all cache data."""
-        path = self._job.dir
 
-        # Release job from memory
+        # Delete all contents from cache
+        self._job.tmp.cleanup()
+
+        # Release memory
         del self._job
         gc.collect()
-
-        # Remove temporary folder
-        try:
-            shutil.rmtree(path)
-        except OSError as e:
-            # Can fail on Windows - we try to force remove it using the CLI
-            warnings.warn("Failed to remove temporary directory with "
-                          "standard procedure. Will try command line "
-                          "interface. Details:\n%r" % e,
-                          ParallelProcessingWarning)
-
-            if "win" in platform:
-                flag = check_call(['rmdir', '/S', '/Q', path])
-            else:
-                flag = check_call(['rm', '-rf', path])
-
-            if flag != 0:
-                raise RuntimeError("Could not remove temporary directory.")
-
-        del path
 
         self._initialized = 0
 
@@ -312,7 +290,8 @@ class ParallelEvaluation(object):
         """Create cache and memmap X and y."""
         self._job = Job('evaluate')
 
-        self._job.dir = tempfile.mkdtemp(dir=dir)
+        self._job.tmp = tempfile.mkdtemp(dir=dir)
+        self._job.dir = self._job.tmp.name
 
         # Build mmaps for inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -358,33 +337,17 @@ class ParallelEvaluation(object):
 
             f = ENGINES['evaluation'](self.evaluator)
 
-            getattr(f, attr)(parallel, self._job.P, self._job.y, self._job.dir)
+            getattr(f, attr)(parallel, self._job.P, self._job.y,
+                             self._job.dir)
 
     def terminate(self):
         """Remove temporary folder and all cache data."""
-        path = self._job.dir
 
-        # Release job from memory
+        # Remove cache
+        self._job.tmp.cleanup()
+
+        # Clear parent process memory
         del self._job
-
-        # Remove temporary folder
-        try:
-            shutil.rmtree(path)
-        except OSError as e:
-            # Can fail on Windows - we try to force remove it using the CLI
-            warnings.warn("Failed to remove temporary directory with "
-                          "standard procedure. Will try command line "
-                          "interface. Details:\n%r" % e,
-                          ParallelProcessingWarning)
-
-            if "win" in platform:
-                flag = check_call(["rmdir %s /s /q" % self._job.dir])
-            else:
-                flag = check_call(['rm', '-rf', self._job.dir])
-
-            if flag != 0:
-                raise RuntimeError("Could not remove temporary directory.")
-
-        del path
         gc.collect()
+
         self._initialized = 0

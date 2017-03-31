@@ -12,13 +12,13 @@ from . import Stacker, Blender, SingleRun, SubStacker, Evaluation
 from ..utils import check_initialized
 from ..utils.exceptions import ParallelProcessingError, \
     ParallelProcessingWarning
-from ..externals.fixes import onerror
 
 import os
 import gc
-import tempfile
 import shutil
+import tempfile
 import warnings
+import subprocess
 from joblib import Parallel, dump, load
 
 
@@ -243,13 +243,20 @@ class ParallelProcessing(object):
         except:
             # Fall back on shutil
             try:
-                shutil.rmtree(self._job.dir, onerror=onerror)
+                shutil.rmtree(self._job.dir)
 
             except OSError:
                 # This can fail on Windows
-                warnings.warn("Failed to delete cache at %s. Will be removed "
-                              "on reboot. Consider manual removal (rmdir)" %
-                              self._job.dir, ParallelProcessingWarning)
+                try:
+                    dlc = subprocess.Popen('rmdir /S /Q %s' % self._job.dir,
+                                           shell=True, stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+                except OSError:
+                    warnings.warn("Failed to delete cache at %s."
+                                  "If created with default settings, will be "
+                                  "removed on reboot. For immediate "
+                                  "removal, manual removal is required." %
+                                  self._job.dir, ParallelProcessingWarning)
 
         finally:
             # Always release process memory

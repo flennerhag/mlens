@@ -16,6 +16,7 @@ from __future__ import division, print_function
 import gc
 import os
 import shutil
+import subprocess
 from abc import abstractmethod
 
 import numpy as np
@@ -25,7 +26,6 @@ from joblib import Parallel, dump, load
 from .exceptions import NotFittedError
 from ..externals.sklearn.base import BaseEstimator, TransformerMixin, clone
 from ..externals.sklearn.validation import check_X_y, check_array
-from ..externals.fixes import onerror
 from ..base import INDEXERS
 from ..ensemble.base import Layer, LayerContainer
 from ..parallel.manager import ENGINES
@@ -766,9 +766,14 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
             f = job['dir']
             job.clear()
             try:
-                shutil.rmtree(f, onerror=onerror)
+                shutil.rmtree(f)
             except OSError:
-                warnings.warn("Could not close temp dir %s." % f)
+                try:
+                    dlc = subprocess.Popen('rmdir /S /Q %s' % f,
+                                           shell=True, stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+                except OSError:
+                    warnings.warn("Could not close temp dir %s." % f)
             gc.collect()
 
     return preds

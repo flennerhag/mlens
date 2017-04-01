@@ -702,7 +702,11 @@ def _init(train, label, shape):
     X = load(paths['X'], mmap_mode='r')
     y = load(paths['y'], mmap_mode='r')
 
-    paths['P'] = os.path.join(dir, 'P.mmap')
+    p = os.path.join(dir, 'P.mmap')
+    if os.path.exists(p):
+        os.unlink(p)
+
+    paths['P'] = p
     P = np.memmap(paths['P'], dtype=np.float, shape=shape, mode='w+')
 
     return {'X': X, 'y': y, 'P': P, 'dir': dir}
@@ -713,27 +717,25 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
 
     est = ENGINES[layer.cls]
 
-    job = None
+
+    # Create a cache
+    if 'fit' in attr:
+        n = layer.indexer.n_test_samples
+    else:
+        n = layer.indexer.n_samples
+
+    s1 = layer.n_pred
+
+    if layer.proba:
+        if 'fit' in attr:
+            layer.classes_ = np.unique(label).shape[0]
+
+        s1 *= layer.classes_
+
+    job = _init(train, label, (n, s1))
+
     try:
         # Wrap in try-except to always close the tmp if asked to
-
-        # Create a cache
-        if 'fit' in attr:
-            n = layer.indexer.n_test_samples
-        else:
-            n = layer.indexer.n_samples
-
-        s1 = layer.n_pred
-
-        if layer.proba:
-            if 'fit' in attr:
-                layer.classes_ = np.unique(label).shape[0]
-
-            s1 *= layer.classes_
-
-        job = _init(train, label, (n, s1))
-
-        # Get a parallel jobs up
         with Parallel(n_jobs=n_jobs,
                       temp_folder=job['dir'],
                       mmap_mode='r+',
@@ -763,6 +765,7 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
         if rem and job is not None:
             f = job['dir']
             job.clear()
+            gc.collect()
             try:
                 shutil.rmtree(f)
             except OSError:
@@ -773,6 +776,5 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
                                            stderr=subprocess.PIPE)
                 except OSError:
                     warnings.warn("Could not close temp dir %s." % f)
-            gc.collect()
 
     return preds

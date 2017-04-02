@@ -24,8 +24,8 @@ If you would like to get involved, don't hesitate to reach out on Github_ !
 Core Features
 -------------
 
-Simple Architectures
-^^^^^^^^^^^^^^^^^^^^
+Transparent Architecture API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Ensembles are built by adding layers to an instance object: layers in their
 turn are comprised of a list of estimators. No matter how complext the
@@ -116,10 +116,11 @@ development, so check in frequently for new functionality.
 .. toctree::
    :hidden:
    :maxdepth: 2
-   :caption: Getting Started
+   :caption: User Guides
 
    getting_started
    ensemble_tutorial
+   ensembles
 
 .. toctree::
    :hidden:

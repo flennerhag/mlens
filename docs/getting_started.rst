@@ -2,13 +2,13 @@
 
 .. _getting-started:
 
-User Guides
-===========
+Getting started
+===============
 
-To quickly get a feel for a an ML-Ensemble estimator behaves, see
-the :ref:`ensemble-guide` on how to instantiate, fit and predict with an
-ensemble. The :ref:`model-selection-guide` shows how to use the model selection
-library, while the :ref:`visualization-guide` gives an introduction to the
+The :ref:`ensemble-guide` shows how to instantiate, fit and predict with an
+ensemble. The :ref:`model-selection-guide` gives a breif overview of the
+syntax used in the model selection library,
+while the :ref:`visualization-guide` gives an introduction to the
 plotting functionality. For more in-depth material, see
 :ref:`ensemble-tutorial`.
 
@@ -36,7 +36,7 @@ We use the following setup throughout::
 
 .. _ensemble-guide:
 
-Ensemble Guide
+Ensemble guide
 --------------
 
 Building an ensemble
@@ -135,7 +135,7 @@ ensemble performance. ::
 
 .. _model-selection-guide:
 
-Model Selection Guide
+Model selection guide
 ---------------------
 
 The model selection suite is constantly expanding, so make sure to check in
@@ -203,20 +203,20 @@ example, we map parameter draws to cases and estimators::
                   'none': ests,
                   'sub': ests}
 
-To evaluate, call ``evaluate``. Make sure to specify how many parameter
-draws you with to evaluate (the ``n_iter`` parameter). ::
+To run cross-validation, call the ``evaluate`` method.
+Make sure to specify the number of parameter draws to evaluate
+(the ``n_iter`` parameter). ::
 
     >>> evaluator.evaluate(X, y, estimators, params, n_iter=10)
-   Evaluating 6 estimators for 10 parameter draws 10 CV folds, totalling 600 fits
-   [Parallel(n_jobs=-1)]: Done 600 out of 600 | elapsed:    0.9s finished
+    Evaluating 6 estimators for 10 parameter draws 10 CV folds, totalling 600 fits
+    [Parallel(n_jobs=-1)]: Done 600 out of 600 | elapsed:    0.9s finished
     Evaluation done | 00:00:01
-
-.. :currentmodule::pandas
 
 The results for all parameter draws are stored in ``cv_results``. The
 ``summary`` attribute contains data pertaining to the best draw for each
-estimator in each preprocessing case. These attributes are stored as ``dict``s,
-and can be given to a pandas :class:`DataFrame` instance for a tabular output::
+estimator in each preprocessing case. These attributes are stored as ``dict``
+objects, and can be passed to a :class:`pandas.DataFrame` instance for
+a tabular output::
 
    >>> DataFrame(evaluator.summary)
              fit_time_mean  fit_time_std  train_score_mean  train_score_std  test_score_mean  test_score_std               params
@@ -232,7 +232,7 @@ use 15 neighbours. and preprocessing doesn't seem necessary.
 
 .. _visualization-guide:
 
-Visualization Guide
+Visualization guide
 -------------------
 
 **Explained variance plot**

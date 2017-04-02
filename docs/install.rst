@@ -2,7 +2,7 @@ Install
 =======
 
 ML-Ensemble is available through PyPi. For latest stable version, install
-``mlens`` through ``pip``.
+:mod:`mlens` through ``pip``.
 
 .. code-block:: bash
 
@@ -39,13 +39,13 @@ Developer
 ^^^^^^^^^
 
 For the latest in-development version, install the ``dev`` branch of the
-``mlens`` repository. It is advised to check Travis build history
+:mod:`mlens` repository. It is advised to check Travis build history
 first to ensure the current version does not contain apparent errors.
 
 Dependencies
 ^^^^^^^^^^^^
 
-To run ``mlens`` the following dependencies are required:
+To install :mod:`mlens` the following dependencies are required:
 
 ============  =======  ======================
 Package       Version   Module

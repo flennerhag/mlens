@@ -80,15 +80,11 @@ class CMLog(object):
     Class for starting a monitor job of CPU and memory utilization in the
     background in a Python script. The ``monitor`` class records the
     ``cpu_percent``, ``rss`` and ``vms`` as collected by the
-    :mod:`psutil` library for the parent process' pid.
+    psutil_ library for the parent process' pid.
 
     CPU usage and memory utilization are stored as attributes in numpy arrays.
 
-    Notes
-    -----
-    CMLog uses subprocess to start a recording job for the specified amount
-    of time. Once issued, the job cannot be aborted without killing the
-    parent process.
+    .. _psutil: https://pypi.python.org/pypi/psutil
 
     Examples
     --------
@@ -121,6 +117,7 @@ class CMLog(object):
     ----------
     verbose : bool
         whether to notify of job start.
+
     """
     def __init__(self, verbose=False):
         self.verbose = verbose
@@ -131,24 +128,29 @@ class CMLog(object):
                               "example through pip (pip install psutil) "
                               "before initializing CMLog.")
 
-    def monitor(self, stop, ival=0.1):
+    def monitor(self, stop=None, ival=0.1, kill=True):
         """Start monitoring CPU and memory usage.
 
         Parameters
         ----------
-        stop : float
-            seconds to monitor for
+        stop : float or None (default = None)
+            seconds to monitor for. If None, monitors until ``collect`` is
+            called.
 
         ival : float (default=0.1)
             interval of monitoring.
 
-        Notes
-        -----
-        Monitor
+        kill : bool (default = True)
+            whether to kill the monitoring job if ``collect`` is called before
+            timeout (``stop``). If set to False, calling ``collect`` will
+            cause the instance to wait until the job completes.
         """
-        # Keep track of job
+        if stop is None and not kill:
+            raise ValueError("If no time limit is set 'kill' must be enabled.")
+
         self._t0 = _time()
         self._stop = stop
+        self._kill = kill
 
         # Delete previous job data to avoid confusion
         try:
@@ -159,17 +161,20 @@ class CMLog(object):
             pass
 
         if self.verbose:
-            print("[CMLog] Monitoring for {} seconds with checks every {} "
-                  "seconds.".format(stop, ival))
-            sys.stdout.flush()
+            if self._stop is not None:
+                safe_print("[CMLog] Monitoring for {} seconds with checks "
+                           "every {} seconds.".format(stop, ival))
+            else:
+                safe_print("[CMLog] Monitoring until collection with checks "
+                           "every {} seconds.".format(ival))
 
         # Initialize subprocess
         self._out = \
             subprocess.Popen([sys.executable, '-c',
                               'from mlens.utils.utils import _recorder; '
-                              '_recorder(%i, %f, %f)' % (self.pid,
-                                                         float(stop),
-                                                         float(ival))],
+                              '_recorder({}, {}, {})'.format(self.pid,
+                                                             stop,
+                                                             float(ival))],
                              stdout=subprocess.PIPE)
         return
 
@@ -182,21 +187,35 @@ class CMLog(object):
         again later, but no warning or error is raised.
         """
         if not hasattr(self, '_stop'):
-            print('No monitoring job initiated: nothing to collect.')
+            safe_print('No monitoring job initiated: nothing to collect.')
             return
 
-        if _time() - self._t0 < self._stop:
-            if self.verbose:
-                print("[CMLog] Job not finished. Cannot collect yet.")
-                sys.stdout.flush()
-            return
+        if self._stop is None:
+            # If no timer, kill process.
+            self._out.kill()
 
         if self.verbose:
-            print("[CMLog] Collecting...", end=" ")
-            sys.stdout.flush()
+            safe_print("[CMLog] Collecting...", end=" ",  flush=True)
 
-        # Get logs by reading stdout stream from the subprocess call.
-        # Probably not the best way to do this but it does the trick
+        # Check if job is not completed and if so, check whether to kill
+        elif _time() - self._t0 < self._stop:
+            if self._kill:
+                if self.verbose:
+                    safe_print("[CMLog] Job not finished - killing process "
+                               "and collecting...", end=" ", flush=True)
+                self._out.kill()
+
+            elif self.verbose:
+                # Wait until completion (this is done in the 'communicate'
+                # command
+                safe_print("[CMLog] Job not finished - waiting "
+                           "until completion and collecting...",
+                           end=" ",  flush=True)
+
+        # If job done, we just need to collect
+        elif self.verbose:
+            safe_print("[CMLog] Collecting...", end=" ",  flush=True)
+
         t0, i = _time(), 0
         cpu, rss, vms = [], [], []
 
@@ -213,7 +232,7 @@ class CMLog(object):
             i += 1
 
         if self.verbose:
-            print('done. Read {} lines in '
+            safe_print('done. Read {} lines in '
                   '{:.3f} seconds.'.format(i, _time() - t0))
 
         self.cpu = array(cpu)
@@ -223,6 +242,7 @@ class CMLog(object):
         # Clear job data
         del self._t0
         del self._stop
+        del self._kill
 
         self._out.terminate()
         del self._out
@@ -234,8 +254,15 @@ def _recorder(pid, stop, ival):
 
     process = psutil.Process(pid)
 
-    while t - t0 < stop:
-        m = process.memory_info()
-        print(psutil.cpu_percent(), ',', m[0], ',', m[1])
-        sleep(ival)
-        t = _time()
+    if stop is None:
+        while True:
+            m = process.memory_info()
+            print(psutil.cpu_percent(), ',', m[0], ',', m[1])
+            sleep(ival)
+            t = _time()
+    else:
+        while t - t0 < stop:
+            m = process.memory_info()
+            print(psutil.cpu_percent(), ',', m[0], ',', m[1])
+            sleep(ival)
+            t = _time()

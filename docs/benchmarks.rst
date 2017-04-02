@@ -35,7 +35,7 @@ how stacking even relatively low-performing estimators can yield superior
 predictive power. In this case, the Super Learner improves on the best
 stand-alone estimator by 25%. ::
 
-    >>> python benchmarks/friedman_scores.py
+    >>> python friedman_scores.py
     Benchmark of ML-ENSEMBLE against Scikit-learn estimators on the friedman1 dataset.
 
     Scoring metric: Root Mean Squared Error.

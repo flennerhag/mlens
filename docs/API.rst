@@ -1,5 +1,7 @@
 .. Main API page
 
+.. _API:
+
 API
 ====
 

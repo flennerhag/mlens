@@ -104,4 +104,4 @@ dev/
 check_build_log.txt
 
 # doc builds
-*/_build_html
+_make_html

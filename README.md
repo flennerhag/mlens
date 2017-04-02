@@ -9,18 +9,95 @@
 [![Documentation Status](https://readthedocs.org/projects/mlens/badge/?version=latest)](http://mlens.readthedocs.io/en/latest/?badge=latest)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-# ML Ensemble - A library for parallelized ensemble learning
+# ML- Ensemble
 
-**ML Ensemble is a Python library for building fully parallelized ensembles with a Scikit-learn's API. It is fully compatible with Scikic-learn objects such as pipelines and grid search classes.**
+**A Python library for memory efficient
+parallelized ensemble network learning**.
 
-The project is in development. Currently, the following classes are implemented:
-- `SuperLearner`: a one-stop-shop for generating and training ensembles. See [here](mlens/examples/example.ipynb) for an example.
-- `PredictionFeature`: an sklearn compatibile class for generating a feature of out-of-sample predicitons. In pipeline, coming soon.
-- `Evaluator`: a one-stop-shop for model evaluation that allows you to compare in one table the performance of any number of models, across any number of preprocessing pipelines. By fitting all estimators in one go, grid search time is dramatically reduced as compared to grid search one pipelined model at a time. See [here](mlens/test/example_evaluator.ipynb) for an example.
+ML-Ensemble combines the Scikit-learn estimator API with a neural-network style
+API to allow straight-forward multi-layer ensemble network architectures that
+can be used as any Scikit-learn estimator.
 
-## Documentation
+The core principle of ML-Ensemble is to maximize parallel processing at minimum
+memory consumption. ML-Ensemble uses memory mapping to remain memory neutral
+during parallel estimation.
 
-See the [*ML-Ensemble homepage*](http://mlens.readthedocs.io/en/latest/) for full documentation. Usecase examples can be found [here](mlens/examples/). Below follows short instructions on installation and usage.
+For full documentation, see [here](http://mlens.readthedocs.io/en/latest/).
+
+## Core Features
+
+### Transparent Architecture API
+
+Ensembles are built by adding layers to an instance object: layers in their
+turn are comprised of a list of estimators. No matter how complext the
+ensemble, to train it call the ``fit`` method:
+
+```Python
+ensemble = Subsemble()
+
+# First layer
+ensemble.add(list_of_estimators)
+
+# Second layer
+ensemble.add(list_of_estimators)
+
+# Final meta estimator
+ensemble.add_meta(estimator)
+
+# Train ensemble
+ensemble.fit(X, y)
+```
+
+### Memory Efficient Parallelized Learning
+
+Training data is persisted to a memory cache that each sub-process has access
+to, allowing parallel processing to require no more memory than processing
+on a single thread. For more details, see :ref:`memory`.
+
+Expect 95-97% of training time to be spent fitting the base estimators -
+*irrespective* of data size. The time it takes to fit an ensemble depends
+therefore entirely on how fast the chosen base learners are,
+and how many CPU cores are available.
+
+Moreover, ensemble classes that fit estimators on subsets scale more
+efficiently than the base learners when these do not scale linearly.
+
+### Modular build of multi-layered ensembles
+
+The core unit of an ensemble is a **layer**, much as a hidden unit in a neural
+network. Each layer contains an ensemble class specification and a mapping of
+preprocessing pipelines to base learners to be used during fitting.
+
+The modular build of an ensemble allows great flexibility in architecture,
+both in terms of the depth of the ensemble (number of layers)
+and how each layer generates predictions.
+
+### Differentiated preprocessing pipelines
+
+ML-Ensemble offers the possibility to specify, for each layer, a set
+of preprocessing pipelines that maps to different (or the same) sets of
+estimators. For instance, for one set of estimators, `Min-Max-Scaling`_ might
+be desired, while for a different set standization could be preferred.
+This can easily be achieved in ML-Ensemble:
+
+```Python
+ensemble = SuperLearner()
+
+preprocessing = {'pipeline-1': list_of_transformers_1,
+               'pipeline-2': list_of_transformers_2}
+
+estimators = {'pipeline-1': list_of_estimators_1,
+            'pipeline-2': list_of_estimators_2}
+
+ensemble.add(estimators, preprocessing)
+```
+
+### Dedicated Diagnostics
+
+ML Ensemble implements a dedicated diagnostics and model selection suite
+for intuitive and speedy ensemble evaluation. This suite is under
+development, so check in frequently for new functionality.
+
 
 ## How to install
 
@@ -34,52 +111,22 @@ pip install mlens
 
 #### Bleeding edge
 
-To ensure latest version is installed, fork the GitHub repository and install mlxtens using the symlink options.
+To ensure latest version is installed, fork the GitHub repository.
 
 ```bash
 git clone https://flennerhag/mlens.git; cd mlens;
-pip install -e .
+python install setup.py
 ```
 
-To update the package, pull the latest changes from the github repo
+#### Developer version
 
-## Usage
+For the latest in-development version, install the ``dev`` branch of the
+repository.
 
-The library utilizes the Scikit-learn API. Specify a set of base estimators, either as a list of estimators or a dictionary of preprocessing cases with associated base estimators, along with a meta estimator. In the simplest case:
-
-```Python
-from mlens.ensemble import SuperLearner
-from sklearn.linear_model import Lasso
-from sklearn.svm import SVR
-from sklearn.datasets import load_boston
-
-# Some data
-X, y = load_boston(return_X_y=True)
-
-# Base estimators and meta estimator
-base = [SVR(), RandomForest()]
-meta = Lasso()
-
-# Ensemble
-ens = SuperLearner(meta, base)
-
-ens.fit(X, y)
-predictions = ens.predict(X)
+```bash
+git clone https://flennerhag/mlens.git; cd mlens; git checkout dev;
+python install setup.py
 ```
-
-For more an example that builds in differentiated preprocessing pipelines for base estimators, see [**here**](mlens/examples/example.ipynb).
-
-## Roadmap
-
-The project is rapidly progressing. The parallelized backend is in place so the coming taks is to develop the front-end API for different types of ensembles need to be built. This however is a relatively straightforward task so expect major additions soon. In the pipeline of Ensembles to be implemented are currently:
-
-- Blending
-- Super Learner
-- Subsemble
-
-Stay tuned!
-
-If you'd like to contribute, don't hesitate to reach out!
 
 ## License
 

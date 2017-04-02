@@ -332,12 +332,19 @@ class LayerContainer(BaseEstimator):
     def _post_process(self, processor, return_preds):
         """Aggregate output from processing layers and collect final preds."""
 
-        out = {}
+        out = {'score_mean': {}, 'score_std': {}}
         for layer_name, layer in self.layers.items():
             if layer.cls != 'full':
-                # Layers of class 'full' make no cv predictions since they are
-                # fitted on all data.
-                out[layer_name] = getattr(layer, 'scores_', None)
+                # Layers of class 'full' make no cv predictions
+                layer_scores = getattr(layer, 'scores_', None)
+
+                if layer_scores is not None:
+                    for est_name, s in layer_scores.items():
+                        out['score_mean'][(layer_name, est_name)] = s[0]
+                        out['score_std'][(layer_name, est_name)] = s[1]
+
+        if len(out['score_mean']) == 0:
+            out = None
 
         if return_preds is not None:
             return out, processor._get_preds(return_preds)
@@ -473,8 +480,10 @@ class Layer(BaseEstimator):
         level of verbosity.
 
             - ``verbose = 0`` silent (same as ``verbose = False``)
+
             - ``verbose = 1`` messages at start and finish \
-            (same as ``verbose = True``)
+              (same as ``verbose = True``)
+
             - ``verbose = 2`` messages for each layer
 
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.

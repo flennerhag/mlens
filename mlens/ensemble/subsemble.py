@@ -18,32 +18,43 @@ class Subsemble(BaseEnsemble):
 
     Subsemble is a supervised ensemble algorithm that uses subsets of
     the full data to fit a layer, and within each subset K-fold estimation
-    to map a training set (X, y) into a prediction set (Z, y), where Z is a
-    matrix of prediction from each estimator on each subset (thus of shape
-    shape [n_samples, (n_partitions * n_estimators)]). Z is constructed
-    using K-Fold splits of each partition of X to ensure Z reflects test
-    errors within each partition. A final user-specified meta learner is
-    fitted to the final ensemble layer's prediction, to learn the best
-    combination of subset-specific estimator predictions.
-    The algorithm in sudo code follows:
+    to map a training set :math:`(X, y)` into a prediction set :math:`(Z, y)`,
+    where :math:`Z` is a matrix of prediction from each estimator on each
+    subset (thus of shape ``[n_samples, (n_partitions * n_estimators)]``).
+    :math:`Z` is constructed using K-Fold splits of each partition of `X` to
+    ensure :math:`Z` reflects test errors within each partition. A final
+    user-specified meta learner is fitted to the final ensemble layer's
+    prediction, to learn the best combination of subset-specific estimator
+    predictions. The algorithm in sudo code follows:
 
-        1. For each layer in the ensemble, do:
-            a. Specify a library of L base learners
-            b. Specify a partition strategy and partition X into J partitions
-            c. Fit all base learners on every partition and store them
-            d. Split every partition into K folds, fit every learner in L on \
-                the training set. Collect the kth fold from all partitions \
-                    and predict.
-            e. Construct a matrix Z by stacking the predictions
-        2. Fit the meta learner on Z and store the learner
+        #. For each layer in the ensemble, do:
 
-    The ensemble can be used for prediction by mapping a new test set T into a
-    prediction set Z' using the L learners fitted in (1.a), and then mapping Z'
-    to y' using the fitted meta learner from (2).
+            #. Specify a library of :math:`L` base learners
+            #. Specify a partition strategy and partition :math:`X` into
+               :math:`J` subsets.
+            #. For each partition do:
+
+                #. Fit all base learners and store them
+                #. Create :math:`K` folds
+                #. For each fold, do:
+
+                   #. Fit all base learners on the training folds
+                   #. Collect *all* test folds, across partitions, and predict.
+
+            #. Assemble a cross-validated prediction matrix
+               :math:`Z \in \mathbb{R}^{(n \times (L \times J))}`  by
+               stacking predictions made in the cross-validation step.
+
+        #. Fit the meta learner on :math:`Z` and store the learner.
+
+    The ensemble can be used for prediction by mapping a new test set :math:`T`
+    into a prediction set :math:`Z'` using the learners fitted in
+    (1.3.1), and then using :math:`Z'` to generate final predictions through
+    the fitted meta learner from (2).
 
     The Subsemble does asymptotically as well as (up to a constant) the
     Oracle selector. For the theory behind the Subsemble, see
-    [1]_ and references therein.
+    [#]_ and references therein.
 
     By partitioning the data into subset and fitting on those, a Subsemble
     can reduce training time considerably if estimators does not scale
@@ -51,24 +62,19 @@ class Subsemble(BaseEnsemble):
     patterns from each subset, and so can improve the overall performance
     by achieving a tighter fit on each subset. Since all observations in the
     training set are predicted, no information is lost between layers.
-    Subsemble is performant on small,  medium and large data and is a
-    competitive alternative to the :class:`SuperLearner`.
-
 
     References
     ----------
-    .. [1] Sapp, S., van der Laan, M. J., & Canny, J. (2014).
-    Subsemble: an  ensemble method for combining subset-specific algorithm
-    fits. Journal of Applied Statistics, 41(6), 1247-1259.
-    http://doi.org/10.1080/02664763.2013.864263
+    .. [#] Sapp, S., van der Laan, M. J., & Canny, J. (2014).
+       Subsemble: an  ensemble method for combining subset-specific algorithm
+       fits. Journal of Applied Statistics, 41(6), 1247-1259.
+       http://doi.org/10.1080/02664763.2013.864263
 
     Notes
     -----
     This implementation splits X into partitions sequentially, i.e. without
-    randomizing indices, unless the ``shuffle`` parameter is set to ``True``.
-    In this case, any input data ``X`` will be shuffled before partitioned.
-    However, the splitting is naive, in that no learning is involved in
-    splitting data. Supervised partitioning is under development.
+    randomizing indices. To achieve randomized partitioning, set ``shuffle``
+    to ``True``. Supervised partitioning is under development.
 
     See Also
     --------
@@ -109,20 +115,26 @@ class Subsemble(BaseEnsemble):
 
     array_check : int (default = 2)
         level of strictness in checking input arrays.
+
             - ``array_check = 0`` will not check ``X`` or ``y``
-            - ``array_check = 1`` will check ``X`` and ``y`` for \
-            inconsistencies and warn when format looks suspicious, \
-            but retain original format.
-            - ``array_check = 2`` will impose Scikit-learn array checks, \
-            which converts ``X`` and ``y`` to numpy arrays and raises \
-            an error if conversion fails.
+
+            - ``array_check = 1`` will check ``X`` and ``y`` for
+              inconsistencies and warn when format looks suspicious,
+              but retain original format.
+
+            - ``array_check = 2`` will impose Scikit-learn array checks,
+              which converts ``X`` and ``y`` to numpy arrays and raises
+              an error if conversion fails.
 
     verbose : int or bool (default = False)
         level of verbosity.
-            - ``verbose = 0`` silent (same as ``verbose = False``)
-            - ``verbose = 1`` messages at start and finish \
-            (same as ``verbose = True``)
-            - ``verbose = 2`` messages for each layer
+
+            * ``verbose = 0`` silent (same as ``verbose = False``)
+
+            * ``verbose = 1`` messages at start and finish (same as
+              ``verbose = True``)
+
+            * ``verbose = 2`` messages for each layer
 
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
         For verbosity in the layers themselves, use ``fit_params``.
@@ -136,10 +148,6 @@ class Subsemble(BaseEnsemble):
         if ``scorer`` was passed to instance, ``scores_`` contains dictionary
         with cross-validated scores assembled during ``fit`` call. The fold
         structure used for scoring is determined by ``folds``.
-
-    layers : instance
-        container instance for layers see :class:`LayerContainer` for further
-        information.
 
     Examples
     --------

@@ -4,85 +4,29 @@
 :copyright: 2017
 :licence: MIT
 
-Super Learner class. Fully integrable with Scikit-learn.
+Sequential Ensemble class. Fully integrable with Scikit-learn.
 """
 
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import FoldIndex, FullIndex
+from ..base import INDEXERS
 
 
-class SuperLearner(BaseEnsemble):
-    r"""Super Learner class.
+class SequentialEnsemble(BaseEnsemble):
+    r"""Sequential Ensemble class.
 
-    The Super Learner (also known as the Stacking Ensemble)is an
-    supervised ensemble algorithm that uses K-fold estimation to map a
-    training set :math:`(X, y)` into a prediction set :math:`(Z, y)`,
-    where the predictions
-    in :math:`Z` are constructed using K-Fold splits of :math:`X` to ensure
-    :math:`Z` reflects test errors, and that applies a user-specified meta
-    learner to predict :math:`y` from :math:`Z`. The algorithm in sudo code
-    follows:
-
-        #. Specify a library :math:`L` of base learners
-
-        #. Fit all base learners on :math:`X` and store the fitted estimators.
-
-        #. Split :math:`X` into :math:`K` folds, fit every learner in
-           :math:`L` on the training set and predict test set. Repeat until
-           all folds have been predicted.
-
-        #. Construct a matrix :math:`Z` by stacking the predictions per fold.
-
-        #. Fit the meta learner on :math:`Z` and store the learner
-
-    The ensemble can be used for prediction by mapping a new test set :math:`T`
-    into a prediction set :math:`Z'` using the learners fitted in (2),
-    and then mapping :math:`Z'` to :math:`y'` using the fitted meta learner
-    from (5).
-
-    The Super Learner does asymptotically as well as (up to a constant) an
-    Oracle selector. For the theory behind the Super Learner, see
-    [#]_ and [#]_ as well as references therein.
-
-    Stacking K-fold predictions to cover an entire training set is a time
-    consuming method and can be prohibitively costly for large datasets.
-    With large data, other ensembles that fits an ensemble on subsets
-    can achieve similar performance at a fraction of the training time.
-    However, when data is noisy or of high variance,
-    the :class:`SuperLearner` ensure all information is
-    used during fitting.
-
-    References
-    ----------
-    .. [#] van der Laan, Mark J.; Polley, Eric C.; and Hubbard, Alan E.,
-       "Super Learner" (July 2007). U.C. Berkeley Division of Biostatistics
-       Working Paper Series. Working Paper 222.
-       http://biostats.bepress.com/ucbbiostat/paper222
-
-    .. [#] Polley, Eric C. and van der Laan, Mark J.,
-       "Super Learner In Prediction" (May 2010). U.C. Berkeley Division of
-       Biostatistics Working Paper Series. Working Paper 266.
-       http://biostats.bepress.com/ucbbiostat/paper266
-
-    Notes
-    -----
-    This implementation uses the agnostic meta learner approach, where the
-    user supplies the meta learner to be used. For the original Super Learner
-    algorithm (i.e. learn the best linear combination of the base learners),
-    the user can specify a linear regression as the meta learner.
+    The Sequential Ensemble class allows users to build ensembles with
+    different classes of layers. The type of layer and its parameters are
+    specified when added to the ensemble. See respective ensemble class for
+    details on parameters.
 
     See Also
     --------
-    :class:`BlendEnsemble`, :class:`Subsemble`
+    :class:`BlendEnsemble`, :class:`Subsemble`, :class:`SuperLearner`
 
     Parameters
     ----------
-    folds : int (default = 2)
-        number of folds to use during fitting. Note: this parameter can be
-        specified on a layer-specific basis in the :attr:`add` method.
-
     shuffle : bool (default = True)
         whether to shuffle data before generating folds.
 
@@ -141,10 +85,7 @@ class SuperLearner(BaseEnsemble):
 
     Examples
     --------
-
-    Instantiate ensembles with no preprocessing: use list of estimators
-
-    >>> from mlens.ensemble import SuperLearner
+    >>> from mlens.ensemble import SequentialEnsemble
     >>> from mlens.metrics.metrics import rmse
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
@@ -152,44 +93,24 @@ class SuperLearner(BaseEnsemble):
     >>>
     >>> X, y = load_boston(True)
     >>>
-    >>> ensemble = SuperLearner()
-    >>> ensemble.add([SVR(), ('can name some or all est', Lasso())])
+    >>> ensemble = SequentialEnsemble()
+    >>>
+    >>> # Add a subsemble with 5 partitions as first layer
+    >>> ensemble.add('subset', [SVR(), Lasso()], n_partitions=10, n_splits=10)
+    >>>
+    >>> # Add a super learner as second layer
+    >>> ensemble.add('stack', [SVR(), Lasso()], n_splits=20)
+    >>>
+    >>> # Specify a meta estimator
     >>> ensemble.add_meta(SVR())
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    6.9553583775881407
-
-    Instantiate ensembles with different preprocessing pipelines through dicts.
-
-    >>> from mlens.ensemble import SuperLearner
-    >>> from mlens.metrics.metrics import rmse
-    >>> from sklearn.datasets import load_boston
-    >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
-    >>> from sklearn.linear_model import Lasso
-    >>> from sklearn.svm import SVR
-    >>>
-    >>> X, y = load_boston(True)
-    >>>
-    >>> preprocessing_cases = {'mm': [MinMaxScaler()],
-    ...                        'sc': [StandardScaler()]}
-    >>>
-    >>> estimators_per_case = {'mm': [SVR()],
-    ...                        'sc': [('can name some or all ests', Lasso())]}
-    >>>
-    >>> ensemble = SuperLearner()
-    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR(),
-    ...                                                            meta=True)
-    >>>
-    >>> ensemble.fit(X, y)
-    >>> preds = ensemble.predict(X)
-    >>> rmse(y, preds)
-    7.8413294010791557
+    6.5628696546845635
     """
 
     def __init__(self,
-                 folds=2,
                  shuffle=False,
                  random_state=None,
                  scorer=None,
@@ -199,27 +120,31 @@ class SuperLearner(BaseEnsemble):
                  n_jobs=-1,
                  layers=None):
 
-        super(SuperLearner, self).__init__(
+        super(SequentialEnsemble, self).__init__(
                 shuffle=shuffle, random_state=random_state,
                 scorer=scorer, raise_on_exception=raise_on_exception,
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
                 array_check=array_check)
-
-        self.folds = folds
 
     def add_meta(self, estimator):
         """Meta Learner.
 
         Meta learner to be used for final predictions.
         """
-        return self.add(estimators=estimator, meta=True)
+        return self.add(cls='full', estimators=estimator)
 
-    def add(self, estimators, preprocessing=None,
-            folds=None, proba=False, meta=False):
+    def add(self, cls, estimators, preprocessing=None, **kwargs):
         """Add layer to ensemble.
 
         Parameters
         ----------
+        cls : str
+            layer class. Accepted types are:
+
+                * 'blend' : blend ensemble
+                * 'subset' : subsemble
+                * 'stack' : super learner
+
         estimators: dict of lists or list or instance
             estimators constituting the layer. If preprocessing is none and the
             layer is meant to be the meta estimator, it is permissible to pass
@@ -272,39 +197,39 @@ class SuperLearner(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-
-        folds : int, optional
-            Use if a different number of folds is desired than what the
-            ensemble was instantiated with.
-
-        proba : bool
-            whether layer should predict class probabilities. Note: setting
-            ``proba=True`` will attempt to call an the estimators
-            ``predict_proba`` method.
-
-        meta : bool (default = False)
-            indicator if the layer added is the final meta estimator. This will
-            prevent folded or blended fits of the estimators and only fit them
-            once on the full input data.
+        kwargs : optional
+            optional keyword arguments to instantiate layer with. See
+            respective ensemble for further details.
 
         Returns
         -------
         self : instance
             ensemble instance with layer instantiated.
         """
-        c = folds if folds is not None else self.folds
+        if cls not in INDEXERS:
+            raise NotImplementedError("Layer class not implemented. Select "
+                                      "one of %r." % sorted(INDEXERS))
 
-        if meta:
-            idx = FullIndex()
-            cls = 'full'
-        else:
-            idx = FoldIndex(c, raise_on_exception=self.raise_on_exception)
-            cls = 'stack'
+        # If no kwargs, instantiate with defaults
+        if kwargs is None:
+            return self._add(estimators, cls, INDEXERS[cls](), preprocessing)
 
-        return self._add(
-                estimators=estimators,
-                cls=cls,
-                indexer=idx,
-                preprocessing=preprocessing,
-                proba=proba,
-                verbose=self.verbose)
+        # Else, pop arguments belonging to the indexer
+        indexer, kwargs_idx = INDEXERS[cls], dict()
+
+        args = indexer.__init__.__code__.co_varnames
+        for arg in args:
+            if arg in kwargs:
+                kwargs_idx[arg] = kwargs.pop(arg)
+
+        if 'raise_on_exception' in args and \
+                'raise_on_exception' not in kwargs_idx:
+            kwargs_idx['raise_on_exception'] = self.raise_on_exception
+
+        indexer = indexer(**kwargs_idx)
+
+        return self._add(estimators=estimators,
+                         cls=cls,
+                         indexer=indexer,
+                         preprocessing=preprocessing,
+                         verbose=self.verbose)

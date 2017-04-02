@@ -72,4 +72,4 @@ def test_scores():
 
     for k in scores:
 
-        assert scores[k] == ens.scores_['layer-1'][k][0]
+        assert scores[k] == ens.scores_['score_mean'][('layer-1', k)]

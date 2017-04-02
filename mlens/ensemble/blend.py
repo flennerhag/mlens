@@ -35,29 +35,9 @@ class BlendEnsemble(BaseEnsemble):
     :class:`BlendEnsemble` can be a poor choice as information is lost at
     each stage of fitting.
 
-    References
-    ----------
-
-    .. [1] van der Laan, Mark J.; Polley, Eric C.; and Hubbard, Alan E.,
-    "Super Learner" (July 2007). U.C. Berkeley Division of Biostatistics
-    Working Paper Series. Working Paper 222.
-    http://biostats.bepress.com/ucbbiostat/paper222
-
-    .. [2] Polley, Eric C. and van der Laan, Mark J.,
-    "Super Learner In Prediction" (May 2010). U.C. Berkeley Division of
-    Biostatistics Working Paper Series. Working Paper 266.
-    http://biostats.bepress.com/ucbbiostat/paper266
-
-    Notes
-    -----
-    This implementation uses the agnostic meta learner approach, where the
-    user supplies the meta learner to be used. For the original Super Learner
-    algorithm (i.e. learn the best linear combination of the base learners),
-    the user can specify a linear regression as the meta learner.
-
     See Also
     --------
-    :class:`SuperLearner`
+    :class:`SuperLearner`, :class:`Subsemble`
 
     Parameters
     ----------
@@ -91,20 +71,24 @@ class BlendEnsemble(BaseEnsemble):
         level of strictness in checking input arrays.
 
             - ``array_check = 0`` will not check ``X`` or ``y``
-            - ``array_check = 1`` will check ``X`` and ``y`` for \
-            inconsistencies and warn when format looks suspicious, \
-            but retain original format.
-            - ``array_check = 2`` will impose Scikit-learn array checks, \
-            which converts ``X`` and ``y`` to numpy arrays and raises \
-            an error if conversion fails.
+
+            - ``array_check = 1`` will check ``X`` and ``y`` for
+              inconsistencies and warn when format looks suspicious,
+              but retain original format.
+
+            - ``array_check = 2`` will impose Scikit-learn array checks,
+              which converts ``X`` and ``y`` to numpy arrays and raises
+              an error if conversion fails.
 
     verbose : int or bool (default = False)
         level of verbosity.
 
-            - ``verbose = 0`` silent (same as ``verbose = False``)
-            - ``verbose = 1`` messages at start and finish \
-            (same as ``verbose = True``)
-            - ``verbose = 2`` messages for each layer
+            * ``verbose = 0`` silent (same as ``verbose = False``)
+
+            * ``verbose = 1`` messages at start and finish (same as
+              ``verbose = True``)
+
+            * ``verbose = 2`` messages for each layer
 
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
         For verbosity in the layers themselves, use ``fit_params``.
@@ -118,10 +102,6 @@ class BlendEnsemble(BaseEnsemble):
         if ``scorer`` was passed to instance, ``scores_`` contains dictionary
         with cross-validated scores assembled during ``fit`` call. The fold
         structure used for scoring is determined by ``folds``.
-
-    layers : instance
-        container instance for layers see :class:`LayerContainer` for further
-        information.
 
     Examples
     --------

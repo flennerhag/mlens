@@ -1,6 +1,13 @@
 mlens.preprocessing package
 ===========================
 
+Submodules
+----------
+
+.. toctree::
+
+   mlens.preprocessing.preprocess
+
 Module contents
 ---------------
 

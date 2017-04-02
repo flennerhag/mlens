@@ -5,36 +5,28 @@
 User Guides
 ===========
 
-ML-Ensemble follows closely the Scikit-learn_ API, and any ML-Ensemble
-estimator behaves almost identically to a Scikit-learn estimator.
 To quickly get a feel for a an ML-Ensemble estimator behaves, see
 the :ref:`ensemble-guide` on how to instantiate, fit and predict with an
 ensemble. The :ref:`model-selection-guide` shows how to use the model selection
 library, while the :ref:`visualization-guide` gives an introduction to the
-plotting functionality. For a full tutorial on how to use ML-Ensemble as a
-pipeline for ensemble learning, see the :ref:`ensemble-tutorial`.
+plotting functionality. For more in-depth material, see
+:ref:`ensemble-tutorial`.
 
 Preliminaries
 -------------
-
-All guides use the same data and have the same dependencies. To avoid writing
-the same imports several times, we put all common imports here. ::
+We use the following setup throughout::
 
     import numpy as np
 
-    # Set seed for reproducibility
     seed = 2017
     np.random.seed(seed)
 
-    # We will use the f1 scorer
-    from mlens.metrics import make_scorer
     from sklearn.metrics import f1_score
 
     def f1(y_true, y_pred):
-        """Wrapper around f1_scorer with average='micro'."""
+        """Wrapper around f1_scorer to get multi-label scores."""
         return f1_score(y_true, y_pred, average='micro')
 
-    # We use the iris data set
     from sklearn.datasets import load_iris
 
     data = load_iris()
@@ -42,28 +34,26 @@ the same imports several times, we put all common imports here. ::
     X = data.data[idx]
     y = data.target[idx]
 
-
 .. _ensemble-guide:
 
 Ensemble Guide
 --------------
 
-The only fundamental difference between a ML-Ensemble estimator and a
-Scikit-learn estimator is that an ML-Ensemble estimator usually requires the
-user to specify one or several layers of estimators, and if applicable a final
-meta estimator. Here, we will build a one-layer stacking ensemble that combines
-the predictions of a `Random Forest`_ and a `Support Vector Machine`_ through a
-`Logistic regression`_. ::
+Building an ensemble
+^^^^^^^^^^^^^^^^^^^^
 
-    from sklearn.preprocessing import StandardScaler
+Instantiating a fully specified ensemble is straightforward and requires
+three steps: first create the instance, second add the intermediate layers, and
+finally the meta estimator. ::
+
+    from mlens.ensemble import SuperLearner
     from sklearn.linear_model import LogisticRegression
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.svm import SVC
 
-    from mlens.ensemble import SuperLearner
+    # --- Build ---
 
-    # Instantiate the ensemble with the f1 scorer
-    # Passing a scorer will create cv scores for every estimator in all layers
+    # Passing a scorer will create cv scores during fitting
     ensemble = SuperLearner(scorer=f1, random_state=seed)
 
     # Build the first layer
@@ -72,24 +62,76 @@ the predictions of a `Random Forest`_ and a `Support Vector Machine`_ through a
     # Attach the final meta estimator
     ensemble.add_meta(LogisticRegression())
 
-    # Fit ensemble on half the data
+    # --- Use ---
+
+    # Fit ensemble
     ensemble.fit(X[:75], y[:75])
 
-    # Predict the other half
+    # Predict
     preds = ensemble.predict(X[75:])
 
+To check the performance of estimator in the layers, call the ``scores_``
+attribute. The attribute can be wrapped in a :class:`pandas.DataFrame`
+for a tabular format. ::
 
-We can now check how well each estimator in the layers of the ensemble::
-
-    >>> ensemble.scores_
-      {'layer-1':
-         {'randomforestclassifier': 0.83926031294452352,
-          'svc': 0.89402560455192037}}
+    >>> DataFrame(ensemble.scores_)
+                                    score_mean  score_std
+    layer-1 randomforestclassifier    0.839260   0.055477
+            svc                       0.894026   0.051920
 
 To round off, let's see how the ensemble as a whole fared. ::
 
     >>> f1(preds, y[75:])
     0.95999999999999996
+
+Multi-layer ensembles
+^^^^^^^^^^^^^^^^^^^^^
+
+With each call to the ``add`` method, another layer is added to the ensemble.
+Note that all ensembles are *sequential* in the order layers are added. For
+instance, in the above example, we could add a second layer as follows. ::
+
+    ensemble = SuperLearner(scorer=f1, random_state=seed, verbose=True)
+
+    # Build the first layer
+    ensemble.add([RandomForestClassifier(random_state=seed), LogisticRegression()])
+
+    # Build the second layer
+    ensemble.add([LogisticRegression(), SVC()])
+
+    # Attach the final meta estimator
+    ensemble.add_meta(SVC())
+
+We now fit this ensemble in the same manner as before::
+
+    >>> ensemble.fit(X[:75], y[:75])
+    Fitting layer layer-1
+    [layer-1] Done | 00:00:00
+    Fitting layer layer-2
+    [layer-2] Done | 00:00:00
+    Fitting layer layer-3
+    [layer-3] Done | 00:00:00
+
+Similarly with predictions::
+
+    >>> preds = ensemble.predict(X[75:])
+    Predicting layer layer-1
+    [layer-1] Done | 00:00:00
+    Predicting layer layer-2
+    [layer-2] Done | 00:00:00
+    Predicting layer layer-3
+    [layer-3] Done | 00:00:00
+
+
+The design of the ``scores_`` attribute now allows an easy overview of the
+ensemble performance. ::
+
+    >>> DataFrame(ensemble.scores_)
+                                    score_mean  score_std
+    layer-1 logisticregression        0.735420   0.156472
+            randomforestclassifier    0.839260   0.055477
+    layer-2 logisticregression        0.668208   0.115576
+            svc                       0.893314   0.001422
 
 .. _model-selection-guide:
 
@@ -97,18 +139,21 @@ Model Selection Guide
 ---------------------
 
 The model selection suite is constantly expanding, so make sure to check in
-regularly! The work horse is the ``Evaluator`` class, that allows a user to
-evaluate several models in one go, thus avoiding fitting the same preprocessing
-pipelines time and again. Moreover, if the data is large, avoiding repeated
-slicing for creating folds rapidly amounts to significant time saved.
+regularly. The work horse is the ``Evaluator`` class that allows a user to
+evaluate several models in one go across several pipelines. The evaluator class
+pre-fits transformers, thus avoiding fitting the same preprocessing
+pipelines on the same data repeatedly.
 
-Let's evaluate how a `Naive Bayes`_ model and a `K-Nearest-Neighbor`_ model
-performs under three different preprocessing scenarios: non preprocessing at
-all, standard scaling, and subset selection. In this latter scenario, we will
-simply stipulate the models use the first two columns of ``X``. ::
+The following example evaluates a `Naive Bayes`_ estimator and a
+`K-Nearest-Neighbor`_ estimator under three different preprocessing scenarios:
+no preprocessing, standard scaling, and subset selection.
+In the latter case, preprocessing is constituted by selecting a subset
+:math:`x \subset X` consisting of the two columns of ``X``. ::
 
     from mlens.model_selection import Evaluator
-    from mlens.preprocessing import StandardScaler, Subset
+    from mlens.preprocessing import Subset
+    from sklearn.preprocessing import StandardScaler
+    from pandas import DataFrame
 
     from sklearn.naive_bayes import GaussianNB
     from sklearn.neighbors import KNeighborsClassifier
@@ -118,73 +163,72 @@ simply stipulate the models use the first two columns of ``X``. ::
     # Map preprocessing cases through a dictionary
     preprocess_cases = {'none': [],
                         'sc': [StandardScaler()],
-                        'sub': [Subset([0, 1])]}
+                        'sub': [Subset([0, 1])]
+                        }
 
     # Instantiate the evaluator
-    evaluator = Evaluator(scorer, preprocess_cases,
-                          cv=10, random_state=seed, verbose=1)
+    evaluator = Evaluator(f1, cv=10, random_state=seed, verbose=1)
 
-Once the preprocessing is set up and the evaluator is instantiated, we can
-pre-make the cv folds for each preprocessing case if we wish to separate
-out the preprocessing and the actual evaluation. This can make sense if the
-preprocessing is time-consuming, for instance if the preprocessing
-constitutes the base of an ensemble
-(XXX: need to set up the EnsembleTransformers). We can achieve this by
-calling the ``preprocess`` method::
+Once the :class:`Evaluator` is instantiated, we can pre-fit the transformers
+before we decide on estimators, if we wish to separate
+out the preprocessing part. This can be helpful if the preprocessing is
+time-consuming, for instance if the base of an ensemble is used as a tranformer
+(TODO: set up the EnsembleTransformers and tutorial). To explicitly fit
+preprocessing pipelines, call ``preprocess``. ::
 
-    >>> evaluator.preprocess(X, y)
+    >>> evaluator.preprocess(X, y, preprocess_cases)
     Preprocessing 3 preprocessing pipelines over 10 CV folds
     [Parallel(n_jobs=-1)]: Done  30 out of  30 | elapsed:    0.0s finished
     Preprocessing done | 00:00:00
 
-To launch an evaluation, we need a mapping of parameter distributions and
-a list of estimators. It is important that the name entries in the
-parameter distribution mapping corresponds to the names of the estimators. If
-estimators are left unnamed, i.e. as a list of estimators
-``[est_1, est_2]``, these will be given the name of their class in lower
-letters. So the ``Lasso`` estimator will be named ``lasso``. Alternatively, you
-can pass a named tuple ``(name, est)`` instead of only the estimator instance,
-if you wish to directly control the name of the estimator. ::
+To launch an evaluation, we need a mapping of parameter distributions to
+estimators. It is important that the name entries in the
+parameter distribution maps to the case *and* the name of the estimator, since
+estimators in different cases are likely to find optimal hyper parameter values
+in different region of parameter space. If no preprocessing is desired,
+simply pass a list of estimator. The list can contain a mixture of named
+tuples and estimator instance, like so:
+``estimator_list=[estimator_instance, ('name', estimator_instance)]``. In this
+example, we map parameter draws to cases and estimators::
 
     # The Gaussian model has no interesting parameters to tune, se we leave it
     # out. We will rename the KNeighborsClassifier to 'knn' for simplicity.
-    params = {'knn':
-                {'n_neighbors': randint(2, 20)}}
+    pars = {'n_neighbors': randint(2, 20)}
+    params = {('sc', 'knn'): pars,
+              ('none', 'knn'): pars,
+              ('sub', 'knn'): pars}
 
-    # We must rename the K-Nearest-Neighbor estimator
-    # to 'knn' to match the entry in the 'params' dict.
-    estimators = [('gnb', GaussianNB()), ('knn', KNeighborsClassifier())]
+    ests = [('gnb', GaussianNB()), ('knn', KNeighborsClassifier())]
+    estimators = {'sc': ests,
+                  'none': ests,
+                  'sub': ests}
 
-To evaluate, call the ``evaluate`` method. If preprocessing folds have
-already been generated, there is no need passing ``X`` and ``y`` again.
-Make sure to specify how many parameter draws you with to evaluate
-(the ``n_iter`` parameter). ::
+To evaluate, call ``evaluate``. Make sure to specify how many parameter
+draws you with to evaluate (the ``n_iter`` parameter). ::
 
-    >>> evaluator.evaluate(estimators, params, n_iter=10)
-    Evaluating 2 models for 10 parameter draws over 3 preprocessing pipelines and 10 CV folds, totalling 600 fits
-    [Parallel(n_jobs=-1)]: Done 600 out of 600 | elapsed:    1.0s finished
+    >>> evaluator.evaluate(X, y, estimators, params, n_iter=10)
+   Evaluating 6 estimators for 10 parameter draws 10 CV folds, totalling 600 fits
+   [Parallel(n_jobs=-1)]: Done 600 out of 600 | elapsed:    0.9s finished
     Evaluation done | 00:00:01
 
-The results for all parameter draws are stored in ``cv_results_``. The
-``summary_`` attribute contains the best parameter setting for each estimator
-in each preprocessing case. Calling ``evaluator.summary_`` gives the following
-table:
+.. :currentmodule::pandas
 
-=========  ===============  ==============  ================  ===============  =========  ========  ==================
-estimator  test_score_mean  test_score_std  train_score_mean  train_score_std  time_mean  time_std  params
-=========  ===============  ==============  ================  ===============  =========  ========  ==================
-knn-sub    0.720000         0.159629        0.782963           0.024949        0.000555   0.000326  {'n_neighbors': 9}
-knn-sc     0.720000         0.132591        0.783704           0.020893        0.000626   0.000405  {'n_neighbors': 8}
-gnb-sub    0.713333         0.169385        0.702963           0.014999        0.001243   0.000723                  {}
-gnb-none   0.706667         0.095323        0.748148           0.009877        0.001060   0.000433                  {}
-gnb-sc     0.706667         0.095323        0.748148           0.009877        0.001778   0.001728                  {}
-knn-none   0.693333         0.114180        0.804444           0.014055        0.000803   0.000538  {'n_neighbors': 5}
-=========  ===============  ==============  ================  ===============  =========  ========  ==================
+The results for all parameter draws are stored in ``cv_results``. The
+``summary`` attribute contains data pertaining to the best draw for each
+estimator in each preprocessing case. These attributes are stored as ``dict``s,
+and can be given to a pandas :class:`DataFrame` instance for a tabular output::
 
-So we can quickly surmise that the K-Nearest-Neighbor estimator does generally
-better than the Naive Bayes estimator. For the KNN, wisely choosing a subset
-(here, those with least induced noise) and standardizing the data were equally
-efficient preprocessing pipelines.
+   >>> DataFrame(evaluator.summary)
+             fit_time_mean  fit_time_std  train_score_mean  train_score_std  test_score_mean  test_score_std               params
+   none gnb       0.001353      0.001316          0.957037         0.005543         0.960000        0.032660                   {}
+        knn       0.000447      0.000012          0.980000         0.004743         0.966667        0.033333  {'n_neighbors': 15}
+   sc   gnb       0.001000      0.000603          0.957037         0.005543         0.960000        0.032660                   {}
+        knn       0.000448      0.000036          0.965185         0.003395         0.960000        0.044222   {'n_neighbors': 8}
+   sub  gnb       0.000735      0.000248          0.791111         0.019821         0.780000        0.133500                   {}
+        knn       0.000462      0.000143          0.837037         0.014815         0.800000        0.126491   {'n_neighbors': 9}
+
+So we can quickly surmise that the two perform similarly, the KNN should
+use 15 neighbours. and preprocessing doesn't seem necessary.
 
 .. _visualization-guide:
 

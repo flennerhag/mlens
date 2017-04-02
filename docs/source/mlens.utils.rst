@@ -1,33 +1,22 @@
 mlens.utils package
 ===================
 
+Submodules
+----------
+
+.. toctree::
+
+   mlens.utils.checks
+   mlens.utils.dummy
+   mlens.utils.exceptions
+   mlens.utils.formatting
+   mlens.utils.utils
+   mlens.utils.validation
+
 Module contents
 ---------------
 
 .. automodule:: mlens.utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-Submodules
-----------
-
-.. automodule:: mlens.utils.checks
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. automodule:: mlens.utils.exceptions
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. automodule:: mlens.utils.utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. automodule:: mlens.utils.validation
     :members:
     :undoc-members:
     :show-inheritance:

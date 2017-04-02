@@ -1,66 +1,92 @@
 ML-Ensemble
 ===========
 
-ML-Ensemble is a Python library for **performant, memory efficient,
+ML-Ensemble is a Python library for **memory efficient
 parallelized ensemble network learning**.
 
-ML-Ensemble utilizes the `Scikit-learn`_ API and all ML-Ensemble estimators
-are proper Scikit-learn estimators that can be combined with any Scikit-learn
-functionality, such as grid searches or pipelines. Moreover, ML-Ensemble adopts
-a network building API similar to popular Neural Network libraries like Keras_.
-As such, it straightforward to 'deep' ensembles of any level of complexity.
+ML-Ensemble emphasizes user friendliness, and all estimators follows the
+`Scikit-learn`_ API. In fact, any ML-Ensemble estimator is passes as a
+proper Scikit-learn estimator and interacts seamlessly with any
+Scikit-learn object. The ensemble layer API is similar to that of popular
+Neural Network libraries like Keras_, and it is straightforward to build deep
+ensembles of any desired level of complexity.
 
-ML-Ensemble uses **shared memory** across subprocesses to minimize footprint on
-the machine's RAM, and in fact an ensemble can use *less* memory during fitting
-and predicting than its some of its constituents estimators when
-there are fitted on a stand-alone basis.
+ML-Ensemble implements a range of ensemble techniques and the list is
+constantly growing. For latest news, see :ref:`updates`.
 
-ML-Ensemble is highly performant, and an appropriately built ensemble will
-always outperforms any of its constituent estimators. For testimonials, see
-:ref:`benchmarks`. If you are new to ML-Ensemble, check out
-:ref:`getting-started` and :ref:`ensemble-tutorial`.
+If you are new to ML-Ensemble, check out the :ref:`getting-started`
+and :ref:`ensemble-tutorial`. For more detailed examples, see the
+:ref:`memory` and :ref:`scaling` section. Performance testamonials can be found
+in the :ref:`here <benchmarks>`.
+
+If you would like to get involved, don't hesitate to reach out on Github_ !
 
 Core Features
 -------------
 
+Simple Architectures
+^^^^^^^^^^^^^^^^^^^^
+
+Ensembles are built by adding layers to an instance object: layers in their
+turn are comprised of a list of estimators. No matter how complext the
+ensemble, to train it call the ``fit`` method::
+
+    ensemble = Subsemble()
+
+    # First layer
+    ensemble.add(list_of_estimators)
+
+    # Second layer
+    ensemble.add(list_of_estimators)
+
+    # Final meta estimator
+    ensemble.add_meta(estimator)
+
+    # Train ensemble
+    ensemble.fit(X, y)
+
+.. currentmodule:: mlens.ensemble
+
 Memory Efficient Parallelized Learning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Because base learners in an ensemble are independent of each other, ensembles
+benefit greatly from multithreading and the fundamental philosophy of
+ML-Ensemble is to enable as much parallel processing as possible with minimum
+impact on memory consumption. Estimation in parallel can easily lead to
+unacceptable memory consumption if each sub-process requires a copy of the
+training data, but ML-Ensemble avoids this issue by using memory mapping.
 
-The fundamental philosophy of ML-Ensemble is multithreading: using as much of a
-machine's full processing power to fit as many estimators in parallel as
-possible. This can easily lead to exponential use of memory and with large
-ensembles, even relatively small datasets might be too large to fit.
-ML-Ensemble avoids this by sharing one copy of training and test data across
-all processes, and as such no unnecessary copying taking place. In fact, but
-using shared memory stored on disk, an ensemble can be a good deal **more**
-memory efficient than some of its constituent estimators when these are fitted
-outside of the ensemble!
+Training data is persisted to a memory cache that each sub-process has access
+to, allowing parallel processing to require no more memory than processing
+on a single thread. For more details, see :ref:`memory`.
 
-Not only is ML-Ensemble memory efficient, it is also fast: between 95-97% of
-training time is spent fitting estimators *irrespective* of data size, and as
-such the time it takes to fit an ensemble depends only on how fast and scalable
-the estimators you put in are, and how many CPU cores you have available.
+Expect 95-97% of training time to be spent fitting the base estimators -
+*irrespective* of data size. The time it takes to fit an ensemble depends
+therefore entirely on how fast the chosen base learners are,
+and how many CPU cores are available.
 
-Multi-Layered ensembles
-^^^^^^^^^^^^^^^^^^^^^^^
+Moreover, ensemble classes that fit estimators on subsets scale more
+efficiently than the base learners when these do not scale linearly.
+
+Modular build of multi-layered ensembles
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The core unit of an ensemble is a **layer**, much as a hidden unit in a neural
-network. Each layer contains a set of preprocessing steps, estimators and
-an estimation type that determines how to fit the estimators of the layer
-and generate predictions.
+network. Each layer contains an ensemble class specification and a mapping of
+preprocessing pipelines to base learners to be used during fitting.
 
-The modular build of an ensemble allows great flexibility in building ensemble
-structures, both in terms of the depth of the ensemble (number of layers)
-and how each layer generates predictions. As such, it is straightforward to
-build arbitrarily complex ensembles, where each layer use a different
-estimation method (i.e. stacking, blending, Subsemble e.t.c.).
+The modular build of an ensemble allows great flexibility in architecture,
+both in terms of the depth of the ensemble (number of layers)
+and how each layer generates predictions.
 
 Differentiated preprocessing pipelines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A key feature of ML-Ensemble is the ability to specify, for each layer, a set
-of preprocessing pipelines, and map different (or the same) sets of of
-estimators to each preprocessing pipeline. ::
+ML-Ensemble offers the possibility to specify, for each layer, a set
+of preprocessing pipelines that maps to different (or the same) sets of
+estimators. For instance, for one set of estimators, `Min-Max-Scaling`_ might
+be desired, while for a different set standization could be preferred.
+This can easily be achieved in ML-Ensemble::
 
       ensemble = SuperLearner()
 
@@ -76,8 +102,8 @@ Dedicated Diagnostics
 ^^^^^^^^^^^^^^^^^^^^^
 
 ML Ensemble implements a dedicated diagnostics and model selection suite
-for intuitive and speedy ensemble evaluation. This is suite is under
-development, so check in frequently for new functionality!
+for intuitive and speedy ensemble evaluation. This suite is under
+development, so check in frequently for new functionality.
 
 
 .. toctree::
@@ -90,19 +116,19 @@ development, so check in frequently for new functionality!
 .. toctree::
    :hidden:
    :maxdepth: 2
-   :caption: Benchmarks
-
-   benchmarks
-
-.. toctree::
-   :hidden:
-   :maxdepth: 2
    :caption: Getting Started
 
    getting_started
    ensemble_tutorial
 
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Details
 
+   benchmarks
+   memory
+   scaling
 
 .. toctree::
    :hidden:
@@ -119,7 +145,16 @@ development, so check in frequently for new functionality!
 
    licence
 
+References
+----------
+.. [1] van der Laan, Mark J.; Polley, Eric C.; and Hubbard, Alan E.,
+   "Super Learner" (July 2007). U.C. Berkeley Division of Biostatistics
+   Working Paper Series. Working Paper 222.
+   http://biostats.bepress.com/ucbbiostat/paper222
 
 ML Ensemble is licenced under MIT and is hosted on Github_.
 
 .. _Github: https://github.com/flennerhag/mlens
+.. _Scikit-learn: http://scikit-learn.org/stable/
+.. _Keras: https://keras.io
+.. _Min-Max-Scaling: https://en.wikipedia.org/wiki/Feature_scaling

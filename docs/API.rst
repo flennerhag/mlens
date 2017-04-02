@@ -13,7 +13,7 @@ can be summarized as follows. ::
    estimator = Estimator()
    estimator.fit(X, y)
 
-    # mlens API
+   # mlens API
    ensemble = Ensemble().add(list_of_estimators).add_meta(estimator)
    ensemble.fit(X, y)
 
@@ -26,6 +26,9 @@ Ensemble estimators
 .. autosummary::
 
    SuperLearner
+   Subsemble
+   BlendEnsemble
+   SequentialEnsemble
 
 Model Selection
 ^^^^^^^^^^^^^^^
@@ -35,7 +38,6 @@ Model Selection
 .. autosummary::
 
    Evaluator
-   StackingTransformer
 
 Preprocessing
 ^^^^^^^^^^^^^
@@ -44,8 +46,6 @@ Preprocessing
 
 .. autosummary::
 
-   PredictionFeature
-   StandardScaler
    Subset
 
 Visualization
@@ -62,20 +62,5 @@ Visualization
    pca_comp_plot
    exp_var_plot
 
-For Developers
-^^^^^^^^^^^^^^
-
-For developers, the API of the ``LayerContainer`` and ``Layer`` class are
-essential for building ensemble classes. When building a ML-Ensemble estimator,
-use the :class:`mlens.ensemble.base.BaseEnsemble` as the parent class to import
-the ``_add``, ``_fit`` and ``_predict`` methods, rather than calling methods of
-``LayerContainer`` directly.
-
-.. currentmodule:: mlens.ensemble.base
-
-.. autosummary::
-
-   LayerContainer
-   Layer
 
 .. _Scikit-learn: http://scikit-learn.org/stable/

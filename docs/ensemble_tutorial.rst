@@ -1,6 +1,6 @@
 .. _ensemble-tutorial:
 
-Tutorial
-========
+Tutorials
+=========
 
 TBD.

@@ -55,18 +55,12 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
               'sphinx.ext.napoleon',
               'sphinx.ext.intersphinx',
-              'numpydoc',
               ]
 
 # Intersphinx options
 intersphinx_mapping = {'http://scikit-learn.org/stable/': None,
                        'http://matplotlib.org/': None,
                        'http://pandas.pydata.org/pandas-docs/stable/': None}
-
-# Numpydoc options
-numpydoc_show_class_members = True
-numpydoc_show_inherited_class_members = True
-numpydoc_class_members_toctree = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

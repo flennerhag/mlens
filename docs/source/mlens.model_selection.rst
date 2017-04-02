@@ -1,6 +1,13 @@
 mlens.model_selection package
 =============================
 
+Submodules
+----------
+
+.. toctree::
+
+   mlens.model_selection.model_selection
+
 Module contents
 ---------------
 

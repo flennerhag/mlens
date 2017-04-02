@@ -79,41 +79,41 @@ class CMLog(object):
 
     Class for starting a monitor job of CPU and memory utilization in the
     background in a Python script. The ``monitor`` class records the
-     ``cpu_percent``, ``rss`` and ``vms`` as collected by the
-     :mod:`psutil` library for the parent process' pid.
+    ``cpu_percent``, ``rss`` and ``vms`` as collected by the
+    :mod:`psutil` library for the parent process' pid.
 
-    CPU usage and memory utlization are stored as attributes in numpy arrays.
+    CPU usage and memory utilization are stored as attributes in numpy arrays.
 
-     Notes
-     -----
-     CMLog uses subprocess to start a recording job for the specified amount
-     of time. Once issued, the job cannot be aborted without killing the
-     parent process.
+    Notes
+    -----
+    CMLog uses subprocess to start a recording job for the specified amount
+    of time. Once issued, the job cannot be aborted without killing the
+    parent process.
 
-     Examples
-     --------
-     >>> from time import sleep
-     >>> from mlens.utils.utils import CMLog
-     >>> cm = CMLog(verbose=True)
-     >>> cm.monitor(2, 0.5)
-     >>> _ = [i for i in range(10000000)]
-     >>>
-     >>> # Collecting before completion triggers a message but no error
-     >>> cm.collect()
-     >>>
-     >>> sleep(2)
-     >>> cm.collect()
-     >>> print('CPU usage:')
-     >>> cm.cpu
-     [CMLog] Monitoring for 2 seconds with checks every 0.5 seconds.
-     [CMLog] Job not finished. Cannot collect yet.
-     [CMLog] Collecting... done. Read 4 lines in 0.000 seconds.
-     CPU usage:
-     array([ 50. ,  22.4,   6. ,  11.9])
+    Examples
+    --------
+    >>> from time import sleep
+    >>> from mlens.utils.utils import CMLog
+    >>> cm = CMLog(verbose=True)
+    >>> cm.monitor(2, 0.5)
+    >>> _ = [i for i in range(10000000)]
+    >>>
+    >>> # Collecting before completion triggers a message but no error
+    >>> cm.collect()
+    >>>
+    >>> sleep(2)
+    >>> cm.collect()
+    >>> print('CPU usage:')
+    >>> cm.cpu
+    [CMLog] Monitoring for 2 seconds with checks every 0.5 seconds.
+    [CMLog] Job not finished. Cannot collect yet.
+    [CMLog] Collecting... done. Read 4 lines in 0.000 seconds.
+    CPU usage:
+    array([ 50. ,  22.4,   6. ,  11.9])
 
-     Raises
-     ------
-     ImportError :
+    Raises
+    ------
+    ImportError :
         Depends on psutil. If not installed, raises ImportError on
         instantiation.
 
@@ -121,7 +121,6 @@ class CMLog(object):
     ----------
     verbose : bool
         whether to notify of job start.
-
     """
     def __init__(self, verbose=False):
         self.verbose = verbose

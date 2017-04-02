@@ -7,7 +7,7 @@
 Scoring functions.
 """
 
-from __future__ import division, print_function
+from __future__ import division
 
 import numpy as np
 

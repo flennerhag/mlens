@@ -539,27 +539,32 @@ class SubsetIndex(BaseIndex):
 
     r"""Subsample index generator.
 
-    Generates cross-validation folds according to the following strategy:
-        1. split ``X`` into ``J`` partitions
-        2. for each partition
-            (a) for each fold v, create train index of all idx not in v
-            (b) concatenate all the fold v indices into a test index for \
-                fold v that spans all partitions.
+    Generates cross-validation folds according used to create ``J``
+    partitions of the data and ``v`` folds on each partition according to as
+    per [#]_:
 
-    If ``J`` is set to 1, the SubSampleIndexer reduces to the
-    :class:`FullIndexer`, which returns standard K-Fold train and test set
-    indices.
+        1. Split ``X`` into ``J`` partitions
+
+        2. For each partition:
+
+            (a) For each fold v, create train index of all idx not in v
+
+            (b) Concatenate all the fold v indices into a test index for fold v
+                that spans all partitions
+
+    Setting ``J = 1`` is equivalent to the :class:`FullIndexer`, which returns
+    standard K-Fold train and test set indices.
 
     See Also
     --------
-    :class:`FoldIndex`, :class:`BlendIndex`
+    :class:`FoldIndex`, :class:`BlendIndex`, :class:`Subsemble`
 
     References
     ----------
-    .. [1] Sapp, S., van der Laan, M. J., & Canny, J. (2014).
-    Subsemble: an  ensemble method for combining subset-specific algorithm
-    fits. Journal of Applied Statistics, 41(6), 1247-1259.
-    http://doi.org/10.1080/02664763.2013.864263
+    .. [#] Sapp, S., van der Laan, M. J., & Canny, J. (2014). Subsemble: an
+       ensemble method for combining subset-specific algorithm fits. Journal
+       of Applied Statistics, 41(6), 1247-1259.
+       http://doi.org/10.1080/02664763.2013.864263
 
     Parameters
     ----------
@@ -610,12 +615,10 @@ class SubsetIndex(BaseIndex):
     J = 1: array([0, 1, 2, 3])
     J = 2: array([4, 5, 6])
     J = 3: array([7, 8, 9])
-
     SubsetIndexer partitions:
     J = 1: array([0, 1, 2, 3])
     J = 2: array([4, 5, 6])
     J = 3: array([7, 8, 9])
-
     SubsetIndexer folds on partitions:
     J = 1 | f = 1 | train:   array([2, 3]) | test: array([0, 1, 4, 5, 7, 8])
     J = 1 | f = 2 | train:   array([0, 1]) | test: array([2, 3, 6, 9])

@@ -8,4 +8,4 @@
 __version__ = "0.1.1.dev0"
 
 __all__ = ['base', 'ensemble', 'model_selection', 'visualization',
-           'preprocessing', 'utils', 'metrics', 'externals', 'parallel']
+           'preprocessing', 'utils', 'metrics', 'parallel']

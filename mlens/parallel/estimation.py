@@ -138,7 +138,7 @@ class BaseEstimator(object):
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
             s = _name(self.name, None)
-            safe_print('Fitting layer %s' % self.name)
+            safe_print('Fitting %s' % self.name)
             t0 = time_()
 
         pred_method = 'predict' if not self.proba else 'predict_proba'
@@ -213,7 +213,7 @@ class BaseEstimator(object):
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
             s = _name(self.name, None)
-            safe_print('Predicting layer %s' % self.name)
+            safe_print('Predicting %s' % self.name)
             t0 = time_()
 
         pred_method = 'predict' if not self.proba else 'predict_proba'
@@ -274,7 +274,7 @@ class BaseEstimator(object):
                 prep = dict(self.layer.preprocessing_[p:])
 
         else:
-            raise ValueError("Argument not understood. Only 'fit' and 'full "
+            raise ValueError("Argument not understood. Only 'fit' and 'full' "
                              "are acceptable argument values.")
 
         return prep, ests

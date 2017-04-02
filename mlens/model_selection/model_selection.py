@@ -94,7 +94,7 @@ class Evaluator(object):
         level of printed messages.
 
     Attributes
-    -----------
+    ----------
     summary\_ : DataFrame
         Summary output that shows data for best mean test scores, such as
         test and train scores, std, fit times, and params.
@@ -125,6 +125,7 @@ class Evaluator(object):
         self.error_score = error_score
         self.random_state = random_state
         self.scorer = scorer
+        self.scores_ = None
         self.verbose = verbose
 
     def initialize(self, X, y):
@@ -300,14 +301,15 @@ class Evaluator(object):
         assert_correct_format(estimators,
                               getattr(self, 'preprocessing', None))
 
+        self.n_iter = n_iter
+        self.estimators = check_instances(estimators)
+        self._param_sets(param_dicts)
+
         if self.verbose > 0:
             printout = sys.stdout if self.verbose >= 50 else sys.stderr
             t0 = time()
             self._print_eval_start(t0, printout)
 
-        self.n_iter = n_iter
-        self.estimators = check_instances(estimators)
-        self._param_sets(param_dicts)
 
         self.initialize(X, y)
 
@@ -370,7 +372,7 @@ class Evaluator(object):
                     self._set_params(param_dicts, (case, est_name))
 
     def collect(self):
-        """Collect output in ``cv_results`` and ``summary`` ``dict``s."""
+        """Collect output and format into dicts."""
 
         # Scores are returned as a list of tuples for each case, est, draw and
         # fold. We need to aggregate them up to case, est and draw level.
@@ -456,7 +458,7 @@ class Evaluator(object):
         """Print preprocessing start and return timer."""
         msg = 'Preprocessing %i preprocessing pipelines over %i CV folds'
 
-        p = getattr(self, 'preprocessing', 1)
+        p = len(getattr(self, 'preprocessing', [1]))
         c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
         safe_print(msg % (p, c), file=printout)
         return t0
@@ -467,7 +469,7 @@ class Evaluator(object):
                ' preprocessing pipelines and %i CV folds, totalling %i fits')
 
         e = len(self.estimators)
-        p = getattr(self, 'preprocessing', 1)
+        p = len(getattr(self, 'preprocessing', [1]))
         c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
 
         tot = e * p * self.n_iter * c

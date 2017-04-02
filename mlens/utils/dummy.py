@@ -201,7 +201,7 @@ class LogisticRegression(OLS):
 
 
 class Scale(BaseEstimator, TransformerMixin):
-    """Removes the learnt mean column-wise in an array.
+    """Removes the a learnt mean in a column-wise manner in an array.
 
     MWE of a Scikit-learn transformer, to be used for unit-tests of ensemble
     classes.
@@ -227,7 +227,6 @@ class Scale(BaseEstimator, TransformerMixin):
     >>> X[:, 1] *= 2
     >>> print('X:')
     >>> print('%r' % X)
-    >>> print()
     >>> print('Scaled:')
     >>> S = Scale().fit_transform(X)
     >>> print('%r' % S)
@@ -235,7 +234,6 @@ class Scale(BaseEstimator, TransformerMixin):
     array([[ 0,  2],
            [ 2,  6],
            [ 4, 10]])
-
     Scaled:
     array([[-2., -4.],
            [ 0.,  0.],
@@ -262,8 +260,7 @@ class Scale(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        """Transform array by adjusting all elements with scale.
-        """
+        """Transform array by adjusting all elements with scale."""
         if not self.__is_fitted__:
             raise NotFittedError("Estimator not fitted.")
         X = check_array(X, accept_sparse='csr')
@@ -586,6 +583,7 @@ def ground_truth(X, y, indexer, attr, labels, subsets=1, verbose=True):
     -------
     F : ndarray
         Full prediction array (train errors)
+
     P : ndarray
         Folded prediction array (test errors)
 
@@ -618,14 +616,12 @@ def ground_truth(X, y, indexer, attr, labels, subsets=1, verbose=True):
     -5.0, -3.0]
     sc-offs | [0, 1] | [2, 3] | [20.0, 20.0] | [10.0, 10.0] |  [2.0] | [3.0,
     5.0]
-
                             FULL PREDICTION OUTPUT
     --------------------------------------------------------------------
       EST   |       GROUND TRUTH       | COEF  |           PRED
     no-offs | [10.0, 10.0, 20.0, 20.0] | [7.7] | [7.7, 15.3, 23.0, 30.7]
     no-null | [10.0, 10.0, 20.0, 20.0] | [5.7] | [5.7, 11.3, 17.0, 22.7]
     sc-offs | [10.0, 10.0, 20.0, 20.0] | [6.0] | [-9.0, -3.0, 3.0, 9.0]
-
                      SUMMARY
     ------------------------------------------
     no-null |   FULL: [7.7, 15.3, 23.0, 30.7]
@@ -635,7 +631,6 @@ def ground_truth(X, y, indexer, attr, labels, subsets=1, verbose=True):
     sc-offs |   FULL: [5.7, 11.3, 17.0, 22.7]
     sc-offs |  FOLDS: [5.6, 11.2, 18.0, 24.0]
     GT              : [10.0, 10.0, 20.0, 20.0]
-
     CHECKING UNIQUENESS... OK.
     """
     if verbose:
@@ -762,7 +757,7 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
 
     finally:
         # Always remove tmp if asked
-        if rem and job is not None:
+        if rem:
             f = job['dir']
             job.clear()
             gc.collect()

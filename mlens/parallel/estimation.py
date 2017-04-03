@@ -206,7 +206,7 @@ class BaseEstimator(object):
             print_time(t0, '%sDone' % s, file=printout)
 
     def predict(self, X, P, parallel):
-        """Predict with fitted layer."""
+        """Predict with fitted layer with either full or fold ests."""
 
         self._check_fitted()
 
@@ -218,7 +218,7 @@ class BaseEstimator(object):
 
         pred_method = 'predict' if not self.proba else 'predict_proba'
 
-        # Collect estimators fitted on full data
+        # Collect estimators, either fitted on full data or folds
         prep, ests = self._retrieve('full')
 
         parallel(delayed(predict_est)(case=case,
@@ -232,6 +232,37 @@ class BaseEstimator(object):
                                       name=self.name,
                                       attr=pred_method)
                  for case, (inst_name, est, (_, col)) in ests)
+
+        if self.verbose:
+            print_time(t0, '%sDone' % s, file=printout)
+
+    def transform(self, X, P, parallel):
+        """Transform training data with fold-estimators from fit call."""
+
+        self._check_fitted()
+
+        if self.verbose:
+            printout = "stderr" if self.verbose < 50 else "stdout"
+            s = _name(self.name, None)
+            safe_print('Predicting %s' % self.name)
+            t0 = time_()
+
+        pred_method = 'predict' if not self.proba else 'predict_proba'
+
+        # Collect estimators, either fitted on full data or folds
+        prep, ests = self._retrieve('fold')
+
+        parallel(delayed(predict_fold_est)(case=case,
+                                           tr_list=prep[case]
+                                           if prep is not None else [],
+                                           inst_name=est_name,
+                                           est=est,
+                                           xtest=X,
+                                           pred=P,
+                                           idx=idx,
+                                           name=self.name,
+                                           attr=pred_method)
+                 for case, (est_name, est, idx) in ests)
 
         if self.verbose:
             print_time(t0, '%sDone' % s, file=printout)
@@ -255,26 +286,34 @@ class BaseEstimator(object):
 
     def _retrieve(self, s):
         """Get transformers and estimators fitted on folds or on full data."""
-        p = self.layer.n_pred
+        n_pred = self.layer.n_pred
+        n_prep = max(self.layer.n_prep, 1)
 
         if s == 'full':
-            ests = self.layer.estimators_[:p]
+            # If full, grab the first n_pred estimators, and the first
+            # n_prep preprocessing pipelines, which are fitted on
+            # the full training data. We take max on n_prep to avoid getting
+            # empty preprocessing_ slice when n_prep = 0 when no preprocessing.
+            ests = self.layer.estimators_[:n_pred]
 
             if self.layer.preprocessing_ is None:
                 prep = None
             else:
-                prep = dict(self.layer.preprocessing_[:p])
+                prep = dict(self.layer.preprocessing_[:n_prep])
 
         elif s == 'fold':
-            ests = self.layer.estimators_[p:]
+            # If fold, grab the estimators after n_pred, and the preprocessing
+            # pipelines after n_prep, which are fitted on folds of the
+            # training data.
+            ests = self.layer.estimators_[n_pred:]
 
             if self.layer.preprocessing_ is None:
                 prep = None
             else:
-                prep = dict(self.layer.preprocessing_[p:])
+                prep = dict(self.layer.preprocessing_[n_prep:])
 
         else:
-            raise ValueError("Argument not understood. Only 'fit' and 'full' "
+            raise ValueError("Argument not understood. Only 'full' and 'fold' "
                              "are acceptable argument values.")
 
         return prep, ests
@@ -387,6 +426,33 @@ def predict_est(case, tr_list, inst_name, est, xtest, pred, col, name, attr):
         pred[:, col] = p
     else:
         pred[:, np.arange(col, col + p.shape[1])] = p
+
+
+def predict_fold_est(case, tr_list, inst_name, est, xtest, pred, idx, name,
+                     attr):
+    """Method for predicting with transformers and estimators from fit call."""
+    tei = idx[0]
+    col = idx[1]
+
+    x, _, tei = _slice_array(xtest, None, idx[0])
+
+    for tr_name, tr in tr_list:
+        x = _transform_tr(x, tr, tr_name, case, name)
+
+    # Predict into memmap
+    # Here, we coerce errors on failed predictions - all predictors that
+    # survive into the estimators_ attribute of a layer should be able to
+    # predict, otherwise the subsequent layer will get corrupt input.
+    p = _predict_est(x, est, True, inst_name, case, name, attr)
+
+    rebase = xtest.shape[0] - pred.shape[0]
+    tei -= rebase
+
+    if len(p.shape) == 1:
+        pred[tei, col] = p
+    else:
+        cols = np.arange(col, col + p.shape[1])
+        pred[np.ix_(tei, cols)] = p
 
 
 def fit_trans(dir, case, inst, X, y, idx, name):

@@ -106,6 +106,21 @@ def test_layer_predict():
     assert w == wp
 
 
+def test_layer_transform():
+    """[Layer] Stack: 'transform' method runs correctly."""
+
+    layer = clone(LAYER)
+
+    # Check predictions against ground truth
+    _ = _layer_est(layer, 'fit', train=X, label=y,
+                   n_jobs=-1, rem=True)
+    preds = _layer_est(layer, 'transform', train=X, label=y,
+                       n_jobs=-1, rem=True, args=['X', 'P'])
+
+    # Check predictions against GT
+    np.testing.assert_array_equal(preds, F)
+
+
 def test_lc_predict():
     """[LayerContainer] Stack: 'predict' method runs correctly."""
 
@@ -123,6 +138,17 @@ def test_lc_predict():
     w = [tup[1][1].coef_.tolist() for tup in ests]
 
     assert w == wp
+
+
+def test_lc_transform():
+    """[LayerContainer] Stack: 'transform' method runs correctly."""
+
+    lc = clone(LAYER_CONTAINER)
+    lc.fit(X, y)
+
+    pred = lc.transform(X)
+
+    np.testing.assert_array_equal(pred, F)
 
 
 def test_lc_fit_from_file():

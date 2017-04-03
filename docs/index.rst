@@ -16,7 +16,7 @@ constantly growing. For latest news, see :ref:`updates`.
 
 If you are new to ML-Ensemble, check out the :ref:`getting-started`
 and :ref:`ensemble-tutorial`. For more detailed examples, see the
-:ref:`memory` and :ref:`scaling` section. Performance testamonials can be found
+:ref:`memory` and :ref:`scaling` section. Performance testimonials can be found
 in the :ref:`here <benchmarks>`.
 
 If you would like to get involved, don't hesitate to reach out on Github_ !
@@ -84,9 +84,9 @@ Differentiated preprocessing pipelines
 
 ML-Ensemble offers the possibility to specify, for each layer, a set
 of preprocessing pipelines that maps to different (or the same) sets of
-estimators. For instance, for one set of estimators, `Min-Max-Scaling`_ might
-be desired, while for a different set standization could be preferred.
-This can easily be achieved in ML-Ensemble::
+estimators. For instance, for one set of estimators, min-max-scaling might
+be desired, while for a different set of estimators standization could be
+preferred. This can easily be achieved in ML-Ensemble::
 
       ensemble = SuperLearner()
 
@@ -158,4 +158,3 @@ ML Ensemble is licenced under MIT and is hosted on Github_.
 .. _Github: https://github.com/flennerhag/mlens
 .. _Scikit-learn: http://scikit-learn.org/stable/
 .. _Keras: https://keras.io
-.. _Min-Max-Scaling: https://en.wikipedia.org/wiki/Feature_scaling

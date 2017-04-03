@@ -29,7 +29,7 @@ For full documentation, see [here](http://mlens.readthedocs.io/en/latest/).
 ### Transparent Architecture API
 
 Ensembles are built by adding layers to an instance object: layers in their
-turn are comprised of a list of estimators. No matter how complext the
+turn are comprised of a list of estimators. No matter how complex the
 ensemble, to train it call the ``fit`` method:
 
 ```Python
@@ -52,7 +52,8 @@ ensemble.fit(X, y)
 
 Training data is persisted to a memory cache that each sub-process has access
 to, allowing parallel processing to require no more memory than processing
-on a single thread. For more details, see :ref:`memory`.
+on a single thread.
+For more details, see [here](http://mlens.readthedocs.io/en/latest/memory.html).
 
 Expect 95-97% of training time to be spent fitting the base estimators -
 *irrespective* of data size. The time it takes to fit an ensemble depends
@@ -76,18 +77,17 @@ and how each layer generates predictions.
 
 ML-Ensemble offers the possibility to specify, for each layer, a set
 of preprocessing pipelines that maps to different (or the same) sets of
-estimators. For instance, for one set of estimators, `Min-Max-Scaling`_ might
-be desired, while for a different set standization could be preferred.
-This can easily be achieved in ML-Ensemble:
+estimators. One set of estimators might benefit from one type of preprocessing,
+while for a different set of estimators another preprocessing pipeline is
+desired. This can easily be achieved in ML-Ensemble:
 
 ```Python
-ensemble = SuperLearner()
 
 preprocessing = {'pipeline-1': list_of_transformers_1,
-               'pipeline-2': list_of_transformers_2}
+                 'pipeline-2': list_of_transformers_2}
 
 estimators = {'pipeline-1': list_of_estimators_1,
-            'pipeline-2': list_of_estimators_2}
+              'pipeline-2': list_of_estimators_2}
 
 ensemble.add(estimators, preprocessing)
 ```

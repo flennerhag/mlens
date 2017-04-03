@@ -279,7 +279,7 @@ class LayerContainer(BaseEstimator):
 
         return out
 
-    def predict(self, X=None, **kwargs):
+    def predict(self, X=None, *args, **kwargs):
         r"""Generic method for predicting through all layers in the container.
 
         Parameters
@@ -287,13 +287,57 @@ class LayerContainer(BaseEstimator):
         X : array-like of shape = [n_samples, n_features]
             input matrix to be used for prediction.
 
-        y : array-like, None (default = None)
-            pass through for Scikit-learn compatibility.
+        *args : optional
+            optional arguments.
+
+        **kwargs : optional
+            optional keyword arguments.
 
         Returns
         -------
         X_pred : array-like of shape = [n_samples, n_fitted_estimators]
             predictions from final layer.
+        """
+        return self._predict(X, 'predict', *args, **kwargs)
+
+    def transform(self, X=None, *args, **kwargs):
+        """Generic method for reproducing predictions of the ``fit`` call.
+
+        Parameters
+        -----------
+        X : array-like of shape = [n_samples, n_features]
+            input matrix to be used for prediction.
+
+        *args : optional
+            optional arguments.
+
+        **kwargs : optional
+            optional keyword arguments.
+
+        Returns
+        -------
+        X_pred : array-like of shape = [n_test_samples, n_fitted_estimators]
+            predictions from ``fit`` call to final layer.
+        """
+        return self._predict(X, 'transform', *args, **kwargs)
+
+    def _predict(self, X, job, *args, **kwargs):
+        r"""Generic for processing a predict job through all layers.
+
+        Parameters
+        -----------
+        X : array-like of shape = [n_samples, n_features]
+            input matrix to be used for prediction.
+
+        job : str
+            type of prediction. Should be 'predict' or 'transform'.
+
+        Returns
+        -------
+        X_pred : array-like
+            predictions from final layer. Either predictions from ``fit`` call
+            or new predictions on X using base learners fitted on all training
+            data.
         """
         _init = hasattr(self, '_processor')
 
@@ -309,7 +353,7 @@ class LayerContainer(BaseEstimator):
         # Initialize cache
         if not _init:
             processor = ParallelProcessing(self)
-            processor.initialize('predict', X, **kwargs)
+            processor.initialize(job, X, *args, **kwargs)
         else:
             processor = self._processor
 
@@ -320,7 +364,7 @@ class LayerContainer(BaseEstimator):
             preds = processor._get_preds()
 
             if self.verbose:
-                print_time(t0, "Prediction complete", file=pout, flush=True)
+                print_time(t0, "Done", file=pout, flush=True)
 
         finally:
             # Always terminate job manager unless user explicitly initialized

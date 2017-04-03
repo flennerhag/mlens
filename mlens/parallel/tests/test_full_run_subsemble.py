@@ -43,8 +43,8 @@ def ground_truth():
 F, P = ground_truth()
 
 
-def test_subset_fit():
-    """[LayerContainer] Subset: 'fit' and 'predict' runs correctly."""
+def test_subset_fit_predict_transform():
+    """[LayerContainer] Subset: 'fit', 'predict', 'transform' run correctly."""
     lc = LayerContainer().add(estimators=estimators,
                               cls='subset',
                               proba=False,
@@ -53,6 +53,8 @@ def test_subset_fit():
 
     f = lc.fit(x, y, return_preds=-1)[-1]
     p = lc.predict(x)
+    t = lc.transform(x)
 
     np.testing.assert_array_equal(f, F)
     np.testing.assert_array_equal(p, P)
+    np.testing.assert_array_equal(t, F)

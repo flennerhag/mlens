@@ -6,5 +6,6 @@
 """
 
 from .preprocess import Subset
+from .ensemble_transformer import EnsembleTransformer
 
-__all__ = ['Subset']
+__all__ = ['Subset', 'EnsembleTransformer']

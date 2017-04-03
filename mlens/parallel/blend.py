@@ -9,6 +9,10 @@ Estimation engine for parallel preprocessing of blend layer.
 
 from .estimation import BaseEstimator
 from ..externals.sklearn.base import clone
+from .estimation import _name, predict_fold_est, time_
+from ..utils import safe_print, print_time
+
+from joblib import delayed
 
 
 ###############################################################################
@@ -34,6 +38,43 @@ class Blender(BaseEstimator):
         """Assign unique col_id to every estimator."""
         c = getattr(self.layer, 'classes_', 1)
         return _get_col_idx(self.layer.preprocessing, self.layer.estimators, c)
+
+    def transform(self, X, P, parallel):
+        """Predict X.
+
+        Since a blend ensemble does not use folds, transform coincides with
+        predict, except that the prediction in fitting is only for a subset
+        of X.
+        """
+        self._check_fitted()
+
+        if self.verbose:
+            printout = "stderr" if self.verbose < 50 else "stdout"
+            s = _name(self.name, None)
+            safe_print('Predicting %s' % self.name)
+            t0 = time_()
+
+        pred_method = 'predict' if not self.proba else 'predict_proba'
+
+        # Collect estimators - blend only has estimators fitted on 'full'
+        # since no folds are used in building the prediction matrix during
+        # fitting
+        prep, ests = self._retrieve('full')
+
+        parallel(delayed(predict_fold_est)(case=case,
+                                           tr_list=prep[case]
+                                           if prep is not None else [],
+                                           inst_name=est_name,
+                                           est=est,
+                                           xtest=X,
+                                           pred=P,
+                                           idx=idx,
+                                           name=self.name,
+                                           attr=pred_method)
+                 for case, (est_name, est, idx) in ests)
+
+        if self.verbose:
+            print_time(t0, '%sDone' % s, file=printout)
 
 
 ###############################################################################

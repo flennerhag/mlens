@@ -29,7 +29,7 @@ ENGINES = {'full': SingleRun,
            'evaluation': Evaluation
            }
 
-JOBS = ['predict', 'fit']
+JOBS = ['predict', 'fit', 'transform']
 
 
 ###############################################################################
@@ -163,7 +163,7 @@ class ParallelProcessing(object):
         """Decide what sample size to create P with based on the job type."""
         # Sample size is full for prediction, for fitting
         # it can be less if predictions are not generated for full train set
-        s0 = lyr.indexer.n_test_samples if self._job.j == 'fit' else \
+        s0 = lyr.indexer.n_test_samples if self._job.j != 'predict' else \
             lyr.indexer.n_samples
 
         # Number of prediction columns depends on:

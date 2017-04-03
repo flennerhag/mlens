@@ -714,7 +714,7 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
 
 
     # Create a cache
-    if 'fit' in attr:
+    if 'predict' not in attr:
         n = layer.indexer.n_test_samples
     else:
         n = layer.indexer.n_samples
@@ -722,7 +722,7 @@ def _layer_est(layer, attr, train, label, n_jobs, rem=True, args=None):
     s1 = layer.n_pred
 
     if layer.proba:
-        if 'fit' in attr:
+        if 'predict' not in attr:
             layer.classes_ = np.unique(label).shape[0]
 
         s1 *= layer.classes_

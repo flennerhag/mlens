@@ -15,6 +15,7 @@ from ..ensemble.base import BaseEnsemble
 from ..externals.sklearn.base import TransformerMixin
 from ..externals.sklearn.validation import check_random_state
 
+
 class EnsembleTransformer(BaseEnsemble, TransformerMixin):
     r"""Ensemble Transformer class.
 
@@ -99,7 +100,7 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
         For verbosity in the layers themselves, use ``fit_params``.
 
-    n_jobs : int (default = -1)
+    n_jobs : int (default = 1)
         number of CPU cores to use for fitting and prediction.
 
     Attributes
@@ -117,21 +118,31 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
     >>> from sklearn.svm import SVR
+    >>> from scipy.stats import uniform
+    >>> from pandas import DataFrame
     >>>
     >>> X, y = load_boston(True)
     >>>
-    >>> ensemble = EnsembleTransformer(sample_dim=50)
+    >>> ensemble = EnsembleTransformer()
     >>>
     >>> ensemble.add('stack', [SVR(), Lasso()])
     >>>
     >>> evl = Evaluator(scorer=rmse)
     >>>
-    >>> evl.preprocess(X, y, [ensemble])
+    >>> evl.preprocess(X, y, [('scale', ensemble)])
     >>>
-    >>> evl.evaluate(X, y, [SVC(), Lasso()])
+    >>> draws = {(None, 'svr'): {'C': uniform(10,  100)},
+    ...          (None, 'lasso'): {'alpha': uniform(0.01, 0.1)}}
     >>>
-    >>> evl.summary
-    6.5628696546845635
+    >>> evl.evaluate(X, y, [SVR(), Lasso()], draws, n_iter=10)
+    >>>
+    >>> DataFrame(evl.summary)
+             fit_time_mean    fit_time_std  train_score_mean  train_score_std \
+    lasso         0.000614        0.000042          5.601418         0.579860
+    svr           0.020602        0.004886          4.233117         0.296144
+           test_score_mean  test_score_std                    params
+    lasso         7.447900        0.183621  {'alpha': 0.01462502545}
+    svr           8.874729        0.569203       {'C': 107.22196451}
     """
 
     def __init__(self,
@@ -141,7 +152,7 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
                  raise_on_exception=True,
                  array_check=2,
                  verbose=False,
-                 n_jobs=-1,
+                 n_jobs=1,
                  layers=None,
                  sample_dim=10):
 
@@ -261,7 +272,7 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
         stored for future comparison.
         """
 
-        self.id_train.fit(X)
+#        self.id_train.fit(X)
 
         return super(EnsembleTransformer, self).fit(X, y)
 
@@ -278,25 +289,25 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
         full training data (equivalent to calling ``predict`` on an ensemble.)
         """
 
-        if not self.id_train.is_train(X):
-            return super(EnsembleTransformer, self).predict(X)
-        else:
-            return self._transform(X, y)
+#        if not self.id_train.is_train(X):
+#            return super(EnsembleTransformer, self).predict(X)
+#        else:
+        return self._transform(X)
 
-    def _transform(self, X, y):
-        """Set up """
+    def _transform(self, X):
+        """Reproduce predictions from 'fit' call."""
         if not check_ensemble_build(self):
             # No layers instantiated, but raise_on_exception is False
             return
 
-        X, y = check_inputs(X, y, check_level=self.array_check)
+        X, y = check_inputs(X, check_level=self.array_check)
 
         if self.shuffle:
             r = check_random_state(self.random_state)
             idx = r.permutation(X.shape[0])
             X, y = X[idx], y[idx]
 
-        y = self.layers.transform(X, y)
+        y = self.layers.transform(X)
 
         if y.shape[1] == 1:
             # The meta estimator is treated as a layer and thus a prediction

@@ -200,6 +200,8 @@ class Evaluator(object):
         self : instance
             class instance with stored estimator evaluation results.
         """
+        self.preprocess(X, y, preprocessing)
+        return self.evaluate(X, y, estimators, param_dicts, n_iter)
 
     def preprocess(self, X, y, preprocessing=None):
         """Preprocess folds.
@@ -310,7 +312,6 @@ class Evaluator(object):
             t0 = time()
             self._print_eval_start(t0, printout)
 
-
         self.initialize(X, y)
 
         # Run evaluation
@@ -367,9 +368,13 @@ class Evaluator(object):
             # Preprocessing
             # Iterate over cases, expected param_dicts key is
             # ('case_name', 'est_name')
-            for case in self.preprocessing:
-                for est_name, _ in self.estimators[case]:
-                    self._set_params(param_dicts, (case, est_name))
+            if isinstance(self.preprocessing, dict):
+                for case in self.preprocessing:
+                    for est_name, _ in self.estimators[case]:
+                        self._set_params(param_dicts, (case, est_name))
+            else:
+                for est_name, _ in self.estimators:
+                    self._set_params(param_dicts, (None, est_name))
 
     def collect(self):
         """Collect output and format into dicts."""
@@ -380,7 +385,10 @@ class Evaluator(object):
         for case, est, draw_num, train_sc, test_sc, fit_time in self.scores_:
 
             # Strip fold data
-            name = (case.split('__')[0], est.split('__')[0])
+            if case is not None:
+                name = (case.split('__')[0], est.split('__')[0])
+            else:
+                name = est.split('__')[0]
 
             if name not in scores:
                 scores[name] = _dict()
@@ -423,14 +431,22 @@ class Evaluator(object):
                 if best_data is None:
                     best_data, best_draw = draw_data, draw_num
 
-                    best_data['params'] = \
-                        self.params[case_est][best_draw]
+                    if isinstance(case_est, tuple):
+                        best_data['params'] = \
+                            self.params[case_est][best_draw]
+                    else:
+                        best_data['params'] = \
+                            self.params[(None, case_est)][best_draw]
 
                 if draw_data['test_score_mean'] > best_data['test_score_mean']:
                     best_data, best_draw = draw_data, draw_num
 
-                    best_data['params'] = \
-                        self.params[case_est][best_draw]
+                    if isinstance(case_est, tuple):
+                        best_data['params'] = \
+                            self.params[case_est][best_draw]
+                    else:
+                        best_data['params'] = \
+                            self.params[(None, case_est)][best_draw]
 
             # Assign data associated with best test score to summary dict
             # We invert the dictionary nesting here
@@ -442,7 +458,7 @@ class Evaluator(object):
 
         # Finally, we sort summary in order of best performance
         rank = sorted(summary['test_score_mean'],
-                      key=itemgetter(0), reverse=True)
+                      key=itemgetter(1), reverse=True)
 
         pretty_summary = _dict()
         for metric, data in summary.items():

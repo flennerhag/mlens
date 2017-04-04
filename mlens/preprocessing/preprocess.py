@@ -76,3 +76,48 @@ class Subset(BaseEstimator, TransformerMixin):
                 Xt = Xt[:, self.subset]
 
             return Xt
+
+
+class Shift(BaseEstimator, TransformerMixin):
+
+    """Lag operator.
+
+    Shift an input array :math:`X` with :math:`s` steps, i.e. for some time
+    series :math:`\mathbf{X} = (X_t, X_{t-1}, ..., X_{0})`,
+
+    .. math::
+
+        L^{s} \mathbf{X} = (X_{t-s}, X_{t-1-s}, ..., X_{s - s})
+
+    Parameters
+    ----------
+
+    s : int
+        number of lags to generate
+
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from mlens.preprocessing import Shift
+    >>> X = np.arange(10)
+    >>> L = Shift(2)
+    >>> Z = L.fit_transform(X)
+    >>> print("X : {}".format(X[2:]))
+    >>> print("Z : {}".format(Z))
+    X : [2 3 4 5 6 7 8 9]
+    Z : [0 1 2 3 4 5 6 7]
+    """
+
+    def __init__(self, s):
+
+        self.s = s
+
+    def fit(self, X, y=None):
+        """Pass through for compatability."""
+        return self
+
+    def transform(self, X):
+        """Return lagged dataset."""
+        return X[:-self.s]
+

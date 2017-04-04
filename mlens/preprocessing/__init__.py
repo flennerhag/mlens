@@ -5,7 +5,7 @@
 :licence: MIT
 """
 
-from .preprocess import Subset
+from .preprocess import Subset, Shift
 from .ensemble_transformer import EnsembleTransformer
 
-__all__ = ['Subset', 'EnsembleTransformer']
+__all__ = ['Subset', 'Shift', 'EnsembleTransformer']

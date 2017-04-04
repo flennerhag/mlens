@@ -16,7 +16,7 @@ from ..externals.sklearn.base import TransformerMixin
 from ..externals.sklearn.validation import check_random_state
 
 
-class EnsembleTransformer(BaseEnsemble, TransformerMixin):
+class EnsembleTransformer(TransformerMixin, BaseEnsemble):
     r"""Ensemble Transformer class.
 
     The Ensemble class allows users to build layers of an ensemble through a
@@ -127,7 +127,7 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
     >>>
     >>> ensemble.add('stack', [SVR(), Lasso()])
     >>>
-    >>> evl = Evaluator(scorer=rmse)
+    >>> evl = Evaluator(scorer=rmse, random_state=10)
     >>>
     >>> evl.preprocess(X, y, [('scale', ensemble)])
     >>>
@@ -137,12 +137,12 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
     >>> evl.evaluate(X, y, [SVR(), Lasso()], draws, n_iter=10)
     >>>
     >>> DataFrame(evl.summary)
-             fit_time_mean    fit_time_std  train_score_mean  train_score_std \
-    lasso         0.000614        0.000042          5.601418         0.579860
-    svr           0.020602        0.004886          4.233117         0.296144
-           test_score_mean  test_score_std                    params
-    lasso         7.447900        0.183621  {'alpha': 0.01462502545}
-    svr           8.874729        0.569203       {'C': 107.22196451}
+           fit_time_mean  fit_time_std  test_score_mean  test_score_std  \
+    lasso       0.000818      0.000362         7.514181        0.827578
+    svr         0.009790      0.000596        10.949149        0.577554
+           train_score_mean  train_score_std                      params
+    lasso          6.228287         0.949872  {'alpha': 0.0871320643267}
+    svr            5.794856         1.348409        {'C': 12.0751949359}
     """
 
     def __init__(self,
@@ -162,6 +162,7 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
                 array_check=array_check)
 
+        self.sample_dim = sample_dim
         self.id_train = IdTrain(size=sample_dim)
 
     def add(self, cls, estimators, preprocessing=None, **kwargs):
@@ -271,9 +272,7 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
         Same as the fit method on an ensemble, except that a sample of X is
         stored for future comparison.
         """
-
-#        self.id_train.fit(X)
-
+        self.id_train.fit(X)
         return super(EnsembleTransformer, self).fit(X, y)
 
     def predict(self, X):
@@ -285,14 +284,13 @@ class EnsembleTransformer(BaseEnsemble, TransformerMixin):
 
         If :math:`X`  is the training set, the transformer will
         reproduce the :math:`Z` from the call to ``fit``. If X is another
-        dataset, :math:`Z` will be produced using base learners fitted on the
+        data set, :math:`Z` will be produced using base learners fitted on the
         full training data (equivalent to calling ``predict`` on an ensemble.)
         """
-
-#        if not self.id_train.is_train(X):
-#            return super(EnsembleTransformer, self).predict(X)
-#        else:
-        return self._transform(X)
+        if not self.id_train.is_train(X):
+            return super(EnsembleTransformer, self).predict(X)
+        else:
+            return self._transform(X)
 
     def _transform(self, X):
         """Reproduce predictions from 'fit' call."""

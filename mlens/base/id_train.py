@@ -12,11 +12,14 @@ training data.
 
 from __future__ import division, print_function
 
+from ..externals.sklearn.base import BaseEstimator
+
 from numpy import array_equal, ix_
 from numpy.random import permutation
+from numbers import Integral
 
 
-class IdTrain(object):
+class IdTrain(BaseEstimator):
 
     """Container to identify training set.
 
@@ -31,6 +34,10 @@ class IdTrain(object):
     """
 
     def __init__(self, size=10):
+
+        if not isinstance(size, Integral):
+            raise ValueError("'size' must be an integer. Got %r" % size)
+
         self.size = size
 
     def fit(self, X):

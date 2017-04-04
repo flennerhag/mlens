@@ -6,6 +6,7 @@ Submodules
 
 .. toctree::
 
+   mlens.preprocessing.ensemble_transformer
    mlens.preprocessing.preprocess
 
 Module contents

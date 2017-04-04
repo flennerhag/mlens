@@ -8,6 +8,7 @@ Submodules
 
    mlens.ensemble.base
    mlens.ensemble.blend
+   mlens.ensemble.sequential
    mlens.ensemble.subsemble
    mlens.ensemble.super_learner
 

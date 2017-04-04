@@ -9,7 +9,7 @@ Memory consumption
 Memory mapping
 ^^^^^^^^^^^^^^
 
-.. :currentmodule::`mlens.utils`
+.. :currentmodule:: mlens.utils
 
 When training data is stored in-memory in the parent process, training a
 ensemble in parallel entails copying the array in the parent process into
@@ -19,7 +19,7 @@ data must be kept in memory.
 
 We can easily illustrate this issue by running a dummy function in parallel
 that merely holds whatever data it receives from a few seconds before closing.
-Here, we make use of the :class:`mlens.utils.CMLog` monitor that
+Here, we make use of the :class:`CMLog` monitor that
 logs the memory (and cpu) usage of the process that instantiated it.
 
 ::
@@ -68,22 +68,18 @@ logs the memory (and cpu) usage of the process that instantiated it.
     [Parallel(n_jobs=-1)]: Done   4 out of   4 | elapsed:   43.8s finished
 
 Notice that the parallel job seems to be doing an awful lot of data
-serialization. In fact, using the memory log of the ``cm`` instance, a rather
-ugly memory profile is revealed:
+serialization. The memory log of the ``cm`` reveals that peak memory usage is
+over some three times larger than the original array when 4 cpu's are in use.
+With such a memory profile, an ensemble would not be very scalable.
 
 .. image:: img/mem_profile_copy.png
    :align: center
 
-Peak memory usage is over some three times larger than the original array when
-4 cpu's are in use, and one can easily see how this issue spirals out of
-control as the data size and the number of cpu's increase.
-
-ML-Ensemble overcomes this issue by using memmapping_, which allows
-sub-processes to share an underlying data structure that has been temporarily
-persisted to disk. That way, memory consumption is not increased by
-running jobs in parallel, since all processes share the same memory with
-respect to the data. We now modify the above job by first dumping the array
-to a temporary memmap cache. ::
+ML-Ensemble overcomes this issue by using memmapping_, thereby allowing
+sub-processes to share memory of the underlying data. In so doing, ML-Ensemble
+can remain memory neutral as the number of CPU's in use increase. To see this
+first hand, we can modify the above example to convert the toy array to
+a memmap and again monitor memory usage. ::
 
     >>> import os
     >>> import tempfile
@@ -127,17 +123,19 @@ to a temporary memmap cache. ::
 
 Notice first that no pickling is reported in the parallel job; second, the time
 to completion is no more than the 3 seconds we asked the ``hold`` function to
-hold the process. In other words, memmaping causes *no* overhead. This stands
-in stark contrast to the previous example, which completed in over 40
-seconds, an order of magnitude slower. Moreover, inspecting the memory profile,
-note that memmapping is completely memory neutral. In fact, if we can replace
-the original array with the memmap as in this example, even the memory required
-to hold the original file can be released.
+sleep. In other words, memmaping causes *no* process time overhead. This stands
+in stark contrast to the previous example, which needed over 40 seconds to
+complete - an order of magnitude slower. Moreover, inspecting the memory
+profile, note that memmapping is completely memory neutral. In fact, if we
+replace the original array with the memmap (as in this example),
+the memory required to hold the original file can be released and so there
+is *no* copy of the array kept in the process memory.
 
 .. image:: img/mem_profile_mmap.png
    :align: center
 
-For further details, see the joblib_ package's documentation.
+For further details on memmapping in parallel processing,
+see the joblib_ package's documentation.
 
 ML-Ensemble memory profiling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -205,9 +203,16 @@ estimator. ::
 
    Using last profile data.
 
-
 .. image:: img/memory.png
 
+Gotcha's
+^^^^^^^^
+
+The above analysis only concerns the memory profile of ML-Ensemble. If
+the ensemble is comprised of base learners that copies data *internally*,
+the ensemble will not be memory neutral. Nevertheless, memmapping
+always avoids array serialization between sub-processes and copying of the
+full input array.
 
 .. _mprof: https://pypi.python.org/pypi/memory_profiler
 

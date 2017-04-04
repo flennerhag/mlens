@@ -19,6 +19,13 @@ use more compute intense estimation techniques.
 The :ref:`memory-tutorial` details how users can avoid loading data into the
 parent process by specifying a file path to a memmaped array or a csv file.
 
+.. py:currentmodule:: mlens.preprocessing
+
+The :ref:`model-selection-tutorial` walks through how to use the
+:class:`EnsembleTransformer` class to pre-generate base layers and use the
+:class:`Evaluator` class to select between meta learners.
+
+
 .. _proba-tutorial:
 
 Probabilistic ensemble learning
@@ -36,3 +43,9 @@ General multi-layer ensemble learning
 
 Passing file paths as data input
 --------------------------------
+
+
+.. _model-selection-tutorial:
+
+Meta learner model selection
+----------------------------

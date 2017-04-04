@@ -138,8 +138,10 @@ ensemble performance. ::
 Model selection guide
 ---------------------
 
+.. currentmodule:: mlens.model_selection
+
 The model selection suite is constantly expanding, so make sure to check in
-regularly. The work horse is the ``Evaluator`` class that allows a user to
+regularly. The work horse is the :class:`Evaluator` class that allows a user to
 evaluate several models in one go across several pipelines. The evaluator class
 pre-fits transformers, thus avoiding fitting the same preprocessing
 pipelines on the same data repeatedly.
@@ -148,7 +150,7 @@ The following example evaluates a `Naive Bayes`_ estimator and a
 `K-Nearest-Neighbor`_ estimator under three different preprocessing scenarios:
 no preprocessing, standard scaling, and subset selection.
 In the latter case, preprocessing is constituted by selecting a subset
-:math:`x \subset X` consisting of the two columns of ``X``. ::
+:math:`x \subset X` consisting of the two columns of :math:`X`. ::
 
     from mlens.model_selection import Evaluator
     from mlens.preprocessing import Subset
@@ -171,10 +173,16 @@ In the latter case, preprocessing is constituted by selecting a subset
 
 Once the :class:`Evaluator` is instantiated, we can pre-fit the transformers
 before we decide on estimators, if we wish to separate
-out the preprocessing part. This can be helpful if the preprocessing is
-time-consuming, for instance if the base of an ensemble is used as a tranformer
-(TODO: set up the EnsembleTransformers and tutorial). To explicitly fit
-preprocessing pipelines, call ``preprocess``. ::
+out the preprocessing part.
+
+.. currentmodule:: mlens.preprocessing
+
+This can be helpful if the preprocessing is time-consuming, for instance if
+the preprocessing pipeline is an :class:`EnsembleTransformer`. This class
+mimics how an ensemble creates prediction matrices during fit and predict
+calls, and can thus be used as a preprocessing pipeline to evaluate different
+candidate meta learners. See the :ref:`model-selection-tutorial` tutorial for
+an example. To explicitly fit preprocessing pipelines, call ``preprocess``. ::
 
     >>> evaluator.preprocess(X, y, preprocess_cases)
     Preprocessing 3 preprocessing pipelines over 10 CV folds
@@ -232,12 +240,14 @@ use 15 neighbours. and preprocessing doesn't seem necessary.
 
 .. _visualization-guide:
 
+.. py:currentmodule:: mlens.visualization
+
 Visualization guide
 -------------------
 
 **Explained variance plot**
 
-The :class:`mlens.visualization.exp_var_plot` function
+The :class:`exp_var_plot` function
 plots the explained variance from mapping a matrix ``X`` onto a smaller
 dimension using a user-supplied transformer, such as the Scikit-learn
 :class:`sklearn.decomposition.PCA` transformer for
@@ -254,7 +264,8 @@ Principal Components Analysis. ::
 
 **Principal Components Analysis plot**
 
-The :class:`mlens.visualization.pca_plot` function
+
+The :class:`pca_plot` function
 plots a PCA analysis or similar if ``n_components`` is one of ``[1, 2, 3]``.
 By passing a class labels, the plot shows how well separated different classes
 are. ::
@@ -269,7 +280,7 @@ are. ::
 
 **Principal Components Comparison plot**
 
-The :class:`mlens.visualization.pca_comp_plot` function
+The :class:`pca_comp_plot` function
 plots a matrix of PCA analyses, one for each combination of
 ``n_components in [1, 2]`` and ``kernel in ['linear', 'rbf']``. ::
 
@@ -282,7 +293,7 @@ plots a matrix of PCA analyses, one for each combination of
 
 **Correlation matrix plot**
 
-The :class:`mlens.visualization.corrmat` function plots the lower triangle of
+The :class:`corrmat` function plots the lower triangle of
 a correlation matrix. ::
 
    >>> from mlens.visualization import corrmat
@@ -306,12 +317,12 @@ a correlation matrix. ::
 
 **Clustered correlation heatmap plot**
 
-The :class:`mlens.visualization.clustered_corrmap` function is similar to
-:class:`mlens.visualization.corrmat`, but differs in two respects. First, and
-most importantly, it uses a user supplied clustering estimator to cluster
-the correlation matrix on similar features, which can often help visualize
-whether there are blocks of highly correlated features. Secondly, it plots the
-full matrix (as opposed to the lower triangle). ::
+The :class:`clustered_corrmap` function is similar to :class:`corrmat`,
+but differs in two respects. First, and most importantly, it uses a user
+supplied clustering estimator to cluster the correlation matrix on similar
+features, which can often help visualize whether there are blocks of highly
+correlated features. Secondly, it plots the full matrix (as opposed to the
+lower triangle). ::
 
    >>> from mlens.visualization import clustered_corrmap
    >>> from sklearn.cluster import KMeans
@@ -329,7 +340,7 @@ full matrix (as opposed to the lower triangle). ::
 
 **Input-Output correlations**
 
-The :class:mlens.`visualization.corr_X_y` function gives a dashboard of
+The :class:`corr_X_y` function gives a dashboard of
 pairwise correlations between the input data (``X``) and the labels to be
 predicted (``y``). If the number of features is large, it is adviced to set
 the ``no_ticks`` parameter to ``True``, to avoid rendering an illegible

@@ -1,13 +1,6 @@
 mlens.parallel package
 ======================
 
-Subpackages
------------
-
-.. toctree::
-
-    mlens.parallel.tests
-
 Submodules
 ----------
 

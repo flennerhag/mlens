@@ -1,5 +1,5 @@
-Module Index
-============
+mlens
+=====
 
 .. toctree::
    :maxdepth: 4

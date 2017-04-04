@@ -48,6 +48,7 @@ Preprocessing
 
 .. autosummary::
 
+   EnsembleTransformer
    Subset
 
 Visualization

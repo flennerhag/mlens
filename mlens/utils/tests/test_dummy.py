@@ -15,8 +15,7 @@ from mlens.ensemble.base import Layer, LayerContainer
 from mlens.utils.dummy import OLS, LogisticRegression, Scale, InitMixin
 from mlens.utils.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \
     ECM, ECM_PROBA
-from mlens.utils.dummy import get_layers, get_path, destroy_temp_dir, data, \
-    ground_truth, _layer_est
+from mlens.utils.dummy import Data, Cache, LayerGenerator
 
 from mlens.utils import assert_correct_format
 from mlens.utils.formatting import _assert_format
@@ -208,20 +207,11 @@ def test_get_layers():
     """[Utils] testing: test dummy estimator and preprocessing formatting."""
     for p in [False, True]:
         for cls in ['stack', 'blend', 'subset']:
-            layer, lc, lcm = get_layers(cls, p)
+            layer = LayerGenerator().get_layer(cls, p, True)
+            lc = LayerGenerator().get_layer_container(cls, p, True)
 
             assert isinstance(layer, Layer)
             assert isinstance(lc, LayerContainer)
-            assert isinstance(lcm, LayerContainer)
-
-
-def test_tmp_dir():
-    """[Utils] testing: test tmp dir open and close."""
-    path = get_path()
-    assert os.path.exists(path)
-
-    destroy_temp_dir(path)
-    assert not os.path.exists(path)
 
 
 def test_ground_truth():
@@ -256,25 +246,12 @@ def test_ground_truth():
                     [ 3.14285714,  3.14285714]])
 
 
-    t, z = data((6, 2), 2)
-
-    indexer = FoldIndex(3, X=t)
+    t, z = Data('stack', False, True).get_data((6, 2), 2)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        (F, wf), (P, wp) = ground_truth(t, z, indexer, 'predict', 1)
+        (F, wf), (P, wp) = Data('stack', False, True, 3).ground_truth(t, z)
 
     np.testing.assert_array_almost_equal(F, gf)
     np.testing.assert_array_almost_equal(wf, gwf)
     np.testing.assert_array_almost_equal(P, gp)
     np.testing.assert_array_almost_equal(wp, gwp)
-
-
-def test_layer_est():
-    """[Utils] _layer_est: testing layer estimation wrapper."""
-    layer, _, _ = get_layers('stack', False)
-    layer.indexer.fit(X)
-    out = _layer_est(layer, 'fit', X, y, 1)
-
-    assert isinstance(out, np.ndarray)
-    assert out.shape[0] == X.shape[0]
-    assert out.shape[1] == layer.n_pred

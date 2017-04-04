@@ -6,21 +6,18 @@ Place holder for more rigorous tests.
 import numpy as np
 from mlens.metrics import rmse
 from mlens.base import BlendIndex
-from mlens.utils.dummy import data, ground_truth, OLS, PREPROCESSING, \
-    ESTIMATORS, ECM
+from mlens.utils.dummy import Data, ESTIMATORS, PREPROCESSING, OLS
 
 from mlens.ensemble import BlendEnsemble
 
-
-FOLDS = 3
 LEN = 6
 WIDTH = 2
 MOD = 2
 
-X, y = data((LEN, WIDTH), MOD)
+data = Data('blend', False, True)
+X, y = data.get_data((LEN, WIDTH), MOD)
 
-(F, wf), (P, wp) = ground_truth(X, y, BlendIndex(test_size=3, X=X),
-                                'predict', 1, 1, False)
+(F, wf), (P, wp) = data.ground_truth(X, y, 1, False)
 
 
 def test_run():

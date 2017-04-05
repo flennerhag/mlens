@@ -11,7 +11,7 @@ from mlens.parallel.tests.funcs import (layer_fit, layer_predict,
                                         lc_fit, lc_from_file, lc_predict,
                                         lc_transform)
 
-PROBA = False
+PROBA = True
 PROCESSING = False
 LEN = 6
 WIDTH = 2

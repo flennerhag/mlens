@@ -598,11 +598,9 @@ class SubsetIndex(BaseIndex):
     >>> print('J = 1: {!r}'.format(X[0:4]))
     >>> print('J = 2: {!r}'.format(X[4:7]))
     >>> print('J = 3: {!r}'.format(X[7:10]))
-    >>> print()
     >>> print('SubsetIndexer partitions:')
     >>> for i, part in enumerate(idx.partition(as_array=True)):
     ...     print('J = {}: {!r}'.format(i + 1, part))
-    >>> print()
     >>> print('SubsetIndexer folds on partitions:')
     >>> for i, (tri, tei) in enumerate(idx.generate()):
     ...     fold = i % 2 + 1

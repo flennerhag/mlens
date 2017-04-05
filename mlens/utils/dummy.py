@@ -335,8 +335,8 @@ ESTIMATORS_PROBA = {'sc': [('offs', LogisticRegression(offset=2))],
                            ('null', LogisticRegression())]}
 
 
-ECM = [('ols-%i' % i, OLS(offset=i)) for i in range(16)]
-ECM_PROBA = [('lr-%i' % i, LogisticRegression(offset=i)) for i in range(16)]
+ECM = [('ols-%i' % i, OLS(offset=i)) for i in range(4)]
+ECM_PROBA = [('lr-%i' % i, LogisticRegression(offset=i)) for i in range(4)]
 
 
 ###############################################################################
@@ -364,17 +364,21 @@ class LayerGenerator(object):
         """
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
+            idx = INDEXERS[cls](*args, **kwargs)
             return Layer(estimators=ests,
                          cls=cls,
                          proba=proba,
-                         indexer=INDEXERS[cls](*args, **kwargs),
+                         indexer=idx,
+                         partitions=1 if cls != 'subset' else idx.n_partitions,
                          preprocessing=PREPROCESSING)
         else:
             ests = ECM_PROBA if proba else ECM
+            idx = INDEXERS[cls](*args, **kwargs)
             return Layer(estimators=ests,
                          cls=cls,
                          proba=proba,
-                         indexer=INDEXERS[cls](*args, **kwargs))
+                         indexer=idx,
+                         partitions=1 if cls != 'subset' else idx.n_partitions)
 
     def get_layer_container(self, cls, proba, preprocessing, *args, **kwargs):
         """Generate a layer container instance.
@@ -545,6 +549,7 @@ class Data(object):
     def __init__(self, cls, proba, preprocessing, *args, **kwargs):
         self.proba = proba
         self.preprocessing = preprocessing
+        self.cls = cls
         self.indexer = INDEXERS[cls](*args, **kwargs)
 
     def get_data(self, shape, m):
@@ -584,7 +589,7 @@ class Data(object):
                 increment += 10
 
         else:
-            labels = np.arange(train.shape[0]) % m
+            labels = np.arange(train.shape[0]) % 2
 
         return train, labels
 
@@ -608,8 +613,11 @@ class Data(object):
 
             n_ests = len(ests['no-case'])
 
-        self.n_pred = n_ests
         self.classes_ = labels
+        self.n_pred = n_ests
+        if self.cls == 'subset':
+            self.n_pred *= self.indexer.n_partitions
+
         return ests, prep, n_ests, attr, labels
 
     def _folded_ests(self, X, y, subsets=1, verbose=True):
@@ -639,12 +647,17 @@ class Data(object):
 
         # Sort at every occasion
         for key in sorted(prep):
-            for tri, tei in self.indexer.generate(X, True):
-                # Sort again
+            for i, (tri, tei) in enumerate(self.indexer.generate(X, True)):
+
+                if subsets > 1:
+                    i = i // self.indexer.n_splits
+                else:
+                    i = 0
+
                 for est_name, est in ests[key]:
 
-                    if '%s-%s' % (key, est_name) not in col_id:
-                        col_id['%s-%s' % (key, est_name)] = col_ass
+                    if '%s-%s-%s' % (i, key, est_name) not in col_id:
+                        col_id['%s-%s-%s' % (i, key, est_name)] = col_ass
                         col_ass += labels
 
                     xtrain = X[tri]
@@ -668,9 +681,9 @@ class Data(object):
                     fix = tei - rebase
 
                     if labels == 1:
-                        F[fix, col_id['%s-%s' % (key, est_name)]] = p
+                        F[fix, col_id['%s-%s-%s' % (i, key, est_name)]] = p
                     else:
-                        c = col_id['%s-%s' % (key, est_name)]
+                        c = col_id['%s-%s-%s' % (i, key, est_name)]
                         F[np.ix_(fix, np.arange(c, c + labels))] = p
 
                     try:
@@ -700,55 +713,59 @@ class Data(object):
 
         ests, prep, n_ests, attr, labels = self._set_up_est(y)
 
-        tri = [t for t, _ in self.indexer.generate(X, True)]
-        tri = np.unique(np.hstack(tri))
+        if subsets == 1:
+            tri = [t for t, _ in self.indexer.generate(X, True)]
+            tri = np.unique(np.hstack(tri))
+            indexer = DummyPartition(tri)
+        else:
+            indexer = self.indexer
 
         P = np.zeros((X.shape[0], n_ests * subsets * labels), dtype=np.float)
         weights = list()
         col_id = {}
         col_ass = 0
 
-        # Sort at every occasion
-        for key in sorted(prep):
-            for est_name, est in ests[key]:
+        for i, tri in enumerate(indexer.partition(as_array=True)):
+            for key in sorted(prep):
+                for est_name, est in ests[key]:
 
-                if '%s-%s' % (key, est_name) not in col_id:
-                    col_id['%s-%s' % (key, est_name)] = col_ass
-                    col_ass += labels
+                    if '%s-%s-%s' % (i, key, est_name) not in col_id:
+                        col_id['%s-%s-%s' % (i, key, est_name)] = col_ass
+                        col_ass += labels
 
-                # Transform input
-                xtrain = X[tri]
-                ytrain = y[tri]
+                    # Transform input
+                    xtrain = X[tri]
+                    ytrain = y[tri]
 
-                xtest = X
+                    xtest = X
 
-                for _, tr in prep[key]:
-                    t = clone(tr)
-                    xtrain = t.fit_transform(xtrain)
-                    xtest = t.transform(xtest)
+                    for _, tr in prep[key]:
+                        t = clone(tr)
+                        xtrain = t.fit_transform(xtrain)
+                        xtest = t.transform(xtest)
 
-                # Fit est
-                e = clone(est).fit(xtrain, ytrain)
-                w = e.coef_
-                weights.append(w.tolist())
+                    # Fit est
+                    e = clone(est).fit(xtrain, ytrain)
+                    w = e.coef_
+                    weights.append(w.tolist())
 
-                # Predict
-                p = getattr(e, attr)(xtest)
-                c = col_id['%s-%s' % (key, est_name)]
-                if labels == 1:
-                    P[:, c] = p
-                else:
-                    P[:, c:c + labels] = p
+                    # Predict
+                    p = getattr(e, attr)(xtest)
+                    c = col_id['%s-%s-%s' % (i, key, est_name)]
+                    if labels == 1:
+                        P[:, c] = p
+                    else:
+                        P[:, c:c + labels] = p
 
-                try:
-                    if verbose:
-                        print('%s | %r | %11r | %r' % (
-                            '%s-%s' % (key, est_name),
-                            [float('%.1f' % i) for i in y],
-                            [float('%.1f' % i) for i in w],
-                            [float('%.1f' % i) for i in p]))
-                except:
-                    pass
+                    try:
+                        if verbose:
+                            print('%s | %r | %11r | %r' % (
+                                '%s-%s' % (key, est_name),
+                                [float('%.1f' % i) for i in y],
+                                [float('%.1f' % i) for i in w],
+                                [float('%.1f' % i) for i in p]))
+                    except:
+                        pass
 
         return P, weights
 
@@ -815,3 +832,17 @@ class Data(object):
             print('OK.')
 
         return (F, weights_f), (P, weights_p)
+
+
+class DummyPartition(object):
+
+    """
+    Dummy class to generate tri.
+    """
+
+    def __init__(self, tri):
+        self.tri = tri
+
+    def partition(self, as_array=True):
+        """Return the tri index."""
+        yield self.tri

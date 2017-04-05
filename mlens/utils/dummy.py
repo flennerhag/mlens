@@ -398,9 +398,10 @@ class LayerGenerator(object):
                                         indexer=INDEXERS[cls](*args, **kwargs),
                                         preprocessing=PREPROCESSING)
         else:
-            ests = ECM_PROBA if proba else ESTIMATORS
+            ests = ECM_PROBA if proba else ECM
             return LayerContainer().add(estimators=ests,
                                         cls=cls,
+                                        proba=proba,
                                         indexer=INDEXERS[cls](*args, **kwargs))
 
 
@@ -602,10 +603,10 @@ class Data(object):
                     n_ests += 1
 
         else:
-            ests = ECM_PROBA if self.proba else ECM
-            prep = []
+            ests = {'no-case': ECM_PROBA if self.proba else ECM}
+            prep = {'no-case': []}
 
-            n_ests = len(ests)
+            n_ests = len(ests['no-case'])
 
         self.n_pred = n_ests
         self.classes_ = labels
@@ -625,7 +626,6 @@ class Data(object):
                   '        PRED')
 
         ests, prep, n_ests, attr, labels = self._set_up_est(y)
-
 
         t = [t for _, t in self.indexer.generate(X, True)]
         t = np.unique(np.hstack(t))
@@ -752,7 +752,7 @@ class Data(object):
 
         return P, weights
 
-    def ground_truth(self, X, y, subsets=1, verbose=True):
+    def ground_truth(self, X, y, subsets=1, verbose=False):
         """Set up an experiment ground truth.
 
         Returns

@@ -11,6 +11,8 @@ from mlens.parallel.tests.funcs import (layer_fit, layer_predict,
                                         lc_fit, lc_from_file, lc_predict,
                                         lc_transform)
 
+PROBA = False
+PROCESSING = True
 LEN = 6
 WIDTH = 2
 FOLDS = 3
@@ -18,13 +20,13 @@ MOD, r = divmod(LEN, FOLDS)
 assert r == 0
 
 lg = LayerGenerator()
-data = Data('blend', False, True)
+data = Data('blend', PROBA, PROCESSING)
 
 X, y = data.get_data((LEN, WIDTH), MOD)
-(F, wf), (P, wp) = data.ground_truth(X, y, 1, False)
+(F, wf), (P, wp) = data.ground_truth(X, y)
 
-layer = lg.get_layer('blend', False, True)
-lc = lg.get_layer_container('blend', False, True)
+layer = lg.get_layer('blend', PROBA, PROCESSING)
+lc = lg.get_layer_container('blend', PROBA, PROCESSING)
 
 layer.indexer.fit(X)
 

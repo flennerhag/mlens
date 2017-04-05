@@ -20,10 +20,10 @@ def layer_fit(layer, cache, F, wf):
 
     # Check coefficients
     d = layer.estimators_
-    if layer.cls == 'blend':
-        ests = [(c, tup) for c, tup in d if c in ['sc', 'no']]
-    else:
-        ests = [(c, tup) for c, tup in d if c not in ['sc', 'no']]
+    if layer.cls != 'blend':
+        d = d[layer.n_pred:]
+
+    ests = [(c, tup) for c, tup in d]
     w = [tup[1][1].coef_.tolist() for tup in ests]
     assert w == wf
 
@@ -40,7 +40,7 @@ def layer_predict(layer, cache, P, wp):
 
     # Check weights
     d = layer.estimators_
-    ests = [(c, tup) for c, tup in d if c in ['sc', 'no']]
+    ests = [(c, tup) for c, tup in d[:layer.n_pred]]
     w = [tup[1][1].coef_.tolist() for tup in ests]
     assert w == wp
 
@@ -65,10 +65,10 @@ def lc_fit(lc, X, y, F, wf):
 
     # Test coefs
     d = lc.layers['layer-1'].estimators_
-    if lc.layers['layer-1'].cls == 'blend':
-        ests = [(c, tup) for c, tup in d if c in ['sc', 'no']]
-    else:
-        ests = [(c, tup) for c, tup in d if c not in ['sc', 'no']]
+    if lc.layers['layer-1'].cls != 'blend':
+        d = d[lc.layers['layer-1'].n_pred:]
+
+    ests = [(c, tup) for c, tup in d]
     w = [tup[1][1].coef_.tolist() for tup in ests]
     assert w == wf
 
@@ -88,7 +88,7 @@ def lc_predict(lc, X, P, wp):
 
     # Test coefs
     d = lc.layers['layer-1'].estimators_
-    ests = [(c, tup) for c, tup in d if c in ['sc', 'no']]
+    ests = [(c, tup) for c, tup in d[:lc.layers['layer-1'].n_pred]]
     w = [tup[1][1].coef_.tolist() for tup in ests]
 
     assert w == wp
@@ -124,7 +124,7 @@ def lc_from_file(lc, cache, X, y, F, wf, P, wp):
 
     np.testing.assert_array_equal(P, pred)
     d = lc.layers['layer-1'].estimators_
-    ests = [(case, tup) for case, tup in d if case in ['sc', 'no']]
+    ests = [(c, tup) for c, tup in d[:lc.layers['layer-1'].n_pred]]
     w = [tup[1][1].coef_.tolist() for tup in ests]
 
     assert w == wp

@@ -103,7 +103,7 @@ class ParallelProcessing(object):
             self._job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
                                                         dir=dir)
             self._job.dir = self._job.tmp.name
-        except:
+        except Exception:
             self._job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
 
         # Build mmaps for inputs
@@ -235,12 +235,11 @@ class ParallelProcessing(object):
 
     def terminate(self):
         """Remove temporary folder and all cache data."""
-
         # Delete all contents from cache
         try:
             self._job.tmp.cleanup()
 
-        except:
+        except AttributeError:
             # Fall back on shutil
             try:
                 shutil.rmtree(self._job.dir)
@@ -248,9 +247,9 @@ class ParallelProcessing(object):
             except OSError:
                 # This can fail on Windows
                 try:
-                    dlc = subprocess.Popen('rmdir /S /Q %s' % self._job.dir,
-                                           shell=True, stdout=subprocess.PIPE,
-                                           stderr=subprocess.PIPE)
+                    subprocess.Popen('rmdir /S /Q %s' % self._job.dir,
+                                     shell=True, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
                 except OSError:
                     warnings.warn("Failed to delete cache at %s."
                                   "If created with default settings, will be "
@@ -273,7 +272,6 @@ class ParallelProcessing(object):
 
     def _partial_process(self, n, lyr, parallel):
         """Generic method for processing a :class:`layer` with ``attr``."""
-
         # Fire up the estimation instance
         kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
         e = ENGINES[lyr.cls](lyr, **kwd)
@@ -324,7 +322,7 @@ class ParallelEvaluation(object):
             self._job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
                                                         dir=dir)
             self._job.dir = self._job.tmp.name
-        except:
+        except Exception:
             self._job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
 
         # Build mmaps for inputs
@@ -376,12 +374,11 @@ class ParallelEvaluation(object):
 
     def terminate(self):
         """Remove temporary folder and all cache data."""
-
         # Delete all contents from cache
         try:
             self._job.tmp.cleanup()
 
-        except:
+        except AttributeError:
             # Fall back on shutil for python 2
             try:
                 shutil.rmtree(self._job.dir)

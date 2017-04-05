@@ -55,8 +55,6 @@ def test_print_time():
     # Record recorded print_time message
     utils.print_time(t0, message='test', file=logger)
 
-    print(logger.log[0][:15])
-
     assert logger.log[0][:15] == 'test | 00:00:01'
 
 

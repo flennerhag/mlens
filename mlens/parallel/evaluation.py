@@ -97,7 +97,6 @@ class Evaluation(object):
                                            self.evaluator.indexer)
 
         scores = parallel(delayed(fit_score)(
-                dir=dir,
                 case=case,
                 tr_list=preprocessing[case],
                 est_name=est_name,
@@ -119,7 +118,7 @@ class Evaluation(object):
 
 
 ###############################################################################
-def fit_score(dir, case, tr_list, est_name, est, params, X, y, idx, scorer,
+def fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
               error_score):
     """Fit and score an estimator given a set of params."""
     raise_ = error_score is None

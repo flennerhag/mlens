@@ -14,6 +14,7 @@ from ..base import INDEXERS
 
 
 class SequentialEnsemble(BaseEnsemble):
+
     r"""Sequential Ensemble class.
 
     The Sequential Ensemble class allows users to build ensembles with

@@ -80,7 +80,7 @@ class Subset(BaseEstimator, TransformerMixin):
 
 class Shift(BaseEstimator, TransformerMixin):
 
-    """Lag operator.
+    r"""Lag operator.
 
     Shift an input array :math:`X` with :math:`s` steps, i.e. for some time
     series :math:`\mathbf{X} = (X_t, X_{t-1}, ..., X_{0})`,

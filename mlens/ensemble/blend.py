@@ -14,6 +14,7 @@ from ..base import BlendIndex, FullIndex
 
 
 class BlendEnsemble(BaseEnsemble):
+
     r"""Blend Ensemble class.
 
     The Blend Ensemble is a supervised ensemble closely related to

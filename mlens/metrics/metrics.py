@@ -13,7 +13,7 @@ import numpy as np
 
 
 def rmse(y, p):
-    """Root Mean Square Error.
+    r"""Root Mean Square Error.
 
     .. math::
 
@@ -43,7 +43,7 @@ def rmse(y, p):
 
 
 def mape(y, p):
-    """Mean Average Percentage Error.
+    r"""Mean Average Percentage Error.
 
     .. math::
 
@@ -67,7 +67,7 @@ def mape(y, p):
 
 
 def wape(y, p):
-    """Weighted Mean Average Percentage Error.
+    r"""Weighted Mean Average Percentage Error.
 
     .. math::
 

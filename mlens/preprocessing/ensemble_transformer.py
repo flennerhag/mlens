@@ -17,6 +17,7 @@ from ..externals.sklearn.validation import check_random_state
 
 
 class EnsembleTransformer(TransformerMixin, BaseEnsemble):
+
     r"""Ensemble Transformer class.
 
     The Ensemble class allows users to build layers of an ensemble through a

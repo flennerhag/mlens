@@ -14,6 +14,7 @@ from ..base import FoldIndex, FullIndex
 
 
 class SuperLearner(BaseEnsemble):
+
     r"""Super Learner class.
 
     The Super Learner (also known as the Stacking Ensemble)is an

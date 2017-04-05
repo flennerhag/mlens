@@ -13,6 +13,7 @@ from ..externals.sklearn.base import clone
 
 ###############################################################################
 class SubStacker(BaseEstimator):
+
     """Stacked subset fit sub-process class.
 
     Class for fitting a Layer using Subsemble.

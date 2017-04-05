@@ -207,7 +207,6 @@ class BaseEstimator(object):
 
     def predict(self, X, P, parallel):
         """Predict with fitted layer with either full or fold ests."""
-
         self._check_fitted()
 
         if self.verbose:
@@ -238,7 +237,6 @@ class BaseEstimator(object):
 
     def transform(self, X, P, parallel):
         """Transform training data with fold-estimators from fit call."""
-
         self._check_fitted()
 
         if self.verbose:
@@ -434,7 +432,7 @@ def predict_fold_est(case, tr_list, inst_name, est, xtest, pred, idx, name,
     tei = idx[0]
     col = idx[1]
 
-    x, _, tei = _slice_array(xtest, None, idx[0])
+    x, _, tei = _slice_array(xtest, None, tei)
 
     for tr_name, tr in tr_list:
         x = _transform_tr(x, tr, tr_name, case, name)
@@ -544,14 +542,14 @@ def _fit(**kwargs):
 
 
 ###############################################################################
-def _load_trans(f, case, ivals, raise_on_exception):
+def _load_trans(dir, case, ivals, raise_on_exception):
     """Try loading transformers, and handle exception if not ready yet."""
     s = ivals[0]
     lim = ivals[1]
     try:
         # Assume file exists
-        return pickle_load(f)
-    except FileNotFoundError or TypeError as exc:
+        return pickle_load(dir)
+    except (FileNotFoundError, TypeError) as exc:
         msg = str(exc)
         error_msg = ("The file %s cannot be found after %i seconds of "
                      "waiting. Check that time to fit transformers is "
@@ -568,7 +566,7 @@ def _load_trans(f, case, ivals, raise_on_exception):
 
         # Else, check intermittently until limit is reached
         ts = time_()
-        while not os.path.exists(f):
+        while not os.path.exists(dir):
             sleep(s)
             if time_() - ts > lim:
                 if raise_on_exception:
@@ -576,13 +574,13 @@ def _load_trans(f, case, ivals, raise_on_exception):
 
                 warnings.warn("Transformer %s not found in cache (%s). "
                               "Will check every %.1f seconds for %i seconds "
-                              "before aborting. " % (case, f, s, lim),
+                              "before aborting. " % (case, dir, s, lim),
                               ParallelProcessingWarning)
 
                 raise_on_exception = True
                 ts = time_()
 
-        return pickle_load(f)
+        return pickle_load(dir)
 
 
 def _fit_tr(x, y, tr, tr_name, case, layer_name):

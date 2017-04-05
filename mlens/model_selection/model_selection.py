@@ -20,7 +20,7 @@ from ..utils import print_time, safe_print, check_instances, \
 
 try:
     from time import perf_counter as time
-except:
+except ImportError:
     from time import time
 
 try:
@@ -81,6 +81,10 @@ class Evaluator(object):
         cross validation folds to use. Either pass a ``KFold`` class
         that obeys the Scikit-learn API.
 
+    metrics : list, optional
+        list of aggregation metrics to calculate on scores. Default is
+        mean and standard deviation.
+
     shuffle : bool (default = True)
         whether to shuffle input data before creating cv folds.
 
@@ -114,6 +118,7 @@ class Evaluator(object):
                  random_state=None,
                  backend='multiprocessing',
                  error_score=None,
+                 metrics=None,
                  n_jobs=-1,
                  verbose=False):
 
@@ -123,6 +128,7 @@ class Evaluator(object):
         self.backend = backend
         self.n_jobs = n_jobs
         self.error_score = error_score
+        self.metrics = [np.mean, np.std] if metrics is None else metrics
         self.random_state = random_state
         self.scorer = scorer
         self.scores_ = None
@@ -310,7 +316,7 @@ class Evaluator(object):
         if self.verbose > 0:
             printout = sys.stdout if self.verbose >= 50 else sys.stderr
             t0 = time()
-            self._print_eval_start(t0, printout)
+            self._print_eval_start(printout)
 
         self.initialize(X, y)
 
@@ -378,48 +384,33 @@ class Evaluator(object):
 
     def collect(self):
         """Collect output and format into dicts."""
-
         # Scores are returned as a list of tuples for each case, est, draw and
         # fold. We need to aggregate them up to case, est and draw level.
-        scores = _dict()
-        for case, est, draw_num, train_sc, test_sc, fit_time in self.scores_:
-
-            # Strip fold data
-            if case is not None:
-                name = (case.split('__')[0], est.split('__')[0])
-            else:
-                name = est.split('__')[0]
-
-            if name not in scores:
-                scores[name] = _dict()
-
-            if draw_num not in scores[name]:
-                scores[name][draw_num] = _dict(test_score=[],
-                                               train_score=[],
-                                               fit_time=[])
-
-            scores[name][draw_num]['test_score'].append(test_sc)
-            scores[name][draw_num]['train_score'].append(train_sc)
-            scores[name][draw_num]['fit_time'].append(fit_time)
+        scores = self._aggregate_scores()
 
         # To build the cv_results dictionary, we loop over the scores dict and
         # aggregate the lists created on the metrics specified.
-        cv_res = _dict()
-        for name, case_est_data in scores.items():
-
-            if name not in cv_res:
-                cv_res[name] = _dict()
-
-            for draw_num, draw_data in case_est_data.items():
-
-                if draw_num not in cv_res[name]:
-                    cv_res[name][draw_num] = _dict()
-
-                for key, values in draw_data.items():
-                    for n, m in zip(['mean', 'std'], [np.mean, np.std]):
-                        cv_res[name][draw_num]['%s_%s' % (key, n)] = m(values)
+        cv_res = self._get_results(scores)
 
         # Summarize best draws for each case-est draw
+        summary = self._summarize(cv_res)
+
+        # Finally, we sort summary in order of best performance
+        rank = sorted(summary['test_score_mean'],
+                      key=itemgetter(1), reverse=True)
+
+        pretty_summary = _dict()
+        for metric, data in summary.items():
+            pretty_summary[metric] = _dict()
+
+            for case_est in rank:
+                pretty_summary[metric][case_est] = data[case_est]
+
+        self.cv_results = cv_res
+        self.summary = pretty_summary
+
+    def _summarize(self, cv_res):
+        """For each case-estimator, return best param draw from cv results."""
         summary = _dict()
         for case_est, data in cv_res.items():
 
@@ -456,19 +447,50 @@ class Evaluator(object):
 
                 summary[metric][case_est] = val
 
-        # Finally, we sort summary in order of best performance
-        rank = sorted(summary['test_score_mean'],
-                      key=itemgetter(1), reverse=True)
+        return summary
 
-        pretty_summary = _dict()
-        for metric, data in summary.items():
-            pretty_summary[metric] = _dict()
+    def _aggregate_scores(self):
+        """Aggregate scores to one list per case, est and param draw level."""
+        scores = _dict()
+        for case, est, draw_num, train_sc, test_sc, fit_time in self.scores_:
 
-            for case_est in rank:
-                pretty_summary[metric][case_est] = data[case_est]
+            # Strip fold data
+            if case is not None:
+                name = (case.split('__')[0], est.split('__')[0])
+            else:
+                name = est.split('__')[0]
 
-        self.cv_results = cv_res
-        self.summary = pretty_summary
+            if name not in scores:
+                scores[name] = _dict()
+
+            if draw_num not in scores[name]:
+                scores[name][draw_num] = _dict(test_score=[],
+                                               train_score=[],
+                                               fit_time=[])
+
+            scores[name][draw_num]['test_score'].append(test_sc)
+            scores[name][draw_num]['train_score'].append(train_sc)
+            scores[name][draw_num]['fit_time'].append(fit_time)
+
+        return scores
+
+    def _get_results(self, scores):
+        """Return score metrics for each case, est and param draw level."""
+        cv_res = _dict()
+        for name, case_est_data in scores.items():
+
+            if name not in cv_res:
+                cv_res[name] = _dict()
+
+            for draw_num, draw_data in case_est_data.items():
+
+                if draw_num not in cv_res[name]:
+                    cv_res[name][draw_num] = _dict()
+
+                for key, values in draw_data.items():
+                    for n, m in zip(['mean', 'std'], self.metrics):
+                        cv_res[name][draw_num]['%s_%s' % (key, n)] = m(values)
+        return cv_res
 
     def _print_prep_start(self, t0, printout):
         """Print preprocessing start and return timer."""
@@ -479,7 +501,7 @@ class Evaluator(object):
         safe_print(msg % (p, c), file=printout)
         return t0
 
-    def _print_eval_start(self, t0, printout):
+    def _print_eval_start(self, printout):
         """Print initiation message and return timer."""
         msg = ('Evaluating %i models for %i parameter draws over %i' +
                ' preprocessing pipelines and %i CV folds, totalling %i fits')

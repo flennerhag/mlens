@@ -9,8 +9,7 @@ Controls that an estimator was built as expected.
 
 import warnings
 from .exceptions import (NotFittedError, LayerSpecificationWarning,
-                         LayerSpecificationError, FitFailedError,
-                         FitFailedWarning, ParallelProcessingError,
+                         LayerSpecificationError, ParallelProcessingError,
                          ParallelProcessingWarning)
 
 
@@ -124,7 +123,6 @@ def assert_correct_format(estimators, preprocessing):
 
 def check_initialized(inst):
     """Check if a ParallelProcessing instance is initialized properly."""
-
     if not inst._initialized:
         msg = "ParallelProcessing is not initialized. Call " \
               "'initialize' before calling 'fit'."

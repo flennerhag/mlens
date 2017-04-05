@@ -24,14 +24,14 @@ from ..utils import assert_correct_format, check_ensemble_build, \
 try:
     # Try get performance counter
     from time import perf_counter as time
-except:
+except ImportError:
     # Fall back on wall clock
     from time import time
 
 
 class LayerContainer(BaseEstimator):
 
-    """Container class for layers.
+    r"""Container class for layers.
 
     The LayerContainer class stories all layers as an ordered dictionary
     and modifies possesses a ``get_params`` method to appear as an estimator
@@ -375,7 +375,6 @@ class LayerContainer(BaseEstimator):
 
     def _post_process(self, processor, return_preds):
         """Aggregate output from processing layers and collect final preds."""
-
         out = {'score_mean': {}, 'score_std': {}}
         for layer_name, layer in self.layers.items():
             if layer.cls != 'full':
@@ -667,11 +666,6 @@ class BaseEnsemble(BaseEstimator):
         self.layers = layers
         self.array_check = array_check
 
-    @abstractmethod
-    def add(self, estimators, preprocessing=None, **kwargs):
-        """Interface for adding a layer."""
-        pass
-
     def _add(self,
              estimators,
              cls,
@@ -744,9 +738,6 @@ class BaseEnsemble(BaseEstimator):
         ----------
         X : array-like, shape=[n_samples, n_features]
             input matrix to be used for prediction.
-
-        y : array-like, None (default = None)
-            pass through for scikit-learn compatibility.
 
         Returns
         -------

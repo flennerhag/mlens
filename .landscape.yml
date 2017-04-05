@@ -4,6 +4,7 @@ ignore-paths:
   - docs/
   - mlens/externals
   - dev/
+  - benchmarks/
 
 ignore-patterns:
     - ^example/doc_.*\.py$
@@ -13,3 +14,5 @@ pylint:
   disable:
     - too-many-local-variables
     - too-many-arguments
+    - access-to-a-protected-member-of-a-client-class
+    - redefining-built-in

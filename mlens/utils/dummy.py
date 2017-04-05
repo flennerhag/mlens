@@ -99,6 +99,7 @@ class OLS(BaseEstimator):
 
 # FIXME: Needs a quality check!
 class LogisticRegression(OLS):
+
     """No frill Logistic Regressor w. one-vs-rest estimation of P(label).
 
     MWE of a Scikit-learn classifier.
@@ -114,11 +115,6 @@ class LogisticRegression(OLS):
     The ``offset`` option allows the user to offset weights in the OLS by a
     scalar value, if different instances should be differentiated in their
     predictions.
-
-    Parameters
-    ----------
-    offset : float (default = 0)
-        scalar value to add to the coefficient vector after fitting.
 
     Examples
     --------
@@ -200,6 +196,7 @@ class LogisticRegression(OLS):
 
 
 class Scale(BaseEstimator, TransformerMixin):
+
     """Removes the a learnt mean in a column-wise manner in an array.
 
     MWE of a Scikit-learn transformer, to be used for unit-tests of ensemble
@@ -238,6 +235,7 @@ class Scale(BaseEstimator, TransformerMixin):
            [ 0.,  0.],
            [ 2.,  4.]])
     """
+
     def __init__(self, copy=True):
         self.copy = copy
         self.__is_fitted__ = False
@@ -259,7 +257,13 @@ class Scale(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        """Transform array by adjusting all elements with scale."""
+        """Transform array by adjusting all elements with scale.
+
+        Parameters
+        ----------
+        X : ndarray
+            matrix to transform.
+        """
         if not self.__is_fitted__:
             raise NotFittedError("Estimator not fitted.")
         X = check_array(X, accept_sparse='csr')
@@ -347,7 +351,8 @@ class LayerGenerator(object):
     def __init__(self):
         pass
 
-    def get_layer(self, cls, proba, preprocessing, *args, **kwargs):
+    @staticmethod
+    def get_layer(cls, proba, preprocessing, *args, **kwargs):
         """Generate a layer instance.
 
         Parameters
@@ -379,7 +384,8 @@ class LayerGenerator(object):
                          indexer=idx,
                          partitions=1 if cls != 'subset' else idx.n_partitions)
 
-    def get_layer_container(self, cls, proba, preprocessing, *args, **kwargs):
+    @staticmethod
+    def get_layer_container(cls, proba, preprocessing, *args, **kwargs):
         """Generate a layer container instance.
 
         Parameters
@@ -409,13 +415,14 @@ class LayerGenerator(object):
 
 
 class Cache(object):
+
     """Object for controlling caching."""
 
     def __init__(self, X, y, data):
         path = os.path.join(os.getcwd(), 'tmp')
         try:
             shutil.rmtree(path)
-        except:
+        except Exception:
             pass
         os.mkdir(path)
         self.path = path
@@ -481,7 +488,6 @@ class Cache(object):
 
     def _store_X_y(self, X, y):
         """Save X and y to file in temporary directory."""
-
         xf, yf = (os.path.join(self.path, 'X_mapped.npy'),
                   os.path.join(self.path, 'y_mapped.npy'))
         np.save(xf, X)
@@ -489,14 +495,12 @@ class Cache(object):
 
         return xf, yf
 
-    def _layer_est(self, layer, attr, n_jobs, args=None):
+    def _layer_est(self, layer, attr):
         """Test the estimation routine for a layer."""
-
         est = ENGINES[layer.cls]
 
         # Wrap in try-except to always close the tmp if asked to
-        with Parallel(n_jobs=1,
-                      temp_folder=self.job['dir'],
+        with Parallel(temp_folder=self.job['dir'],
                       mmap_mode='r+',
                       max_nbytes=None) as parallel:
 
@@ -695,7 +699,7 @@ class Data(object):
                                 [float('%.1f' % i) for i in y[tri]],
                                 [float('%.1f' % i) for i in w],
                                 [float('%.1f' % i) for i in p]))
-                    except:
+                    except Exception:
                         pass
 
         return F, weights
@@ -763,7 +767,7 @@ class Data(object):
                                 [float('%.1f' % i) for i in y],
                                 [float('%.1f' % i) for i in w],
                                 [float('%.1f' % i) for i in p]))
-                    except:
+                    except Exception:
                         pass
 
         return P, weights
@@ -807,7 +811,7 @@ class Data(object):
                 if verbose:
                     print('%s | %6s: %20r' % (
                         '%s-%s' % (key, est_name), 'FULL',
-                           [float('%.1f' % i) for i in P[:, col]]))
+                        [float('%.1f' % i) for i in P[:, col]]))
                     print('%s | %6s: %20r' % (
                         '%s-%s' % (key, est_name), 'FOLDS',
                         [float('%.1f' % i) for i in F[:, col]]))
@@ -835,24 +839,23 @@ class Data(object):
 
 class DummyPartition(object):
 
-    """
-    Dummy class to generate tri.
-    """
+    """Dummy class to generate tri."""
 
     def __init__(self, tri):
         self.tri = tri
 
     def partition(self, as_array=True):
         """Return the tri index."""
+        if as_array:
+            pass
         yield self.tri
 
 
 ###############################################################################
 def layer_fit(layer, cache, F, wf):
     """Test the layer's fit method."""
-
     # Check predictions against ground truth
-    preds = cache._layer_est(layer, 'fit', n_jobs=-1)
+    preds = cache._layer_est(layer, 'fit')
     np.testing.assert_array_equal(preds, F)
 
     # Check coefficients
@@ -872,7 +875,7 @@ def layer_fit(layer, cache, F, wf):
 
 def layer_predict(layer, cache, P, wp):
     """Test the layer's predict method."""
-    preds = cache._layer_est(layer, 'predict', n_jobs=-1, args=['X', 'P'])
+    preds = cache._layer_est(layer, 'predict')
     np.testing.assert_array_equal(preds, P)
 
     # Check weights
@@ -884,9 +887,8 @@ def layer_predict(layer, cache, P, wp):
 
 def layer_transform(layer, cache, F):
     """Test the layer's transform method."""
-
     # Check predictions against ground truth
-    preds = cache._layer_est(layer, 'transform', n_jobs=-1, args=['X', 'P'])
+    preds = cache._layer_est(layer, 'transform')
 
     # Check predictions against GT
     np.testing.assert_array_equal(preds, F)
@@ -894,7 +896,6 @@ def layer_transform(layer, cache, F):
 
 def lc_fit(lc, X, y, F, wf):
     """Test the layer containers fit method."""
-
     out = lc.fit(X, y, return_preds=True)
 
     # Test preds
@@ -917,7 +918,6 @@ def lc_fit(lc, X, y, F, wf):
 
 def lc_predict(lc, X, P, wp):
     """Test the layer containers predict method."""
-
     pred = lc.predict(X)
 
     # Test preds
@@ -933,23 +933,27 @@ def lc_predict(lc, X, P, wp):
 
 def lc_transform(lc, X, F):
     """Test the layer containers transform method."""
-
     pred = lc.transform(X)
     np.testing.assert_array_equal(pred, F)
 
 
 def lc_from_file(lc, cache, X, y, F, wf, P, wp):
     """[LayerContainer] Stack: test fit from file path."""
-
     X_path, y_path = cache._store_X_y(X, y)
 
     # TEST FIT
     out = lc.fit(X_path, y_path, return_preds=True)
 
     np.testing.assert_array_equal(F, out[-1])
+
     d = lc.layers['layer-1'].estimators_
-    ests = [(c, tup) for c, tup in d if c not in ['sc', 'no']]
+    if lc.layers['layer-1'].cls != 'blend':
+        d = d[lc.layers['layer-1'].n_pred:]
+
+    ests = [(c, tup) for c, tup in d]
     w = [tup[1][1].coef_.tolist() for tup in ests]
+
+    assert w == wf
 
     # TEST MMAP
     assert out[-1].__class__.__name__ == 'ndarray'
@@ -960,6 +964,7 @@ def lc_from_file(lc, cache, X, y, F, wf, P, wp):
     pred = lc.predict(X_path)
 
     np.testing.assert_array_equal(P, pred)
+
     d = lc.layers['layer-1'].estimators_
     ests = [(c, tup) for c, tup in d[:lc.layers['layer-1'].n_pred]]
     w = [tup[1][1].coef_.tolist() for tup in ests]

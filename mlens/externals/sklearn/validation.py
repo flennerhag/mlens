@@ -324,7 +324,7 @@ def check_array(array, accept_sparse=None, dtype="numeric", order=None,
 
     Returns
     -------
-    X_converted : object
+    X_converted : ndarray
         The converted and validated X.
     """
     if isinstance(accept_sparse, str):

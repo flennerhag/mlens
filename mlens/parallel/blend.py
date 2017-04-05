@@ -17,6 +17,7 @@ from joblib import delayed
 
 ###############################################################################
 class Blender(BaseEstimator):
+
     """Blended fit sub-process class.
 
     Class for fitting a Layer using Blending.

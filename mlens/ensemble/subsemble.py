@@ -14,6 +14,7 @@ from ..base import FullIndex, SubsetIndex
 
 
 class Subsemble(BaseEnsemble):
+
     r"""Subsemble class.
 
     Subsemble is a supervised ensemble algorithm that uses subsets of

@@ -13,6 +13,7 @@ from .estimation import BaseEstimator
 
 ###############################################################################
 class Stacker(BaseEstimator):
+
     """Stacked fit sub-process class.
 
     Class for fitting a Layer using Stacking.

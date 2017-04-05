@@ -153,7 +153,7 @@ class BaseIndex(object):
                 last = tei_stop
 
     def generate(self, X=None, as_array=False):
-        """Front-end generator method.
+        r"""Front-end generator method.
 
         Generator for training and test set indices based on the
         generator specification in ``_gen_indicies``.

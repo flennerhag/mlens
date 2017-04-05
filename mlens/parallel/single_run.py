@@ -15,6 +15,7 @@ from ..externals.sklearn.base import clone
 
 ###############################################################################
 class SingleRun(BaseEstimator):
+
     """Single run fit sub-process class.
 
     Class for fitting a estimators in a layer without any sub-fits.

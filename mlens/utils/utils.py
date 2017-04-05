@@ -117,8 +117,8 @@ class CMLog(object):
     ----------
     verbose : bool
         whether to notify of job start.
-
     """
+
     def __init__(self, verbose=False):
         self.verbose = verbose
         self.pid = os.getpid()

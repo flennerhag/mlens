@@ -239,13 +239,13 @@ class ParallelProcessing(object):
         try:
             self._job.tmp.cleanup()
 
-        except AttributeError:
-            # Fall back on shutil
+        except (AttributeError, OSError):
+            # Fall back on shutil for python 2, can also fail on windows
             try:
                 shutil.rmtree(self._job.dir)
 
             except OSError:
-                # This can fail on Windows
+                # Can fail on windows, need to use the shell
                 try:
                     subprocess.Popen('rmdir /S /Q %s' % self._job.dir,
                                      shell=True, stdout=subprocess.PIPE,
@@ -378,7 +378,7 @@ class ParallelEvaluation(object):
         try:
             self._job.tmp.cleanup()
 
-        except AttributeError:
+        except (AttributeError, OSError):
             # Fall back on shutil for python 2
             try:
                 shutil.rmtree(self._job.dir)

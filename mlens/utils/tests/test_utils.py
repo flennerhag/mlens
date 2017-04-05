@@ -8,6 +8,7 @@ author: Sebastian Flennerhag
 from __future__ import division
 
 import os
+import sys
 import subprocess
 from mlens.utils import utils
 
@@ -49,12 +50,12 @@ def test_print_time():
 
     # Initiate a time interval
     t0 = time()
-    sleep(1)
+    sleep(1.3)
 
     # Record recorded print_time message
     utils.print_time(t0, message='test', file=logger)
 
-    print(logger.log[0])
+    print(logger.log[0][:15])
 
     assert logger.log[0][:15] == 'test | 00:00:01'
 

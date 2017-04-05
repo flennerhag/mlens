@@ -316,6 +316,7 @@ class BaseEstimator(object):
 
         return prep, ests
 
+
 ###############################################################################
 def _wrap(folded_list, name='__trans__'):
     """Wrap the folded transformer list.
@@ -323,7 +324,8 @@ def _wrap(folded_list, name='__trans__'):
     wraps a folded transformer list so that the ``tr_list`` appears as
     one estimator with a specified name. Since all ``tr_list``s have the
     same name, it can be used to select a transformation function or an
-    estimation function in a combined parallel fitting loop."""
+    estimation function in a combined parallel fitting loop.
+    """
     return [(case, tri, None, [(name, instance_list)]) for
             case, tri, tei, instance_list in folded_list]
 

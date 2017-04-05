@@ -164,7 +164,7 @@ def _get_col_idx(instance_list, n_main, labels):
     # fold-specific estimators and assigning each of the main ests a col_id
     idx, col = dict(), 0
     for meta_name, _, _, estimator_list in instance_list[:n_main]:
-        for est_name, est in estimator_list:
+        for est_name, _ in estimator_list:
             idx[(meta_name, est_name)] = col
 
             col += inc

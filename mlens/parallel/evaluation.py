@@ -76,7 +76,7 @@ class Evaluation(object):
             [(tup[0], pickle_load(os.path.join(dir, '%s__t' % tup[0])))
              for tup in preprocessing]
 
-    def evaluate(self, parallel, X, y, dir):
+    def evaluate(self, parallel, X, y):
         """cross-validation of estimators.
 
         Parameters

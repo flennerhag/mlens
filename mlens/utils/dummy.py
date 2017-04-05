@@ -352,12 +352,12 @@ class LayerGenerator(object):
         pass
 
     @staticmethod
-    def get_layer(cls, proba, preprocessing, *args, **kwargs):
+    def get_layer(kls, proba, preprocessing, *args, **kwargs):
         """Generate a layer instance.
 
         Parameters
         ----------
-        cls : str
+        kls : str
             class type
 
         proba : bool
@@ -368,21 +368,21 @@ class LayerGenerator(object):
         """
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
-            idx = INDEXERS[cls](*args, **kwargs)
+            idx = INDEXERS[kls](*args, **kwargs)
             return Layer(estimators=ests,
-                         cls=cls,
+                         cls=kls,
                          proba=proba,
                          indexer=idx,
-                         partitions=1 if cls != 'subset' else idx.n_partitions,
+                         partitions=1 if kls != 'subset' else idx.n_partitions,
                          preprocessing=PREPROCESSING)
         else:
             ests = ECM_PROBA if proba else ECM
-            idx = INDEXERS[cls](*args, **kwargs)
+            idx = INDEXERS[kls](*args, **kwargs)
             return Layer(estimators=ests,
-                         cls=cls,
+                         cls=kls,
                          proba=proba,
                          indexer=idx,
-                         partitions=1 if cls != 'subset' else idx.n_partitions)
+                         partitions=1 if kls != 'subset' else idx.n_partitions)
 
     @staticmethod
     def get_layer_container(cls, proba, preprocessing, *args, **kwargs):
@@ -804,16 +804,17 @@ class Data(object):
         if verbose:
             print('\n                 SUMMARY')
             print('-' * 42)
+
         col = 0
-        for key in sorted(ESTIMATORS):
-            for est_name, est in ESTIMATORS[key]:
+        for case in sorted(ESTIMATORS):
+            for est_name, _ in ESTIMATORS[case]:
 
                 if verbose:
                     print('%s | %6s: %20r' % (
-                        '%s-%s' % (key, est_name), 'FULL',
+                        '%s-%s' % (case, est_name), 'FULL',
                         [float('%.1f' % i) for i in P[:, col]]))
                     print('%s | %6s: %20r' % (
-                        '%s-%s' % (key, est_name), 'FOLDS',
+                        '%s-%s' % (case, est_name), 'FOLDS',
                         [float('%.1f' % i) for i in F[:, col]]))
 
                 col += 1
@@ -961,9 +962,9 @@ def lc_from_file(lc, cache, X, y, F, wf, P, wp):
         assert e[1][1].coef_.__class__.__name__ == 'ndarray'
 
     # TEST PREDICT
-    pred = lc.predict(X_path)
+    out = lc.predict(X_path)
 
-    np.testing.assert_array_equal(P, pred)
+    np.testing.assert_array_equal(P, out)
 
     d = lc.layers['layer-1'].estimators_
     ests = [(c, tup) for c, tup in d[:lc.layers['layer-1'].n_pred]]

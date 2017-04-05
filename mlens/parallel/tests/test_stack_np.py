@@ -4,10 +4,10 @@ Testing ground for parallel backend
 
 """
 from mlens.utils.dummy import LayerGenerator, Data, Cache
-from mlens.parallel.tests.funcs import (layer_fit, layer_predict,
-                                        layer_transform,
-                                        lc_fit, lc_from_file, lc_predict,
-                                        lc_transform)
+from mlens.utils.dummy import (layer_fit, layer_predict,
+                               layer_transform,
+                               lc_fit, lc_from_file, lc_predict,
+                               lc_transform)
 
 
 PROBA = False

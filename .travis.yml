@@ -12,12 +12,13 @@ install:
   - pip install coverage coveralls
   - pip install nose-exclude
   - pip install flake8
+  - pip install -r requirements.txt
   - python setup.py install
 
 script:
   - set -e
-  - nosetests -s -v --with-coverage --exclude mlens/visualization --exclude mlens/externals --exclude mlens/dev
-  - flake8 --exclude [externals, dev]
+  - nosetests -s -v --with-coverage --exclude mlens/visualization --exclude mlens/externals
+  - flake8 --exclude externals
 
 after_success:
   - coveralls

@@ -10,10 +10,9 @@ install:
   - set -e
   - sudo apt-get update
   - pip install coverage coveralls
-  - pip install nose nose-exclude
+  - pip install nose-exclude
   - pip install flake8
-  - pip install -r requirements.txt
-  - pip install .
+  - python setup.py install
 
 script:
   - set -e

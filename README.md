@@ -12,7 +12,7 @@
 # ML- Ensemble
 
 **A Python library for memory efficient
-parallelized ensemble network learning**.
+parallelized ensemble learning**.
 
 ML-Ensemble combines the Scikit-learn estimator API with a neural-network style
 API to allow straight-forward multi-layer ensemble network architectures that
@@ -95,9 +95,36 @@ ensemble.add(estimators, preprocessing)
 ### Dedicated Diagnostics
 
 ML Ensemble implements a dedicated diagnostics and model selection suite
-for intuitive and speedy ensemble evaluation. This suite is under
-development, so check in frequently for new functionality.
+for intuitive and speedy ensemble evaluation. In particular, the ``Evaluator``
+class allows users to evaluate several preprocessing pipelines and several
+estimators in one go, possibly even evaluating different estimators on
+different preprocessing pipelines. 
 
+Moreover, the ``EnsembleTransformer`` allows user to build a transformer that
+behaves as any ensemble, but that returns the predictions from the ``fit``
+call. Hence, the transformer can be used together with the ``Evaluator`` to
+pre-generate training folds for model selection of the meta estimator
+(or further layers). For an example, see [here](http://mlens.readthedocs.io/en/latest/ensemble_tutorial.html#meta-learner-model-selection).
+
+```Python
+
+preprocessing_dict = {'pipeline-1': list_of_transformers_1,
+                      'pipeline-2': list_of_transformers_2}
+
+
+evaluator = Evaluator(scorer=score_func)
+evaluator.fit(X, y, list_of_estimators, param_dists_dict, preprocessing_dict)
+```
+
+```Python
+              fit_time_mean  fit_time_std  train_score_mean  train_score_std  test_score_mean  test_score_std               params
+prep-1 est-1       0.001353      0.001316          0.957037         0.005543         0.960000        0.032660                   {}
+       est-2       0.000447      0.000012          0.980000         0.004743         0.966667        0.033333  {'n_neighbors': 15}
+prep-2 est-1       0.001000      0.000603          0.957037         0.005543         0.960000        0.032660                   {}
+       est-2       0.000448      0.000036          0.965185         0.003395         0.960000        0.044222   {'n_neighbors': 8}
+prep-3 est-1       0.000735      0.000248          0.791111         0.019821         0.780000        0.133500                   {}
+       est-2       0.000462      0.000143          0.837037         0.014815         0.800000        0.126491   {'n_neighbors': 9}
+```
 
 ## How to install
 

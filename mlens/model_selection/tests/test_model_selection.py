@@ -14,7 +14,7 @@ np.random.seed(100)
 rmse_scorer = make_scorer(rmse, greater_is_better=False)
 
 # Stack is nonsense here - we just need proba to be false
-X, y = Data('stack', False, False).get_data((12, 2), 2)
+X, y = Data('stack', False, False).get_data((100, 2), 2)
 
 
 def test_no_prep():
@@ -23,10 +23,11 @@ def test_no_prep():
     evl.fit(X, y,
             estimators=[OLS()],
             param_dicts={'ols': {'offset': randint(1, 10)}},
-            n_iter=10)
+            n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean']['ols'], 28.376957869124858)
+            evl.summary['test_score_mean']['ols'], 806.70651350960748)
+    assert evl.summary['params']['ols']['offset'] == 4
 
 
 def test_w_prep():
@@ -40,12 +41,15 @@ def test_w_prep():
     evl.evaluate(X, y,
                  estimators=[OLS()],
                  param_dicts={'ols': {'offset': randint(1, 10)}},
-                 n_iter=10)
+                 n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')], 28.376957869124858)
+            evl.summary['test_score_mean'][('no', 'ols')], 806.70651350960748)
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 39.007745452637408)
+            evl.summary['test_score_mean'][('pr', 'ols')], 509.01956468572143)
+
+    assert evl.summary['params'][('no', 'ols')]['offset'] == 4
+    assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
 
 
 def test_w_prep_fit():
@@ -56,12 +60,15 @@ def test_w_prep_fit():
             estimators=[OLS()],
             param_dicts={'ols': {'offset': randint(1, 10)}},
             preprocessing={'pr': [Scale()], 'no': []},
-            n_iter=10)
+            n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')], 28.376957869124858)
+            evl.summary['test_score_mean'][('no', 'ols')], 806.70651350960748)
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 39.007745452637408)
+            evl.summary['test_score_mean'][('pr', 'ols')], 509.01956468572143)
+
+    assert evl.summary['params'][('no', 'ols')]['offset'] == 4
+    assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
 
 
 def test_w_prep_set_params():
@@ -77,9 +84,12 @@ def test_w_prep_set_params():
             estimators={'pr': [OLS()], 'no': [OLS()]},
             param_dicts=params,
             preprocessing={'pr': [Scale()], 'no': []},
-            n_iter=10)
+            n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')], 84.856535669630389)
+            evl.summary['test_score_mean'][('no', 'ols')], 605.04603123784148)
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 142.9297326963281)
+            evl.summary['test_score_mean'][('pr', 'ols')], 1268.5505117686976)
+
+    assert evl.summary['params'][('no', 'ols')]['offset'] == 3
+    assert evl.summary['params'][('pr', 'ols')]['offset'] == 11

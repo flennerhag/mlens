@@ -7,13 +7,17 @@
 Cross-validation jobs for an :class:`Evaluator` instance.
 """
 
-from .estimation import fit_trans, _slice_array, _transform_tr, _fit_est, \
-    _predict_est
+from .estimation import (fit_trans,
+                         _slice_array,
+                         _transform_tr,
+                         _fit_est,
+                         _predict_est)
+
+from ..externals.joblib import delayed
 from ..utils import pickle_load
 from ..externals.sklearn.base import clone
 
 import os
-from joblib import delayed
 
 try:
     from time import perf_counter as time

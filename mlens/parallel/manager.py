@@ -6,20 +6,20 @@
 
 Parallel processing job managers.
 """
-import numpy as np
-
-from . import Stacker, Blender, SingleRun, SubStacker, Evaluation
-from ..utils import check_initialized
-from ..utils.exceptions import ParallelProcessingError, \
-    ParallelProcessingWarning
-
-import os
 import gc
+import os
 import shutil
+import subprocess
 import tempfile
 import warnings
-import subprocess
-from joblib import Parallel, dump, load
+
+import numpy as np
+
+from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
+from ..externals.joblib import Parallel, dump, load
+from ..utils import check_initialized
+from ..utils.exceptions import (ParallelProcessingError,
+                                ParallelProcessingWarning)
 
 
 ENGINES = {'full': SingleRun,
@@ -379,14 +379,22 @@ class ParallelEvaluation(object):
             self.job.tmp.cleanup()
 
         except (AttributeError, OSError):
-            # Fall back on shutil for python 2
+            # Fall back on shutil for python 2, can also fail on windows
             try:
                 shutil.rmtree(self.job.dir)
+
             except OSError:
-                # This can fail on Windows
-                warnings.warn("Failed to delete cache at %s. Will be removed "
-                              "on reboot. Consider manual removal (rmdir)" %
-                              self.job.dir, ParallelProcessingWarning)
+                # Can fail on windows, need to use the shell
+                try:
+                    subprocess.Popen('rmdir /S /Q %s' % self.job.dir,
+                                     shell=True, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+                except OSError:
+                    warnings.warn("Failed to delete cache at %s."
+                                  "If created with default settings, will be "
+                                  "removed on reboot. For immediate "
+                                  "removal, manual removal is required." %
+                                  self.job.dir, ParallelProcessingWarning)
 
         finally:
             # Always release process memory

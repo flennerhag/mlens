@@ -7,21 +7,28 @@
 Base class for estimation.
 """
 
+import os
 from abc import ABCMeta, abstractmethod
+from time import sleep
+
 import numpy as np
 
-from ..utils import (safe_print, print_time, pickle_load, pickle_save,
-                     check_is_fitted)
-from ..utils.exceptions import (FitFailedError, FitFailedWarning,
-                                NotFittedError, PredictFailedError,
-                                PredictFailedWarning,
+from ..externals.joblib import delayed
+
+from ..utils import (check_is_fitted,
+                     pickle_load,
+                     pickle_save,
+                     print_time,
+                     safe_print)
+
+from ..utils.exceptions import (FitFailedError,
+                                FitFailedWarning,
+                                NotFittedError,
+                                ParallelProcessingError,
                                 ParallelProcessingWarning,
-                                ParallelProcessingError)
+                                PredictFailedError,
+                                PredictFailedWarning)
 
-from joblib import delayed
-import os
-
-from time import sleep
 try:
     from time import perf_counter as time_
 except ImportError:

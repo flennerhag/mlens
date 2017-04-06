@@ -52,7 +52,6 @@ Package       Version   Module
 ============  =======  ======================
 scipy         >= 0.17  All
 numpy         >= 1.11  All
-joblib        >= 0.9   All
 matplotlib    >= 1.5   Only for visualization
 seaborn       >= 0.7   Only for visualization
 ============  =======  ======================

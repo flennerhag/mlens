@@ -9,11 +9,12 @@ import sys
 import io
 import zlib
 import gzip
+import bz2
 import warnings
 import contextlib
 from contextlib import closing
 
-from ._compat import PY3_OR_LATER, PY27, _basestring
+from ._compat import PY3_OR_LATER, PY26, PY27, _basestring
 
 try:
     from threading import RLock
@@ -39,16 +40,6 @@ except ImportError:
     lzma = None
 
 
-try:
-    # The python standard library can be built without bz2 so we make bz2
-    # usage optional.
-    # see https://github.com/scikit-learn/scikit-learn/issues/7526 for more
-    # details.
-    import bz2
-except ImportError:
-    bz2 = None
-
-
 # Magic numbers of supported compression file formats.        '
 _ZFILE_PREFIX = b'ZF'  # used with pickle files created before 0.9.3.
 _ZLIB_PREFIX = b'\x78'
@@ -59,11 +50,7 @@ _LZMA_PREFIX = b'\x5d\x00'
 
 # Supported compressors
 _COMPRESSORS = ('zlib', 'bz2', 'lzma', 'xz', 'gzip')
-_COMPRESSOR_CLASSES = [gzip.GzipFile]
-
-if bz2 is not None:
-    _COMPRESSOR_CLASSES.append(bz2.BZ2File)
-
+_COMPRESSOR_CLASSES = [gzip.GzipFile, bz2.BZ2File]
 if lzma is not None:
     _COMPRESSOR_CLASSES.append(lzma.LZMAFile)
 
@@ -74,15 +61,6 @@ _MAX_PREFIX_LEN = max(len(prefix)
 
 # Buffer size used in io.BufferedReader and io.BufferedWriter
 _IO_BUFFER_SIZE = 1024 ** 2
-
-
-def _is_raw_file(fileobj):
-    """Check if fileobj is a raw file object, e.g created with open."""
-    if PY3_OR_LATER:
-        fileobj = getattr(fileobj, 'raw', fileobj)
-        return isinstance(fileobj, io.FileIO)
-    else:
-        return isinstance(fileobj, file)  # noqa
 
 
 ###############################################################################
@@ -98,15 +76,10 @@ def _detect_compressor(fileobj):
     -------
     str in {'zlib', 'gzip', 'bz2', 'lzma', 'xz', 'compat', 'not-compressed'}
     """
-    # Read the magic number in the first bytes of the file.
-    if hasattr(fileobj, 'peek'):
-        # Peek allows to read those bytes without moving the cursor in the
-        # file whic.
-        first_bytes = fileobj.peek(_MAX_PREFIX_LEN)
-    else:
-        # Fallback to seek if the fileobject is not peekable.
-        first_bytes = fileobj.read(_MAX_PREFIX_LEN)
-        fileobj.seek(0)
+    # Ensure we read the first bytes.
+    fileobj.seek(0)
+    first_bytes = fileobj.read(_MAX_PREFIX_LEN)
+    fileobj.seek(0)
 
     if first_bytes.startswith(_ZLIB_PREFIX):
         return "zlib"
@@ -126,7 +99,8 @@ def _detect_compressor(fileobj):
 
 def _buffered_read_file(fobj):
     """Return a buffered version of a read file object."""
-    if PY27 and bz2 is not None and isinstance(fobj, bz2.BZ2File):
+    if PY26 or (PY27 and isinstance(fobj, bz2.BZ2File)):
+        # Python 2.6 doesn't fully support io.BufferedReader.
         # Python 2.7 doesn't work with BZ2File through a buffer: "no
         # attribute 'readable'" error.
         return fobj
@@ -136,7 +110,8 @@ def _buffered_read_file(fobj):
 
 def _buffered_write_file(fobj):
     """Return a buffered version of a write file object."""
-    if PY27 and bz2 is not None and isinstance(fobj, bz2.BZ2File):
+    if PY26 or (PY27 and isinstance(fobj, bz2.BZ2File)):
+        # Python 2.6 doesn't fully support io.BufferedWriter.
         # Python 2.7 doesn't work with BZ2File through a buffer: no attribute
         # 'writable'.
         # BZ2File doesn't implement the file object context manager in python 2
@@ -176,7 +151,8 @@ def _read_fileobject(fileobj, filename, mmap_mode=None):
     """
     # Detect if the fileobj contains compressed data.
     compressor = _detect_compressor(fileobj)
-
+    if isinstance(fileobj, tuple(_COMPRESSOR_CLASSES)):
+        compressor = fileobj.__class__.__name__
     if compressor == 'compat':
         # Compatibility with old pickle mode: simply return the input
         # filename "as-is" and let the compatibility function be called by the
@@ -187,53 +163,52 @@ def _read_fileobject(fileobj, filename, mmap_mode=None):
                       DeprecationWarning, stacklevel=2)
         yield filename
     else:
-        # based on the compressor detected in the file, we open the
-        # correct decompressor file object, wrapped in a buffer.
-        if compressor == 'zlib':
-            fileobj = _buffered_read_file(BinaryZlibFile(fileobj, 'rb'))
-        elif compressor == 'gzip':
-            fileobj = _buffered_read_file(BinaryGzipFile(fileobj, 'rb'))
-        elif compressor == 'bz2' and bz2 is not None:
-            if PY3_OR_LATER:
-                fileobj = _buffered_read_file(bz2.BZ2File(fileobj, 'rb'))
-            else:
-                # In python 2, BZ2File doesn't support a fileobj opened in
-                # binary mode. In this case, we pass the filename.
-                fileobj = _buffered_read_file(bz2.BZ2File(fileobj.name, 'rb'))
-        elif (compressor == 'lzma' or compressor == 'xz'):
-            if PY3_OR_LATER and lzma is not None:
-                # We support lzma only in python 3 because in python 2 users
-                # may have installed the pyliblzma package, which also provides
-                # the lzma module, but that unfortunately doesn't fully support
-                # the buffer interface required by joblib.
-                # See https://github.com/joblib/joblib/issues/403 for details.
-                fileobj = _buffered_read_file(lzma.LZMAFile(fileobj, 'rb'))
-            else:
-                raise NotImplementedError("Lzma decompression is not "
-                                          "supported for this version of "
-                                          "python ({}.{})"
-                                          .format(sys.version_info[0],
-                                                  sys.version_info[1]))
         # Checking if incompatible load parameters with the type of file:
         # mmap_mode cannot be used with compressed file or in memory buffers
         # such as io.BytesIO.
-        if mmap_mode is not None:
-            if isinstance(fileobj, io.BytesIO):
-                warnings.warn('In memory persistence is not compatible with '
-                              'mmap_mode "%(mmap_mode)s" flag passed. '
-                              'mmap_mode option will be ignored.'
-                              % locals(), stacklevel=2)
-            elif compressor != 'not-compressed':
-                warnings.warn('mmap_mode "%(mmap_mode)s" is not compatible '
-                              'with compressed file %(filename)s. '
-                              '"%(mmap_mode)s" flag will be ignored.'
-                              % locals(), stacklevel=2)
-            elif not _is_raw_file(fileobj):
-                warnings.warn('"%(fileobj)r" is not a raw file, mmap_mode '
-                              '"%(mmap_mode)s" flag will be ignored.'
-                              % locals(), stacklevel=2)
+        if ((compressor in _COMPRESSORS or
+                isinstance(fileobj, tuple(_COMPRESSOR_CLASSES))) and
+                mmap_mode is not None):
+            warnings.warn('File "%(filename)s" is compressed using '
+                          '"%(compressor)s" which is not compatible with '
+                          'mmap_mode "%(mmap_mode)s" flag passed. mmap_mode '
+                          'option will be ignored.'
+                          % locals(), stacklevel=2)
+        if isinstance(fileobj, io.BytesIO) and mmap_mode is not None:
+            warnings.warn('In memory persistence is not compatible with '
+                          'mmap_mode "%(mmap_mode)s" flag passed. mmap_mode '
+                          'option will be ignored.'
+                          % locals(), stacklevel=2)
 
-        yield fileobj
+        # if the passed fileobj is in the supported list of decompressor
+        # objects (GzipFile, BZ2File, LzmaFile), we simply return it.
+        if isinstance(fileobj, tuple(_COMPRESSOR_CLASSES)):
+            yield fileobj
+        # otherwise, based on the compressor detected in the file, we open the
+        # correct decompressor file object, wrapped in a buffer.
+        elif compressor == 'zlib':
+            yield _buffered_read_file(BinaryZlibFile(fileobj, 'rb'))
+        elif compressor == 'gzip':
+            yield _buffered_read_file(BinaryGzipFile(fileobj, 'rb'))
+        elif compressor == 'bz2':
+            if PY3_OR_LATER:
+                yield _buffered_read_file(bz2.BZ2File(fileobj, 'rb'))
+            else:
+                # In python 2, BZ2File doesn't support a fileobj opened in
+                # binary mode. In this case, we pass the filename.
+                yield _buffered_read_file(bz2.BZ2File(fileobj.name, 'rb'))
+        elif (compressor == 'lzma' or compressor == 'xz'):
+            if lzma is not None:
+                yield _buffered_read_file(lzma.LZMAFile(fileobj, 'rb'))
+            else:
+                raise NotImplementedError("Lzma decompression is not "
+                                          "available for this version of "
+                                          "python ({0}.{1})"
+                                          .format(sys.version_info[0],
+                                                  sys.version_info[1]))
+        # No compression detected => returning the input file object (open)
+        else:
+            yield fileobj
 
 
 def _write_fileobject(filename, compress=("zlib", 3)):
@@ -243,7 +218,7 @@ def _write_fileobject(filename, compress=("zlib", 3)):
     if compressmethod == "gzip":
         return _buffered_write_file(BinaryGzipFile(filename, 'wb',
                                     compresslevel=compresslevel))
-    elif compressmethod == "bz2" and bz2 is not None:
+    elif compressmethod == "bz2":
         return _buffered_write_file(bz2.BZ2File(filename, 'wb',
                                                 compresslevel=compresslevel))
     elif lzma is not None and compressmethod == "xz":
@@ -279,7 +254,7 @@ class BinaryZlibFile(io.BufferedIOBase):
     is returned as bytes, and data to be written should be given as bytes.
 
     This object is an adaptation of the BZ2File object and is compatible with
-    versions of python >= 2.7.
+    versions of python >= 2.6.
 
     If filename is a str or bytes object, it gives the name
     of the file to be opened. Otherwise, it should be a file object,
@@ -305,8 +280,8 @@ class BinaryZlibFile(io.BufferedIOBase):
         self._size = -1
 
         if not isinstance(compresslevel, int) or not (1 <= compresslevel <= 9):
-            raise ValueError("'compresslevel' must be an integer "
-                             "between 1 and 9. You provided 'compresslevel={}'"
+            raise ValueError("compresslevel must be between an integer "
+                             "between 1 and 9, you gave {0}"
                              .format(compresslevel))
 
         if mode == "rb":
@@ -325,7 +300,7 @@ class BinaryZlibFile(io.BufferedIOBase):
             raise ValueError("Invalid mode: %r" % (mode,))
 
         if isinstance(filename, _basestring):
-            self._fp = io.open(filename, mode)
+            self._fp = open(filename, mode)
             self._closefp = True
             self._mode = mode_code
         elif hasattr(filename, "read") or hasattr(filename, "write"):
@@ -392,7 +367,7 @@ class BinaryZlibFile(io.BufferedIOBase):
             fname = getattr(self._fp, 'name', None)
             msg = "I/O operation on closed file"
             if fname is not None:
-                msg += " {}".format(fname)
+                msg += " {0}".format(fname)
             msg += "."
             raise ValueError(msg)
 
@@ -517,7 +492,7 @@ class BinaryZlibFile(io.BufferedIOBase):
         with self._lock:
             self._check_can_write()
             # Convert data type if called by io.BufferedWriter.
-            if isinstance(data, memoryview):
+            if not PY26 and isinstance(data, memoryview):
                 data = data.tobytes()
 
             compressed = self._compressor.compress(data)

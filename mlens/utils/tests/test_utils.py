@@ -109,8 +109,8 @@ def test_cm():
             cm.monitor(0.2)
 
             while not hasattr(cm, 'cpu'):
-                cm.collect()
                 sleep(0.2)
+                cm.collect()
 
         assert len(cm.cpu) == 2
         assert len(cm.rss) == 2

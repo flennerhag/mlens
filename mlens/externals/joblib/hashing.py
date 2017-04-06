@@ -13,7 +13,6 @@ import sys
 import types
 import struct
 import io
-import decimal
 
 from ._compat import _bytes_or_unicode, PY3_OR_LATER
 
@@ -36,7 +35,7 @@ class _ConsistentSet(object):
             # This fails on python 3 when elements are unorderable
             # but we keep it in a try as it's faster.
             self._sequence = sorted(set_sequence)
-        except (TypeError, decimal.InvalidOperation):
+        except TypeError:
             # If elements are unorderable, sorting them using their hash.
             # This is slower but works in any case.
             self._sequence = sorted((hash(e) for e in set_sequence))

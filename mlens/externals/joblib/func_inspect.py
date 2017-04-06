@@ -190,7 +190,7 @@ def _signature_str(function_name, arg_spec):
     arg_spec_for_format = arg_spec[:7 if PY3_OR_LATER else 4]
 
     arg_spec_str = inspect.formatargspec(*arg_spec_for_format)
-    return '{}{}'.format(function_name, arg_spec_str)
+    return '{0}{1}'.format(function_name, arg_spec_str)
 
 
 def _function_called_str(function_name, args, kwargs):
@@ -316,13 +316,6 @@ def filter_args(func, ignore_lst, args=(), kwargs=dict()):
     return arg_dict
 
 
-def _format_arg(arg):
-    formatted_arg = pformat(arg, indent=2)
-    if len(formatted_arg) > 1500:
-        formatted_arg = '%s...' % formatted_arg[:700]
-    return formatted_arg
-
-
 def format_signature(func, *args, **kwargs):
     # XXX: Should this use inspect.formatargvalues/formatargspec?
     module, name = get_func_name(func)
@@ -335,12 +328,14 @@ def format_signature(func, *args, **kwargs):
     arg_str = list()
     previous_length = 0
     for arg in args:
-        formatted_arg = _format_arg(arg)
+        arg = pformat(arg, indent=2)
+        if len(arg) > 1500:
+            arg = '%s...' % arg[:700]
         if previous_length > 80:
-            formatted_arg = '\n%s' % formatted_arg
-        previous_length = len(formatted_arg)
-        arg_str.append(formatted_arg)
-    arg_str.extend(['%s=%s' % (v, _format_arg(i)) for v, i in kwargs.items()])
+            arg = '\n%s' % arg
+        previous_length = len(arg)
+        arg_str.append(arg)
+    arg_str.extend(['%s=%s' % (v, pformat(i)) for v, i in kwargs.items()])
     arg_str = ', '.join(arg_str)
 
     signature = '%s(%s)' % (name, arg_str)

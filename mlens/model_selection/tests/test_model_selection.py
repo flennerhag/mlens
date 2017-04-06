@@ -19,7 +19,7 @@ X, y = Data('stack', False, False).get_data((100, 2), 2)
 
 def test_no_prep():
     """[Model Selection] Test run without preprocessing."""
-    evl = Evaluator(rmse, cv=10, shuffle=False, n_jobs=1, random_state=100)
+    evl = Evaluator(rmse, cv=10, shuffle=False, random_state=100)
     evl.fit(X, y,
             estimators=[OLS()],
             param_dicts={'ols': {'offset': randint(1, 10)}},
@@ -32,7 +32,7 @@ def test_no_prep():
 
 def test_w_prep():
     """[Model Selection] Test run with preprocessing, double step."""
-    evl = Evaluator(rmse, cv=10, shuffle=False, n_jobs=1, random_state=100)
+    evl = Evaluator(rmse, cv=10, shuffle=False, random_state=100)
 
     # Preprocessing
     evl.preprocess(X, y, {'pr': [Scale()], 'no': []})
@@ -54,7 +54,7 @@ def test_w_prep():
 
 def test_w_prep_fit():
     """[Model Selection] Test run with preprocessing, single step."""
-    evl = Evaluator(rmse, cv=10, shuffle=False, n_jobs=1, random_state=100)
+    evl = Evaluator(rmse, cv=10, shuffle=False, random_state=100)
 
     evl.fit(X, y,
             estimators=[OLS()],
@@ -73,7 +73,7 @@ def test_w_prep_fit():
 
 def test_w_prep_set_params():
     """[Model Selection] Test run with preprocessing, sep param dists."""
-    evl = Evaluator(rmse, cv=10, shuffle=False, n_jobs=1, random_state=100)
+    evl = Evaluator(rmse, cv=10, shuffle=False, random_state=100)
 
     params = {('no', 'ols'): {'offset': randint(3, 6)},
               ('pr', 'ols'): {'offset': randint(11, 15)},

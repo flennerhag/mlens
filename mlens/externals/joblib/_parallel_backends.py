@@ -21,8 +21,6 @@ if mp is not None:
 class ParallelBackendBase(with_metaclass(ABCMeta)):
     """Helper abc which defines all methods a ParallelBackend must implement"""
 
-    supports_timeout = False
-
     @abstractmethod
     def effective_n_jobs(self, n_jobs):
         """Determine the number of jobs that can actually run in parallel
@@ -238,8 +236,6 @@ class ThreadingBackend(PoolManagerMixin, ParallelBackendBase):
     "with nogil" block or an expensive call to a library such as NumPy).
     """
 
-    supports_timeout = True
-
     def configure(self, n_jobs=1, parallel=None, **backend_args):
         """Build a process or thread pool and return the number of workers"""
         n_jobs = self.effective_n_jobs(n_jobs)
@@ -263,8 +259,6 @@ class MultiprocessingBackend(PoolManagerMixin, AutoBatchingMixin,
     # Environment variables to protect against bad situations when nesting
     JOBLIB_SPAWNED_PROCESS = "__JOBLIB_SPAWNED_PARALLEL__"
 
-    supports_timeout = True
-
     def effective_n_jobs(self, n_jobs):
         """Determine the number of jobs which are going to run in parallel.
 
@@ -283,10 +277,10 @@ class MultiprocessingBackend(PoolManagerMixin, AutoBatchingMixin,
                     stacklevel=3)
             return 1
 
-        if not isinstance(threading.current_thread(), threading._MainThread):
+        elif threading.current_thread().name != 'MainThread':
             # Prevent posix fork inside in non-main posix threads
             warnings.warn(
-                'Multiprocessing-backed parallel loops cannot be nested'
+                'Multiprocessing backed parallel loops cannot be nested'
                 ' below threads, setting n_jobs=1',
                 stacklevel=3)
             return 1

@@ -194,8 +194,8 @@ class CMLog(object):
             # If no timer, kill process.
             self._out.kill()
 
-        if self.verbose:
-            safe_print("[CMLog] Collecting...", end=" ",  flush=True)
+            if self.verbose:
+                safe_print("[CMLog] Collecting...", end=" ",  flush=True)
 
         # Check if job is not completed and if so, check whether to kill
         elif _time() - self._t0 < self._stop:
@@ -223,17 +223,17 @@ class CMLog(object):
         out = out[0].decode().strip().split('\n')
         for line in out:
 
-            c, r, v = line.split(' , ')
+            c, r, v = line.split(',')
 
-            cpu.append(float(c))
-            rss.append(int(r))
-            vms.append(int(v))
+            cpu.append(float(c.strip()))
+            rss.append(int(r.strip()))
+            vms.append(int(v.strip()))
 
             i += 1
 
         if self.verbose:
             safe_print('done. Read {} lines in '
-                  '{:.3f} seconds.'.format(i, _time() - t0))
+                       '{:.3f} seconds.'.format(i, _time() - t0))
 
         self.cpu = array(cpu)
         self.vms = array(vms)

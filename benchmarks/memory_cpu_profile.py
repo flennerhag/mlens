@@ -8,7 +8,7 @@ Create memory and CPU profile plots.
 """
 import numpy as np
 
-from mlens.utils.dummy import get_layers
+from mlens.utils.dummy import LayerGenerator
 from mlens.utils.utils import CMLog
 
 from time import sleep, perf_counter
@@ -22,16 +22,16 @@ from seaborn import set_palette
 
 def run():
     """Run profiling."""
-    _, lc, _ = get_layers('stack', False)
+    lc = LayerGenerator().get_layer_container('stack', False, False)
 
     cm = CMLog(verbose=False)
-    cm.monitor(25)
+    cm.monitor()
 
     sleep(5)
 
     t1 = int(np.floor(perf_counter() - cm._t0) * 10)
     sleep(0.1)
-    x, z = make_friedman1(int(1e6))
+    x, z = make_friedman1(int(5 * 1e6))
 
     sleep(5)
 
@@ -39,6 +39,8 @@ def run():
     sleep(0.1)
     lc.fit(x, z)
     t3 = int(np.floor(perf_counter() - cm._t0) * 10)
+
+    sleep(5)
 
     while not hasattr(cm, 'cpu'):
         cm.collect()

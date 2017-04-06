@@ -86,25 +86,25 @@ class ParallelProcessing(object):
         The ``LayerContainer`` that instantiated the processor.
     """
 
-    __slots__ = ['layers', '_initialized', '_fitted', '_job']
+    __slots__ = ['layers', '__initialized__', '__fitted__', 'job']
 
     def __init__(self, layers):
         self.layers = layers
-        self._initialized = 0
-        self._fitted = 0
+        self.__initialized__ = 0
+        self.__fitted__ = 0
 
     def initialize(self, job, X, y=None, dir=None):
         """Create a job instance for estimation."""
         self._check_job(job)
-        self._job = Job(job)
+        self.job = Job(job)
 
         try:
             # Fails on python 2
-            self._job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
-                                                        dir=dir)
-            self._job.dir = self._job.tmp.name
+            self.job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
+                                                       dir=dir)
+            self.job.dir = self.job.tmp.name
         except Exception:
-            self._job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
+            self.job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
 
         # Build mmaps for inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -124,37 +124,37 @@ class ParallelProcessing(object):
                 f = arr
             else:
                 # Dump ndarray on disk
-                f = os.path.join(self._job.dir, '%s.mmap' % name)
+                f = os.path.join(self.job.dir, '%s.mmap' % name)
                 if os.path.exists(f):
                     os.unlink(f)
                 dump(arr, f)
 
             # Get memmap in read-only mode (we don't want to corrupt the input)
             if name is 'y' and y is not None:
-                self._job.y = _load_mmap(f)
+                self.job.y = _load_mmap(f)
             else:
                 # Store X as the first input matrix in list of inputs matrices
-                self._job.P = [_load_mmap(f)]
+                self.job.P = [_load_mmap(f)]
 
         # Append pre-allocated prediction arrays in r+ to the P list
         # Each layer will be fitted on P[i] and write to P[i + 1]
         for n, (name, lyr) in enumerate(self.layers.layers.items()):
 
-            f = os.path.join(self._job.dir, '%s.mmap' % name)
+            f = os.path.join(self.job.dir, '%s.mmap' % name)
 
             # We call the indexers fit method now at initialization - if there
             # is something funky with indexing it is better to catch it now
             # than mid-estimation
-            lyr.indexer.fit(self._job.P[n])
+            lyr.indexer.fit(self.job.P[n])
 
             shape = self._get_lyr_sample_size(lyr)
 
-            self._job.P.append(np.memmap(filename=f,
-                                         dtype=np.float,
-                                         mode='w+',
-                                         shape=shape))
+            self.job.P.append(np.memmap(filename=f,
+                                        dtype=np.float,
+                                        mode='w+',
+                                        shape=shape))
 
-        self._initialized = 1
+        self.__initialized__ = 1
 
         # Release any memory before going into process
         gc.collect()
@@ -163,7 +163,7 @@ class ParallelProcessing(object):
         """Decide what sample size to create P with based on the job type."""
         # Sample size is full for prediction, for fitting
         # it can be less if predictions are not generated for full train set
-        s0 = lyr.indexer.n_test_samples if self._job.j != 'predict' else \
+        s0 = lyr.indexer.n_test_samples if self.job.j != 'predict' else \
             lyr.indexer.n_samples
 
         # Number of prediction columns depends on:
@@ -175,8 +175,8 @@ class ParallelProcessing(object):
         s1 = lyr.n_pred
 
         if lyr.proba:
-            if self._job.j == 'fit':
-                lyr.classes_ = self._job.l = np.unique(self._job.y).shape[0]
+            if self.job.j == 'fit':
+                lyr.classes_ = self.job.l = np.unique(self.job.y).shape[0]
 
             s1 *= lyr.classes_
 
@@ -186,7 +186,7 @@ class ParallelProcessing(object):
     def _check_job(job):
         """Check that a valid job is initialized."""
         if job not in JOBS:
-            raise NotImplementedError('The job %s is not valid for the input '
+            raise NotImplementedError('The job %s is not valid input '
                                       'for the ParallelProcessing job '
                                       'manager. Accepted jobs: %r.'
                                       % (job, list(JOBS)))
@@ -197,7 +197,7 @@ class ParallelProcessing(object):
 
         # Use context manager to ensure same parallel job during entire process
         with Parallel(n_jobs=self.layers.n_jobs,
-                      temp_folder=self._job.dir,
+                      temp_folder=self.job.dir,
                       max_nbytes=None,
                       mmap_mode='r+',
                       verbose=self.layers.verbose,
@@ -206,9 +206,9 @@ class ParallelProcessing(object):
             for n, lyr in enumerate(self.layers.layers.values()):
                 self._partial_process(n, lyr, parallel)
 
-        self._fitted = 1
+        self.__fitted__ = 1
 
-    def _get_preds(self, n=-1, dtype=np.float, order='C'):
+    def get_preds(self, n=-1, dtype=np.float, order='C'):
         """Return prediction matrix.
 
         Parameters
@@ -225,29 +225,29 @@ class ParallelProcessing(object):
         order : str (default = 'C')
             data order. See :class:`numpy.asarray` for details.
         """
-        if not hasattr(self, '_job'):
+        if not hasattr(self, 'job'):
             raise ParallelProcessingError("Processor has been terminated: "
                                           "cannot retrieve final prediction "
                                           "array as the estimation cache has "
                                           "been removed.")
 
-        return np.asarray(self._job.P[n], dtype=dtype, order=order)
+        return np.asarray(self.job.P[n], dtype=dtype, order=order)
 
     def terminate(self):
         """Remove temporary folder and all cache data."""
         # Delete all contents from cache
         try:
-            self._job.tmp.cleanup()
+            self.job.tmp.cleanup()
 
         except (AttributeError, OSError):
             # Fall back on shutil for python 2, can also fail on windows
             try:
-                shutil.rmtree(self._job.dir)
+                shutil.rmtree(self.job.dir)
 
             except OSError:
                 # Can fail on windows, need to use the shell
                 try:
-                    subprocess.Popen('rmdir /S /Q %s' % self._job.dir,
+                    subprocess.Popen('rmdir /S /Q %s' % self.job.dir,
                                      shell=True, stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
                 except OSError:
@@ -255,11 +255,11 @@ class ParallelProcessing(object):
                                   "If created with default settings, will be "
                                   "removed on reboot. For immediate "
                                   "removal, manual removal is required." %
-                                  self._job.dir, ParallelProcessingWarning)
+                                  self.job.dir, ParallelProcessingWarning)
 
         finally:
             # Always release process memory
-            del self._job
+            del self.job
 
             gc.collect()
 
@@ -268,7 +268,7 @@ class ParallelProcessing(object):
                               "uncollectable : %r." % gc.garbage,
                               ParallelProcessingWarning)
 
-            self._initialized = 0
+            self.__initialized__ = 0
 
     def _partial_process(self, n, lyr, parallel):
         """Generic method for processing a :class:`layer` with ``attr``."""
@@ -277,21 +277,21 @@ class ParallelProcessing(object):
         e = ENGINES[lyr.cls](lyr, **kwd)
 
         # Get function to process and its variables
-        f = getattr(e, self._job.j)
+        f = getattr(e, self.job.j)
         fargs = f.__func__.__code__.co_varnames
 
-        # Strip variables we don't want to set from _job directly
+        # Strip variables we don't want to set from job directly
         args = [a for a in fargs if a not in {'parallel', 'X', 'P', 'self'}]
 
         # Build argument list
-        kwargs = {a: getattr(self._job, a) for a in args if a in
-                  self._job.__slots__}
+        kwargs = {a: getattr(self.job, a) for a in args if a in
+                  self.job.__slots__}
 
         kwargs['parallel'] = parallel
         if 'X' in fargs:
-            kwargs['X'] = self._job.P[n]
+            kwargs['X'] = self.job.P[n]
         if 'P' in fargs:
-            kwargs['P'] = self._job.P[n + 1]
+            kwargs['P'] = self.job.P[n + 1]
 
         f(**kwargs)
 
@@ -307,23 +307,23 @@ class ParallelEvaluation(object):
         The ``Evaluator`` that instantiated the processor.
     """
 
-    __slots__ = ['evaluator', '_initialized', '_job']
+    __slots__ = ['evaluator', '__initialized__', 'job']
 
     def __init__(self, evaluator):
         self.evaluator = evaluator
-        self._initialized = 0
+        self.__initialized__ = 0
 
     def initialize(self, X, y=None, dir=None):
         """Create cache and memmap X and y."""
-        self._job = Job('evaluate')
+        self.job = Job('evaluate')
 
         try:
             # Fails on python 2
-            self._job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
-                                                        dir=dir)
-            self._job.dir = self._job.tmp.name
+            self.job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
+                                                       dir=dir)
+            self.job.dir = self.job.tmp.name
         except Exception:
-            self._job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
+            self.job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
 
         # Build mmaps for inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -339,18 +339,18 @@ class ParallelEvaluation(object):
                 f = arr
             else:
                 # Dump ndarray on disk
-                f = os.path.join(self._job.dir, '%s.mmap' % name)
+                f = os.path.join(self.job.dir, '%s.mmap' % name)
                 if os.path.exists(f):
                     os.unlink(f)
                 dump(arr, f)
 
             # Get memmap in read-only mode (we don't want to corrupt the input)
             if name is 'y':
-                self._job.y = _load_mmap(f)
+                self.job.y = _load_mmap(f)
             else:
-                self._job.P = _load_mmap(f)
+                self.job.P = _load_mmap(f)
 
-        self._initialized = 1
+        self.__initialized__ = 1
 
         # Release any memory before going into process
         gc.collect()
@@ -361,7 +361,7 @@ class ParallelEvaluation(object):
 
         # Use context manager to ensure same parallel job during entire process
         with Parallel(n_jobs=self.evaluator.n_jobs,
-                      temp_folder=self._job.dir,
+                      temp_folder=self.job.dir,
                       max_nbytes=None,
                       mmap_mode='r+',
                       verbose=self.evaluator.verbose,
@@ -369,28 +369,28 @@ class ParallelEvaluation(object):
 
             f = ENGINES['evaluation'](self.evaluator)
 
-            getattr(f, attr)(parallel, self._job.P, self._job.y,
-                             self._job.dir)
+            getattr(f, attr)(parallel, self.job.P, self.job.y,
+                             self.job.dir)
 
     def terminate(self):
         """Remove temporary folder and all cache data."""
         # Delete all contents from cache
         try:
-            self._job.tmp.cleanup()
+            self.job.tmp.cleanup()
 
         except (AttributeError, OSError):
             # Fall back on shutil for python 2
             try:
-                shutil.rmtree(self._job.dir)
+                shutil.rmtree(self.job.dir)
             except OSError:
                 # This can fail on Windows
                 warnings.warn("Failed to delete cache at %s. Will be removed "
                               "on reboot. Consider manual removal (rmdir)" %
-                              self._job.dir, ParallelProcessingWarning)
+                              self.job.dir, ParallelProcessingWarning)
 
         finally:
             # Always release process memory
-            del self._job
+            del self.job
 
             gc.collect()
 
@@ -399,4 +399,4 @@ class ParallelEvaluation(object):
                               "uncollectable : %r." % gc.garbage,
                               ParallelProcessingWarning)
 
-            self._initialized = 0
+            self.__initialized__ = 0

@@ -25,10 +25,11 @@ class Tmp(object):
 
     """Temporary class for mimicking ParallelProcessing status."""
 
-    def __init__(self, lyr, _initialized, _fitted):
-        self._initialized = _initialized
-        self._fitted = _fitted
+    def __init__(self, lyr, __initialized__, __fitted__):
+        self.__initialized__ = __initialized__
+        self.__fitted__ = __fitted__
         self.layers = lyr
+
 
 class Lyr(object):
 

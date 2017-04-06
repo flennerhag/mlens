@@ -44,7 +44,7 @@ F, P = ground_truth()
 
 
 def test_subset_fit_predict_transform():
-    """[LayerContainer] Subset: 'fit', 'predict', 'transform' run correctly."""
+    """[Parallel | Subset | No Prep]: second test of fit, predict transform."""
     lc = LayerContainer().add(estimators=estimators,
                               cls='subset',
                               proba=False,

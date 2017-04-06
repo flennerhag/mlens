@@ -258,6 +258,8 @@ class EnsembleTransformer(TransformerMixin, BaseEnsemble):
         if 'raise_on_exception' in args and \
                 'raise_on_exception' not in kwargs_idx:
             kwargs_idx['raise_on_exception'] = self.raise_on_exception
+        else:
+            kwargs['raise_on_exception'] = kwargs_idx['raise_on_exception']
 
         indexer = indexer(**kwargs_idx)
 
@@ -265,7 +267,8 @@ class EnsembleTransformer(TransformerMixin, BaseEnsemble):
                          cls=cls,
                          indexer=indexer,
                          preprocessing=preprocessing,
-                         verbose=self.verbose)
+                         verbose=self.verbose,
+                         **kwargs)
 
     def fit(self, X, y=None):
         """Fit the transformer.

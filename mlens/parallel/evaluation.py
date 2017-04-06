@@ -76,7 +76,7 @@ class Evaluation(object):
             [(tup[0], pickle_load(os.path.join(dir, '%s__t' % tup[0])))
              for tup in preprocessing]
 
-    def evaluate(self, parallel, X, y):
+    def evaluate(self, parallel, X, y, dir):
         """cross-validation of estimators.
 
         Parameters
@@ -90,7 +90,8 @@ class Evaluation(object):
         y : array-like of shape [n_samples, ]
             labels for estimation. Can be memmaped.
 
-        dir : directory of cache to dump fitted transformers before assembly.
+        dir : str
+            directory of cache to dump fitted transformers before assembly.
         """
         preprocessing = dict(getattr(self.evaluator, 'preprocessing_', []))
         estimators = _expand_instance_list(self.evaluator.estimators,
@@ -98,7 +99,7 @@ class Evaluation(object):
 
         scores = parallel(delayed(fit_score)(
                 case=case,
-                tr_list=preprocessing[case],
+                tr_list=preprocessing[case] if case in preprocessing else [],
                 est_name=est_name,
                 est=est,
                 params=(i, params),
@@ -110,14 +111,21 @@ class Evaluation(object):
                           for case, tri, tei, est_list in estimators
                           for est_name, est in est_list
                           for i, params in
-                          enumerate(self.evaluator.params[
-                                        (case.split('__')[0]
-                                         if case is not None else None,
-                                         est_name.split('__')[0])]))
+                          enumerate(
+                                  self.evaluator.params[_name(case, est_name)]
+                                    ))
         self.evaluator.scores_ = scores
 
 
 ###############################################################################
+def _name(case, est_name):
+    """Get correct param_dict name."""
+    if case is not None:
+        return case.split('__')[0], est_name.split('__')[0]
+    else:
+        return est_name.split('__')[0]
+
+
 def fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
               error_score):
     """Fit and score an estimator given a set of params."""

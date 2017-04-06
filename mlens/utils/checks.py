@@ -123,12 +123,12 @@ def assert_correct_format(estimators, preprocessing):
 
 def check_initialized(inst):
     """Check if a ParallelProcessing instance is initialized properly."""
-    if not inst._initialized:
+    if not inst.__initialized__:
         msg = "ParallelProcessing is not initialized. Call " \
               "'initialize' before calling 'fit'."
         raise ParallelProcessingError(msg)
 
-    if getattr(inst, '_fitted', None):
+    if getattr(inst, '__fitted__', None):
         if inst.layers.raise_on_exception:
             raise ParallelProcessingError("This instance is already "
                                           "fitted and its parallel "

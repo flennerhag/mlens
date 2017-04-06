@@ -728,8 +728,8 @@ class Data(object):
         col_id = {}
         col_ass = 0
 
-        for i, tri in enumerate(indexer.partition(as_array=True)):
-            for key in sorted(prep):
+        for key in sorted(prep):
+            for i, tri in enumerate(indexer.partition(as_array=True)):
                 for est_name, est in ests[key]:
 
                     if '%s-%s-%s' % (i, key, est_name) not in col_id:

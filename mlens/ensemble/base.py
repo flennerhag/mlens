@@ -361,7 +361,7 @@ class LayerContainer(BaseEstimator):
         try:
             processor.process()
 
-            preds = processor._get_preds()
+            preds = processor.get_preds()
 
             if self.verbose:
                 print_time(t0, "Done", file=pout, flush=True)
@@ -390,7 +390,7 @@ class LayerContainer(BaseEstimator):
             out = None
 
         if return_preds is not None:
-            return out, processor._get_preds(return_preds)
+            return out, processor.get_preds(return_preds)
         else:
             return out
 
@@ -604,6 +604,7 @@ class Layer(BaseEstimator):
 
         if self.cls is 'subset':
             self.n_pred *= self.indexer.n_partitions
+            self.n_prep *= self.indexer.n_partitions
 
     def get_params(self, deep=True):
         """Get parameters for this estimator.
@@ -752,7 +753,8 @@ class BaseEnsemble(BaseEstimator):
 
         if self.shuffle:
             r = check_random_state(self.random_state)
-            r.shuffle(X)
+            idx = r.permutation(X.shape[0])
+            X = X[idx]
 
         y = self.layers.predict(X)
 

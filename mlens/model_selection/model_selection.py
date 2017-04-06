@@ -65,14 +65,6 @@ class Evaluator(object):
             from mlens.metrics import make_scorer
             scorer = make_scorer(scoring_function, **kwargs)
 
-    preprocessing : dict (default = None)
-        dictionary of lists with preprocessing pipelines to fit models on.
-        Each pipeline will be used to generate K folds that are stored, hence
-        with large data running several cases with many cv folds can require
-        considerable memory. ``preprocess`` should be of the form::
-
-                preprocess = {'case-1': [transformer_1, transformer_2],}
-
     error_score : int, optional
         score to assign when fitting an estimator fails. If ``None``, the
         evaluator will raise an error.
@@ -206,7 +198,8 @@ class Evaluator(object):
         self : instance
             class instance with stored estimator evaluation results.
         """
-        self.preprocess(X, y, preprocessing)
+        if preprocessing is not None:
+            self.preprocess(X, y, preprocessing)
         return self.evaluate(X, y, estimators, param_dicts, n_iter)
 
     def preprocess(self, X, y, preprocessing=None):
@@ -306,8 +299,19 @@ class Evaluator(object):
         self : instance
             class instance with stored estimator evaluation results.
         """
-        assert_correct_format(estimators,
-                              getattr(self, 'preprocessing', None))
+        # First check if list of estimators should be expanded to very case
+        preprocessing = getattr(self, 'preprocessing', None)
+        if preprocessing is not None and isinstance(estimators, list):
+
+            ests_ = estimators
+            estimators = {case: ests_ for case in preprocessing.keys()}
+
+            draws = param_dicts
+            param_dicts = {(case, est_name): params
+                           for case in preprocessing.keys()
+                           for est_name, params in draws.items()}
+
+        assert_correct_format(estimators, preprocessing)
 
         self.n_iter = n_iter
         self.estimators = check_instances(estimators)
@@ -365,7 +369,7 @@ class Evaluator(object):
         """For each estimator, create a mapping of parameter draws."""
         self.params = dict()
 
-        if not hasattr(self, 'preprocessing'):
+        if len(getattr(self, 'preprocessing', [])) == 0:
             # No preprocessing
             # the expected param_dicts key is 'est_name'
             for est_name, _ in self.estimators:
@@ -422,22 +426,22 @@ class Evaluator(object):
                 if best_data is None:
                     best_data, best_draw = draw_data, draw_num
 
-                    if isinstance(case_est, tuple):
+                    try:
                         best_data['params'] = \
                             self.params[case_est][best_draw]
-                    else:
+                    except KeyError:
                         best_data['params'] = \
-                            self.params[(None, case_est)][best_draw]
+                            self.params[case_est][best_draw]
 
-                if draw_data['test_score_mean'] > best_data['test_score_mean']:
+                if draw_data['test_score_mean'] < best_data['test_score_mean']:
                     best_data, best_draw = draw_data, draw_num
 
-                    if isinstance(case_est, tuple):
+                    try:
                         best_data['params'] = \
                             self.params[case_est][best_draw]
-                    else:
+                    except KeyError:
                         best_data['params'] = \
-                            self.params[(None, case_est)][best_draw]
+                            self.params[case_est][best_draw]
 
             # Assign data associated with best test score to summary dict
             # We invert the dictionary nesting here

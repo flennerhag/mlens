@@ -8,11 +8,10 @@ Estimation engine for parallel preprocessing of blend layer.
 """
 
 from .estimation import BaseEstimator
-from ..externals.sklearn.base import clone
 from .estimation import _name, predict_fold_est, time_
 from ..utils import safe_print, print_time
-
-from joblib import delayed
+from ..externals.joblib import delayed
+from ..externals.sklearn.base import clone
 
 
 ###############################################################################

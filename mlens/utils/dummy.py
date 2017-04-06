@@ -20,7 +20,7 @@ from abc import abstractmethod
 
 import numpy as np
 import warnings
-from joblib import Parallel, dump, load
+from ..externals.joblib import Parallel, dump, load
 
 from .exceptions import NotFittedError
 from ..externals.sklearn.base import BaseEstimator, TransformerMixin, clone

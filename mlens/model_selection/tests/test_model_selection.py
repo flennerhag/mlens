@@ -12,7 +12,7 @@ from scipy.stats import randint
 class Scale(Scale_):
 
     def transform(self, X):
-        return X - np.array([1, 2])
+        return X
 
 np.random.seed(100)
 
@@ -51,7 +51,7 @@ def test_w_prep():
     np.testing.assert_approx_equal(
             evl.summary['test_score_mean'][('no', 'ols')], 806.70651350960748)
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 793.1698042092684)
+            evl.summary['test_score_mean'][('pr', 'ols')], 806.70651350960748)
 
     assert evl.summary['params'][('no', 'ols')]['offset'] == 4
     assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
@@ -70,7 +70,7 @@ def test_w_prep_fit():
     np.testing.assert_approx_equal(
             evl.summary['test_score_mean'][('no', 'ols')], 806.70651350960748)
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 793.1698042092684)
+            evl.summary['test_score_mean'][('pr', 'ols')], 806.70651350960748)
 
     assert evl.summary['params'][('no', 'ols')]['offset'] == 4
     assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
@@ -94,7 +94,7 @@ def test_w_prep_set_params():
     np.testing.assert_approx_equal(
             evl.summary['test_score_mean'][('no', 'ols')], 605.04603123784148)
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 2184.160523048613)
+            evl.summary['test_score_mean'][('pr', 'ols')], 2218.3426845032582)
 
     assert evl.summary['params'][('no', 'ols')]['offset'] == 3
     assert evl.summary['params'][('pr', 'ols')]['offset'] == 11

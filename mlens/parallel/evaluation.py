@@ -25,11 +25,6 @@ except ImportError:
     from time import time
 
 
-def _preprocess():
-    """Fit preprocessors."""
-    pass
-
-
 class Evaluation(object):
 
     """Evaluation engine.

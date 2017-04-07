@@ -23,7 +23,9 @@ def test_no_prep():
             n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean']['ols'], 24.903229451043195)
+            evl.summary['test_score_mean']['ols'],
+            24.903229451043195)
+
     assert evl.summary['params']['ols']['offset'] == 4
 
 
@@ -41,9 +43,12 @@ def test_w_prep():
                  n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')], 24.903229451043195)
+            evl.summary['test_score_mean'][('no', 'ols')],
+            24.903229451043195)
+
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 26.510708862278072)
+            evl.summary['test_score_mean'][('pr', 'ols')],
+            26.510708862278072, 1)
 
     assert evl.summary['params'][('no', 'ols')]['offset'] == 4
     assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
@@ -60,9 +65,12 @@ def test_w_prep_fit():
             n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')], 24.903229451043195)
+            evl.summary['test_score_mean'][('no', 'ols')],
+            24.903229451043195)
+
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 26.510708862278072)
+            evl.summary['test_score_mean'][('pr', 'ols')],
+            26.510708862278072, 1)
 
     assert evl.summary['params'][('no', 'ols')]['offset'] == 4
     assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
@@ -84,9 +92,12 @@ def test_w_prep_set_params():
             n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')], 18.684229451043198)
+            evl.summary['test_score_mean'][('no', 'ols')],
+            18.684229451043198)
+
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 7.2594502123869491)
+            evl.summary['test_score_mean'][('pr', 'ols')],
+            7.2594502123869491, 1)
 
     assert evl.summary['params'][('no', 'ols')]['offset'] == 3
     assert evl.summary['params'][('pr', 'ols')]['offset'] == 1

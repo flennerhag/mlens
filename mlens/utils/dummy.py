@@ -251,7 +251,7 @@ class Scale(BaseEstimator, TransformerMixin):
         y : array-like or None
             pass through for pipeline.
         """
-        X = check_array(X, accept_sparse='csr', dtype='float')
+        X = check_array(X, accept_sparse='csr')
         self.__is_fitted__ = True
         self.mean_ = X.mean(axis=0)
         return self
@@ -266,15 +266,9 @@ class Scale(BaseEstimator, TransformerMixin):
         """
         if not self.__is_fitted__:
             raise NotFittedError("Estimator not fitted.")
-
-        X = check_array(X, accept_sparse='csr', dtype='float')
-
+        X = check_array(X, accept_sparse='csr')
         Xt = X.copy() if self.copy else X
-
-        for i in range(Xt.shape[1]):
-            Xt[:, i] -= self.mean_[i]
-
-        return Xt
+        return Xt - self.mean_
 
 
 class InitMixin(object):

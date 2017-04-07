@@ -15,10 +15,9 @@ install:
   - pip install -r requirements.txt
   - python setup.py install
 
-script: 
+script:
   - set -e
   - nosetests -s -v --with-coverage --exclude mlens/visualization --exclude mlens/externals
-  - flake8 --exclude externals
 
 after_success:
   - coveralls

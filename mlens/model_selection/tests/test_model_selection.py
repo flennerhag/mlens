@@ -3,41 +3,33 @@
 Test model selection.
 """
 import numpy as np
-from mlens.utils.dummy import Data, OLS, Scale as Scale_
-from mlens.metrics import rmse, make_scorer
+from mlens.utils.dummy import Data, OLS, Scale
+from mlens.metrics import mape
 from mlens.model_selection import Evaluator
 from scipy.stats import randint
 
-
-class Scale(Scale_):
-
-    def transform(self, X):
-        return X
-
 np.random.seed(100)
 
-rmse_scorer = make_scorer(rmse, greater_is_better=False)
-
 # Stack is nonsense here - we just need proba to be false
-X, y = Data('stack', False, False).get_data((100, 2), 2)
+X, y = Data('stack', False, False).get_data((100, 2), 20)
 
 
 def test_no_prep():
     """[Model Selection] Test run without preprocessing."""
-    evl = Evaluator(rmse, cv=10, shuffle=False, random_state=100)
+    evl = Evaluator(mape, cv=5, shuffle=False, random_state=100)
     evl.fit(X, y,
             estimators=[OLS()],
             param_dicts={'ols': {'offset': randint(1, 10)}},
             n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean']['ols'], 806.70651350960748)
+            evl.summary['test_score_mean']['ols'], 24.903229451043195)
     assert evl.summary['params']['ols']['offset'] == 4
 
 
 def test_w_prep():
     """[Model Selection] Test run with preprocessing, double step."""
-    evl = Evaluator(rmse, cv=10, shuffle=False, random_state=100)
+    evl = Evaluator(mape, cv=5, shuffle=False, random_state=100)
 
     # Preprocessing
     evl.preprocess(X, y, {'pr': [Scale()], 'no': []})
@@ -49,9 +41,9 @@ def test_w_prep():
                  n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')], 806.70651350960748)
+            evl.summary['test_score_mean'][('no', 'ols')], 24.903229451043195)
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 806.70651350960748)
+            evl.summary['test_score_mean'][('pr', 'ols')], 26.510708862278072)
 
     assert evl.summary['params'][('no', 'ols')]['offset'] == 4
     assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
@@ -59,7 +51,7 @@ def test_w_prep():
 
 def test_w_prep_fit():
     """[Model Selection] Test run with preprocessing, single step."""
-    evl = Evaluator(rmse, cv=10, shuffle=False, random_state=100)
+    evl = Evaluator(mape, cv=5, shuffle=False, random_state=100)
 
     evl.fit(X, y,
             estimators=[OLS()],
@@ -68,9 +60,9 @@ def test_w_prep_fit():
             n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')], 806.70651350960748)
+            evl.summary['test_score_mean'][('no', 'ols')], 24.903229451043195)
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 806.70651350960748)
+            evl.summary['test_score_mean'][('pr', 'ols')], 26.510708862278072)
 
     assert evl.summary['params'][('no', 'ols')]['offset'] == 4
     assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
@@ -78,10 +70,10 @@ def test_w_prep_fit():
 
 def test_w_prep_set_params():
     """[Model Selection] Test run with preprocessing, sep param dists."""
-    evl = Evaluator(rmse, cv=10, shuffle=False, random_state=100)
+    evl = Evaluator(mape, cv=5, shuffle=False, random_state=100)
 
     params = {('no', 'ols'): {'offset': randint(3, 6)},
-              ('pr', 'ols'): {'offset': randint(11, 15)},
+              ('pr', 'ols'): {'offset': randint(1, 3)},
               }
 
     # Fitting
@@ -92,9 +84,9 @@ def test_w_prep_set_params():
             n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')], 605.04603123784148)
+            evl.summary['test_score_mean'][('no', 'ols')], 18.684229451043198)
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')], 2218.3426845032582)
+            evl.summary['test_score_mean'][('pr', 'ols')], 7.2594502123869491)
 
     assert evl.summary['params'][('no', 'ols')]['offset'] == 3
-    assert evl.summary['params'][('pr', 'ols')]['offset'] == 11
+    assert evl.summary['params'][('pr', 'ols')]['offset'] == 1

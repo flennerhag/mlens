@@ -109,7 +109,7 @@ class Evaluator(object):
                  shuffle=True,
                  random_state=None,
                  backend='multiprocessing',
-                 error_score=None,
+                 error_score=np.nan,
                  metrics=None,
                  n_jobs=-1,
                  verbose=False):

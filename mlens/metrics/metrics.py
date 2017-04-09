@@ -48,7 +48,7 @@ def mape(y, p):
     .. math::
 
         MAPE(\mathbf{y}, \mathbf{p}) =
-        |S| \sum_{i \in S} | \\frac{y_i - p_i}{y_i} |
+        |S| \sum_{i \in S} | \frac{y_i - p_i}{y_i} |
 
     Parameters
     ----------
@@ -72,7 +72,7 @@ def wape(y, p):
     .. math::
 
         WAPE(\mathbf{y}, \mathbf{p}) =
-        \\frac{\sum_{i \in S} | y_i - p_i|}{ \sum_{i \in S} |y_i|}
+        \frac{\sum_{i \in S} | y_i - p_i|}{ \sum_{i \in S} |y_i|}
 
     Parameters
     ----------

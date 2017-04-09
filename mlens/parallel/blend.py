@@ -8,7 +8,7 @@ Estimation engine for parallel preprocessing of blend layer.
 """
 
 from .estimation import BaseEstimator
-from .estimation import _name, predict_fold_est, time_
+from .estimation import predict_fold_est, time_
 from ..utils import safe_print, print_time
 from ..externals.joblib import delayed
 from ..externals.sklearn.base import clone
@@ -78,6 +78,23 @@ class Blender(BaseEstimator):
 
 
 ###############################################################################
+def _name(layer_name, case):
+    """Utility for setting error or warning message prefix."""
+    if layer_name is None and case is None:
+        # Both empty
+        out = ''
+    elif layer_name is not None and case is not None:
+        # Both full
+        out = '[%s | %s ] ' % (layer_name, case)
+    elif case is None:
+        # Case empty, layer_name full
+        out = '[%s] ' % layer_name
+    else:
+        # layer_name empty, case full
+        out = '[%s] ' % case
+    return out
+
+
 def _expand_instance_list(instance_list, indexer=None):
     """Build a list of estimation tuples with train and test indices."""
     if instance_list is None or len(instance_list) == 0:

@@ -25,14 +25,13 @@ samples | cores: 1 | cores: 2 | cores: 4 |
 import numpy as np
 
 import os
-from mlens.ensemble import SuperLearner
+from mlens.ensemble import SuperLearner, Subsemble, BlendEnsemble
 from mlens.utils import print_time
 
 from sklearn.datasets import make_friedman1
 from sklearn.base import clone
 
-from sklearn.linear_model import Lasso, ElasticNet
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+
 from sklearn.neighbors import KNeighborsRegressor
 from time import perf_counter
 
@@ -46,19 +45,18 @@ if PLOT:
         print("Could not import matplotlib. Will ignore PLOT flag.")
         PLOT = False
 
-MAX = int(1e6)
-STEP = int(1e5)
-COLS = 10
+MAX = int(50000)
+STEP = int(5000)
+COLS = 5
 
 SEED = 2017
-SLEEP = 10
 np.random.seed(SEED)
 
 
-def build_ensemble(**kwargs):
-    """Generate ensemble."""
+def build_ensemble(kls, **kwargs):
+    """Generate ensemble of class kls."""
 
-    ens = SuperLearner(**kwargs)
+    ens = kls(**kwargs)
 
     ens.add([KNeighborsRegressor(), KNeighborsRegressor(),
              KNeighborsRegressor(), KNeighborsRegressor()])
@@ -79,44 +77,48 @@ if __name__ == '__main__':
 
     cores = [int(np.floor(i)) for i in np.linspace(1, c, 3)]
 
-    ens = [build_ensemble(n_jobs=i, folds=4, shuffle=False) for i in cores]
+    ens = [[build_ensemble(kls, n_jobs=i, )
+            for kls in [SuperLearner, Subsemble, BlendEnsemble]]
+           for i in cores]
 
     print('Ensemble architecture')
-    print("Num layers: %i" % ens[0].layers.n_layers)
-    print("Fit per base layer estimator: %i + 1" % ens[0].folds)
+    print("Num layers: %i" % ens[0][0].layers.n_layers)
+    print("Fit per base layer estimator: %i + 1" % ens[0][0].folds)
 
-    for lyr in ens[0].layers.layers:
-        if int(lyr[-1]) == ens[0].layers.n_layers:
+    for lyr in ens[0][0].layers.layers:
+        if int(lyr[-1]) == ens[0][0].layers.n_layers:
             continue
         print('%s | Estimators: %r.' % (lyr, [e for e, _ in
-                                              ens[0].layers.layers[
+                                              ens[0][0].layers.layers[
                                                   lyr].estimators]))
-    print("%s | Meta Estimator: %s" % ('layer-2', ens[0].layers.layers[
+    print("%s | Meta Estimator: %s" % ('layer-2', ens[0][0].layers.layers[
         'layer-2'].estimators[0][0]))
 
     print('\nFIT TIMES')
-    print('%7s' % 'samples', end=' | ')
-
-    for n in cores:
-        print('cores: %s' % n, end=' | ')
-    print()
+    print('%7s' % 'samples', flush=True)
 
     ts = perf_counter()
-    times = {i: [] for i in cores}
-    for s in range(STEP, MAX + STEP, STEP):
+    times = {i: {kls().__class__.__name__: []
+             for kls in [SuperLearner, Subsemble, BlendEnsemble]}
+             for i in cores}
 
-        print('%7i' % s, end=' | ', flush=True)
+    for s in range(STEP, MAX + STEP, STEP):
         X, y = make_friedman1(n_samples=s, random_state=SEED)
 
-        for n, e in zip(cores, ens):
-            e = clone(e)
-            t0 = perf_counter()
-            e.fit(X, y)
-            t1 = perf_counter() - t0
-            times[n].append(t1)
+        for n, etypes in zip(cores, ens):
+            print('%7i' % s, end=" ", flush=True)
+            for e in etypes:
+                name = e.__class__.__name__
+                e = clone(e)
 
-            m, s = divmod(t1, 60)
-            print(' %02d:%02d  ' % (m, s), end=' | ', flush=True)
+                t0 = perf_counter()
+                e.fit(X, y)
+                t1 = perf_counter() - t0
+
+                times[n][name].append(t1)
+
+                print('%s (%i) : %4.2f |' % (name, n, t1), end=" ", flush=True)
+            print()
         print()
 
     print_time(ts, "Benchmark done")
@@ -125,12 +127,17 @@ if __name__ == '__main__':
         print("Plotting results...", end=" ", flush=True)
         x = range(STEP, MAX + STEP, STEP)
 
-        cm = [plt.cm.rainbow(i) for i in np.linspace(0, 1.0, len(cores))]
+        cm = [plt.cm.rainbow(i) for i in np.linspace(0, 1.0,
+                                                     int(3 *len(cores)))
+              ]
         plt.figure(figsize=(8, 8))
 
-        for i, n in enumerate(cores):
-            ax = plt.plot(x, times[n], color=cm[i], marker='.',
-                          label='cores: %i' % n)
+        i = 0
+        for n in cores:
+            for s, e in times[n].items():
+                ax = plt.plot(x, e, color=cm[i], marker='.',
+                              label='%s (%i)' % (s, n))
+                i += 1
 
         plt.title('Benchmark of time to fit')
         plt.xlabel('Sample size')

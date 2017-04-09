@@ -14,6 +14,7 @@ from time import sleep
 import numpy as np
 
 from ..externals.joblib import delayed
+from ..externals.joblib.parallel import SafeFunction
 
 from ..utils import (check_is_fitted,
                      pickle_load,
@@ -85,9 +86,6 @@ class BaseEstimator(object):
 
         self.dual = dual
 
-    def __call__(self, attr, *args, **kwargs):
-        """Generic argument agnostic call function to a Stacker method."""
-        getattr(self, attr)(*args, **kwargs)
 
     @abstractmethod
     def _format_instance_list(self):
@@ -136,7 +134,7 @@ class BaseEstimator(object):
 
         # Aggregate to get cross-validated mean scores
         for k, v in scores.items():
-            scores[k] = _mean_score(v, self.raise_, k, self.name)
+            scores[k] = (np.mean(v), np.std(v))
 
         return scores
 
@@ -144,7 +142,6 @@ class BaseEstimator(object):
         """Fit layer through given attribute."""
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
-            s = _name(self.name, None)
             safe_print('Fitting %s' % self.name)
             t0 = time_()
 
@@ -210,7 +207,7 @@ class BaseEstimator(object):
         self._assemble(dir)
 
         if self.verbose:
-            print_time(t0, '%sDone' % s, file=printout)
+            print_time(t0, '%sDone' % self.name, file=printout)
 
     def predict(self, X, P, parallel):
         """Predict with fitted layer with either full or fold ests."""
@@ -218,7 +215,6 @@ class BaseEstimator(object):
 
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
-            s = _name(self.name, None)
             safe_print('Predicting %s' % self.name)
             t0 = time_()
 
@@ -240,7 +236,7 @@ class BaseEstimator(object):
                  for case, (inst_name, est, (_, col)) in ests)
 
         if self.verbose:
-            print_time(t0, '%sDone' % s, file=printout)
+            print_time(t0, '%sDone' % self.name, file=printout)
 
     def transform(self, X, P, parallel):
         """Transform training data with fold-estimators from fit call."""
@@ -248,7 +244,6 @@ class BaseEstimator(object):
 
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
-            s = _name(self.name, None)
             safe_print('Predicting %s' % self.name)
             t0 = time_()
 
@@ -270,7 +265,7 @@ class BaseEstimator(object):
                  for case, (est_name, est, idx) in ests)
 
         if self.verbose:
-            print_time(t0, '%sDone' % s, file=printout)
+            print_time(t0, '%sDone' % self.name, file=printout)
 
     def _check_fitted(self):
         """Utility function for checking that fitted estimators exist."""
@@ -337,28 +332,6 @@ def _wrap(folded_list, name='__trans__'):
             case, tri, tei, instance_list in folded_list]
 
 
-def _strip(cases, fitted_estimators):
-    """Strip all estimators not fitted on full data from list."""
-    return [tup for tup in fitted_estimators if tup[0] in cases]
-
-
-def _name(layer_name, case):
-    """Utility for setting error or warning message prefix."""
-    if layer_name is None and case is None:
-        # Both empty
-        out = ''
-    elif layer_name is not None and case is not None:
-        # Both full
-        out = '[%s | %s ] ' % (layer_name, case)
-    elif case is None:
-        # Case empty, layer_name full
-        out = '[%s] ' % layer_name
-    else:
-        # layer_name empty, case full
-        out = '[%s] ' % case
-    return out
-
-
 def _slice_array(x, y, idx):
     """Build training array index and slice data."""
     # Have to be careful in prepping data for estimation.
@@ -421,13 +394,13 @@ def predict_est(case, tr_list, inst_name, est, xtest, pred, col, name, attr):
     """Method for predicting with fitted transformers and estimators."""
     # Transform input
     for tr_name, tr in tr_list:
-        xtest = _transform_tr(xtest, tr, tr_name, case, name)
+        xtest = tr.transform(xtest)
 
     # Predict into memmap
     # Here, we coerce errors on failed predictions - all predictors that
     # survive into the estimators_ attribute of a layer should be able to
     # predict, otherwise the subsequent layer will get corrupt input.
-    p = _predict_est(xtest, est, True, inst_name, case, name, attr)
+    p = getattr(est, attr)(xtest)
 
     if len(p.shape) == 1:
         pred[:, col] = p
@@ -444,13 +417,13 @@ def predict_fold_est(case, tr_list, inst_name, est, xtest, pred, idx, name,
     x, _, tei = _slice_array(xtest, None, tei)
 
     for tr_name, tr in tr_list:
-        x = _transform_tr(x, tr, tr_name, case, name)
+        x = tr.transform(x)
 
     # Predict into memmap
     # Here, we coerce errors on failed predictions - all predictors that
     # survive into the estimators_ attribute of a layer should be able to
     # predict, otherwise the subsequent layer will get corrupt input.
-    p = _predict_est(x, est, True, inst_name, case, name, attr)
+    p = getattr(est, attr)(x)
 
     rebase = xtest.shape[0] - pred.shape[0]
     tei -= rebase
@@ -469,11 +442,11 @@ def fit_trans(dir, case, inst, X, y, idx, name):
     out = []
     for tr_name, tr in inst:
         # Fit transformer
-        tr = _fit_tr(x, y, tr, tr_name, case, name)
+        tr = tr.fit(x, y)
 
         # If more than one step, transform input for next step
         if len(inst) > 1:
-            x = _transform_tr(x, tr, tr_name, case, name)
+            x = tr.transform(x)
         out.append((tr_name, tr))
 
     # Write transformer list to cache
@@ -500,10 +473,10 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
 
     # Transform input
     for tr_name, tr in tr_list:
-        x = _transform_tr(x, tr, tr_name, case, name)
+        x = tr.transform(x)
 
     # Fit estimator
-    est = _fit_est(x, z, inst, raise_on_exception, inst_name, case, name)
+    inst.fit(x, z)
 
     # Predict if asked
     # The predict loop is kept separate to allow overwrite of x, thus keeping
@@ -515,10 +488,9 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
         x, z, tei = _slice_array(X, y, tei)
 
         for tr_name, tr in tr_list:
-            x = _transform_tr(x, tr, tr_name, case, name)
+            x = tr.transform(x)
 
-        p = _predict_est(x, est, raise_on_exception,
-                         inst_name, case, name, attr)
+        p = getattr(inst, attr)(x)
 
         rebase = X.shape[0] - pred.shape[0]
         tei -= rebase
@@ -541,7 +513,7 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
         s = None
 
     f = os.path.join(dir, '%s__%s__e' % (case, inst_name))
-    pickle_save((inst_name, est, idx, s), f)
+    pickle_save((inst_name, inst, idx, s), f)
 
 
 def _fit(**kwargs):
@@ -590,71 +562,3 @@ def _load_trans(dir, case, ivals, raise_on_exception):
                 ts = time_()
 
         return pickle_load(dir)
-
-
-def _fit_tr(x, y, tr, tr_name, case, layer_name):
-    """Wrapper around try-except block for fitting transformer."""
-    try:
-        return tr.fit(x, y)
-    except Exception as e:
-        # Transformation is sequential: always throw error if one fails
-        s = _name(layer_name, case)
-        msg = "%sFitting transformer [%s] failed. Details:\n%r"
-        raise FitFailedError(msg % (s, tr_name, e))
-
-
-def _transform_tr(x, tr, tr_name, case, layer_name):
-    """Wrapper around try-except block for transformer transformation."""
-    try:
-        return tr.transform(x)
-    except Exception as e:
-        s = _name(layer_name, case)
-        msg = "%sTransformation with transformer [%s] of type (%s) failed. " \
-              "Details:\n%r"
-        raise FitFailedError(msg % (s, tr_name, tr.__class__, e))
-
-
-def _fit_est(x, y, est, raise_on_exception, inst_name, case, layer_name):
-    """Wrapper around try-except block for estimator fitting."""
-    try:
-        return est.fit(x, y)
-    except Exception as e:
-        s = _name(layer_name, case)
-
-        if raise_on_exception:
-            raise FitFailedError("%sCould not fit estimator '%s'. "
-                                 "Details:\n%r" % (s, inst_name, e))
-
-        msg = "%sCould not fit estimator '%s'. Will drop from " \
-              "ensemble. Details:\n%r"
-        warnings.warn(msg % (s, inst_name, e), FitFailedWarning)
-
-
-def _predict_est(x, est, raise_on_exception, inst_name, case, name, attr):
-    """Wrapper around try-except block for estimator predictions."""
-    try:
-        return getattr(est, attr)(x)
-    except Exception as e:
-        s = _name(name, case)
-
-        if raise_on_exception:
-            raise PredictFailedError("%sCould not call '%s' with estimator "
-                                     "'%s'. Details:\n"
-                                     "%r" % (s, attr, inst_name, e))
-
-        msg = "%sCould not call '%s' with estimator '%s'. Predictions set " \
-              "to 0. Details:\n%r"
-        warnings.warn(msg % (s, attr, inst_name, e), PredictFailedWarning)
-
-
-def _mean_score(v, raise_, k, layer_name):
-    """Exception handling wrapper for getting the mean of list of scores."""
-    try:
-        return np.mean(v), np.std(v)
-    except Exception as e:
-        s = _name(layer_name, None)
-        msg = "%sCould not score instance %s. Details\n%r" % (s, k, e)
-        if raise_:
-            raise ParallelProcessingError(msg)
-        else:
-            warnings.warn(msg, ParallelProcessingWarning)

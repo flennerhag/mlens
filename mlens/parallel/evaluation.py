@@ -8,10 +8,7 @@ Cross-validation jobs for an :class:`Evaluator` instance.
 """
 
 from .estimation import (fit_trans,
-                         _slice_array,
-                         _transform_tr,
-                         _fit_est,
-                         _predict_est)
+                         _slice_array)
 
 from ..externals.joblib import delayed
 from ..utils import pickle_load
@@ -136,21 +133,21 @@ def fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
     xtrain, ytrain, _ = _slice_array(X, y, idx[0])
 
     for tr_name, tr in tr_list:
-        xtrain = _transform_tr(xtrain, tr, tr_name, case, None)
+        xtrain = tr.transform(xtrain)
 
     t0 = time()
-    est = _fit_est(xtrain, ytrain, est, raise_, est_name, case, None)
+    est = est.fit(xtrain, ytrain)
     fit_time = time() - t0
 
     # Predict and score
     xtest, ytest, _ = _slice_array(X, y, idx[1])
 
     for tr_name, tr in tr_list:
-        xtest = _transform_tr(xtest, tr, tr_name, case, None)
+        xtest = tr.transform(xtest)
 
     scores = []
     for y, x in zip([ytrain, ytest], [xtrain, xtest]):
-        p = _predict_est(x, est, raise_, est_name, case, None, 'predict')
+        p = est.predict(x)
 
         try:
             s = scorer(y, p)

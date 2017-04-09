@@ -273,10 +273,8 @@ def format_records(records):   # , print_globals=False):
             # enclosing scope.
             for token in generate_tokens(linereader):
                 tokeneater(*token)
-        except (IndexError, UnicodeDecodeError, SyntaxError):
+        except (IndexError, UnicodeDecodeError):
             # signals exit of tokenizer
-            # SyntaxError can happen when trying to tokenize
-            # a compiled (e.g. .so or .pyd) extension
             pass
         except tokenize.TokenError as msg:
             _m = ("An unexpected error occurred while tokenizing input file %s\n"

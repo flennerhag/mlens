@@ -77,6 +77,11 @@ class SequentialEnsemble(BaseEnsemble):
     n_jobs : int (default = -1)
         number of CPU cores to use for fitting and prediction.
 
+    backend : str or object (default = 'multiprocessing')
+        backend infrastructure to use during call to
+        :class:`mlens.externals.joblib.Parallel`. See Joblib for further
+        documentation.
+
     Attributes
     ----------
     scores\_ : dict
@@ -119,13 +124,14 @@ class SequentialEnsemble(BaseEnsemble):
                  array_check=2,
                  verbose=False,
                  n_jobs=-1,
+                 backend='multiprocessing',
                  layers=None):
 
         super(SequentialEnsemble, self).__init__(
                 shuffle=shuffle, random_state=random_state,
                 scorer=scorer, raise_on_exception=raise_on_exception,
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
-                array_check=array_check)
+                array_check=array_check, backend=backend)
 
     def add_meta(self, estimator):
         """Meta Learner.

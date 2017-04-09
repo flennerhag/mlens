@@ -374,7 +374,7 @@ class LayerContainer(BaseEstimator):
         return preds
 
     def _post_process(self, processor, return_preds):
-        """Aggregate output from processing layers and collect final preds."""
+        """Aggregate output from processing layers and _collect final preds."""
         out = {'score_mean': {}, 'score_std': {}}
         for layer_name, layer in self.layers.items():
             if layer.cls != 'full':
@@ -656,7 +656,8 @@ class BaseEnsemble(BaseEstimator):
                  verbose=False,
                  n_jobs=-1,
                  layers=None,
-                 array_check=2):
+                 array_check=2,
+                 backend='multiprocessing'):
 
         self.shuffle = shuffle
         self.random_state = random_state
@@ -666,6 +667,7 @@ class BaseEnsemble(BaseEstimator):
         self.n_jobs = n_jobs
         self.layers = layers
         self.array_check = array_check
+        self.backend = backend
 
     def _add(self,
              estimators,
@@ -687,18 +689,28 @@ class BaseEnsemble(BaseEstimator):
         self :
             instance with instantiated layer attached.
         """
+        # Check if a Layer Container instance is initialized
         if getattr(self, 'layers', None) is None:
-            raise_on_exception = getattr(self, 'raise_on_exception', True)
-            n_jobs = getattr(self, 'n_jobs', -1)
-            self.layers = LayerContainer(n_jobs=n_jobs,
-                                         raise_on_exception=raise_on_exception)
+            self.layers = LayerContainer(
+                            n_jobs=self.n_jobs,
+                            raise_on_exception=self.raise_on_exception,
+                            backend=self.backend,
+                            verbose=self.verbose)
 
+        # Add layer to Layer Container
         self.layers.add(estimators=estimators,
                         cls=cls,
                         indexer=indexer,
                         preprocessing=preprocessing,
                         scorer=self.scorer,
                         **kwargs)
+
+        # Set the layer as an attribute of the ensemble
+        lyr = list(self.layers.layers)[-1]
+        attr = lyr.replace('-', '_').replace(' ', '').strip()
+
+        setattr(self, attr, self.layers.layers[lyr])
+
         return self
 
     def fit(self, X, y=None):

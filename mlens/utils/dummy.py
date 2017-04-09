@@ -385,7 +385,7 @@ class LayerGenerator(object):
                          partitions=1 if kls != 'subset' else idx.n_partitions)
 
     @staticmethod
-    def get_layer_container(cls, proba, preprocessing, *args, **kwargs):
+    def get_layer_container(kls, proba, preprocessing, *args, **kwargs):
         """Generate a layer container instance.
 
         Parameters
@@ -402,16 +402,16 @@ class LayerGenerator(object):
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
             return LayerContainer().add(estimators=ests,
-                                        cls=cls,
+                                        cls=kls,
                                         proba=proba,
-                                        indexer=INDEXERS[cls](*args, **kwargs),
+                                        indexer=INDEXERS[kls](*args, **kwargs),
                                         preprocessing=PREPROCESSING)
         else:
             ests = ECM_PROBA if proba else ECM
             return LayerContainer().add(estimators=ests,
-                                        cls=cls,
+                                        cls=kls,
                                         proba=proba,
-                                        indexer=INDEXERS[cls](*args, **kwargs))
+                                        indexer=INDEXERS[kls](*args, **kwargs))
 
 
 class Cache(object):
@@ -486,7 +486,7 @@ class Cache(object):
                     'P_transform': P_t,
                     'dir': self.path}
 
-    def _store_X_y(self, X, y):
+    def store_X_y(self, X, y):
         """Save X and y to file in temporary directory."""
         xf, yf = (os.path.join(self.path, 'X_mapped.npy'),
                   os.path.join(self.path, 'y_mapped.npy'))
@@ -495,7 +495,7 @@ class Cache(object):
 
         return xf, yf
 
-    def _layer_est(self, layer, attr):
+    def layer_est(self, layer, attr):
         """Test the estimation routine for a layer."""
         est = ENGINES[layer.cls]
 
@@ -856,7 +856,7 @@ class DummyPartition(object):
 def layer_fit(layer, cache, F, wf):
     """Test the layer's fit method."""
     # Check predictions against ground truth
-    preds = cache._layer_est(layer, 'fit')
+    preds = cache.layer_est(layer, 'fit')
     np.testing.assert_array_equal(preds, F)
 
     # Check coefficients
@@ -876,7 +876,7 @@ def layer_fit(layer, cache, F, wf):
 
 def layer_predict(layer, cache, P, wp):
     """Test the layer's predict method."""
-    preds = cache._layer_est(layer, 'predict')
+    preds = cache.layer_est(layer, 'predict')
     np.testing.assert_array_equal(preds, P)
 
     # Check weights
@@ -889,7 +889,7 @@ def layer_predict(layer, cache, P, wp):
 def layer_transform(layer, cache, F):
     """Test the layer's transform method."""
     # Check predictions against ground truth
-    preds = cache._layer_est(layer, 'transform')
+    preds = cache.layer_est(layer, 'transform')
 
     # Check predictions against GT
     np.testing.assert_array_equal(preds, F)
@@ -940,7 +940,7 @@ def lc_transform(lc, X, F):
 
 def lc_from_file(lc, cache, X, y, F, wf, P, wp):
     """[LayerContainer] Stack: test fit from file path."""
-    X_path, y_path = cache._store_X_y(X, y)
+    X_path, y_path = cache.store_X_y(X, y)
 
     # TEST FIT
     out = lc.fit(X_path, y_path, return_preds=True)

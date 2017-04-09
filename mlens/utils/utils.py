@@ -95,14 +95,14 @@ class CMLog(object):
     >>> _ = [i for i in range(10000000)]
     >>>
     >>> # Collecting before completion triggers a message but no error
-    >>> cm.collect()
+    >>> cm._collect()
     >>>
     >>> sleep(2)
-    >>> cm.collect()
+    >>> cm._collect()
     >>> print('CPU usage:')
     >>> cm.cpu
     [CMLog] Monitoring for 2 seconds with checks every 0.5 seconds.
-    [CMLog] Job not finished. Cannot collect yet.
+    [CMLog] Job not finished. Cannot _collect yet.
     [CMLog] Collecting... done. Read 4 lines in 0.000 seconds.
     CPU usage:
     array([ 50. ,  22.4,   6. ,  11.9])
@@ -134,15 +134,15 @@ class CMLog(object):
         Parameters
         ----------
         stop : float or None (default = None)
-            seconds to monitor for. If None, monitors until ``collect`` is
+            seconds to monitor for. If None, monitors until ``_collect`` is
             called.
 
         ival : float (default=0.1)
             interval of monitoring.
 
         kill : bool (default = True)
-            whether to kill the monitoring job if ``collect`` is called before
-            timeout (``stop``). If set to False, calling ``collect`` will
+            whether to kill the monitoring job if ``_collect`` is called before
+            timeout (``stop``). If set to False, calling ``_collect`` will
             cause the instance to wait until the job completes.
         """
         if stop is None and not kill:
@@ -181,13 +181,13 @@ class CMLog(object):
     def collect(self):
         """Collect monitored data.
 
-        Once a monitor job finishes, call ``collect`` to read the CPU and
+        Once a monitor job finishes, call ``_collect`` to read the CPU and
         memory usage into python objects in the current process. If called
-        before the job finishes, collect issues a print statement to try
+        before the job finishes, _collect issues a print statement to try
         again later, but no warning or error is raised.
         """
         if not hasattr(self, '_stop'):
-            safe_print('No monitoring job initiated: nothing to collect.')
+            safe_print('No monitoring job initiated: nothing to _collect.')
             return
 
         if self._stop is None:
@@ -212,7 +212,7 @@ class CMLog(object):
                            "until completion and collecting...",
                            end=" ",  flush=True)
 
-        # If job done, we just need to collect
+        # If job done, we just need to _collect
         elif self.verbose:
             safe_print("[CMLog] Collecting...", end=" ",  flush=True)
 

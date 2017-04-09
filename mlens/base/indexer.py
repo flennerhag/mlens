@@ -99,7 +99,7 @@ class BaseIndex(object):
         Parameters
         ----------
         X : array-like of shape [n_samples, optional]
-            array to collect dimension data from.
+            array to _collect dimension data from.
 
         Returns
         -------
@@ -365,7 +365,7 @@ class BlendIndex(BaseIndex):
         Parameters
         ----------
         X : array-like of shape [n_samples, optional]
-            array to collect dimension data from.
+            array to _collect dimension data from.
 
         Returns
         -------
@@ -516,7 +516,7 @@ class FoldIndex(BaseIndex):
         Parameters
         ----------
         X : array-like of shape [n_samples, optional]
-            array to collect dimension data from.
+            array to _collect dimension data from.
 
         Returns
         -------
@@ -645,7 +645,7 @@ class SubsetIndex(BaseIndex):
         Parameters
         ----------
         X : array-like of shape [n_samples, optional]
-            array to collect dimension data from.
+            array to _collect dimension data from.
 
         Returns
         -------

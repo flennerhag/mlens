@@ -35,7 +35,7 @@ class Evaluator(object):
 
     r"""Model selection across several estimators and preprocessing pipelines.
 
-    The :class:`Evaluator`` allows users to evaluate several models in one call
+    The :class:`Evaluator` allows users to evaluate several models in one call
     across a set preprocessing pipelines. The class is useful for comparing
     a set of estimators, especially when several preprocessing pipelines is to
     be evaluated. By pre-making all folds and iteratively fitting estimators
@@ -43,7 +43,7 @@ class Evaluator(object):
     to a minimum. This can greatly reduced fit time compared to
     creating pipeline classes for each estimator and pipeline and fitting them
     one at a time in an Scikit-learn
-    :class:`sklearn.model_selection.GridSearch`` class.
+    :class:`sklearn.model_selection.GridSearch` class.
 
     Preprocessing can be done before making any evaluation, and several
     evaluations can be made on the pre-made folds. Current implementation
@@ -328,7 +328,7 @@ class Evaluator(object):
         try:
             self.evaluator.process('evaluate')
 
-            self.collect()
+            self._collect()
 
         finally:
             # Always terminate job
@@ -386,7 +386,7 @@ class Evaluator(object):
                 for est_name, _ in self.estimators:
                     self._set_params(param_dicts, (None, est_name))
 
-    def collect(self):
+    def _collect(self):
         """Collect output and format into dicts."""
         # Scores are returned as a list of tuples for each case, est, draw and
         # fold. We need to aggregate them up to case, est and draw level.

@@ -2,11 +2,17 @@
 
 Test model selection.
 """
+import os
 import numpy as np
 from mlens.utils.dummy import Data, OLS, Scale
 from mlens.metrics import mape
 from mlens.model_selection import Evaluator
 from scipy.stats import randint
+
+try:
+    from contextlib import redirect_stdout
+except ImportError:
+    from mlens.externals.fixes import redirect as redirect_stdout
 
 np.random.seed(100)
 
@@ -16,11 +22,13 @@ X, y = Data('stack', False, False).get_data((100, 2), 20)
 
 def test_no_prep():
     """[Model Selection] Test run without preprocessing."""
-    evl = Evaluator(mape, cv=5, shuffle=False, random_state=100)
-    evl.fit(X, y,
-            estimators=[OLS()],
-            param_dicts={'ols': {'offset': randint(1, 10)}},
-            n_iter=3)
+    evl = Evaluator(mape, verbose=True, cv=5, shuffle=False, random_state=100)
+
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
+        evl.fit(X, y,
+                estimators=[OLS()],
+                param_dicts={'ols': {'offset': randint(1, 10)}},
+                n_iter=3)
 
     np.testing.assert_approx_equal(
             evl.summary['test_score_mean']['ols'],

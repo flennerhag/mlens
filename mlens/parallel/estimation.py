@@ -244,7 +244,7 @@ class BaseEstimator(object):
 
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
-            safe_print('Predicting %s' % self.name)
+            safe_print('Transforming %s' % self.name)
             t0 = time_()
 
         pred_method = 'predict' if not self.proba else 'predict_proba'

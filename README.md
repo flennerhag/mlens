@@ -104,7 +104,7 @@ Moreover, the ``EnsembleTransformer`` allows user to build a transformer that
 behaves as any ensemble, but that returns the predictions from the ``fit``
 call. Hence, the transformer can be used together with the ``Evaluator`` to
 pre-generate training folds for model selection of the meta estimator
-(or further layers). For an example, see [here](http://mlens.readthedocs.io/en/latest/ensemble_tutorial.html#meta-learner-model-selection).
+(or further layers). For a full example, see [here](http://mlens.readthedocs.io/en/latest/ensemble_tutorial.html#meta-learner-model-selection).
 
 ```Python
 
@@ -115,6 +115,10 @@ preprocessing_dict = {'pipeline-1': list_of_transformers_1,
 evaluator = Evaluator(scorer=score_func)
 evaluator.fit(X, y, list_of_estimators, param_dists_dict, preprocessing_dict)
 ```
+
+Output is ordered per transformation case and estimators, and can be given a
+readable tabular view by passing the ``summary`` attribute to a Pandas
+``DataFrame``, as in the example below.
 
 ```Python
               fit_time_mean  fit_time_std  train_score_mean  train_score_std  test_score_mean  test_score_std               params

@@ -521,7 +521,7 @@ def _load_trans(dir, case, ivals, raise_on_exception):
     try:
         # Assume file exists
         return pickle_load(dir)
-    except (FileNotFoundError, TypeError) as exc:
+    except (OSError, TypeError) as exc:
         msg = str(exc)
         error_msg = ("The file %s cannot be found after %i seconds of "
                      "waiting. Check that time to fit transformers is "

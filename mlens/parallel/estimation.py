@@ -271,18 +271,9 @@ class BaseEstimator(object):
         """Utility function for checking that fitted estimators exist."""
         check_is_fitted(self.layer, "estimators_")
 
-        # Check that there is at least one fitted estimator
-        if isinstance(self.layer.estimators_, (list, tuple, set)):
-            empty = len(self.layer.estimators_) == 0
-        elif isinstance(self.layer.estimators_, dict):
-            empty = any([len(e) == 0 for e in self.layer.estimators_.values()])
-        else:
-            # Cannot determine shape of estimators, skip check
-            return
-
-        if empty:
-            raise NotFittedError("Cannot predict as no estimators were"
-                                 "successfully fitted.")
+        assert isinstance(self.layer.estimators_, list)
+        if len(self.layer.estimators_) == 0:
+            raise NotFittedError("No estimators successfully fitted.")
 
     def _retrieve(self, s):
         """Get transformers and estimators fitted on folds or on full data."""

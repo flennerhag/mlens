@@ -31,7 +31,7 @@ if __name__ == '__main__':
             print("Installation failed. Aborting test. "
                   "Ensure a valid version of "
                   "nosetests is installed (i.e. pip install "
-                  "nose nose-exclude).")
+                  "nose-exclude).")
             exit()
 
     print("Ready.", flush=True)

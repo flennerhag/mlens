@@ -532,23 +532,24 @@ def _load_trans(dir, case, ivals, raise_on_exception):
                      "period of waiting on transformation to complete."
                      " Details:\n%r")
 
-        if raise_on_exception:
-            # Raise error immediately
-            raise ParallelProcessingError(error_msg % msg)
-
-        # Else, check intermittently until limit is reached
+        # Wait and check if transformer is readied.
         ts = time_()
         while not os.path.exists(dir):
+
             sleep(s)
+
             if time_() - ts > lim:
+                # If timeout limit is reached, raise error
                 if raise_on_exception:
-                    raise ParallelProcessingError(error_msg % msg)
+                    raise ParallelProcessingError(error_msg % (dir, lim, msg))
 
                 warnings.warn("Transformer %s not found in cache (%s). "
                               "Will check every %.1f seconds for %i seconds "
                               "before aborting. " % (case, dir, s, lim),
                               ParallelProcessingWarning)
 
+                # If not raise_on_exception, we set it to True now to ensure
+                # a second timeout aborts the job
                 raise_on_exception = True
                 ts = time_()
 

@@ -10,9 +10,9 @@ from mlens.model_selection import Evaluator
 from scipy.stats import randint
 
 try:
-    from contextlib import redirect_stdout
+    from contextlib import redirect_stderr
 except ImportError:
-    from mlens.externals.fixes import redirect as redirect_stdout
+    from mlens.externals.fixes import redirect as redirect_stderr
 
 np.random.seed(100)
 
@@ -24,7 +24,7 @@ def test_no_prep():
     """[Model Selection] Test run without preprocessing."""
     evl = Evaluator(mape, verbose=True, cv=5, shuffle=False, random_state=100)
 
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
         evl.fit(X, y,
                 estimators=[OLS()],
                 param_dicts={'ols': {'offset': randint(1, 10)}},

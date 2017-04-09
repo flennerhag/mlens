@@ -4,9 +4,13 @@ Testing ground for parallel backend
 
 """
 from mlens.utils.dummy import LayerGenerator, Data, Cache
-from mlens.utils.dummy import (layer_fit, layer_predict,
+from mlens.utils.dummy import (layer_fit,
+                               layer_predict,
                                layer_transform,
-                               lc_fit, lc_from_file, lc_predict,
+                               lc_fit,
+                               lc_from_file,
+                               lc_from_csv,
+                               lc_predict,
                                lc_transform)
 
 PROBA = True
@@ -66,6 +70,11 @@ def test_lc_transform():
 def test_lc_file():
     """[Parallel | Subset | No Prep | Proba] test layer container from file."""
     lc_from_file(lc, cache, X, y, F, wf, P, wp)
+
+
+def test_lc_csv():
+    """[Parallel | Subset | No Prep | Proba] test layer container from csv."""
+    lc_from_csv(lc, cache, X, y, F, wf, P, wp)
 
 
 def test_close():

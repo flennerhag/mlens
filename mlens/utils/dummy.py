@@ -486,12 +486,21 @@ class Cache(object):
                     'P_transform': P_t,
                     'dir': self.path}
 
-    def store_X_y(self, X, y):
+    def store_X_y(self, X, y, as_csv=False):
         """Save X and y to file in temporary directory."""
-        xf, yf = (os.path.join(self.path, 'X_mapped.npy'),
-                  os.path.join(self.path, 'y_mapped.npy'))
-        np.save(xf, X)
-        np.save(yf, y)
+        if not as_csv:
+            xf, yf = (os.path.join(self.path, 'X_mapped.npy'),
+                      os.path.join(self.path, 'y_mapped.npy'))
+
+            np.save(xf, X)
+            np.save(yf, y)
+
+        else:
+            xf, yf = (os.path.join(self.path, 'X_mapped.csv'),
+                      os.path.join(self.path, 'y_mapped.csv'))
+
+            np.savetxt(xf, X)
+            np.savetxt(yf, y)
 
         return xf, yf
 
@@ -939,8 +948,43 @@ def lc_transform(lc, X, F):
 
 
 def lc_from_file(lc, cache, X, y, F, wf, P, wp):
-    """[LayerContainer] Stack: test fit from file path."""
+    """Fit a layer container from file path to numpy array."""
     X_path, y_path = cache.store_X_y(X, y)
+
+    # TEST FIT
+    out = lc.fit(X_path, y_path, return_preds=True)
+
+    np.testing.assert_array_equal(F, out[-1])
+
+    d = lc.layers['layer-1'].estimators_
+    if lc.layers['layer-1'].cls != 'blend':
+        d = d[lc.layers['layer-1'].n_pred:]
+
+    ests = [(c, tup) for c, tup in d]
+    w = [tup[1][1].coef_.tolist() for tup in ests]
+
+    assert w == wf
+
+    # TEST MMAP
+    assert out[-1].__class__.__name__ == 'ndarray'
+    for e in lc.layers['layer-1'].estimators_:
+        assert e[1][1].coef_.__class__.__name__ == 'ndarray'
+
+    # TEST PREDICT
+    out = lc.predict(X_path)
+
+    np.testing.assert_array_equal(P, out)
+
+    d = lc.layers['layer-1'].estimators_
+    ests = [(c, tup) for c, tup in d[:lc.layers['layer-1'].n_pred]]
+    w = [tup[1][1].coef_.tolist() for tup in ests]
+
+    assert w == wp
+
+
+def lc_from_csv(lc, cache, X, y, F, wf, P, wp):
+    """Fit a layer container from file path to csv."""
+    X_path, y_path = cache.store_X_y(X, y, as_csv=True)
 
     # TEST FIT
     out = lc.fit(X_path, y_path, return_preds=True)

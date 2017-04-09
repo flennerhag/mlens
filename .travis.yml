@@ -12,6 +12,8 @@ install:
   - pip install coverage coveralls
   - pip install nose-exclude
   - pip install flake8
+  - pip install psutil
+  - pip install scikit-learn
   - pip install -r requirements.txt
   - python setup.py install
 

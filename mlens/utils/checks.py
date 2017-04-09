@@ -1,99 +1,144 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 19/02/2017
-licence: MIT
-Suite for checking valid estimation and informative error traceback.
-This is a light version of the Scikit-learn test suite, to pre-check
-conditions for estimation before making estimator function calls in parallel
-jobs.
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+
+Controls that an estimator was built as expected.
 """
-from sklearn.utils.validation import (check_random_state, check_X_y,
-                                      check_array)
 
-
-def check_inputs(X, y, random_state):
-    """Permissive pre-check that an estimator is ready for fitting.
-
-    Purpose is to enforce a minimum standard on X and y before passing
-    subsets to estimators, as this will trigger excess copying in each
-    worker during parallel estimation.
-
-    Note that estimation may still fail or trigger excess copying if specific
-    estimators have more restrictive input conditions.
-
-    For full documentation, see `check_random_state` and `check_X_y` in
-    `sklearn.utils.validation`.
-
-    Parameters
-    ----------
-    X : nd-array, list or sparse matrix
-        Input data.
-    y : nd-array, list or sparse matrix
-        Labels.
-
-    Returns
-    ---------
-    X_converted : object
-        The converted and validated X.
-    y_converted : object
-        The converted and validated y.
-    """
-    # Turn seed into a np.random.RandomState instance
-    r = check_random_state(random_state) if random_state is not None else None
-
-    # Check arrays
-    if y is not None:
-        X, y = \
-            check_X_y(X, y,
-                      accept_sparse=True,     # Sparse imput is admitted
-                      dtype=None,             # Native dtype preserve
-                      order=None,             # Make no C or Fortran imposition
-                      copy=False,             # Do not trigger copying
-                      force_all_finite=True,  # Raise error on np.inf or np.nan
-                      ensure_2d=True,         # Force `X` do be a matrix
-                      allow_nd=True,          # Allow `X.ndim` > 2
-                      multi_output=True,      # Allow `y.shape[1]` > 1
-                      ensure_min_samples=1,   # Do not impose minimum sample
-                      ensure_min_features=1,  # Do not impose minimum features
-                      warn_on_dtype=False     # Mute as `dtype` is `None`
-                      )
-    else:
-        X = check_array(X,
-                        accept_sparse=True,     # Sparse imput is admitted
-                        dtype=None,             # Native dtype preserve
-                        order=None,             # Make no C or Fortran impos
-                        copy=False,             # Do not trigger copying
-                        force_all_finite=True,  # Raise error on np.inf/np.nan
-                        ensure_2d=True,         # Force `X` do be a matrix
-                        allow_nd=True,          # Allow `X.ndim` > 2
-                        ensure_min_samples=1,   # Do not impose minimum sample
-                        ensure_min_features=1,  # Do not impose minimum feats
-                        warn_on_dtype=False     # Mute as `dtype` is `None`
-                        )
-    return r
-
-
-class NotFittedError(ValueError, AttributeError):
-
-    """Error class for not fitted ensembles"""
+import warnings
+from .exceptions import (NotFittedError, LayerSpecificationWarning,
+                         LayerSpecificationError, ParallelProcessingError,
+                         ParallelProcessingWarning)
 
 
 def check_is_fitted(estimator, attr):
-    """Check that ensemble has been fitted
+    """Check that ensemble has been fitted.
 
     Parameters
     ----------
     estimator : estimator instance
         ensemble instance to check.
+
     attr : str
-        attribute to assert existence of. Default is the 'layer_' attribute
-        that holds fitted layers
+        attribute to assert existence of.
     """
-    msg = ("This %(name)s instance is not fitted yet. Call `fit` with "
+    msg = ("This %s instance is not fitted yet. Call 'fit' with "
            "appropriate arguments before using this method.")
     if not hasattr(estimator, attr):
-        raise NotFittedError(msg % {'name': type(estimator).__name__})
+        raise NotFittedError(msg % type(estimator).__name__)
+
+
+def check_ensemble_build(inst, attr='layers'):
+    """Check that layers have been instantiated."""
+    if not hasattr(inst, attr):
+        # No layer container. This should not happen!
+
+        msg = ("No layer class attached to instance (%s). (Cannot find a "
+               "'LayerContainer' class instance as attribute [%s].)")
+
+        raise AttributeError(msg % (inst.__class__.__name__, attr))
+
+    if getattr(inst, attr) is None:
+        # No layers instantiated.
+
+        if not getattr(inst, 'raise_on_exception', True):
+
+            msg = "No Layers in instance (%s). Nothing to fit / predict."
+            warnings.warn(msg % inst.__class__.__name__,
+                          LayerSpecificationWarning)
+            # For PASSED flag on soft fail
+            return False
+
+        else:
+
+            msg = ("No Layers in instance (%s). Add layers before calling "
+                   "'fit' and 'predict'.")
+            raise LayerSpecificationError(msg % inst.__class__.__name__)
+
+    # For PASSED flag
+    return True
+
+
+def assert_valid_estimator(instance):
+    """Assert that an instance has a ``get_params`` and ``fit`` method."""
+    has_get_params = hasattr(instance, 'get_params')
+    has_fit = hasattr(instance, 'fit')
+
+    if not has_get_params:
+        raise TypeError("'%s' does not appear to be a valid"
+                        " estimator as it does not implement a "
+                        "'get_params' method. Type: "
+                        "%s" % (instance, type(instance)))
+
+    if not has_fit:
+        raise TypeError("'%s' does not appear to be a valid"
+                        " estimator as it does not implement a "
+                        "'fit' method. Type: "
+                        "%s" % (instance, type(instance)))
+
+    try:
+        instance.get_params()
+    except TypeError:
+        raise TypeError("'%s' does not appear to be an instance of an "
+                        "estimator class, but the class itself." % instance)
+
+
+def assert_correct_format(estimators, preprocessing):
+    """Initial check to assert layer can be constructed."""
+    if (preprocessing is None) or (isinstance(preprocessing, list)):
+        if isinstance(estimators, dict):
+            # Either no or uniform preprocessing, estimators should be list
+            msg = ("Preprocessing is either 'None' or 'list': 'estimators' "
+                   "must be of type 'list'. Got %s.")
+            raise LayerSpecificationError(msg % type(estimators))
+    else:
+        # Check that both estimators and preprocessing are dicts
+        if not isinstance(preprocessing, dict):
+            msg = ("Unexpected format of 'preprocessing'. Needs to be "
+                   " of type 'None' or 'list' or 'dict'. Got %s .")
+            raise LayerSpecificationError(msg % type(preprocessing))
+
+        if not isinstance(estimators, dict):
+            msg = ("Unexpected format of 'estimators'. Needs to be "
+                   "'dict' when preprocessing is 'dict'. Got %s.")
+            raise LayerSpecificationError(msg % type(estimators))
+
+        # Check that keys overlap
+        prep_check = [key in preprocessing for key in estimators]
+        est_check = [key in estimators for key in preprocessing]
+
+        if not all(est_check):
+            msg = ("Too few estimator cases to match preprocessing cases:\n"
+                   "estimator cases:     %r\npreprocessing cases: %r")
+            raise LayerSpecificationError(msg % (list(estimators),
+                                                 list(preprocessing)))
+        if not all(prep_check):
+            msg = ("Too few preprocessing cases to match estimators cases:\n"
+                   "preprocessing cases: %r\nestimator cases:     %r")
+            raise LayerSpecificationError(msg % (list(preprocessing),
+                                                 list(estimators)))
+
+
+def check_initialized(inst):
+    """Check if a ParallelProcessing instance is initialized properly."""
+    if not inst.__initialized__:
+        msg = "ParallelProcessing is not initialized. Call " \
+              "'initialize' before calling 'fit'."
+        raise ParallelProcessingError(msg)
+
+    if getattr(inst, '__fitted__', None):
+        if inst.layers.raise_on_exception:
+            raise ParallelProcessingError("This instance is already "
+                                          "fitted and its parallel "
+                                          "processing jobs has not been "
+                                          "terminated. To refit "
+                                          "instance, call 'terminate' "
+                                          "before calling 'fit'.")
+        else:
+            warnings.warn("This instance is already "
+                          "fitted and its parallel "
+                          "processing job has not been "
+                          "terminated. Will refit using previous job's cache.",
+                          ParallelProcessingWarning)

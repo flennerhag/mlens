@@ -2,19 +2,24 @@ language: python
 
 matrix:
     include:
-        - python: 3.5
-        - python: 3.6
         - python: 2.7
+        - python: 3.6
+        - python: 3.5
 
 install:
   - set -e
   - sudo apt-get update
   - pip install coverage coveralls
-  - pip install nose nose-exclude 
+  - pip install nose-exclude
+  - pip install flake8
+  - pip install psutil
+  - pip install scikit-learn
   - pip install -r requirements.txt
-  - pip install .
+  - python setup.py install
+
 script:
   - set -e
   - nosetests -s -v --with-coverage --exclude mlens/visualization --exclude mlens/externals
+
 after_success:
-  coveralls
+  - coveralls

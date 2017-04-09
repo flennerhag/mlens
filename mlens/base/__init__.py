@@ -1,18 +1,21 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 11/01/2017
-licence: MIT
-Base modules for mlens
-"""
-from ._clone import _clone_base_estimators, _clone_preprocess_cases
-from ._setup import (name_estimators, name_layer, check_estimators,
-                     _check_names, _split_base)
-from ._support import _check_estimators, _name_columns
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 
-__all__ = ['_clone_base_estimators', '_clone_preprocess_cases',
-           'name_estimators', 'name_layer', 'check_estimators', '_check_names',
-           '_split_base', '_check_estimators', '_name_columns']
+Base modules
+"""
+
+from .id_train import IdTrain
+from .indexer import FoldIndex, BlendIndex, SubsetIndex, FullIndex
+
+
+INDEXERS = {'stack': FoldIndex,
+            'blend': BlendIndex,
+            'subset': SubsetIndex,
+            'full': FullIndex}
+
+
+__all__ = ['IdTrain', 'BlendIndex', 'FoldIndex', 'SubsetIndex',
+           'FullIndex']

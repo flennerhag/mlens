@@ -207,7 +207,7 @@ class BaseEstimator(object):
         self._assemble(dir)
 
         if self.verbose:
-            print_time(t0, '%sDone' % self.name, file=printout)
+            print_time(t0, '%s Done' % self.name, file=printout)
 
     def predict(self, X, P, parallel):
         """Predict with fitted layer with either full or fold ests."""
@@ -236,7 +236,7 @@ class BaseEstimator(object):
                  for case, (inst_name, est, (_, col)) in ests)
 
         if self.verbose:
-            print_time(t0, '%sDone' % self.name, file=printout)
+            print_time(t0, '%s Done' % self.name, file=printout)
 
     def transform(self, X, P, parallel):
         """Transform training data with fold-estimators from fit call."""
@@ -265,7 +265,7 @@ class BaseEstimator(object):
                  for case, (est_name, est, idx) in ests)
 
         if self.verbose:
-            print_time(t0, '%sDone' % self.name, file=printout)
+            print_time(t0, '%s Done' % self.name, file=printout)
 
     def _check_fitted(self):
         """Utility function for checking that fitted estimators exist."""

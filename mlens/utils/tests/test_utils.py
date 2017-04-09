@@ -8,7 +8,7 @@ author: Sebastian Flennerhag
 from __future__ import division
 
 import os
-import sys
+import sysconfig
 import subprocess
 from mlens.utils import utils
 
@@ -28,6 +28,7 @@ try:
 except ImportError:
     psutil = None
 
+__version__ = sysconfig.get_python_version()
 # An object to pickle
 d = {'entry1': 'test', 'entry2': 'also_test'}
 
@@ -74,7 +75,7 @@ def test_safe_print_string():
 
 def test_recorder():
     """[Utils] _recorder: test subprocess recording function."""
-    if psutil is not None:
+    if psutil is not None and not __version__.startswith('2.'):
         l = Logger()
         pid = os.getpid()
         with redirect_stdout(l):
@@ -90,7 +91,7 @@ def test_recorder():
 
 def test_cm():
     """[Utils] CMLog: test logging."""
-    if psutil is not None:
+    if psutil is not None and not __version__.startswith('2.') :
         cm = utils.CMLog(verbose=True)
 
         with open(os.devnull, 'w') as f, redirect_stdout(f):
@@ -119,7 +120,7 @@ def test_cm():
 
 def test_cm_exception():
     """[Utils] CMLog: test collecting un-monitored returns None."""
-    if psutil is not None:
+    if psutil is not None and not __version__.startswith('2.'):
         cm = utils.CMLog(verbose=False)
         with open(os.devnull, 'w') as f, redirect_stdout(f):
             out = cm.collect()

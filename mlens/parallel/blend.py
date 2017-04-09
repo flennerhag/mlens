@@ -50,8 +50,7 @@ class Blender(BaseEstimator):
 
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
-            s = _name(self.name, None)
-            safe_print('Predicting %s' % self.name)
+            safe_print('Transforming %s' % self.name)
             t0 = time_()
 
         pred_method = 'predict' if not self.proba else 'predict_proba'
@@ -74,27 +73,10 @@ class Blender(BaseEstimator):
                  for case, (est_name, est, idx) in ests)
 
         if self.verbose:
-            print_time(t0, '%sDone' % s, file=printout)
+            print_time(t0, '%s Done' % self.name, file=printout)
 
 
 ###############################################################################
-def _name(layer_name, case):
-    """Utility for setting error or warning message prefix."""
-    if layer_name is None and case is None:
-        # Both empty
-        out = ''
-    elif layer_name is not None and case is not None:
-        # Both full
-        out = '[%s | %s ] ' % (layer_name, case)
-    elif case is None:
-        # Case empty, layer_name full
-        out = '[%s] ' % layer_name
-    else:
-        # layer_name empty, case full
-        out = '[%s] ' % case
-    return out
-
-
 def _expand_instance_list(instance_list, indexer=None):
     """Build a list of estimation tuples with train and test indices."""
     if instance_list is None or len(instance_list) == 0:

@@ -521,7 +521,8 @@ def _load_trans(dir, case, ivals, raise_on_exception):
     try:
         # Assume file exists
         return pickle_load(dir)
-    except (OSError, TypeError) as exc:
+    except (OSError, IOError) as exc:
+        # We would expect an OSError, but Python 2.7 we get an IOError
         msg = str(exc)
         error_msg = ("The file %s cannot be found after %i seconds of "
                      "waiting. Check that time to fit transformers is "

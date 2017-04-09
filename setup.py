@@ -30,22 +30,19 @@ setup(name='mlens',
       license='MIT',
       platforms='any',
       classifiers=['License :: OSI Approved :: MIT License',
-                   'Development Status :: 5 - Beta',
+                   'Development Status :: 4 - Beta',
                    'Operating System :: Microsoft :: Windows',
                    'Operating System :: POSIX',
                    'Operating System :: Unix',
                    'Operating System :: MacOS',
                    'Programming Language :: Python :: 2.7',
-                   'Programming Language :: Python :: 3',
-                   'Programming Language :: Python :: 3.3',
-                   'Programming Language :: Python :: 3.4',
                    'Programming Language :: Python :: 3.5',
                    'Programming Language :: Python :: 3.6',
                    'Topic :: Scientific/Engineering',
                    'Topic :: Scientific/Engineering :: Artificial Intelligence'
                    ],
       long_description="""
-A library for parallelized Ensemble learning
+A library for memory efficient parallelized Ensemble learning
 
 Documentation available at:
     - http://mlens.readthedocs.io/en/latest/

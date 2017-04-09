@@ -3,9 +3,19 @@
 :author: Sebastian Flennerhag
 :copyright: 2017
 :licence: MIT
+
+ML-Ensemble, a Python library for memory efficient parallelized ensemble
+learning.
 """
 
-__version__ = "0.1.1.dev0"
+__version__ = "0.1.1"
 
-__all__ = ['base', 'ensemble', 'model_selection', 'visualization',
-           'preprocessing', 'utils', 'metrics', 'parallel']
+__all__ = ['base',
+           'ensemble',
+           'externals',
+           'metrics',
+           'model_selection',
+           'parallel',
+           'preprocessing',
+           'utils',
+           'visualization']

@@ -63,6 +63,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/_build_html/
 
 # PyBuilder
 target/
@@ -93,5 +94,14 @@ ENV/
 # Github pages
 _site/
 
-# PyCharm
+# PyCharm project settings
 .idea/*
+
+# Local development items
+dev/
+
+# Check build logs
+check_build_log.txt
+
+# doc builds
+_make_html

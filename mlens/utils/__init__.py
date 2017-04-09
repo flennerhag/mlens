@@ -1,14 +1,18 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flenenrhag
-date: 10/01/2017
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 """
 
-from .utils import _slice, pickle_save, pickle_load, print_time, IdTrain
-from .checks import check_is_fitted, check_inputs
+from .utils import pickle_save, pickle_load, print_time, safe_print, CMLog
+from .formatting import check_instances
+from .validation import check_inputs
+from .checks import (check_is_fitted, check_ensemble_build,
+                     assert_correct_format,
+                     check_initialized)
 
-__all__ = ['_slice', 'pickle_save', 'pickle_load', 'print_time', 'IdTrain',
-           'check_is_fitted', 'check_inputs']
+__all__ = ['check_inputs', 'check_instances',
+           'check_is_fitted', 'check_ensemble_build',
+           'assert_correct_format', 'check_initialized',
+           'pickle_save', 'pickle_load', 'print_time', 'safe_print', 'CMLog']

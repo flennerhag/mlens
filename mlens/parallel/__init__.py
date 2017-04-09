@@ -1,14 +1,16 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 10/01/2017
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 """
 
-from .preprocess import preprocess_pipes, preprocess_folds
-from .fit_predict import cross_validate, base_predict, fit_estimators
+from .stack import Stacker
+from .blend import Blender
+from .subset import SubStacker
+from .single_run import SingleRun
+from .evaluation import Evaluation
+from .manager import ParallelProcessing, ParallelEvaluation
 
-__all__ = ['preprocess_pipes', 'preprocess_folds',
-           'cross_validate', 'base_predict', 'fit_estimators']
+__all__ = ['ParallelProcessing', 'ParallelEvaluation',
+           'Stacker', 'Blender', 'SubStacker', 'SingleRun', 'Evaluation']

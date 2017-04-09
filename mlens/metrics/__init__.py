@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 11/01/2017
+:author: Sebastian Flennerhag
+:copyright: 2017
+:license: MIT
 """
 
-from .metrics import score_matrix, rmse, mape, wape
+from ..externals.sklearn.scorer import make_scorer
+from .metrics import rmse, mape, wape
 
-__all__ = ['score_matrix', 'rmse', 'mape', 'wape']
+__all__ = ['rmse', 'mape', 'wape', 'make_scorer']

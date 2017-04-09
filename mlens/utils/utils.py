@@ -1,40 +1,36 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 10/01/2017
-licence: MIT
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
 """
 
 from __future__ import division, print_function, with_statement
 
-from time import time
-from pandas import DataFrame, Series
-from numpy import array_equal
-from numpy.random import permutation
+from numpy import array
+import subprocess
+import sys
+import os
 
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 try:
     import cPickle as pickle
-except Exception:
+except ImportError:
     import pickle
 
-
-def _slice(Z, idx):
-    """Utility function for slicing either a DataFrame or an ndarray"""
-    # determine training set
-    if idx is None:
-        z = Z.copy()
-    else:
-        if isinstance(Z, (DataFrame, Series)):
-            z = Z.iloc[idx].copy()
-        else:
-            z = Z[idx].copy()
-    return z
+from time import sleep
+try:
+    from time import perf_counter as _time
+except ImportError:
+    # Fall back on time for older versions
+    from time import time as _time
 
 
+###############################################################################
 def pickle_save(obj, name):
     """Utility function for pickling an object"""
     with open(name + '.pkl', 'wb') as f:
@@ -47,82 +43,226 @@ def pickle_load(name):
         return pickle.load(f)
 
 
+###############################################################################
+def safe_print(*objects, **kwargs):
+    """Safe print function for backwards compatibility."""
+    # Get stream
+    file = kwargs.pop('file', sys.stdout)
+    if isinstance(file, str):
+        file = getattr(sys, file)
+
+    # Get flush
+    flush = kwargs.pop('flush', False)
+
+    # Print
+    print(*objects, file=file, **kwargs)
+
+    # Need to flush outside print function for python2 compatibility
+    if flush:
+        file.flush()
+
+
 def print_time(t0, message='', **kwargs):
     """Utility function for printing time"""
     if len(message) > 0:
         message += ' | '
 
-    r, s = divmod(time() - t0, 60)  # get sec
-    h, m = divmod(r, 60)  # get h, min
-    print(message + '%02d:%02d:%02d\n' % (h, m, s), **kwargs)
+    m, s = divmod(_time() - t0, 60)
+    h, m = divmod(m, 60)
+
+    safe_print(message + '%02d:%02d:%02d\n' % (h, m, s), **kwargs)
 
 
-class IdTrain(object):
+class CMLog(object):
 
-    """Container to identify training set
+    """CPU and Memory logger.
 
-    Samples a random subset from set passed to the `fit` method, to allow
-    identification of the training set in a `transform` or `predict` method.
+    Class for starting a monitor job of CPU and memory utilization in the
+    background in a Python script. The ``monitor`` class records the
+    ``cpu_percent``, ``rss`` and ``vms`` as collected by the
+    psutil_ library for the parent process' pid.
+
+    CPU usage and memory utilization are stored as attributes in numpy arrays.
+
+    .. _psutil: https://pypi.python.org/pypi/psutil
+
+    Examples
+    --------
+    >>> from time import sleep
+    >>> from mlens.utils.utils import CMLog
+    >>> cm = CMLog(verbose=True)
+    >>> cm.monitor(2, 0.5)
+    >>> _ = [i for i in range(10000000)]
+    >>>
+    >>> # Collecting before completion triggers a message but no error
+    >>> cm._collect()
+    >>>
+    >>> sleep(2)
+    >>> cm._collect()
+    >>> print('CPU usage:')
+    >>> cm.cpu
+    [CMLog] Monitoring for 2 seconds with checks every 0.5 seconds.
+    [CMLog] Job not finished. Cannot _collect yet.
+    [CMLog] Collecting... done. Read 4 lines in 0.000 seconds.
+    CPU usage:
+    array([ 50. ,  22.4,   6. ,  11.9])
+
+    Raises
+    ------
+    ImportError :
+        Depends on psutil. If not installed, raises ImportError on
+        instantiation.
 
     Parameters
     ----------
-    size : int
-        size to sample. A random subset of size [size, size] will be stored
-        in the instance
+    verbose : bool
+        whether to notify of job start.
     """
 
-    def __init__(self, size=10):
-        self.size = size
+    def __init__(self, verbose=False):
+        self.verbose = verbose
+        self.pid = os.getpid()
 
-    def fit(self, X):
-        """Sample a training set
+        if psutil is None:
+            raise ImportError("psutil not installed. Install psutil, for "
+                              "example through pip (pip install psutil) "
+                              "before initializing CMLog.")
 
-        Parameters
-        ----------
-        X: array-like
-            training set to sample observations from.
-
-        Returns
-        ----------
-        self: obj
-            fitted instance with stored sample
-        """
-        sample_idx = {}
-        for i in range(2):
-            dim_size = min(X.shape[i], self.size)
-            sample_idx[i] = permutation(X.shape[i])[:dim_size]
-
-        if isinstance(X, DataFrame):
-            sample = X.iloc[sample_idx[0], sample_idx[1]]
-        else:
-            sample = X[sample_idx[0], sample_idx[1]]
-
-        self.sample_idx_ = sample_idx
-        self.sample_ = sample
-
-        return self
-
-    def is_train(self, X):
-        """Check if an array is the training set
+    def monitor(self, stop=None, ival=0.1, kill=True):
+        """Start monitoring CPU and memory usage.
 
         Parameters
         ----------
-        X: array-like
-            training set to sample observations from.
+        stop : float or None (default = None)
+            seconds to monitor for. If None, monitors until ``_collect`` is
+            called.
 
-        Returns
-        ----------
-        self: obj
-            fitted instance with stored sample
+        ival : float (default=0.1)
+            interval of monitoring.
+
+        kill : bool (default = True)
+            whether to kill the monitoring job if ``_collect`` is called before
+            timeout (``stop``). If set to False, calling ``_collect`` will
+            cause the instance to wait until the job completes.
         """
-        idx = self.sample_idx_
+        if stop is None and not kill:
+            raise ValueError("If no time limit is set 'kill' must be enabled.")
+
+        self._t0 = _time()
+        self._stop = stop
+        self._kill = kill
+
+        # Delete previous job data to avoid confusion
         try:
-            # Grab sample from `X`
-            if isinstance(X, DataFrame):
-                sample = X.iloc[idx[0], idx[1]].values
+            del self.cpu
+            del self.rss
+            del self.vms
+        except AttributeError:
+            pass
+
+        if self.verbose:
+            if self._stop is not None:
+                safe_print("[CMLog] Monitoring for {} seconds with checks "
+                           "every {} seconds.".format(stop, ival))
             else:
-                sample = X[idx[0], idx[1]]
-            return array_equal(sample, self.sample_)
-        except IndexError:
-            # X is not of the same shape as the training set > not training set
-            return False
+                safe_print("[CMLog] Monitoring until collection with checks "
+                           "every {} seconds.".format(ival))
+
+        # Initialize subprocess
+        self._out = \
+            subprocess.Popen([sys.executable, '-c',
+                              'from mlens.utils.utils import _recorder; '
+                              '_recorder({}, {}, {})'.format(self.pid,
+                                                             stop,
+                                                             float(ival))],
+                             stdout=subprocess.PIPE)
+        return
+
+    def collect(self):
+        """Collect monitored data.
+
+        Once a monitor job finishes, call ``_collect`` to read the CPU and
+        memory usage into python objects in the current process. If called
+        before the job finishes, _collect issues a print statement to try
+        again later, but no warning or error is raised.
+        """
+        if not hasattr(self, '_stop'):
+            safe_print('No monitoring job initiated: nothing to _collect.')
+            return
+
+        if self._stop is None:
+            # If no timer, kill process.
+            self._out.kill()
+
+            if self.verbose:
+                safe_print("[CMLog] Collecting...", end=" ",  flush=True)
+
+        # Check if job is not completed and if so, check whether to kill
+        elif _time() - self._t0 < self._stop:
+            if self._kill:
+                if self.verbose:
+                    safe_print("[CMLog] Job not finished - killing process "
+                               "and collecting...", end=" ", flush=True)
+                self._out.kill()
+
+            elif self.verbose:
+                # Wait until completion (this is done in the 'communicate'
+                # command
+                safe_print("[CMLog] Job not finished - waiting "
+                           "until completion and collecting...",
+                           end=" ",  flush=True)
+
+        # If job done, we just need to _collect
+        elif self.verbose:
+            safe_print("[CMLog] Collecting...", end=" ",  flush=True)
+
+        t0, i = _time(), 0
+        cpu, rss, vms = [], [], []
+
+        out = self._out.communicate()
+        out = out[0].decode().strip().split('\n')
+        for line in out:
+
+            c, r, v = line.split(',')
+
+            cpu.append(float(c.strip()))
+            rss.append(int(r.strip()))
+            vms.append(int(v.strip()))
+
+            i += 1
+
+        if self.verbose:
+            safe_print('done. Read {} lines in '
+                       '{:.3f} seconds.'.format(i, _time() - t0))
+
+        self.cpu = array(cpu)
+        self.vms = array(vms)
+        self.rss = array(rss)
+
+        # Clear job data
+        del self._t0
+        del self._stop
+        del self._kill
+
+        self._out.terminate()
+        del self._out
+
+
+def _recorder(pid, stop, ival):
+    """Subprocess call function to record cpu and memory."""
+    t = t0 = _time()
+
+    process = psutil.Process(pid)
+
+    if stop is None:
+        while True:
+            m = process.memory_info()
+            print(psutil.cpu_percent(), ',', m[0], ',', m[1])
+            sleep(ival)
+            t = _time()
+    else:
+        while t - t0 < stop:
+            m = process.memory_info()
+            print(psutil.cpu_percent(), ',', m[0], ',', m[1])
+            sleep(ival)
+            t = _time()

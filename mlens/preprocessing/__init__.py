@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-author: Sebastian Flennerhag
-date: 10/01/2017
 """
 
-from .preprocess import StandardScalerDf, Subset
-from .feature_engineering import PredictionFeature
+:author: Sebastian Flennerhag
+:copyright: 2017
+:licence: MIT
+"""
 
-__all__ = ['StandardScalerDf', 'Subset',
-           'PredictionFeature']
+from .preprocess import Subset, Shift
+from .ensemble_transformer import EnsembleTransformer
+
+__all__ = ['Subset', 'Shift', 'EnsembleTransformer']

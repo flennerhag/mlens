@@ -1,75 +1,90 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 11/01/2017
-Scoring functions
+:author: Sebastian Flennerhag
+:copyright: 2017
+:license: MIT
+
+Scoring functions.
 """
 
-from __future__ import division, print_function
+from __future__ import division
 
 import numpy as np
-from pandas import DataFrame
-from ..externals import make_scorer
 
 
-def score_matrix(y_preds, y_true, scorer, column_names=None, prefix=None):
-    """Function for scoring a matrix"""
-    y_preds = y_preds if not isinstance(y_preds, DataFrame) else y_preds.values
+def rmse(y, p):
+    r"""Root Mean Square Error.
 
-    if column_names is None:
-        column_names = ['preds_%i' % (i + 1) for i in range(y_preds.shape[1])]
+    .. math::
 
-    if prefix is None:
-        return {col: scorer(y_true, y_preds[:, i]) for i, col in enumerate(column_names)}
-    else:
-        return {prefix + '-' + col: scorer(y_true, y_preds[:, i]) for i, col in
-                enumerate(column_names)}
+        RMSE(\mathbf{y}, \mathbf{p}) = \sqrt{MSE(\mathbf{y}, \mathbf{p})},
 
+    with
 
-def rmse_scoring(y, p):
-    """Root Mean Square Error := sqrt(mse), mse := (1/n) * sum((y-p)**2)
+    .. math::
+
+        MSE(\mathbf{y}, \mathbf{p}) = |S| \sum_{i \in S} (y_i - p_i)^2
 
     Parameters
     ----------
-    y : array-like
-        ground truth
-    p : array-like
-        predicted labels
+    y : array-like of shape [n_samples, ]
+        ground truth.
+
+    p : array-like of shape [n_samples, ]
+        predicted labels.
 
     Returns
-    ---------
+    -------
     z: float
-        root mean squared error
+        root mean squared error.
     """
-    return np.mean((y-p)**2)**(1/2)
-
-rmse = make_scorer(rmse_scoring, greater_is_better=False)
-
-
-def mape_scoring(y, p):
-    """Mean Average Percentage Error := mean(abs((y - p) / y))"""
-    return np.mean(np.abs((y-p)/y))
+    z = y - p
+    return np.sqrt(np.mean(np.multiply(z, z)))
 
 
-def mape_log_rescaled_scoring(y, p):
-    """Log transform"""
-    return mape_scoring(np.exp(y), np.exp(p))
+def mape(y, p):
+    r"""Mean Average Percentage Error.
 
-mape = make_scorer(mape_scoring, greater_is_better=False)
-mape_log = make_scorer(mape_log_rescaled_scoring, greater_is_better=False)
+    .. math::
+
+        MAPE(\mathbf{y}, \mathbf{p}) =
+        |S| \sum_{i \in S} | \frac{y_i - p_i}{y_i} |
+
+    Parameters
+    ----------
+    y : array-like of shape [n_samples, ]
+        ground truth.
+
+    p : array-like of shape [n_samples, ]
+        predicted labels.
+
+    Returns
+    -------
+    z: float
+        mean average percentage error.
+    """
+    return np.mean(np.divide(np.abs((y - p)), np.abs(y)))
 
 
-def wape_scoring(y, p):
-    """Weighted Mean Average Percentage Error := sum(abs(y - p)) / sum(y)"""
-    return np.sum(np.abs(y-p)) / np.sum(y)
+def wape(y, p):
+    r"""Weighted Mean Average Percentage Error.
 
+    .. math::
 
-def wape_log_rescaled_scoring(y, p):
-    """Log transform"""
-    return mape_scoring(np.exp(y), np.exp(p))
+        WAPE(\mathbf{y}, \mathbf{p}) =
+        \frac{\sum_{i \in S} | y_i - p_i|}{ \sum_{i \in S} |y_i|}
 
-wape = make_scorer(wape_scoring, greater_is_better=False)
-wape_log = make_scorer(wape_log_rescaled_scoring, greater_is_better=False)
+    Parameters
+    ----------
+    y : array-like of shape [n_samples, ]
+        ground truth.
+
+    p : array-like of shape [n_samples, ]
+        predicted labels.
+
+    Returns
+    -------
+    z: float
+        weighted mean average percentage error.
+    """
+    return np.sum(np.abs(y - p)) / np.sum(np.abs(y))

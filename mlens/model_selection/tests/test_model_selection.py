@@ -1,103 +1,150 @@
 """ML-ENSEMBLE
 
-author: Sebastian Flennerhag
-date: 12/01/2017
+Test model selection.
 """
-
-from __future__ import division, print_function
-
-from mlens.model_selection import Evaluator, EnsembleLayers
-from mlens.metrics import rmse
-from mlens.utils import pickle_save, pickle_load
+import os
 import numpy as np
-from sklearn.linear_model import Lasso
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import KFold
-from scipy.stats import uniform, randint
-import warnings
+from mlens.model_selection import Evaluator
+from mlens.metrics import mape, make_scorer
+from mlens.utils.exceptions import FitFailedWarning
+from mlens.utils.dummy import Data, OLS, Scale
+from scipy.stats import randint
 
-# training data
+try:
+    from contextlib import redirect_stderr
+except ImportError:
+    from mlens.externals.fixes import redirect as redirect_stderr
+
 np.random.seed(100)
-X = np.random.random((1000, 10))
 
-# noisy output, y = x0 * x1 + x2^2 + x3 - x4^(1/4) + e
-y = X[:, 0] * X[:, 1] + X[:, 2] ** 2 + X[:, 3] - X[:, 4] ** (1 / 4)
-
-# Change scales
-X[:, 0] *= 10
-X[:, 1] += 10
-X[:, 2] *= 5
-X[:, 3] *= 3
-X[:, 4] /= 10
-
-# A set of estimators to evaluate
-ls = Lasso(random_state=100)
-rf = RandomForestRegressor(random_state=100)
-
-# Some parameter distributions that might work well
-ls_p = {'alpha': uniform(0.00001, 0.0005)}
-rf_p = {'max_depth': randint(2, 7), 'max_features': randint(3, 10),
-        'min_samples_leaf': randint(2, 10)}
-rf_p_e = {'min_samples_leaf': uniform(1.01, 1.05)}
-
-# Put it all in neat dictionaries. Note that the keys must match!
-estimators = {'ls': ls, 'rf': rf}
-parameters = {'ls': ls_p, 'rf': rf_p}
-parameters_exception = {'ls': ls_p, 'rf': rf_p_e}
-
-# A set of different preprocessing cases we want to try for each model
-preprocessing = {'a': [StandardScaler()],
-                 'b': []}
-
-evals1 = Evaluator(rmse, preprocessing, cv=KFold(2, random_state=100),
-                   verbose=1, shuffle=False, n_jobs_estimators=-1,
-                   n_jobs_preprocessing=-1, random_state=100)
-
-evals2 = Evaluator(rmse, preprocessing, cv=2,
-                   verbose=1, shuffle=False, n_jobs_estimators=-1,
-                   n_jobs_preprocessing=-1, random_state=100)
-
-ens_base = EnsembleLayers()
-ens_base.add([(key, val) for key, val in estimators.items()])
-
-def check_scores(evals):
-    test_draws = []
-    for params in evals.cv_results_.loc[[('rf-a', 1),
-                                         ('rf-a', 2),
-                                         ('rf-a', 3)], 'params'].values:
-        test_draws.append(params['min_samples_leaf'])
-
-    assert all([test_val == comp_val for test_val, comp_val in
-                zip(test_draws, [2, 2, 5])])
-
-    assert str(evals.summary_.iloc[0][0])[:16] == '-0.127723982162'
+# Stack is nonsense here - we just need proba to be false
+X, y = Data('stack', False, False).get_data((100, 2), 20)
 
 
-def test_evals():
-        evals1.preprocess(X, y)
-        evals1.evaluate(X, y, estimators, parameters, 3, flush_preprocess=True)
-        evals1.evaluate(X, y, estimators, parameters, 3)
-        check_scores(evals1)
+def failed_score(p, y):
+    """Bad scoring function to test exception handling."""
+    raise ValueError("This fails.")
+
+mape_scorer = make_scorer(mape, greater_is_better=False)
+bad_scorer = make_scorer(failed_score)
 
 
-def test_pickling_evals():
-        evals2.evaluate(X, y, estimators, parameters, 3)
-        pickle_save(evals2, 'test')
-        pickled_eval = pickle_load('test')
-        check_scores(pickled_eval)
+def test_check():
+    """[Model Selection] Test check of valid estimator."""
+    np.testing.assert_raises(ValueError, Evaluator, mape)
 
 
-def test_exception_handling_evals():
+def test_raises():
+    """[Model Selection] Test raises on error."""
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        evals1.evaluate(X, y, estimators, parameters_exception, 3)
-        assert str(evals1.summary_.iloc[-1][0])[:3] == '-99'
+    evl = Evaluator(bad_scorer)
+
+    np.testing.assert_raises(ValueError,
+                             evl.fit, X, y, [OLS()],
+                             {'ols': {'offset': randint(1, 10)}},
+                             n_iter=1)
 
 
-def test_ensemble_layers():
-    ens_base.fit(X, y)
-    out = ens_base.transform(X)
+def test_passes():
+    """[Model Selection] Test sets error score on failed scoring."""
 
-    assert out.shape[1] == 2
+    evl = Evaluator(bad_scorer, error_score=0, n_jobs=1)
+
+    evl = np.testing.assert_warns(FitFailedWarning,
+                                  evl.fit, X, y, [OLS()],
+                                  {'ols': {'offset': randint(1, 10)}},
+                                  n_iter=1)
+
+    assert evl.summary['test_score_mean']['ols'] == 0
+
+
+def test_no_prep():
+    """[Model Selection] Test run without preprocessing."""
+    evl = Evaluator(mape_scorer, verbose=True, cv=5, shuffle=False,
+                    random_state=100)
+
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+        evl.fit(X, y,
+                estimators=[OLS()],
+                param_dicts={'ols': {'offset': randint(1, 10)}},
+                n_iter=3)
+
+    np.testing.assert_approx_equal(
+            evl.summary['test_score_mean']['ols'],
+            -24.903229451043195)
+
+    assert evl.summary['params']['ols']['offset'] == 4
+
+
+def test_w_prep():
+    """[Model Selection] Test run with preprocessing, double step."""
+    evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100)
+
+    # Preprocessing
+    evl.preprocess(X, y, {'pr': [Scale()], 'no': []})
+
+    # Fitting
+    evl.evaluate(X, y,
+                 estimators=[OLS()],
+                 param_dicts={'ols': {'offset': randint(1, 10)}},
+                 n_iter=3)
+
+    np.testing.assert_approx_equal(
+            evl.summary['test_score_mean'][('no', 'ols')],
+            -24.903229451043195)
+
+    np.testing.assert_approx_equal(
+            evl.summary['test_score_mean'][('pr', 'ols')],
+            -26.510708862278072, 1)
+
+    assert evl.summary['params'][('no', 'ols')]['offset'] == 4
+    assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
+
+
+def test_w_prep_fit():
+    """[Model Selection] Test run with preprocessing, single step."""
+    evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100)
+
+    evl.fit(X, y,
+            estimators=[OLS()],
+            param_dicts={'ols': {'offset': randint(1, 10)}},
+            preprocessing={'pr': [Scale()], 'no': []},
+            n_iter=3)
+
+    np.testing.assert_approx_equal(
+            evl.summary['test_score_mean'][('no', 'ols')],
+            -24.903229451043195)
+
+    np.testing.assert_approx_equal(
+            evl.summary['test_score_mean'][('pr', 'ols')],
+            -26.510708862278072, 1)
+
+    assert evl.summary['params'][('no', 'ols')]['offset'] == 4
+    assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
+
+
+def test_w_prep_set_params():
+    """[Model Selection] Test run with preprocessing, sep param dists."""
+    evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100)
+
+    params = {('no', 'ols'): {'offset': randint(3, 6)},
+              ('pr', 'ols'): {'offset': randint(1, 3)},
+              }
+
+    # Fitting
+    evl.fit(X, y,
+            estimators={'pr': [OLS()], 'no': [OLS()]},
+            param_dicts=params,
+            preprocessing={'pr': [Scale()], 'no': []},
+            n_iter=3)
+
+    np.testing.assert_approx_equal(
+            evl.summary['test_score_mean'][('no', 'ols')],
+            -18.684229451043198)
+
+    np.testing.assert_approx_equal(
+            evl.summary['test_score_mean'][('pr', 'ols')],
+            -7.2594502123869491, 1)
+
+    assert evl.summary['params'][('no', 'ols')]['offset'] == 3
+    assert evl.summary['params'][('pr', 'ols')]['offset'] == 1

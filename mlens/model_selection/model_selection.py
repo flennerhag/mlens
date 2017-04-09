@@ -10,13 +10,17 @@ preprocessing pipeline.
 
 from __future__ import division
 
-import numpy as np
-import sys
 import gc
+import sys
+import numpy as np
+
 from ..base import FoldIndex
 from ..parallel import ParallelEvaluation
-from ..utils import print_time, safe_print, check_instances, \
-    assert_correct_format
+from ..utils import (print_time,
+                     safe_print,
+                     check_instances,
+                     assert_correct_format)
+from ..metrics import make_scorer
 
 try:
     from time import perf_counter as time
@@ -29,6 +33,15 @@ except ImportError:
     _dict = dict
 
 from operator import itemgetter
+
+
+def _check_scorer(scorer):
+    """Check that the scorer instance passed behaves as expected."""
+    if not type(scorer).__name__ == '_PredictScorer':
+        raise ValueError("The passes scorer does not seem to be a valid "
+                         "scorer. Expected type '_PredictScorer', got '%s'."
+                         "Use the mlens.metrics.make_scorer function to "
+                         "construct a valid scorer." % type(scorer).__name__)
 
 
 class Evaluator(object):
@@ -109,7 +122,7 @@ class Evaluator(object):
                  shuffle=True,
                  random_state=None,
                  backend='multiprocessing',
-                 error_score=np.nan,
+                 error_score=None,
                  metrics=None,
                  n_jobs=-1,
                  verbose=False):
@@ -122,9 +135,11 @@ class Evaluator(object):
         self.error_score = error_score
         self.metrics = [np.mean, np.std] if metrics is None else metrics
         self.random_state = random_state
+        self.verbose = verbose
+
+        _check_scorer(scorer)
         self.scorer = scorer
         self.scores_ = None
-        self.verbose = verbose
 
     def initialize(self, X, y):
         """Set up :class:`ParallelEvaluation` job manager."""
@@ -433,7 +448,7 @@ class Evaluator(object):
                         best_data['params'] = \
                             self.params[case_est][best_draw]
 
-                if draw_data['test_score_mean'] < best_data['test_score_mean']:
+                if draw_data['test_score_mean'] > best_data['test_score_mean']:
                     best_data, best_draw = draw_data, draw_num
 
                     try:

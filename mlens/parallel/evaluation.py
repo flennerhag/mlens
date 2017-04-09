@@ -12,9 +12,11 @@ from .estimation import (fit_trans,
 
 from ..externals.joblib import delayed
 from ..utils import pickle_load
+from ..utils.exceptions import FitFailedWarning
 from ..externals.sklearn.base import clone
 
 import os
+import warnings
 
 try:
     from time import perf_counter as time
@@ -124,39 +126,53 @@ def _name(case, est_name):
 
 def fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
               error_score):
-    """Fit and score an estimator given a set of params."""
-    raise_ = error_score is None
+    """Wrapper around fit function to determine how to handle exceptions."""
 
-    # Fit estimator
+    if error_score is None:
+        # If fit or scoring fails, we raise errors.
+        return _fit_score(case, tr_list, est_name, est, params, X, y, idx,
+                          scorer, error_score)
+
+    else:
+        # Otherwise, we issue a warning and set an error score.
+        try:
+            return _fit_score(case, tr_list, est_name, est, params, X, y, idx,
+                              scorer, error_score)
+        except Exception as exception:
+
+            warnings.warn("Cross validation failed. Setting error score {}"
+                          ".".format(error_score), FitFailedWarning)
+
+            return case, est_name, params[0], error_score, error_score, 0
+
+
+def _fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
+               error_score):
+    """Fit an estimator and generate scores for train and test set."""
     est = clone(est).set_params(**params[1])
 
+    # Prepare training set
     xtrain, ytrain, _ = _slice_array(X, y, idx[0])
 
     for tr_name, tr in tr_list:
         xtrain = tr.transform(xtrain)
 
+    # Fit estimator
     t0 = time()
     est = est.fit(xtrain, ytrain)
     fit_time = time() - t0
 
-    # Predict and score
+    # Prepare test set
     xtest, ytest, _ = _slice_array(X, y, idx[1])
 
     for tr_name, tr in tr_list:
         xtest = tr.transform(xtest)
 
-    scores = []
-    for y, x in zip([ytrain, ytest], [xtrain, xtest]):
-        p = est.predict(x)
+    # Score train and test set
+    train_score = scorer(est, xtrain, ytrain)
+    test_score = scorer(est, xtest, ytest)
 
-        try:
-            s = scorer(y, p)
-        except Exception:
-            s = error_score
-
-        scores.append(s)
-
-    return case, est_name, params[0], scores[0], scores[1], fit_time
+    return case, est_name, params[0], train_score, test_score, fit_time
 
 
 ###############################################################################

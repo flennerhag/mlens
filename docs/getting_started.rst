@@ -220,7 +220,7 @@ an example. To explicitly fit preprocessing pipelines, call ``preprocess``. ::
 
     >>> evaluator.preprocess(X, y, preprocess_cases)
     Preprocessing 3 preprocessing pipelines over 10 CV folds
-    [Parallel(n_jobs=-1)]: Done  30 out of  30 | elapsed:    0.0s finished
+    [Parallel(n_jobs=-1)]: Done  30 out of  30 | elapsed:    0.2s finished
     Preprocessing done | 00:00:00
 
 To launch an evaluation, we need a mapping of parameter distributions to

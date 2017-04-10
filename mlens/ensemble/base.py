@@ -55,8 +55,8 @@ class LayerContainer(BaseEstimator):
         level of verbosity.
 
             - ``verbose = 0`` silent (same as ``verbose = False``)
-            - ``verbose = 1`` messages at start and finish \
-            (same as ``verbose = True``)
+            - ``verbose = 1`` messages at start and finish
+              (same as ``verbose = True``)
             - ``verbose = 2`` messages for each layer
 
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
@@ -224,7 +224,7 @@ class LayerContainer(BaseEstimator):
         if self.verbose:
             pout = "stdout" if self.verbose >= 3 else "stderr"
             safe_print("Processing layers (%d)" % self.n_layers,
-                       file=pout, flush=True)
+                       file=pout, flush=True, end="\n")
             t0 = time()
 
         # Initialize cache
@@ -310,7 +310,7 @@ class LayerContainer(BaseEstimator):
         if self.verbose:
             pout = "stdout" if self.verbose >= 3 else "stderr"
             safe_print("Processing layers (%d)" % self.n_layers,
-                       file=pout, flush=True)
+                       file=pout, flush=True, end="\n")
             t0 = time()
 
         # Initialize cache

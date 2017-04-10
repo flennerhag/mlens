@@ -58,8 +58,8 @@ predicted class membership. ::
 
         return ensemble
 
-As in the :ref:`ensemble guide`, we fit on the first half, and test on the
-remainder. ::
+As in the :ref:`ensemble guide <ensemble-guide>`, we fit on the first half,
+and test on the remainder. ::
 
     >>> ensemble = build_ensemble(proba=False)
     >>> ensemble.fit(X[:75], y[:75])
@@ -142,7 +142,7 @@ syntax. ::
     0.97333333333333338
 
 In this case, the multi-layer :class:`SequentialEnsemble` with an initial
-blended layer and second stacked layer achieved the same performance as the
+blended layer and second stacked layer achieves similar performance as the
 :class:`BlendEnsemble` with probabilistic learning. Note that we could have
 made any of the layers probabilistic by setting ``Proba=True``.
 
@@ -221,5 +221,86 @@ don't forget to remove the temporary directory.
 
 .. _model-selection-tutorial:
 
-Meta learner model selection
-----------------------------
+Ensemble model selection
+------------------------
+
+Ensembles benefit from a diversity of base learners, but often it is not clear
+how to parametrize the base learners. In fact, combining base learners with
+lower predictive power can often yield a superior ensemble. This hinges on the
+errors made by the base learners being relatively uncorrelated, thus allowing
+a meta estimator to learn how to overcome each model's weakness. But with
+highly correlated errors, there is little for the ensemble to learn from.
+
+To fully exploit the learning capacity in an ensemble, it is beneficial to
+conduct careful hyper parameter tuning, treating the base learner's parameters
+as the parameters of the ensemble. By far the most critical part of the
+ensemble is the meta learner, but selecting an appropriate meta learner can be
+an ardous task if the entire ensemble has to be evaluated each time.
+
+.. py:currentmodule:: mlens.preprocessing
+
+The :class:`EnsembleTransformer` can be leveraged to treat the initial
+layers of the ensemble as preprocessing. Thus, a copy of the transformer is
+fitted once on each fold, and any model selection will use these pre-fits to
+convert raw input to prediction matrices that corresponds to the output of the
+specified ensemble.
+
+.. py:currentmodule:: mlens.ensemble
+
+The transformer follows the same API as the :class:`SequentialEnsemble`, but
+does not implement a meta estimator and has a transform method that recovers
+the prediction matrix from the ``fit`` call. In the following example,
+we run model selection on the meta learner of a blend ensemble, and try
+two configurations of the blend ensemble: learning from class predictions or
+from probability distributions over classes. ::
+
+    from mlens.preprocessing import EnsembleTransformer
+    from mlens.model_selection import Evaluator
+    from scipy.stats import uniform, randint
+    from pandas import DataFrame
+
+    # Set up two competing ensemble bases as preprocessing transformers:
+    # one blend ensemble base with proba and one without
+    base_learners = [RandomForestClassifier(random_state=seed),
+                     SVC(probability=True)]
+
+    proba_transformer = EnsembleTransformer().add('blend', base_learners, proba=True)
+    class_transformer = EnsembleTransformer().add('blend', base_learners, proba=False)
+
+    # Set up a preprocessing mapping
+    # Each pipeline in this map is fitted once on each fold before
+    # evaluating candidate meta learners.
+    preprocessing = {'proba': [('layer-1', proba_transformer)],
+                     'class': [('layer-1', class_transformer)]}
+
+    # Set up candidate meta learners
+    # We can specify a dictionary if we wish to try different candidates on
+    # different cases, or a list if all estimators should be run on all
+    # preprocessing pipelines (as in this example)
+    meta_learners = [SVC(), ('rf', RandomForestClassifier(random_state=2017))]
+
+    # Set parameter mapping
+    # Here, we differentiate distributions between cases for the random forest
+    params = {'svc': {'C': uniform(0, 10)},
+              ('class', 'rf'): {'max_depth': randint(2, 10)},
+              ('proba', 'rf'): {'max_depth': randint(2, 10),
+                                'max_features': uniform(0.5, 0.5)}
+              }
+
+    evaluator = Evaluator(scorer=f1, random_state=2017, cv=20)
+
+    evaluator.fit(X, y, meta_learners, params, preprocessing=preprocessing, n_iter=2)
+
+We can now compare the performance of the best fit for each candidate
+meta learner. ::
+
+    >>> DataFrame(evaluator.summary)
+               test_score_mean  test_score_std  train_score_mean  train_score_std  fit_time_mean  fit_time_std                                             params
+    class rf          0.955357        0.060950          0.972535         0.008303       0.024585      0.014300                                   {'max_depth': 5}
+          svc         0.961607        0.070818          0.972535         0.008303       0.000800      0.000233                               {'C': 7.67070164682}
+    proba rf          0.980357        0.046873          0.992254         0.007007       0.022789      0.003296   {'max_depth': 3, 'max_features': 0.883535082341}
+          svc         0.974107        0.051901          0.969718         0.008060       0.000994      0.000367                              {'C': 0.209602254061}
+
+
+In this toy example, our model selection suggests the Random Forest is the
+best meta learner when the ensemble uses probabilistic learning.

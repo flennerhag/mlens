@@ -106,15 +106,12 @@ magnitude faster that fitting an entire ensemble repeatedly just to evaluate
 (say) the meta learner. Output allows easy comparison of estimator performance,
 as in the example below. ::
 
-
-                 train_score_mean  train_score_std  test_score_mean  test_score_std  fit_time_mean  fit_time_std               params
-   prep-1 est-1          0.957037         0.005543         0.960000        0.032660       0.001000      0.000605                   {}
-          est-2          0.980000         0.004743         0.966667        0.033333       0.000805      0.000520  {'n_neighbors': 15}
-   prep-2 est-1          0.957037         0.005543         0.960000        0.032660       0.000845      0.000279                   {}
-          est-2          0.965185         0.003395         0.960000        0.044222       0.000501      0.000168   {'n_neighbors': 8}
-   prep-3 est-1          0.791111         0.019821         0.780000        0.133500       0.001026      0.000625                   {}
-          est-2          0.837037         0.014815         0.800000        0.126491       0.000675      0.000447   {'n_neighbors': 9}
-
+    >>> DataFrame(evaluator.summary)
+               test_score_mean  test_score_std  train_score_mean  train_score_std  fit_time_mean  fit_time_std                                             params
+    class rf          0.955357        0.060950          0.972535         0.008303       0.024585      0.014300                                   {'max_depth': 5}
+          svc         0.961607        0.070818          0.972535         0.008303       0.000800      0.000233                               {'C': 7.67070164682}
+    proba rf          0.980357        0.046873          0.992254         0.007007       0.022789      0.003296   {'max_depth': 3, 'max_features': 0.883535082341}
+          svc         0.974107        0.051901          0.969718         0.008060       0.000994      0.000367                              {'C': 0.209602254061}
 
 .. toctree::
    :hidden:

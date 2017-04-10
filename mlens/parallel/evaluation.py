@@ -157,6 +157,12 @@ def _fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
     for tr_name, tr in tr_list:
         xtrain = tr.transform(xtrain)
 
+    # We might have to rebase the training labels since a BlendEnsemble would
+    # make xtrain. Since Blend is sequential, we can discard the first 'n'
+    # observation until the dimensions match
+    rebase = ytrain.shape[0] - xtrain.shape[0]
+    ytrain = ytrain[rebase:]
+
     # Fit estimator
     t0 = time()
     est = est.fit(xtrain, ytrain)

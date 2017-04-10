@@ -239,4 +239,5 @@ class SequentialEnsemble(BaseEnsemble):
                          cls=cls,
                          indexer=indexer,
                          preprocessing=preprocessing,
-                         verbose=self.verbose)
+                         verbose=self.verbose,
+                         **kwargs)

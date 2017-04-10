@@ -224,7 +224,7 @@ class LayerContainer(BaseEstimator):
         if self.verbose:
             pout = "stdout" if self.verbose >= 3 else "stderr"
             safe_print("Processing layers (%d)" % self.n_layers,
-                       file=pout, flush=True, end="\n")
+                       file=pout, flush=True, end="\n\n")
             t0 = time()
 
         # Initialize cache
@@ -310,7 +310,7 @@ class LayerContainer(BaseEstimator):
         if self.verbose:
             pout = "stdout" if self.verbose >= 3 else "stderr"
             safe_print("Processing layers (%d)" % self.n_layers,
-                       file=pout, flush=True, end="\n")
+                       file=pout, flush=True, end="\n\n")
             t0 = time()
 
         # Initialize cache

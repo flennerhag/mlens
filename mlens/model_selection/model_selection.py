@@ -522,12 +522,42 @@ class Evaluator(object):
 
     def _print_eval_start(self, printout):
         """Print initiation message and return timer."""
-        msg = ('Evaluating %i models for %i parameter draws over %i' +
-               ' preprocessing pipelines and %i CV folds, totalling %i fits')
+        if self.preprocessing is None:
+            msg = ('Evaluating %i models for %i parameter draws over %i '
+                   'CV folds, totalling %i fits')
 
-        e = len(self.estimators)
-        p = len(getattr(self, 'preprocessing', [1]))
-        c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
+            e, c, tot = self._get_count()
+            safe_print(msg % (e, self.n_iter, c, tot), file=printout)
+        else:
+            msg = ('Evaluating %i models for %i parameter draws over %i' +
+                   ' preprocessing pipelines and %i CV folds, '
+                   'totalling %i fits')
 
-        tot = e * p * self.n_iter * c
-        safe_print(msg % (e, self.n_iter, p, c, tot), file=printout)
+            e, p, c, tot = self._get_count()
+            safe_print(msg % (e, self.n_iter, p, c, tot), file=printout)
+
+    def _get_count(self):
+        """Utility for counting number of fits to make."""
+        c = self.cv
+
+        if self.preprocessing is None:
+            # Simply grab length of estimator list
+            e = len(self.estimators)
+            tot = e * c * self.n_iter
+            return int(e), int(c), int(tot)
+        else:
+            # Need to consider cases
+            p = len(self.preprocessing)
+
+            if isinstance(self.estimators, list):
+                # If all esimtimators are applied to all cases, just grab
+                # length of list and multiply by cases
+                e = len(self.estimators) * p
+            else:
+                # Sum over cases
+                e = 0
+                for v in self.estimators.values():
+                    e += len(v)
+
+            tot = e * c * self.n_iter
+            return int(e), int(p), int(c), int(tot)

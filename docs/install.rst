@@ -1,3 +1,6 @@
+
+.. Install instructions
+
 Install
 =======
 
@@ -19,27 +22,11 @@ development version, install the ``master`` branch of the Github repository.
     git clone https://flennerhag/mlens.git; cd mlens;
     python install setup.py
 
-To update, first pull the latest changes, and re-install:
-
-.. code-block:: bash
-
-    git pull; python install setup.py
-
-To avoid explicitly re-installing, one can install the repository with
-symlinks enabled through ``pip``:
-
-.. code-block:: bash
-
-    git clone https://flennerhag/mlens.git; cd mlens;
-    pip install -e .
-
-This requires only pulling the latest changes to update the library.
-
 Developer
 ^^^^^^^^^
 
 For the latest in-development version, install the ``dev`` branch of the
-:mod:`mlens` repository. It is advised to check Travis build history
+:mod:`mlens` repository. It is advised to check the CI build status
 first to ensure the current version does not contain apparent errors.
 
 Dependencies
@@ -52,11 +39,31 @@ Package       Version   Module
 ============  =======  ======================
 scipy         >= 0.17  All
 numpy         >= 1.11  All
-matplotlib    >= 1.5   Only for visualization
-seaborn       >= 0.7   Only for visualization
 ============  =======  ======================
 
-Test Build
+.. currentmodule:: mlens.visualization
+
+Additionally, to use the :mod:`visualization` module, the following
+libraries are necessary:
+
+============  =======
+Package       Version
+============  =======
+matplotlib    >= 1.5
+seaborn       >= 0.7
+============  =======
+
+If you want to run examples, you may also need:
+
+============  =======
+Package       Version
+============  =======
+sklearn       >= 0.17
+pandas        >= 0.17
+============  =======
+
+
+Test build
 ==========
 
 To test the installation, run:

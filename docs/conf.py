@@ -59,6 +59,7 @@ extensions = ['sphinx.ext.autodoc',
 
 # Intersphinx options
 intersphinx_mapping = {'http://scikit-learn.org/stable/': None,
+                       'http://docs.scipy.org/doc/numpy/': None,
                        'http://matplotlib.org/': None,
                        'http://pandas.pydata.org/pandas-docs/stable/': None}
 

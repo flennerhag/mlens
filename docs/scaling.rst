@@ -2,5 +2,5 @@
 
 .. _scaling:
 
-Scale Benchmarks
+Scale benchmarks
 ================

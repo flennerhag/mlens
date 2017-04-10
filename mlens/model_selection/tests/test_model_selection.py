@@ -34,6 +34,17 @@ def test_check():
     np.testing.assert_raises(ValueError, Evaluator, mape)
 
 
+def test_params():
+    """[Model Selection] Test raises on bad params."""
+    evl = Evaluator(mape_scorer)
+
+    np.testing.assert_raises(ValueError,
+                             evl.fit, X, y, [OLS()],
+                             {('bad', 'ols'):
+                                  {'offset': randint(1, 10)}},
+                             preprocessing={'prep': [Scale()]})
+
+
 def test_raises():
     """[Model Selection] Test raises on error."""
 

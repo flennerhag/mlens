@@ -142,7 +142,7 @@ class BaseEstimator(object):
         """Fit layer through given attribute."""
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
-            safe_print('Fitting %s' % self.name)
+            safe_print('Fitting %s' % self.name, file=printout)
             t0 = time_()
 
         pred_method = 'predict' if not self.proba else 'predict_proba'
@@ -215,7 +215,7 @@ class BaseEstimator(object):
 
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
-            safe_print('Predicting %s' % self.name)
+            safe_print('Predicting %s' % self.name, file=printout)
             t0 = time_()
 
         pred_method = 'predict' if not self.proba else 'predict_proba'
@@ -244,7 +244,7 @@ class BaseEstimator(object):
 
         if self.verbose:
             printout = "stderr" if self.verbose < 50 else "stdout"
-            safe_print('Transforming %s' % self.name)
+            safe_print('Transforming %s' % self.name, file=printout)
             t0 = time_()
 
         pred_method = 'predict' if not self.proba else 'predict_proba'

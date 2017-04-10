@@ -4,9 +4,16 @@ Place holder for more rigorous tests.
 
 """
 import numpy as np
-from mlens.ensemble import SequentialEnsemble
-from mlens.utils.dummy import Data, PREPROCESSING, ESTIMATORS, \
-    ECM, LayerGenerator
+from mlens.ensemble import (SequentialEnsemble,
+                            SuperLearner,
+                            BlendEnsemble,
+                            Subsemble)
+
+from mlens.utils.dummy import (Data,
+                               PREPROCESSING,
+                               ESTIMATORS,
+                               ECM,
+                               LayerGenerator)
 
 
 FOLDS = 3
@@ -55,3 +62,48 @@ def test_predict():
     out = ens.fit(X, y).predict(X)
 
     np.testing.assert_array_equal(U, out)
+
+
+def test_equivalence_super_learner():
+    """[Sequential] Test ensemble equivalence with SuperLearner."""
+
+    ens = SuperLearner()
+    seq = SequentialEnsemble()
+
+    ens.add(ECM)
+    seq.add('stack', ECM)
+
+    F = ens.fit(X, y).predict(X)
+    P = seq.fit(X, y).predict(X)
+
+    np.testing.assert_array_equal(P, F)
+
+
+def test_equivalence_blend():
+    """[Sequential] Test ensemble equivalence with BlendEnsemble."""
+
+    ens = BlendEnsemble()
+    seq = SequentialEnsemble()
+
+    ens.add(ECM)
+    seq.add('blend', ECM)
+
+    F = ens.fit(X, y).predict(X)
+    P = seq.fit(X, y).predict(X)
+
+    np.testing.assert_array_equal(P, F)
+
+
+def test_equivalence_subsemble():
+    """[Sequential] Test ensemble equivalence with Subsemble."""
+
+    ens = Subsemble()
+    seq = SequentialEnsemble()
+
+    ens.add(ECM)
+    seq.add('subset', ECM)
+
+    F = ens.fit(X, y).predict(X)
+    P = seq.fit(X, y).predict(X)
+
+    np.testing.assert_array_equal(P, F)

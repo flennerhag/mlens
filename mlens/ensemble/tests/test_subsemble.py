@@ -3,12 +3,12 @@
 
 """
 import numpy as np
-from mlens.utils.dummy import OLS
+from mlens.utils.dummy import OLS, ECM
 from mlens.base import SubsetIndex
 
 from mlens.parallel.subset import _expand_instance_list, _get_col_idx
 
-from mlens.ensemble import Subsemble
+from mlens.ensemble import Subsemble, SuperLearner
 
 X = np.arange(24).reshape((12, 2))
 y = X[:, 0] * X[:, 1]
@@ -62,3 +62,18 @@ def test_subset_fit():
     pred = ens.predict(X)
 
     np.testing.assert_array_equal(pred, g)
+
+
+def test_subset_equiv():
+    """[Subsemble] Test equivalence with SuperLearner for J=1."""
+
+    sub = Subsemble(partitions=1)
+    sl = SuperLearner()
+
+    sub.add(ECM)
+    sl.add(ECM)
+
+    F = sub.fit(X, y).predict(X)
+    P = sl.fit(X, y).predict(X)
+
+    np.testing.assert_array_equal(P, F)

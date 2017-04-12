@@ -664,6 +664,14 @@ class BaseEnsemble(BaseEstimator):
                         scorer=self.scorer,
                         **kwargs)
 
+        # Check parameter compatability
+        if 'proba' in kwargs:
+            scorer = getattr(self, 'scorer', None)
+            if kwargs['proba'] and scorer:
+                raise ValueError("Cannot score probability-based predictions."
+                                 "Set either ensemble parameter 'scorer' to "
+                                 "None or layer parameter 'Proba' to False.")
+
         # Set the layer as an attribute of the ensemble
         lyr = list(self.layers.layers)[-1]
         attr = lyr.replace('-', '_').replace(' ', '').strip()

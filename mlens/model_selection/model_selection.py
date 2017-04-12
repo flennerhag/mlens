@@ -15,12 +15,13 @@ import sys
 import numpy as np
 
 from ..base import FoldIndex
+from ..metrics import make_scorer
 from ..parallel import ParallelEvaluation
 from ..utils import (print_time,
                      safe_print,
                      check_instances,
-                     assert_correct_format)
-from ..metrics import make_scorer
+                     assert_correct_format,
+                     check_inputs)
 
 try:
     from time import perf_counter as time
@@ -96,6 +97,19 @@ class Evaluator(object):
     random_state : int, optional
         seed for creating folds (if shuffled) and parameter draws
 
+    array_check : int (default = 2)
+        level of strictness in checking input arrays.
+
+            - ``array_check = 0`` will not check ``X`` or ``y``
+
+            - ``array_check = 1`` will check ``X`` and ``y`` for
+              inconsistencies and warn when format looks suspicious,
+              but retain original format.
+
+            - ``array_check = 2`` will impose Scikit-learn array checks,
+              which converts ``X`` and ``y`` to numpy arrays and raises
+              an error if conversion fails.
+
     n_jobs: int (default = -1)
         number of CPU cores to use.
 
@@ -122,6 +136,7 @@ class Evaluator(object):
                  backend='multiprocessing',
                  error_score=None,
                  metrics=None,
+                 array_check=2,
                  n_jobs=-1,
                  verbose=False):
 
@@ -132,6 +147,7 @@ class Evaluator(object):
         self.n_jobs = n_jobs
         self.error_score = error_score
         self.metrics = [np.mean, np.std] if metrics is None else metrics
+        self.array_check = array_check
         self.random_state = random_state
         self.verbose = verbose
 
@@ -360,6 +376,8 @@ class Evaluator(object):
         self : instance
             class instance with stored estimator evaluation results.
         """
+        X, y = check_inputs(X, y, check_level=self.array_check)
+
         # First check if list of estimators should be expanded to very case
         estimators, param_dicts = self._format(estimators, param_dicts)
 

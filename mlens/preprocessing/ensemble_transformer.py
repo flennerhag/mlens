@@ -302,12 +302,12 @@ class EnsembleTransformer(TransformerMixin, BaseEnsemble):
             # No layers instantiated, but raise_on_exception is False
             return
 
-        X, y = check_inputs(X, check_level=self.array_check)
+        X, _ = check_inputs(X, check_level=self.array_check)
 
         if self.shuffle:
             r = check_random_state(self.random_state)
             idx = r.permutation(X.shape[0])
-            X, y = X[idx], y[idx]
+            X = X[idx]
 
         y = self.layers.transform(X)
 

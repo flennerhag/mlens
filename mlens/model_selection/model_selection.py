@@ -15,7 +15,6 @@ import sys
 import numpy as np
 
 from ..base import FoldIndex
-from ..metrics import make_scorer
 from ..parallel import ParallelEvaluation
 from ..utils import (print_time,
                      safe_print,
@@ -34,11 +33,12 @@ except ImportError:
     _dict = dict
 
 from operator import itemgetter
+import warnings
 
 
 def _check_scorer(scorer):
     """Check that the scorer instance passed behaves as expected."""
-    if not type(scorer).__name__ == '_PredictScorer':
+    if not type(scorer).__name__ in ['_PredictScorer', '_ProbaScorer']:
         raise ValueError("The passes scorer does not seem to be a valid "
                          "scorer. Expected type '_PredictScorer', got '%s'."
                          "Use the mlens.metrics.make_scorer function to "
@@ -476,8 +476,10 @@ class Evaluator(object):
             self.params[key] = \
                 self._draw_params(param_dicts[key])
         except KeyError:
-            # No param draws desired. Set empty dict
-            self.params[key] = [{} for _ in range(self.n_iter)]
+            # No param draws desired. Set empty dict.
+            warnings.warn("No valid parameters found for %s. Will fit and "
+                          "score once with given parameter settings." % key)
+            self.params[key] = [{}]
 
     def _param_sets(self, param_dicts):
         """For each estimator, create a mapping of parameter draws."""

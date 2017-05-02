@@ -433,11 +433,12 @@ def fit_trans(dir, case, inst, X, y, idx, name):
     out = []
     for tr_name, tr in inst:
         # Fit transformer
-        tr = tr.fit(x, y)
+        tr.fit(x, y)
 
         # If more than one step, transform input for next step
         if len(inst) > 1:
-            x = tr.transform(x)
+            x, y = _transform(tr, x, y)
+
         out.append((tr_name, tr))
 
     # Write transformer list to cache
@@ -464,7 +465,7 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
 
     # Transform input
     for tr_name, tr in tr_list:
-        x = tr.transform(x)
+        x, z = _transform(tr, x, z)
 
     # Fit estimator
     inst.fit(x, z)
@@ -479,7 +480,7 @@ def fit_est(dir, case, inst_name, inst, X, y, pred, idx, raise_on_exception,
         x, z, tei = _slice_array(X, y, tei)
 
         for tr_name, tr in tr_list:
-            x = tr.transform(x)
+            x, z = _transform(tr, x, z)
 
         p = getattr(inst, attr)(x)
 
@@ -514,6 +515,19 @@ def _fit(**kwargs):
 
 
 ###############################################################################
+def _transform(tr, x, y):
+    """Try transforming with X and y. Else, transform with only X."""
+    try:
+        x = tr.transform(x, y)
+        if isinstance(x, (tuple, list)):
+            x, y = x
+
+    except TypeError:
+        x = tr.transform(x)
+
+    return x, y
+
+
 def _load_trans(dir, case, ivals, raise_on_exception):
     """Try loading transformers, and handle exception if not ready yet."""
     s = ivals[0]

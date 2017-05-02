@@ -7,8 +7,7 @@
 Cross-validation jobs for an :class:`Evaluator` instance.
 """
 
-from .estimation import (fit_trans,
-                         _slice_array)
+from .estimation import (fit_trans, _slice_array, _transform)
 
 from ..externals.joblib import delayed
 from ..utils import pickle_load
@@ -155,7 +154,7 @@ def _fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
     xtrain, ytrain, _ = _slice_array(X, y, idx[0])
 
     for tr_name, tr in tr_list:
-        xtrain = tr.transform(xtrain)
+        xtrain, ytrain = _transform(tr, xtrain, ytrain)
 
     # We might have to rebase the training labels since a BlendEnsemble would
     # make xtrain. Since Blend is sequential, we can discard the first 'n'

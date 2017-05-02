@@ -45,8 +45,8 @@ if PLOT:
         print("Could not import matplotlib. Will ignore PLOT flag.")
         PLOT = False
 
-MAX = int(50000)
-STEP = int(5000)
+MAX = int(1000000)
+STEP = int(200000)
 COLS = 5
 
 SEED = 2017
@@ -75,10 +75,12 @@ if __name__ == '__main__':
     c = os.cpu_count()
     print("Available CPUs: %i\n" % c)
 
-    cores = [int(np.floor(i)) for i in np.linspace(1, c, 3)]
+    cores = [int(np.floor(i)) for i in np.linspace(1, c, 2)]
 
-    ens = [[build_ensemble(kls, n_jobs=i, )
-            for kls in [SuperLearner, Subsemble, BlendEnsemble]]
+    ens_classes = [SuperLearner, Subsemble, BlendEnsemble]
+    kwargs = [{'folds': 4}, {'partitions': 8, 'folds': 4}, {}]
+    ens = [[build_ensemble(kls, n_jobs=i, **kwd)
+            for kls, kwd in zip(ens_classes , kwargs)]
            for i in cores]
 
     print('Ensemble architecture')
@@ -117,7 +119,8 @@ if __name__ == '__main__':
 
                 times[n][name].append(t1)
 
-                print('%s (%i) : %4.2f |' % (name, n, t1), end=" ", flush=True)
+                print('%s (%i) : %6.2fs |' % (name, n, t1),
+                      end=" ", flush=True)
             print()
         print()
 
@@ -128,7 +131,7 @@ if __name__ == '__main__':
         x = range(STEP, MAX + STEP, STEP)
 
         cm = [plt.cm.rainbow(i) for i in np.linspace(0, 1.0,
-                                                     int(3 *len(cores)))
+                                                     int(3 * len(cores)))
               ]
         plt.figure(figsize=(8, 8))
 

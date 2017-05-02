@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import tempfile
 import warnings
+from joblib import dump
 
 import numpy as np
 
@@ -149,10 +150,18 @@ class ParallelProcessing(object):
 
             shape = self._get_lyr_sample_size(lyr)
 
-            self.job.P.append(np.memmap(filename=f,
-                                        dtype=np.float,
-                                        mode='w+',
-                                        shape=shape))
+            try:
+                self.job.P.append(np.memmap(filename=f,
+                                            dtype=np.float,
+                                            mode='w+',
+                                            shape=shape))
+            except Exception as exc:
+                raise OSError("Cannot create prediction matrix of shape ("
+                              "%i, %i), size %i MBs, for %s.\n Note that "
+                              "files sizes are limited to 2GB on 32-bit "
+                              "platforms. Details:\n%r" %
+                              (shape[0], shape[1], 8.*shape[0]*shape[1]/1e6,
+                               name, exc))
 
         self.__initialized__ = 1
 

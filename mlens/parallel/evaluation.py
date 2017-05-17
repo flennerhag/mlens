@@ -7,15 +7,15 @@
 Cross-validation jobs for an :class:`Evaluator` instance.
 """
 
-from .estimation import (fit_trans, _slice_array, _transform)
+import os
+import warnings
 
+from .estimation import (fit_trans, _slice_array, _transform)
 from ..externals.joblib import delayed
 from ..utils import pickle_load
 from ..utils.exceptions import FitFailedWarning
 from ..externals.sklearn.base import clone
 
-import os
-import warnings
 
 try:
     from time import perf_counter as time

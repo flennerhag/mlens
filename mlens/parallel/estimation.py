@@ -13,14 +13,12 @@ from time import sleep
 
 import numpy as np
 
-from joblib import delayed
-
+from ..externals.joblib import delayed
 from ..utils import (check_is_fitted,
                      pickle_load,
                      pickle_save,
                      print_time,
                      safe_print)
-
 from ..utils.exceptions import (NotFittedError,
                                 ParallelProcessingError,
                                 ParallelProcessingWarning)

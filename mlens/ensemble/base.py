@@ -9,8 +9,6 @@ Base classes for ensemble layer management.
 
 from __future__ import division, print_function
 
-import gc
-import warnings
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 

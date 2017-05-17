@@ -17,7 +17,7 @@ def test_fit_score():
                     est_name='ols',
                     est=OLS(),
                     params=(0, {'offset': 2}),
-                    X=X,
+                    x=X,
                     y=y,
                     idx=((0, 5), (5, 10)),
                     scorer=make_scorer(mape, greater_is_better=False),

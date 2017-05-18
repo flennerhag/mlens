@@ -541,23 +541,11 @@ class Evaluator(object):
 
                 if best_data is None:
                     best_data, best_draw = draw_data, draw_num
-
-                    try:
-                        best_data['params'] = \
-                            self.params[case_est][best_draw]
-                    except KeyError:
-                        best_data['params'] = \
-                            self.params[case_est][best_draw]
+                    best_data['params'] = self.params[case_est][best_draw]
 
                 if draw_data['test_score_mean'] > best_data['test_score_mean']:
                     best_data, best_draw = draw_data, draw_num
-
-                    try:
-                        best_data['params'] = \
-                            self.params[case_est][best_draw]
-                    except KeyError:
-                        best_data['params'] = \
-                            self.params[case_est][best_draw]
+                    best_data['params'] = self.params[case_est][best_draw]
 
             # Assign data associated with best test score to summary dict
             # We invert the dictionary nesting here

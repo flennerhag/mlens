@@ -92,13 +92,15 @@ def test_w_prep():
     evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100)
 
     # Preprocessing
-    evl.preprocess(X, y, {'pr': [Scale()], 'no': []})
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
 
-    # Fitting
-    evl.evaluate(X, y,
-                 estimators=[OLS()],
-                 param_dicts={'ols': {'offset': randint(1, 10)}},
-                 n_iter=3)
+        evl.preprocess(X, y, {'pr': [Scale()], 'no': []})
+
+        # Fitting
+        evl.evaluate(X, y,
+                     estimators=[OLS()],
+                     param_dicts={'ols': {'offset': randint(1, 10)}},
+                     n_iter=3)
 
     np.testing.assert_approx_equal(
             evl.summary['test_score_mean'][('no', 'ols')],
@@ -114,13 +116,16 @@ def test_w_prep():
 
 def test_w_prep_fit():
     """[Model Selection] Test run with preprocessing, single step."""
-    evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100)
+    evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100,
+                    verbose=True)
 
-    evl.fit(X, y,
-            estimators=[OLS()],
-            param_dicts={'ols': {'offset': randint(1, 10)}},
-            preprocessing={'pr': [Scale()], 'no': []},
-            n_iter=3)
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+
+        evl.fit(X, y,
+                estimators=[OLS()],
+                param_dicts={'ols': {'offset': randint(1, 10)}},
+                preprocessing={'pr': [Scale()], 'no': []},
+                n_iter=3)
 
     np.testing.assert_approx_equal(
             evl.summary['test_score_mean'][('no', 'ols')],
@@ -136,18 +141,20 @@ def test_w_prep_fit():
 
 def test_w_prep_set_params():
     """[Model Selection] Test run with preprocessing, sep param dists."""
-    evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100)
+    evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100,
+                    verbose=True)
 
     params = {('no', 'ols'): {'offset': randint(3, 6)},
               ('pr', 'ols'): {'offset': randint(1, 3)},
               }
 
-    # Fitting
-    evl.fit(X, y,
-            estimators={'pr': [OLS()], 'no': [OLS()]},
-            param_dicts=params,
-            preprocessing={'pr': [Scale()], 'no': []},
-            n_iter=3)
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+
+        evl.fit(X, y,
+                estimators={'pr': [OLS()], 'no': [OLS()]},
+                param_dicts=params,
+                preprocessing={'pr': [Scale()], 'no': []},
+                n_iter=3)
 
     np.testing.assert_approx_equal(
             evl.summary['test_score_mean'][('no', 'ols')],

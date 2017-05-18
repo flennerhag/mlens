@@ -50,16 +50,16 @@ unacceptable memory consumption if each sub-process requires a copy of the
 training data, but ML-Ensemble avoids this issue by using memory mapping.
 
 Training data is persisted to a memory cache that each sub-process has access
-to, allowing parallel processing to require no more memory than processing
-on a single thread. For more details, see :ref:`memory`.
+to, completely circumventing serialization of input data to be sent between
+the parent process and sub-processes. Moreover, if no copying takes place
+during estimation, parallel processing require no more memory than processing
+single-process estimation. For more details, see :ref:`memory`.
 
-Expect 95-97% of training time to be spent fitting the base estimators -
-*irrespective* of data size. The time it takes to fit an ensemble depends
-therefore entirely on how fast the chosen base learners are,
-and how many CPU cores are available.
-
-Moreover, ensemble classes that fit estimators on subsets scale more
-efficiently than the base learners when these do not scale linearly.
+Expect 95-97% of training time to be spent fitting the base estimators. In
+general therefore, the time it takes to fit an ensemble depends
+therefore on the speed of the chosen base learners and the number of CPU cores
+available. Some ensembles will even scale more efficiently than their base
+learners if these scale superlinearly.
 
 Modular build of multi-layered ensembles
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

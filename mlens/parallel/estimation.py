@@ -8,10 +8,9 @@ Base class for estimation.
 """
 
 import os
-from abc import ABCMeta, abstractmethod
-from time import sleep
-
 import numpy as np
+from time import sleep
+from abc import ABCMeta, abstractmethod
 
 from ..externals.joblib import delayed
 from ..utils import (check_is_fitted,

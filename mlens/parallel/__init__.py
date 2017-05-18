@@ -10,7 +10,15 @@ from .blend import Blender
 from .subset import SubStacker
 from .single_run import SingleRun
 from .evaluation import Evaluation
+from .estimation import BaseEstimator
 from .manager import ParallelProcessing, ParallelEvaluation
 
-__all__ = ['ParallelProcessing', 'ParallelEvaluation',
-           'Stacker', 'Blender', 'SubStacker', 'SingleRun', 'Evaluation']
+__all__ = ['ParallelProcessing',
+           'ParallelEvaluation',
+           'Stacker',
+           'Blender',
+           'SubStacker',
+           'SingleRun',
+           'Evaluation',
+           'BaseEstimator'
+           ]

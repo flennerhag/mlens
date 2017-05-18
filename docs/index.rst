@@ -43,7 +43,7 @@ ensemble, to train it call the ``fit`` method::
 Memory Efficient Parallelized Learning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Because base learners in an ensemble are independent of each other, ensembles
-benefit greatly from multithreading and the fundamental philosophy of
+benefit greatly from multiprocessing and the fundamental philosophy of
 ML-Ensemble is to enable as much parallel processing as possible with minimum
 impact on memory consumption. Estimation in parallel can easily lead to
 unacceptable memory consumption if each sub-process requires a copy of the

@@ -1,6 +1,6 @@
 .. _benchmarks:
 
-Performance Benchmarks
+Performance benchmarks
 ======================
 
 The Friedman Regression Problem 1

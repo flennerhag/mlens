@@ -1,3 +1,8 @@
+
+.. License
+
+.. _license:
+
 Licence
 =======
 

@@ -100,8 +100,8 @@ class ParallelProcessing(object):
 
         try:
             # Fails on python 2
-            self.job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
-                                                       dir=dir)
+            self.job.tmp = \
+                tempfile.TemporaryDirectory(prefix='mlens_', dir=dir)
             self.job.dir = self.job.tmp.name
         except Exception:
             self.job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
@@ -140,24 +140,35 @@ class ParallelProcessing(object):
         # Each layer will be fitted on P[i] and write to P[i + 1]
         for n, (name, lyr) in enumerate(self.layers.layers.items()):
 
-            f = os.path.join(self.job.dir, '%s.mmap' % name)
-
             # We call the indexers fit method now at initialization - if there
             # is something funky with indexing it is better to catch it now
             # than mid-estimation
             lyr.indexer.fit(self.job.P[n])
 
-            shape = self._get_lyr_sample_size(lyr)
-
-            self.job.P.append(np.memmap(filename=f,
-                                        dtype=np.float,
-                                        mode='w+',
-                                        shape=shape))
+            # Prediction array
+            self._gen_prediction_array(lyr, name)
 
         self.__initialized__ = 1
 
         # Release any memory before going into process
         gc.collect()
+
+    def _gen_prediction_array(self, lyr, name):
+        """Persist prediction array to disk."""
+        f = os.path.join(self.job.dir, '%s.mmap' % name)
+        shape = self._get_lyr_sample_size(lyr)
+        try:
+            self.job.P.append(np.memmap(filename=f,
+                                        dtype=np.float,
+                                        mode='w+',
+                                        shape=shape))
+        except Exception as exc:
+            raise OSError("Cannot create prediction matrix of shape ("
+                          "%i, %i), size %i MBs, for %s.\n Note that "
+                          "files sizes are limited to 2GB on 32-bit "
+                          "platforms. Details:\n%r" %
+                          (shape[0], shape[1], 8 * shape[0] * shape[1] / 1e6,
+                           name, exc))
 
     def _get_lyr_sample_size(self, lyr):
         """Decide what sample size to create P with based on the job type."""
@@ -199,7 +210,7 @@ class ParallelProcessing(object):
         with Parallel(n_jobs=self.layers.n_jobs,
                       temp_folder=self.job.dir,
                       max_nbytes=None,
-                      mmap_mode='r+',
+                      mmap_mode='w+',
                       verbose=self.layers.verbose,
                       backend=self.layers.backend) as parallel:
 
@@ -281,7 +292,8 @@ class ParallelProcessing(object):
         fargs = f.__func__.__code__.co_varnames
 
         # Strip variables we don't want to set from job directly
-        args = [a for a in fargs if a not in {'parallel', 'X', 'P', 'self'}]
+        args = [a for a in fargs
+                if a not in {'parallel', 'X', 'P', 'self'}]
 
         # Build argument list
         kwargs = {a: getattr(self.job, a) for a in args if a in
@@ -319,8 +331,8 @@ class ParallelEvaluation(object):
 
         try:
             # Fails on python 2
-            self.job.tmp = tempfile.TemporaryDirectory(prefix='mlens_',
-                                                       dir=dir)
+            self.job.tmp = \
+                tempfile.TemporaryDirectory(prefix='mlens_', dir=dir)
             self.job.dir = self.job.tmp.name
         except Exception:
             self.job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
@@ -363,7 +375,7 @@ class ParallelEvaluation(object):
         with Parallel(n_jobs=self.evaluator.n_jobs,
                       temp_folder=self.job.dir,
                       max_nbytes=None,
-                      mmap_mode='r+',
+                      mmap_mode='w+',
                       verbose=self.evaluator.verbose,
                       backend=self.evaluator.backend) as parallel:
 

@@ -7,16 +7,15 @@
 Cross-validation jobs for an :class:`Evaluator` instance.
 """
 
-from .estimation import (fit_trans,
-                         _slice_array)
+import os
+import warnings
 
+from .estimation import (fit_trans, _slice_array, _transform)
 from ..externals.joblib import delayed
 from ..utils import pickle_load
 from ..utils.exceptions import FitFailedWarning
 from ..externals.sklearn.base import clone
 
-import os
-import warnings
 
 try:
     from time import perf_counter as time
@@ -64,7 +63,7 @@ class Evaluation(object):
         parallel(delayed(fit_trans)(dir=dir,
                                     case=case,
                                     inst=instance_list,
-                                    X=X,
+                                    x=X,
                                     y=y,
                                     idx=tri,
                                     name=None)
@@ -101,7 +100,7 @@ class Evaluation(object):
                 est_name=est_name,
                 est=est,
                 params=(i, params),
-                X=X,
+                x=X,
                 y=y,
                 idx=(tri, tei),
                 scorer=self.evaluator.scorer,
@@ -124,19 +123,19 @@ def _name(case, est_name):
         return est_name.split('__')[0]
 
 
-def fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
+def fit_score(case, tr_list, est_name, est, params, x, y, idx, scorer,
               error_score):
     """Wrapper around fit function to determine how to handle exceptions."""
 
     if error_score is None:
         # If fit or scoring fails, we raise errors.
-        return _fit_score(case, tr_list, est_name, est, params, X, y, idx,
+        return _fit_score(case, tr_list, est_name, est, params, x, y, idx,
                           scorer, error_score)
 
     else:
         # Otherwise, we issue a warning and set an error score.
         try:
-            return _fit_score(case, tr_list, est_name, est, params, X, y, idx,
+            return _fit_score(case, tr_list, est_name, est, params, x, y, idx,
                               scorer, error_score)
         except Exception as exception:
 
@@ -146,16 +145,22 @@ def fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
             return case, est_name, params[0], error_score, error_score, 0
 
 
-def _fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
+def _fit_score(case, tr_list, est_name, est, params, x, y, idx, scorer,
                error_score):
     """Fit an estimator and generate scores for train and test set."""
     est = clone(est).set_params(**params[1])
 
     # Prepare training set
-    xtrain, ytrain, _ = _slice_array(X, y, idx[0])
+    xtrain, ytrain = _slice_array(x, y, idx[0])
 
     for tr_name, tr in tr_list:
-        xtrain = tr.transform(xtrain)
+        xtrain, ytrain = _transform(tr, xtrain, ytrain)
+
+    # We might have to rebase the training labels since a BlendEnsemble would
+    # make xtrain. Since Blend is sequential, we can discard the first 'n'
+    # observation until the dimensions match
+    rebase = ytrain.shape[0] - xtrain.shape[0]
+    ytrain = ytrain[rebase:]
 
     # Fit estimator
     t0 = time()
@@ -163,7 +168,7 @@ def _fit_score(case, tr_list, est_name, est, params, X, y, idx, scorer,
     fit_time = time() - t0
 
     # Prepare test set
-    xtest, ytest, _ = _slice_array(X, y, idx[1])
+    xtest, ytest = _slice_array(x, y, idx[1])
 
     for tr_name, tr in tr_list:
         xtest = tr.transform(xtest)

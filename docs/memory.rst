@@ -12,10 +12,21 @@ Memory mapping
 .. :currentmodule:: mlens.utils
 
 When training data is stored in-memory in the parent process, training a
-ensemble in parallel entails copying the array in the parent process into
-the subprocess. This is both time consuming, as the data must first be sent
-to the sub-process, and memory intense as several copies of the same
-data must be kept in memory.
+ensemble in parallel entails sending the array from the parent process to
+the subprocess through serialization of the data. Even for moderately sized
+datasets, this is a time consuming task. Moreover, it creates replicas of the
+same dataset to be stored in-memory, and so the effective size of the data
+kept in memory scales with the number of processes used in parallel. For
+large datasets, this can be catastrophic.
+
+ML-Ensemble overcomes this issue by using memmapping_, which allows
+sub-processes to share memory of the underlying data. Hence, input data need
+not be serialized and sent to the subprocesses, and as long as no copying
+takes place in the sub-process, memory consumption remains constant as the
+number of sub-processes grows. Hence, ML-Ensemble can remain memory neutral as
+the number of CPU's in use increase. This last point relies critically on
+avoiding copying, which may not be possible, see gotchas_ for further
+information.
 
 We can easily illustrate this issue by running a dummy function in parallel
 that merely holds whatever data it receives from a few seconds before closing.
@@ -75,10 +86,12 @@ With such a memory profile, an ensemble would not be very scalable.
 .. image:: img/mem_profile_copy.png
    :align: center
 
-ML-Ensemble overcomes this issue by using memmapping_, thereby allowing
-sub-processes to share memory of the underlying data. In so doing, ML-Ensemble
-can remain memory neutral as the number of CPU's in use increase. To see this
-first hand, we can modify the above example to convert the toy array to
+Memmapping allows us to overcome these issues for two reaons. First, it entirely
+overcomes serialization of the input data as processes share memory and hence
+the subprocesses can access the input arrays directly from the parent process.
+Second, insofar no copying of the input data takes place, memmapping avoids
+scaling the data size requirement by the number of processes running.
+To see this first hand, we can modify the above example to convert the toy array to
 a memmap and again monitor memory usage. ::
 
     >>> import os
@@ -205,14 +218,51 @@ estimator. ::
 
 .. image:: img/memory.png
 
+.. _gotchas:
+
 Gotcha's
 ^^^^^^^^
 
-The above analysis only concerns the memory profile of ML-Ensemble. If
-the ensemble is comprised of base learners that copies data *internally*,
-the ensemble will not be memory neutral. Nevertheless, memmapping
-always avoids array serialization between sub-processes and copying of the
-full input array.
+The above analysis holds under two conditions: (1) no copying of the input
+data is triggered during slicing the K-folds and (2) the base estimators
+do not copy the data internally. However memmapping always avoids array
+serialization between sub-processes which can be significant burden on time
+consumption.
+
+**(1)**
+Because of the structure of `numpy's memory model`_, slicing an array returns
+a view_ only if the slice contiguous. In particular, this means that we
+**cannot** slice a numpy array to retrieve two partitions separated by one or
+more partitions. Technically, this limitation arises since it breaks the
+stride patterns numpy arrays relies on to know where find a row. ML-Ensemble
+can therefore **only** avoid copying training data when the number of folds
+is 2, in which case the first half is used for training and the latter for
+predictions. For 3 of more folds, the training set is no longer contiguous and
+hence slicing the original array triggers `advanced indexing`_, in turn
+causing a copy of the underlying data to be returned. Being a limitation within
+numpy, this issue is beyond the control of ML-Ensemble.
+
+Also note that if the data is preprocessed within ML-Ensemble, transformers
+automatically return copies of the input data (i.e. breaks the link with the
+memory buffer) and will therefore **always** trigger a copying. In fact, if
+it does not, transforming the memmapped original data will raise an ``OSError``
+since the memory map of the original data is read-only to avoid corrupting the
+input.
+
+**(2)**
+The user must take not what input requirements are necessary for a Scikit-learn
+estimator to not copy the data, and ensuring the input array is in the given
+format. Note that prediction arrays are always dense C-ordered float64 arrays.
+For instance, several Scikit-learn linear models defaults to copying the input
+data, Scikit-learn random forests estimators copy the data if it is not
+Fortran contiguous. Similarly, Scikit-learn SVM models copy data that does not
+satisfy its particular requirements.
+
+.. _numpy's memory model: https://docs.scipy.org/doc/numpy/reference/internals.html
+
+.. _view: http://scipy-cookbook.readthedocs.io/items/ViewsVsCopies.html
+
+.. _advanced indexing: https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html
 
 .. _mprof: https://pypi.python.org/pypi/memory_profiler
 

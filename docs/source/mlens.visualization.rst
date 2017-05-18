@@ -6,7 +6,6 @@ Submodules
 
 .. toctree::
 
-   mlens.visualization.benchmark
    mlens.visualization.correlations
    mlens.visualization.var_analysis
 

@@ -5,29 +5,34 @@
 Getting started
 ===============
 
-The :ref:`ensemble-guide` shows how to instantiate, fit and predict with an
-ensemble. The :ref:`model-selection-guide` gives a breif overview of the
-syntax used in the model selection library,
-while the :ref:`visualization-guide` gives an introduction to the
-plotting functionality. For more in-depth material, see
-:ref:`ensemble-tutorial`.
+To get you up and running, the following guides highlights the basics of the
+API for ensemble classes, model selection and visualization.
+
+============================  =================================================
+                      Guides                                            Content
+============================  =================================================
+:ref:`ensemble-guide`         how to build, fit and predict with an ensemble
+:ref:`model-selection-guide`  how to evaluate estimators across preprocessing cases
+:ref:`visualization-guide`    plotting functionality
+============================  =================================================
+
+For more more in-depth material and advanced usage,
+see :ref:`ensemble-tutorial`.
 
 Preliminaries
 -------------
 We use the following setup throughout::
 
     import numpy as np
+    from pandas import DataFrame
+    from mlens.metrics import make_scorer
+    from sklearn.metrics import f1_score
+    from sklearn.datasets import load_iris
 
     seed = 2017
     np.random.seed(seed)
 
-    from sklearn.metrics import f1_score
-
-    def f1(y_true, y_pred):
-        """Wrapper around f1_scorer to get multi-label scores."""
-        return f1_score(y_true, y_pred, average='micro')
-
-    from sklearn.datasets import load_iris
+    f1 = make_scorer(f1_score, average='micro', greater_is_better=True)
 
     data = load_iris()
     idx = np.random.permutation(150)
@@ -81,7 +86,7 @@ for a tabular format. ::
 
 To round off, let's see how the ensemble as a whole fared. ::
 
-    >>> f1(preds, y[75:])
+    >>> f1_score(preds, y[75:], average='micro')
     0.95999999999999996
 
 Multi-layer ensembles
@@ -105,26 +110,56 @@ instance, in the above example, we could add a second layer as follows. ::
 We now fit this ensemble in the same manner as before::
 
     >>> ensemble.fit(X[:75], y[:75])
-    Fitting layer layer-1
-    [layer-1] Done | 00:00:00
-    Fitting layer layer-2
-    [layer-2] Done | 00:00:00
-    Fitting layer layer-3
-    [layer-3] Done | 00:00:00
+    Processing layers (3)
+
+    Fitting layer-1
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.1s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.1s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.1s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.1s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.1s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   6 out of   6 | elapsed:    0.1s finished
+    layer-1 Done | 00:00:00
+
+    Fitting layer-2
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.0s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.1s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.1s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.1s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   7 out of   6 | elapsed:    0.1s remaining:   -0.0s
+    [Parallel(n_jobs=-1)]: Done   6 out of   6 | elapsed:    0.1s finished
+    layer-2 Done | 00:00:00
+
+    Fitting layer-3
+    [Parallel(n_jobs=-1)]: Done   1 out of   1 | elapsed:    0.0s finished
+    [Parallel(n_jobs=-1)]: Done   1 out of   1 | elapsed:    0.0s finished
+    layer-3 Done | 00:00:00
+
+    Fit complete | 00:00:00
+
 
 Similarly with predictions::
 
     >>> preds = ensemble.predict(X[75:])
-    Predicting layer layer-1
-    [layer-1] Done | 00:00:00
-    Predicting layer layer-2
-    [layer-2] Done | 00:00:00
-    Predicting layer layer-3
-    [layer-3] Done | 00:00:00
+    Processing layers (3)
+
+    Predicting layer-1
+    [Parallel(n_jobs=-1)]: Done   2 out of   2 | elapsed:    0.0s finished
+    layer-1 Done | 00:00:00
+
+    Predicting layer-2
+    [Parallel(n_jobs=-1)]: Done   2 out of   2 | elapsed:    0.0s finished
+    layer-2 Done | 00:00:00
+
+    Predicting layer-3
+    [Parallel(n_jobs=-1)]: Done   1 out of   1 | elapsed:    0.0s finished
+    layer-3 Done | 00:00:00
+
+    Done | 00:00:00
 
 
-The design of the ``scores_`` attribute now allows an easy overview of the
-ensemble performance. ::
+The design of the ``scores_`` attribute allows an intuitive overview of how
+the base learner's perform in each layer. ::
 
     >>> DataFrame(ensemble.scores_)
                                     score_mean  score_std
@@ -155,7 +190,6 @@ In the latter case, preprocessing is constituted by selecting a subset
     from mlens.model_selection import Evaluator
     from mlens.preprocessing import Subset
     from sklearn.preprocessing import StandardScaler
-    from pandas import DataFrame
 
     from sklearn.naive_bayes import GaussianNB
     from sklearn.neighbors import KNeighborsClassifier
@@ -186,7 +220,7 @@ an example. To explicitly fit preprocessing pipelines, call ``preprocess``. ::
 
     >>> evaluator.preprocess(X, y, preprocess_cases)
     Preprocessing 3 preprocessing pipelines over 10 CV folds
-    [Parallel(n_jobs=-1)]: Done  30 out of  30 | elapsed:    0.0s finished
+    [Parallel(n_jobs=-1)]: Done  30 out of  30 | elapsed:    0.2s finished
     Preprocessing done | 00:00:00
 
 To launch an evaluation, we need a mapping of parameter distributions to
@@ -217,7 +251,7 @@ Make sure to specify the number of parameter draws to evaluate
 
     >>> evaluator.evaluate(X, y, estimators, params, n_iter=10)
     Evaluating 6 estimators for 10 parameter draws 10 CV folds, totalling 600 fits
-    [Parallel(n_jobs=-1)]: Done 600 out of 600 | elapsed:    0.9s finished
+    [Parallel(n_jobs=-1)]: Done 600 out of 600 | elapsed:    1.0s finished
     Evaluation done | 00:00:01
 
 The results for all parameter draws are stored in ``cv_results``. The
@@ -227,16 +261,17 @@ objects, and can be passed to a :class:`pandas.DataFrame` instance for
 a tabular output::
 
    >>> DataFrame(evaluator.summary)
-             fit_time_mean  fit_time_std  train_score_mean  train_score_std  test_score_mean  test_score_std               params
-   none gnb       0.001353      0.001316          0.957037         0.005543         0.960000        0.032660                   {}
-        knn       0.000447      0.000012          0.980000         0.004743         0.966667        0.033333  {'n_neighbors': 15}
-   sc   gnb       0.001000      0.000603          0.957037         0.005543         0.960000        0.032660                   {}
-        knn       0.000448      0.000036          0.965185         0.003395         0.960000        0.044222   {'n_neighbors': 8}
-   sub  gnb       0.000735      0.000248          0.791111         0.019821         0.780000        0.133500                   {}
-        knn       0.000462      0.000143          0.837037         0.014815         0.800000        0.126491   {'n_neighbors': 9}
+             train_score_mean  train_score_std  test_score_mean  test_score_std  fit_time_mean  fit_time_std               params
+   none gnb          0.957037         0.005543         0.960000        0.032660       0.001000      0.000605                   {}
+        knn          0.980000         0.004743         0.966667        0.033333       0.000805      0.000520  {'n_neighbors': 15}
+   sc   gnb          0.957037         0.005543         0.960000        0.032660       0.000845      0.000279                   {}
+        knn          0.965185         0.003395         0.960000        0.044222       0.000501      0.000168   {'n_neighbors': 8}
+   sub  gnb          0.791111         0.019821         0.780000        0.133500       0.001026      0.000625                   {}
+        knn          0.837037         0.014815         0.800000        0.126491       0.000675      0.000447   {'n_neighbors': 9}
 
-So we can quickly surmise that the two perform similarly, the KNN should
-use 15 neighbours. and preprocessing doesn't seem necessary.
+So we can easily surmise that the two perform similarly when the KNN
+use 15 neighbours, the best performing setting. Moreover, the tested
+preprocessing pipelines does not seem to help in this case.
 
 .. _visualization-guide:
 

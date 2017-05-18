@@ -19,8 +19,8 @@ from ..parallel import ParallelEvaluation
 from ..utils import (print_time,
                      safe_print,
                      check_instances,
-                     assert_correct_format)
-from ..metrics import make_scorer
+                     assert_correct_format,
+                     check_inputs)
 
 try:
     from time import perf_counter as time
@@ -33,11 +33,12 @@ except ImportError:
     _dict = dict
 
 from operator import itemgetter
+import warnings
 
 
 def _check_scorer(scorer):
     """Check that the scorer instance passed behaves as expected."""
-    if not type(scorer).__name__ == '_PredictScorer':
+    if not type(scorer).__name__ in ['_PredictScorer', '_ProbaScorer']:
         raise ValueError("The passes scorer does not seem to be a valid "
                          "scorer. Expected type '_PredictScorer', got '%s'."
                          "Use the mlens.metrics.make_scorer function to "
@@ -96,6 +97,19 @@ class Evaluator(object):
     random_state : int, optional
         seed for creating folds (if shuffled) and parameter draws
 
+    array_check : int (default = 2)
+        level of strictness in checking input arrays.
+
+            - ``array_check = 0`` will not check ``X`` or ``y``
+
+            - ``array_check = 1`` will check ``X`` and ``y`` for
+              inconsistencies and warn when format looks suspicious,
+              but retain original format.
+
+            - ``array_check = 2`` will impose Scikit-learn array checks,
+              which converts ``X`` and ``y`` to numpy arrays and raises
+              an error if conversion fails.
+
     n_jobs: int (default = -1)
         number of CPU cores to use.
 
@@ -104,16 +118,14 @@ class Evaluator(object):
 
     Attributes
     ----------
-    summary\_ : DataFrame
+    summary : dict
         Summary output that shows data for best mean test scores, such as
         test and train scores, std, fit times, and params.
 
-    cv_results\_ : DataFrame
-        a table of data from each fit. Includes mean and std of test and train
-        scores and fit times, as well as param draw index and parameters.
-
-    best_idx\_ : ndarray
-        an array of index keys for best estimator in ``cv_results_``.
+    cv_results : dict
+        a nested ``dict`` of data from each fit. Includes mean and std of
+        test and  train scores and fit times, as well as param draw index
+        and parameters.
     """
 
     def __init__(self,
@@ -124,6 +136,7 @@ class Evaluator(object):
                  backend='multiprocessing',
                  error_score=None,
                  metrics=None,
+                 array_check=2,
                  n_jobs=-1,
                  verbose=False):
 
@@ -134,6 +147,7 @@ class Evaluator(object):
         self.n_jobs = n_jobs
         self.error_score = error_score
         self.metrics = [np.mean, np.std] if metrics is None else metrics
+        self.array_check = array_check
         self.random_state = random_state
         self.verbose = verbose
 
@@ -179,34 +193,58 @@ class Evaluator(object):
             set of estimators to use. If no preprocessing is desired or if
             only on preprocessing pipeline should apply to all, pass a list of
             estimators. The list can contain elements of named tuples
-            (i.e. ``('my_name', my_est)``). If several preprocessing cases
-            are evaluated, a dictionary that maps estimators to each case must
+            (i.e. ``('my_name', my_est)``).
+
+            If different estimators should be mapped to preprocessing cases,
+            a dictionary that maps estimators to each case should
             be passed: ``{'case_a': list_of_est, ...}``.
 
         param_dicts : dict
-            param_dicts for estimators. Current implementation only supports
-            randomized grid search. Passed distribution object must
-            have an ``rvs`` method. See
-            :py:class:`sklearn.model_selection.RandomizedSearchCV` for
-            details. Note that the if several cases are evaluated,
-            ``param_dicts`` should have a ``(case_name, est_name)`` tuple
-            as key. ``param_dict`` should be specified as::
+            parameter distribution mapping for estimators. Current
+            implementation only supports randomized grid search. Passed
+            distribution object must have an ``rvs`` method.
+            See :mod:`Scipy.stats` for details.
 
-                param_dicts = {'est-1':
+            There is quite some flexibility in specifying ``param_dicts``. If
+            there is no preprocessing, or if all estimators are fitted on all
+            preprocessing cases, the ``param_dict`` should have keys matching
+            the names of the estimators. ::
+
+                estimators = [('name', est), est]
+
+                param_dicts = {'name': {'param-1': some_distribution},
+                               'est': {'param-1': some_distribution}
+                              }
+
+            It is possible to specify different distributions for some or all
+            preprocessing cases::
+
+                preprocessing = {'case-1': transformer_list,
+                                 'case-2': transformer_list}
+
+                estimators = [('name', est), est]
+
+                param_dicts = {'name':
+                                   {'param-1': some_distribution},
+                               ('case-1', 'est'):
+                                   {'param-1': some_distribution}
+                               ('case-2', 'est'):
                                    {'param-1': some_distribution,
-                                    'param-2': some_distribution},
-                               'est-2':
-                                   {'param-1': some_distribution,
-                                    'param-2': some_distribution},
-                               }
+                                    'param-2': some_distribution}
+                              }
+
+            If estimators are mapped on a per-preprocessing case basis as a
+            dictionary, ``param_dict`` must have key entries of the form
+            ``(case_name, est_name)``.
 
         n_iter : int
             number of parameter draws to evaluate.
 
-        preprocessing : list or dict, optional
-            preprocessing cases to consider. If only on case, pass a list.
-            if several cases, pass a dictionary mapping a case name to a
-            preprocessing pipeline.
+        preprocessing : dict, optional
+            preprocessing cases to consider. Pass a dictionary mapping a
+            case name to a preprocessing pipeline. ::
+
+                preprocessing = {'case_name': transformer_list,}
 
         Returns
         -------
@@ -233,9 +271,10 @@ class Evaluator(object):
             training labels.
 
         preprocessing : list or dict, optional
-            preprocessing cases to consider. If only on case, pass a list.
-            if several cases, pass a dictionary mapping a case name to a
-            preprocessing pipeline.
+            preprocessing cases to consider. Pass a dictionary mapping a
+            case name to a preprocessing pipeline. ::
+
+                preprocessing = {'case_name': transformer_list,}
 
         Returns
         -------
@@ -285,26 +324,49 @@ class Evaluator(object):
             set of estimators to use. If no preprocessing is desired or if
             only on preprocessing pipeline should apply to all, pass a list of
             estimators. The list can contain elements of named tuples
-            (i.e. ``('my_name', my_est)``). If several preprocessing cases
-            are evaluated, a dictionary that maps estimators to each case must
+            (i.e. ``('my_name', my_est)``).
+
+            If different estimators should be mapped to preprocessing cases,
+            a dictionary that maps estimators to each case should
             be passed: ``{'case_a': list_of_est, ...}``.
 
         param_dicts : dict
-            param_dicts for estimators. Current implementation only supports
-            randomized grid search. Passed distribution object must
-            have an ``rvs`` method. See
-            :py:class:`sklearn.model_selection.RandomizedSearchCV` for
-            details. Note that the if several cases are evaluated,
-            ``param_dicts`` should have a ``(case_name, est_name)`` tuple
-            as key. ``param_dict`` should be specified as::
+            parameter distribution mapping for estimators. Current
+            implementation only supports randomized grid search. Passed
+            distribution object must have an ``rvs`` method.
+            See :mod:`Scipy.stats` for details.
 
-                param_dicts = {'est-1':
+            There is quite some flexibility in specifying ``param_dicts``. If
+            there is no preprocessing, or if all estimators are fitted on all
+            preprocessing cases, the ``param_dict`` should have keys matching
+            the names of the estimators. ::
+
+                estimators = [('name', est), est]
+
+                param_dicts = {'name': {'param-1': some_distribution},
+                               'est': {'param-1': some_distribution}
+                              }
+
+            It is possible to specify different distributions for some or all
+            preprocessing cases::
+
+                preprocessing = {'case-1': transformer_list,
+                                 'case-2': transformer_list}
+
+                estimators = [('name', est), est]
+
+                param_dicts = {'name':
+                                   {'param-1': some_distribution},
+                               ('case-1', 'est'):
+                                   {'param-1': some_distribution}
+                               ('case-2', 'est'):
                                    {'param-1': some_distribution,
-                                    'param-2': some_distribution},
-                               'est-2':
-                                   {'param-1': some_distribution,
-                                    'param-2': some_distribution},
-                               }
+                                    'param-2': some_distribution}
+                              }
+
+            If estimators are mapped on a per-preprocessing case basis as a
+            dictionary, ``param_dict`` must have key entries of the form
+            ``(case_name, est_name)``.
 
         n_iter : int
             number of parameter draws to evaluate.
@@ -314,22 +376,13 @@ class Evaluator(object):
         self : instance
             class instance with stored estimator evaluation results.
         """
+        X, y = check_inputs(X, y, check_level=self.array_check)
+
         # First check if list of estimators should be expanded to very case
-        preprocessing = getattr(self, 'preprocessing', None)
-        if preprocessing is not None and isinstance(estimators, list):
+        estimators, param_dicts = self._format(estimators, param_dicts)
 
-            ests_ = estimators
-            estimators = {case: ests_ for case in preprocessing.keys()}
-
-            draws = param_dicts
-            param_dicts = {(case, est_name): params
-                           for case in preprocessing.keys()
-                           for est_name, params in draws.items()}
-
-        assert_correct_format(estimators, preprocessing)
-
-        self.n_iter = n_iter
         self.estimators = check_instances(estimators)
+        self.n_iter = n_iter
         self._param_sets(param_dicts)
 
         if self.verbose > 0:
@@ -356,6 +409,52 @@ class Evaluator(object):
 
         return self
 
+    def _format(self, estimators, param_dicts):
+        """Ensure estimator object and param_dict object have right format."""
+        preprocessing = getattr(self, 'preprocessing', None)
+
+        if preprocessing is not None and isinstance(estimators, list):
+            # Set all estimators in list as ests for each case
+            ests_ = estimators
+            estimators = {case: ests_ for case in preprocessing.keys()}
+
+        # Set parameter draws for each case
+        if preprocessing is not None:
+
+            params = dict()
+            for key, pars in param_dicts.items():
+                if isinstance(key, tuple):
+                    # Check that naming is of the (case, est) form
+
+                    if key[0] not in preprocessing:
+
+                        msg = ("param_dict poorly formatted. Valid keys are "
+                               "'(case_name, est_name)' or 'est_name'."
+                               " Failed on key entry {}. \nAll keys: "
+                               "{}".format(key, list(preprocessing)))
+
+                        raise ValueError(msg)
+
+                    params[key] = pars
+
+                else:
+                    # have an est_name key entry. Need to generate
+                    # keys of the form (case, est)
+                    for case in preprocessing.keys():
+                        if (case, key) in params:
+                            # We do not want to overwrite user-specified dists
+                            continue
+
+                        params[(case, key)] = pars
+        else:
+            params = param_dicts
+
+        # Finally, check that estimators and preprocessing are correctly
+        # formatted for estimation
+        assert_correct_format(estimators, preprocessing)
+
+        return estimators, params
+
     def _draw_params(self, param_dists):
         """Draw a list of param dictionaries for estimator."""
         # Set up empty list of parameter setting
@@ -377,8 +476,10 @@ class Evaluator(object):
             self.params[key] = \
                 self._draw_params(param_dicts[key])
         except KeyError:
-            # No param draws desired. Set empty dict
-            self.params[key] = [{} for _ in range(self.n_iter)]
+            # No param draws desired. Set empty dict.
+            warnings.warn("No valid parameters found for %s. Will fit and "
+                          "score once with given parameter settings." % key)
+            self.params[key] = [{}]
 
     def _param_sets(self, param_dicts):
         """For each estimator, create a mapping of parameter draws."""
@@ -440,23 +541,11 @@ class Evaluator(object):
 
                 if best_data is None:
                     best_data, best_draw = draw_data, draw_num
-
-                    try:
-                        best_data['params'] = \
-                            self.params[case_est][best_draw]
-                    except KeyError:
-                        best_data['params'] = \
-                            self.params[case_est][best_draw]
+                    best_data['params'] = self.params[case_est][best_draw]
 
                 if draw_data['test_score_mean'] > best_data['test_score_mean']:
                     best_data, best_draw = draw_data, draw_num
-
-                    try:
-                        best_data['params'] = \
-                            self.params[case_est][best_draw]
-                    except KeyError:
-                        best_data['params'] = \
-                            self.params[case_est][best_draw]
+                    best_data['params'] = self.params[case_est][best_draw]
 
             # Assign data associated with best test score to summary dict
             # We invert the dictionary nesting here
@@ -522,12 +611,46 @@ class Evaluator(object):
 
     def _print_eval_start(self, printout):
         """Print initiation message and return timer."""
-        msg = ('Evaluating %i models for %i parameter draws over %i' +
-               ' preprocessing pipelines and %i CV folds, totalling %i fits')
+        preprocessing = getattr(self, 'preprocessing', None)
 
-        e = len(self.estimators)
-        p = len(getattr(self, 'preprocessing', [1]))
-        c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
+        if preprocessing is None:
 
-        tot = e * p * self.n_iter * c
-        safe_print(msg % (e, self.n_iter, p, c, tot), file=printout)
+            msg = ('Evaluating %i models for %i parameter draws over %i '
+                   'CV folds, totalling %i fits')
+
+            e, c, tot = self._get_count(preprocessing)
+            safe_print(msg % (e, self.n_iter, c, tot), file=printout)
+        else:
+
+            msg = ('Evaluating %i models for %i parameter draws over %i' +
+                   ' preprocessing pipelines and %i CV folds, '
+                   'totalling %i fits')
+
+            e, p, c, tot = self._get_count(preprocessing)
+            safe_print(msg % (e, self.n_iter, p, c, tot), file=printout)
+
+    def _get_count(self, preprocessing):
+        """Utility for counting number of fits to make."""
+        c = self.cv
+
+        if preprocessing is None:
+            # Simply grab length of estimator list
+            e = len(self.estimators)
+            tot = e * c * self.n_iter
+            return int(e), int(c), int(tot)
+        else:
+            # Need to consider cases
+            p = len(preprocessing)
+
+            if isinstance(self.estimators, list):
+                # If all estimators are applied to all cases, just grab
+                # length of list and multiply by cases
+                e = len(self.estimators) * p
+            else:
+                # Sum over cases
+                e = 0
+                for v in self.estimators.values():
+                    e += len(v)
+
+            tot = e * c * self.n_iter
+            return int(e), int(p), int(c), int(tot)

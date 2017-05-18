@@ -1,25 +1,18 @@
 ML-Ensemble
 ===========
 
-ML-Ensemble is a Python library for **memory efficient
-parallelized ensemble network learning**.
+**A Python library for memory efficient parallelized ensemble learning**.
 
-ML-Ensemble emphasizes user friendliness, and all estimators follows the
-`Scikit-learn`_ API. In fact, any ML-Ensemble estimator is passes as a
-proper Scikit-learn estimator and interacts seamlessly with any
-Scikit-learn object. The ensemble layer API is similar to that of popular
-Neural Network libraries like Keras_, and it is straightforward to build deep
-ensembles of any desired level of complexity.
+ML-Ensemble deploys sequential ensemble networks through a `Scikit-learn`_ API.
+Ensembles can be made arbitrarily deep, by adding layers of base learners
+that are fitted sequentially on previous layer's predictions. By leveraging a
+network API similar to that of popular deep learning libraries like Keras_,
+it is straightforward to build fast and memory efficient
+multi-layered ensembles.
 
-ML-Ensemble implements a range of ensemble techniques and the list is
-constantly growing. For latest news, see :ref:`updates`.
-
-If you are new to ML-Ensemble, check out the :ref:`getting-started`
-and :ref:`ensemble-tutorial`. For more detailed examples, see the
-:ref:`memory` and :ref:`scaling` section. Performance testimonials can be found
-in the :ref:`here <benchmarks>`.
-
-If you would like to get involved, don't hesitate to reach out on Github_ !
+ML-Ensemble is looking for contributors at all levels of experience.
+If you would like to get involved, reach out to the project's Github_
+repository.
 
 Core Features
 -------------
@@ -50,23 +43,23 @@ ensemble, to train it call the ``fit`` method::
 Memory Efficient Parallelized Learning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Because base learners in an ensemble are independent of each other, ensembles
-benefit greatly from multithreading and the fundamental philosophy of
+benefit greatly from multiprocessing and the fundamental philosophy of
 ML-Ensemble is to enable as much parallel processing as possible with minimum
 impact on memory consumption. Estimation in parallel can easily lead to
 unacceptable memory consumption if each sub-process requires a copy of the
 training data, but ML-Ensemble avoids this issue by using memory mapping.
 
 Training data is persisted to a memory cache that each sub-process has access
-to, allowing parallel processing to require no more memory than processing
-on a single thread. For more details, see :ref:`memory`.
+to, completely circumventing serialization of input data to be sent between
+the parent process and sub-processes. Moreover, if no copying takes place
+during estimation, parallel processing require no more memory than processing
+single-process estimation. For more details, see :ref:`memory`.
 
-Expect 95-97% of training time to be spent fitting the base estimators -
-*irrespective* of data size. The time it takes to fit an ensemble depends
-therefore entirely on how fast the chosen base learners are,
-and how many CPU cores are available.
-
-Moreover, ensemble classes that fit estimators on subsets scale more
-efficiently than the base learners when these do not scale linearly.
+Expect 95-97% of training time to be spent fitting the base estimators. In
+general therefore, the time it takes to fit an ensemble depends
+therefore on the speed of the chosen base learners and the number of CPU cores
+available. Some ensembles will even scale more efficiently than their base
+learners if these scale superlinearly.
 
 Modular build of multi-layered ensembles
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -101,10 +94,24 @@ preferred. This can easily be achieved in ML-Ensemble::
 Dedicated Diagnostics
 ^^^^^^^^^^^^^^^^^^^^^
 
-ML Ensemble implements a dedicated diagnostics and model selection suite
-for intuitive and speedy ensemble evaluation. This suite is under
-development, so check in frequently for new functionality.
+Building complex ensembles requires an understanding of how base learners
+interact. Grid searches on each estimator in isolation is unlikely to yield
+superior results, not to mention being helpful in finding the right base
+learners and meta estimator. ML-Ensemble comes equipped with a grid search
+functionality that lets you run several estimators across any number of
+preprocessing pipelines in one go. Ensemble transformers can be used to
+build initial layers of ensembles as preprocessing pipelines to avoid
+repeatedly fitting the same layer during model selection, which is orders of
+magnitude faster that fitting an entire ensemble repeatedly just to evaluate
+(say) the meta learner. Output allows easy comparison of estimator performance,
+as in the example below. ::
 
+    >>> DataFrame(evaluator.summary)
+               test_score_mean  test_score_std  train_score_mean  train_score_std  fit_time_mean  fit_time_std                                             params
+    class rf          0.955357        0.060950          0.972535         0.008303       0.024585      0.014300                                   {'max_depth': 5}
+          svc         0.961607        0.070818          0.972535         0.008303       0.000800      0.000233                               {'C': 7.67070164682}
+    proba rf          0.980357        0.046873          0.992254         0.007007       0.022789      0.003296   {'max_depth': 3, 'max_features': 0.883535082341}
+          svc         0.974107        0.051901          0.969718         0.008060       0.000994      0.000367                              {'C': 0.209602254061}
 
 .. toctree::
    :hidden:
@@ -127,9 +134,10 @@ development, so check in frequently for new functionality.
    :maxdepth: 2
    :caption: Details
 
-   benchmarks
    memory
+   benchmarks
    scaling
+   gotchas
 
 .. toctree::
    :hidden:
@@ -137,7 +145,6 @@ development, so check in frequently for new functionality.
    :caption: Documentation
 
    API
-   source/modules
 
 .. toctree::
    :hidden:
@@ -145,15 +152,19 @@ development, so check in frequently for new functionality.
    :caption: Additional Information
 
    licence
+   updates
 
-References
-----------
-.. [1] van der Laan, Mark J.; Polley, Eric C.; and Hubbard, Alan E.,
-   "Super Learner" (July 2007). U.C. Berkeley Division of Biostatistics
-   Working Paper Series. Working Paper 222.
-   http://biostats.bepress.com/ucbbiostat/paper222
+.. toctree::
+   :hidden:
+   :maxdepth: 0
+   :caption: Package index
 
-ML Ensemble is licenced under MIT and is hosted on Github_.
+   source/modules
+
+..
+====
+
+ML Ensemble is licenced under :ref:`MIT <license>` and is hosted on Github_.
 
 .. _Github: https://github.com/flennerhag/mlens
 .. _Scikit-learn: http://scikit-learn.org/stable/

@@ -9,8 +9,6 @@ Base classes for ensemble layer management.
 
 from __future__ import division, print_function
 
-import gc
-import warnings
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 
@@ -55,8 +53,8 @@ class LayerContainer(BaseEstimator):
         level of verbosity.
 
             - ``verbose = 0`` silent (same as ``verbose = False``)
-            - ``verbose = 1`` messages at start and finish \
-            (same as ``verbose = True``)
+            - ``verbose = 1`` messages at start and finish
+              (same as ``verbose = True``)
             - ``verbose = 2`` messages for each layer
 
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
@@ -224,7 +222,7 @@ class LayerContainer(BaseEstimator):
         if self.verbose:
             pout = "stdout" if self.verbose >= 3 else "stderr"
             safe_print("Processing layers (%d)" % self.n_layers,
-                       file=pout, flush=True)
+                       file=pout, flush=True, end="\n\n")
             t0 = time()
 
         # Initialize cache
@@ -310,7 +308,7 @@ class LayerContainer(BaseEstimator):
         if self.verbose:
             pout = "stdout" if self.verbose >= 3 else "stderr"
             safe_print("Processing layers (%d)" % self.n_layers,
-                       file=pout, flush=True)
+                       file=pout, flush=True, end="\n\n")
             t0 = time()
 
         # Initialize cache
@@ -559,7 +557,7 @@ class Layer(BaseEstimator):
                 setattr(self, '%s_n_est' % case, n_est)
                 n_pred += n_est
 
-            self.n_pred = n_pred
+            self.n_pred = self.n_est = n_pred
 
         if self.cls is 'subset':
             self.n_pred *= self.indexer.n_partitions
@@ -589,10 +587,18 @@ class Layer(BaseEstimator):
                 for case, instances in step.items():
                     for instance_name, instance in instances:
                         out["%s-%s" % (case, instance_name)] = instance
+                        # Get instance parameters
+                        for k, v in instances.get_params().items():
+                            out["%s-%s__%s" % (case, instance_name, k)] = v
+
             else:
                 # Simple named list of estimators / transformers
                 for instance_name, instance in step:
                     out[instance_name] = instance
+                    # Get instance parameters
+                    for k, v in instance.get_params().items():
+                        out["%s__%s" % (instance_name, k)] = v
+
         return out
 
 
@@ -663,6 +669,14 @@ class BaseEnsemble(BaseEstimator):
                         preprocessing=preprocessing,
                         scorer=self.scorer,
                         **kwargs)
+
+        # Check parameter compatability
+        if 'proba' in kwargs:
+            scorer = getattr(self, 'scorer', None)
+            if kwargs['proba'] and scorer:
+                raise ValueError("Cannot score probability-based predictions."
+                                 "Set either ensemble parameter 'scorer' to "
+                                 "None or layer parameter 'Proba' to False.")
 
         # Set the layer as an attribute of the ensemble
         lyr = list(self.layers.layers)[-1]
@@ -735,3 +749,28 @@ class BaseEnsemble(BaseEstimator):
             y = y.ravel()
 
         return y
+
+    def predict_proba(self, X):
+        """Predict class probabilities with fitted ensemble.
+
+        Compatibility method for Scikit-learn. This method checks that the
+        final layer has ``proba=True``, then calls the regular ``predict``
+        method.
+
+        Parameters
+        ----------
+        X : array-like, shape=[n_samples, n_features]
+            input matrix to be used for prediction.
+
+        Returns
+        -------
+        y_pred : array-like, shape=[n_samples, n_classes]
+            predicted class membership probabilities for provided input array.
+        """
+        meta_name = list(self.layers.layers)[-1]
+        lyr = self.layers.layers[meta_name]
+
+        if not getattr(lyr, 'proba', False):
+            raise ValueError("Cannot use 'predict_proba' if final layer"
+                             "does not have 'proba=True'.")
+        return self.predict(X)

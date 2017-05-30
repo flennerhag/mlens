@@ -318,9 +318,7 @@ def _wrap(folded_list, name='__trans__'):
 
 def _slice_array(x, y, idx, r = 0):
     """Build training array index and slice data."""
-    if idx is None:
-        return x, y
-    else:
+    if idx is not None:
         # Check if the idx is a tuple and if so, whether it can be made
         # into a simple slice
         if isinstance(idx[0], tuple):

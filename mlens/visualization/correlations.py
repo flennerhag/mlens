@@ -210,8 +210,8 @@ def clustered_corrmap(corr, cls, label_attr_name='labels_',
     return ax
 
 
-def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12,
-             no_ticks=False, show=True):
+def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12, hspace=1,
+             no_ticks=True, label_rotation=0, show=True):
     """Function for plotting input feature correlations with output.
 
     Output figure shows all correlations as well as top pos and neg.
@@ -225,16 +225,22 @@ def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12,
         training labels.
 
     top : int
-        number of features to show in top pos and neg graphs
+        number of features to show in top pos and neg graphs.
 
     figsize : tuple (default = (10, 8))
         Size of figure.
+
+    hspace : float (default = 1)
+        whitespace between top row of figures and bottom figure.
 
     fontsize : int
         font size of subplot titles.
 
     no_ticks : bool (default = False)
         whether to remove ticklabels from full correlation plot.
+
+    label_rotation: float (default = 0)
+        rotation of labels
 
     show : bool (default = True)
         whether to print figure using :obj:`matplotlib.pyplot.show`.
@@ -257,7 +263,7 @@ def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12,
 
     # Render figure
     plt.figure(figsize=figsize)
-    gs = GridSpec(2, 2)
+    gs = GridSpec(2, 2, hspace=hspace)
 
     names = corr.index.tolist()
 
@@ -267,14 +273,16 @@ def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12,
     ax0.axhline(0, color='black', linewidth=0.5)
     ax0.set_title('Top %i positive pairwise correlation coefficients' % top,
                   fontsize=fontsize)
-    plt.xticks(range(top), names[:top], rotation=90)
+    plt.xticks(range(top), names[:top], rotation=label_rotation,
+               fontsize=fontsize - 1)
 
     ax1 = plt.subplot(gs[0, 1])
     ax1.bar(range(top), corr.iloc[-top:], align='center')
     ax1.axhline(0, color='black', linewidth=0.5)
     ax1.set_title('Top %i negative pairwise correlation coefficients' % top,
                   fontsize=fontsize)
-    plt.xticks(range(top), names[-top:], rotation=90)
+    plt.xticks(range(top), names[-top:], rotation=label_rotation,
+               fontsize=fontsize - 1)
 
     ax2 = plt.subplot(gs[1, :])
     ax2.bar(range(len(corr)), corr, align='center')
@@ -284,7 +292,7 @@ def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12,
     if no_ticks:
         ax2.set_xticks([], [])
     else:
-        ax2.set_xticks(names)
+        ax2.set_xticks(range(len(names)), names)
 
     if show:
         plt.show()

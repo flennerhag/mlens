@@ -12,6 +12,7 @@ training data.
 
 from __future__ import division, print_function
 
+from ..utils.exceptions import NotFittedError
 from ..externals.sklearn.base import BaseEstimator
 
 from numpy import array_equal, ix_
@@ -80,6 +81,9 @@ class IdTrain(BaseEstimator):
         self: obj
             fitted instance with stored sample.
         """
+        if not hasattr(self, "train_shape"):
+            raise NotFittedError("This IdTrain instance is not fitted yet.")
+
         if not self._check_shape(X):
             return False
 

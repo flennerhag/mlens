@@ -25,7 +25,7 @@ not be serialized and sent to the subprocesses, and as long as no copying
 takes place in the sub-process, memory consumption remains constant as the
 number of sub-processes grows. Hence, ML-Ensemble can remain memory neutral as
 the number of CPU's in use increase. This last point relies critically on
-avoiding copying, which may not be possible, see gotchas_ for further
+avoiding copying, which may not be possible, see :ref:`gotchas` for further
 information.
 
 We can easily illustrate this issue by running a dummy function in parallel

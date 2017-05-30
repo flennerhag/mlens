@@ -175,7 +175,7 @@ if __name__ == '__main__':
             plt.ylabel('Time to fit (sec)')
             plt.legend(frameon=False)
 
-            f = os.path.join(os.getcwd(), 'scale_benchmark.png')
+            f = os.path.join(os.getcwd(), 'scale_cpu.png')
             plt.savefig(f, bbox_inches='tight', dpi=600)
             print("done.\nFigure written to %s" % f)
 

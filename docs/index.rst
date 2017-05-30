@@ -14,6 +14,8 @@ ML-Ensemble is looking for contributors at all levels of experience.
 If you would like to get involved, reach out to the project's Github_
 repository.
 
+ML-Ensemble is currently in beta testing, shout out if you find a bug : )
+
 Core Features
 -------------
 

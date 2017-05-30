@@ -285,6 +285,8 @@ class Evaluator(object):
         if preprocessing is None:
             raise ValueError("No preprocessing specified.")
 
+        X, y = check_inputs(X, y, self.array_check)
+
         self.preprocessing = check_instances(preprocessing)
 
         if self.verbose > 0:
@@ -477,8 +479,9 @@ class Evaluator(object):
                 self._draw_params(param_dicts[key])
         except KeyError:
             # No param draws desired. Set empty dict.
-            warnings.warn("No valid parameters found for %s. Will fit and "
-                          "score once with given parameter settings." % key)
+            warnings.warn("No valid parameters found for {}. Will fit and "
+                          "score once with given parameter "
+                          "settings.".format(key))
             self.params[key] = [{}]
 
     def _param_sets(self, param_dicts):

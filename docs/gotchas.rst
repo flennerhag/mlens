@@ -1,11 +1,26 @@
-Gotcha's
-========
+Known limitations
+=================
 
-This page collects known issues and gotcha's that arises in third-party
-integrations and that are not within the scope of ML-Ensemble to address.
+Array copying during fitting
+----------------------------
 
-Nesting multi-threaded objects fails
-------------------------------------
+When the number of folds is greater than 2, it is not possible to slice the
+full data in such a way as to return a view_ of that array (i.e. without
+copying any data). Hence for fold numbers larger than 2, each subprocess
+will in fact trigger a copy of the training data (which can be from 67% to
+99% of the full data size). A possible alleviation to this problem is to
+memmap the required slices before estimation to avoid creating new copies in
+each subprocess. However this will induce the equivalent of several copies of
+the underlying data to be persisted to disk and may instead lead to the issue
+remaining as a disk-bound issue. Since elementary diagnostics suggest that for
+data sizes where memory becomes a constraining factor, increasing the number
+of folds beyond 2 does not significantly impact performance and at this time
+of writing this is the suggested approach. For further information on
+avoiding copying data during estimation, see :ref:`memory`.
+
+
+Third-party multiprocessed objects
+----------------------------------
 
 This issue arises when a multit-hreaded python object is nested within another
 multi-threaded object. Examples include when a base estimator in an ensemble
@@ -57,6 +72,7 @@ development machines indicates this exception handling is successful and
 Windows users should not expect any issues. If however you do notice
 memory performance issues, create an issue at the `issue tracker`_.
 
+.. _view: http://scipy-cookbook.readthedocs.io/items/ViewsVsCopies.html
 .. _Python runs processes in parallel: https://wiki.python.org/moin/ParallelProcessing
 .. _here: https://docs.python.org/3/library/multiprocessing.html#contexts-and-start-methods
 .. _issue tracker: https://github.com/flennerhag/mlens/issues

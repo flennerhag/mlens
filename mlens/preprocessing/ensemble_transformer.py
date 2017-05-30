@@ -15,8 +15,9 @@ from ..ensemble.base import BaseEnsemble
 from ..externals.sklearn.base import TransformerMixin
 from ..externals.sklearn.validation import check_random_state
 
+from ..base import FoldIndex
 
-class EnsembleTransformer(TransformerMixin, BaseEnsemble):
+class EnsembleTransformer(BaseEnsemble):
 
     r"""Ensemble Transformer class.
 
@@ -155,13 +156,14 @@ class EnsembleTransformer(TransformerMixin, BaseEnsemble):
                  verbose=False,
                  n_jobs=1,
                  layers=None,
+                 backend='multiprocessing',
                  sample_dim=10):
 
         super(EnsembleTransformer, self).__init__(
                 shuffle=shuffle, random_state=random_state,
                 scorer=scorer, raise_on_exception=raise_on_exception,
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
-                array_check=array_check)
+                backend=backend, array_check=array_check)
 
         self.sample_dim = sample_dim
         self.id_train = IdTrain(size=sample_dim)
@@ -276,6 +278,7 @@ class EnsembleTransformer(TransformerMixin, BaseEnsemble):
         Same as the fit method on an ensemble, except that a sample of X is
         stored for future comparison.
         """
+        X, y = check_inputs(X, y, self.array_check)
         self.id_train.fit(X)
         return super(EnsembleTransformer, self).fit(X, y)
 

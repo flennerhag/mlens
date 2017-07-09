@@ -196,7 +196,7 @@ class BlendEnsemble(BaseEnsemble):
         return self.add(estimators=estimator, meta=True, **kwargs)
 
     def add(self, estimators, preprocessing=None, test_size=None,
-            proba=False, meta=False, **kwargs):
+            proba=False, meta=False, propagate_features=None, **kwargs):
         """Add layer to ensemble.
 
         Parameters
@@ -260,6 +260,15 @@ class BlendEnsemble(BaseEnsemble):
         proba : bool (default = False)
             Whether to call ``predict_proba`` on base learners.
 
+        propagate_features : list, optional
+            List of column indexes to propagate from the input of
+            the layer to the output of the layer. Propagated features are
+            concatenated and stored in the leftmost columns of the output
+            matrix. The ``propagate_features`` list should define a slice of
+            the numpy array containing the input data, e.g. ``[0, 1]`` to
+            propagate the first two columns of the input matrix to the output
+            matrix.
+
         meta : bool (default = False)
             Whether the layer should be treated as the final meta estimator.
 
@@ -286,4 +295,5 @@ class BlendEnsemble(BaseEnsemble):
                 indexer=idx,
                 proba=proba,
                 verbose=self.verbose,
+                propagate_features=propagate_features ,
                 **kwargs)

@@ -476,7 +476,8 @@ class Layer(BaseEstimator):
     propagate_features : list, optional
         Features to propagate from the input array to the output array.
         Carries input features to the output of the layer, useful for
-        propagating original data through several stacked layers.
+        propagating original data through several stacked layers. Propagated
+        features are stored in the left-most columns.
 
     raise_on_exception : bool (default = False)
         whether to raise an error on soft exceptions, else issue warning.

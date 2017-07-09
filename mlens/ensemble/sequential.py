@@ -151,6 +151,9 @@ class SequentialEnsemble(BaseEnsemble):
     def add(self, cls, estimators, preprocessing=None, **kwargs):
         """Add layer to ensemble.
 
+        For full set of optional arguments, see the ensemble API for the
+        specified type.
+
         Parameters
         ----------
         cls : str

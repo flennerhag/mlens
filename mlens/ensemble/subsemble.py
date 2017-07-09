@@ -239,7 +239,8 @@ class Subsemble(BaseEnsemble):
         return self.add(estimator, meta=True, **kwargs)
 
     def add(self, estimators, preprocessing=None, meta=False,
-            partitions=None, folds=None, proba=False, **kwargs):
+            partitions=None, folds=None, proba=False,
+            propagate_features=None, **kwargs):
         """Add layer to ensemble.
 
         Parameters
@@ -314,6 +315,15 @@ class Subsemble(BaseEnsemble):
         proba : bool (default = False)
             whether to call ``predict_proba`` on base learners.
 
+        propagate_features : list, optional
+            List of column indexes to propagate from the input of
+            the layer to the output of the layer. Propagated features are
+            concatenated and stored in the leftmost columns of the output
+            matrix. The ``propagate_features`` list should define a slice of
+            the numpy array containing the input data, e.g. ``[0, 1]`` to
+            propagate the first two columns of the input matrix to the output
+            matrix.
+
         **kwargs : optional
             optional keyword arguments to instantiate ensemble with.
 
@@ -338,4 +348,5 @@ class Subsemble(BaseEnsemble):
                          indexer=idx,
                          proba=proba,
                          verbose=self.verbose,
+                         propagate_features=propagate_features,
                          **kwargs)

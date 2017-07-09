@@ -231,7 +231,8 @@ class SuperLearner(BaseEnsemble):
         return self.add(estimators=estimator, meta=True, **kwargs)
 
     def add(self, estimators, preprocessing=None,
-            folds=None, proba=False, meta=False, **kwargs):
+            folds=None, proba=False, meta=False,
+            propagate_features=None, **kwargs):
         """Add layer to ensemble.
 
         Parameters
@@ -297,6 +298,15 @@ class SuperLearner(BaseEnsemble):
             ``proba=True`` will attempt to call an the estimators
             ``predict_proba`` method.
 
+        propagate_features : list, optional
+            List of column indexes to propagate from the input of
+            the layer to the output of the layer. Propagated features are
+            concatenated and stored in the leftmost columns of the output
+            matrix. The ``propagate_features`` list should define a slice of
+            the numpy array containing the input data, e.g. ``[0, 1]`` to
+            propagate the first two columns of the input matrix to the output
+            matrix.
+
         meta : bool (default = False)
             indicator if the layer added is the final meta estimator. This will
             prevent folded or blended fits of the estimators and only fit them
@@ -326,4 +336,5 @@ class SuperLearner(BaseEnsemble):
                 preprocessing=preprocessing,
                 proba=proba,
                 verbose=self.verbose,
+                propagate_features=propagate_features,
                 **kwargs)

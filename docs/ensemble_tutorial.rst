@@ -9,6 +9,8 @@ view of how ensembles are built and trained.
 ===============================  ==============================================
 Tutorial                         Content
 ===============================  ==============================================
+:ref:`propa-tutorial`            Propagate feature input features through layers
+\                                to allow several layers to see the same input.
 :ref:`proba-tutorial`            Build layers that output class probabilities from each base
 \                                learner so that the next layer or meta estimator learns
 \                                from probability distributions.
@@ -22,6 +24,131 @@ Tutorial                         Content
 We use the same preliminary settings as in the
 :ref:`getting started <getting-started>` section.
 
+
+.. _proba-tutorial:
+
+Propagating input features
+--------------------------
+
+When stacking several layers of base learners, the variance of the input
+will typically get smaller as learners get better and better at predicting
+the output and the remaining errors become increasingly difficult to correct
+for. This multicolinearity can significantly limit the ability of the
+ensemble to improve upon the best score of the subsequent layer as there is too
+little variation in predictions for the ensemble to learn useful combinations.
+One way to increase this variation is to propagate features from the original
+input and / or earlier layers. To achieve this in ML-Ensemble, we use the
+``propagate_features`` attribute. To see how this works, let's compare the
+a three-layer ensemble with and without feature propagation. ::
+
+    from mlens.ensemble import SuperLearner
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.svm import SVC
+
+    def build_ensemble(incl_meta, propagate_features=None):
+        """Return an ensemble."""
+        if propagate_features:
+            n = len(propagate_features)
+            propagate_features_1 = propagate_features
+            propagate_features_2 = [i for i in range(n)]
+        else:
+            propagate_features_1 = propagate_features_2 = None
+
+        estimators = [RandomForestClassifier(random_state=seed), SVC()]
+
+        ensemble = SuperLearner()
+        ensemble.add(estimators, propagate_features=propagate_features_1)
+        ensemble.add(estimators, propagate_features=propagate_features_2)
+
+        if incl_meta:
+            ensemble.add_meta(LogisticRegression())
+        return ensemble
+
+Without feature propagation, the meta learner will learn from the predictions
+of the penultimate layers::
+
+    >>> base = build_ensemble(False)
+    >>> base.fit(X, y)
+    >>> base.predict(X)
+    array([[ 2.,  2.],
+           [ 2.,  2.],
+           [ 2.,  2.],
+           [ 1.,  1.],
+           [ 1.,  1.]])
+
+When we propagate features, some (or all) of the input seen by one layer is
+passed along to the next layer. For instance, we can propagate some or all of
+the input array through our two intermediate layers to the meta learner input
+of the meta learner::
+
+    >>> base = build_ensemble(False, [1, 3])
+    >>> base.fit(X, y)
+    >>> base.predict(X)
+    array([[ 3.20000005,  2.29999995,  2.        ,  2.        ],
+           [ 3.20000005,  2.29999995,  2.        ,  2.        ],
+           [ 3.        ,  2.0999999 ,  2.        ,  2.        ],
+           [ 3.20000005,  1.5       ,  1.        ,  1.        ],
+           [ 2.79999995,  1.39999998,  1.        ,  1.        ]])
+
+This meta learner will not see the predictions made by the penultimate layer,
+as well as the second and fourth feature of the input array. By propagating
+features, the issue of multicolinearity in deep ensembles can be mitigated.
+In particular, it can give the meta learner greater opportunity to identify
+neighborhoods in the original feature space where base learners struggle. We
+can get an idea of how feature propagation works with our toy example. First,
+we need a simple ensemble evaluation routine. ::
+
+    def evaluate_ensemble(propagate_features):
+        """Wrapper for ensemble evaluation."""
+        ens = build_ensemble(True, propagate_features)
+        ens.fit(X[:75], y[:75])
+        pred = ens.predict(X[75:])
+        return f1_score(pred, y[75:], average='micro')
+
+In our case, propagating the original features through two layers of the same
+library of base learners gives a dramatic increase in performance on the test
+set:
+
+    >>> score_no_prep = evaluate_ensemble(None)
+    >>> score_prep = evaluate_ensemble([0, 1, 2, 3])
+    >>> print("Test set score no feature propagation  : %.3f" % score_no_prep)
+    >>> print("Test set score with feature propagation: %.3f" % score_prep)
+
+By combining feature propagation with the ``mlens.preprocessing.Subset``
+transformer, one can propagate the feature through several layers without
+any of the base estimators in those layers seeing the propagated features. This
+can be desirable if you want to propagate the input features to the meta
+learner, but don't want the intermediate base learners (in layers 2, 3, ...) to
+always have the original data as input. In this case, one specified propagation
+as we did above, but add a preprocessing pipeline to intermediate layers::
+
+        from mlens.preprocessing import Subset
+
+        estimators = [RandomForestClassifier(random_state=seed), SVC()]
+        ensemble = SuperLearner()
+
+        # Initial layer, propagate as before
+        ensemble.add(estimators, propagate_features=[0, 1])
+
+        # Intermediate layer, keep propagating, but add a preprocessing
+        # pipeline that selects a subset of the input
+        ensemble.add(estimators,
+                     preprocessing=[Subset([2, 3])],
+                     propagate_features=[0, 1])
+
+In the above example, the two first features of the original input data
+will be propagated through both layers, but the second layer will not be
+trained on it. Instead, it will only see the predictions made by the base
+learners in the first layer. ::
+
+    >>> ensemble.fit(X, y)
+    >>> n = ensemble.layer_2.estimators_[0][1][1].feature_importances_.shape[0]
+    >>> m = ensemble.predict(X).shape[1]
+    >>> print("Num features seen by estimators in intermediate layer: %i" % n)
+    >>> print("Num features in the output array of the intermediate layer: %i" % m)
+    Num features seen by estimators in intermediate layer: 2
+    Num features in the output array of the intermediate layer: 4
 
 .. _proba-tutorial:
 

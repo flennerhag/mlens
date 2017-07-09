@@ -38,7 +38,7 @@ ensemble to improve upon the best score of the subsequent layer as there is too
 little variation in predictions for the ensemble to learn useful combinations.
 One way to increase this variation is to propagate features from the original
 input and / or earlier layers. To achieve this in ML-Ensemble, we use the
-``propagate_features`` attribute. To see how this works, let's compare the
+``propagate_features`` attribute. To see how this works, let's compare
 a three-layer ensemble with and without feature propagation. ::
 
     from mlens.ensemble import SuperLearner

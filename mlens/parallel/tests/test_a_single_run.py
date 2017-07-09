@@ -41,4 +41,3 @@ def test_single_run():
     out = lc.predict(X)
 
     np.testing.assert_array_equal(F, out)
-

@@ -132,7 +132,7 @@ def _get_col_idx(preprocessing, estimators, labels, n_feature_prop):
 
     if isinstance(preprocessing, list) or preprocessing is None:
         # Simple iteration of list
-        idx = {(None, inst_name): n_feature_prop + int(inc * i)
+        idx = {(None, inst_name): int(n_feature_prop + inc * i)
                for i, (inst_name, _) in enumerate(estimators)}
     else:
         # Nested for loop required

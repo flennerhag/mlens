@@ -38,9 +38,9 @@ def test_fit():
     U = lc_u.fit(B, y, -1)[-1]
 
     ens = SequentialEnsemble()
-    ens.add('stack', ESTIMATORS, PREPROCESSING)
-    ens.add('blend', ECM)
-    ens.add('subset', ECM)
+    ens.add('stack', ESTIMATORS, PREPROCESSING, dtype=np.float64)
+    ens.add('blend', ECM, dtype=np.float64)
+    ens.add('subset', ECM, dtype=np.float64)
 
     out = ens.layers.fit(X, y, -1)[-1]
 
@@ -55,9 +55,9 @@ def test_predict():
     U = lc_u.predict(B, y)
 
     ens = SequentialEnsemble()
-    ens.add('stack', ESTIMATORS, PREPROCESSING)
-    ens.add('blend', ECM)
-    ens.add('subset', ECM)
+    ens.add('stack', ESTIMATORS, PREPROCESSING, dtype=np.float64)
+    ens.add('blend', ECM, dtype=np.float64)
+    ens.add('subset', ECM, dtype=np.float64)
 
     out = ens.fit(X, y).predict(X)
 
@@ -70,8 +70,8 @@ def test_equivalence_super_learner():
     ens = SuperLearner()
     seq = SequentialEnsemble()
 
-    ens.add(ECM)
-    seq.add('stack', ECM)
+    ens.add(ECM, dtype=np.float64)
+    seq.add('stack', ECM, dtype=np.float64)
 
     F = ens.fit(X, y).predict(X)
     P = seq.fit(X, y).predict(X)
@@ -85,8 +85,8 @@ def test_equivalence_blend():
     ens = BlendEnsemble()
     seq = SequentialEnsemble()
 
-    ens.add(ECM)
-    seq.add('blend', ECM)
+    ens.add(ECM, dtype=np.float64)
+    seq.add('blend', ECM, dtype=np.float64)
 
     F = ens.fit(X, y).predict(X)
     P = seq.fit(X, y).predict(X)
@@ -100,8 +100,8 @@ def test_equivalence_subsemble():
     ens = Subsemble()
     seq = SequentialEnsemble()
 
-    ens.add(ECM)
-    seq.add('subset', ECM)
+    ens.add(ECM, dtype=np.float64)
+    seq.add('subset', ECM, dtype=np.float64)
 
     F = ens.fit(X, y).predict(X)
     P = seq.fit(X, y).predict(X)

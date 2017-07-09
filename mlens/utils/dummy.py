@@ -351,8 +351,7 @@ class LayerGenerator(object):
     def __init__(self):
         pass
 
-    @staticmethod
-    def get_layer(kls, proba, preprocessing, *args, **kwargs):
+    def get_layer(self, kls, proba, preprocessing, *args, **kwargs):
         """Generate a layer instance.
 
         Parameters
@@ -366,26 +365,31 @@ class LayerGenerator(object):
         preprocessing : bool
             layer with preprocessing cases
         """
+        indexer, kwargs = self.load_indexer(kls, args, kwargs)
+
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
-            idx = INDEXERS[kls](*args, **kwargs)
             return Layer(estimators=ests,
                          cls=kls,
                          proba=proba,
-                         indexer=idx,
-                         partitions=1 if kls != 'subset' else idx.n_partitions,
-                         preprocessing=PREPROCESSING)
+                         indexer=indexer,
+                         dtype=np.float64,
+                         partitions=1 if kls != 'subset' else
+                         indexer.n_partitions,
+                         preprocessing=PREPROCESSING,
+                         **kwargs)
         else:
             ests = ECM_PROBA if proba else ECM
-            idx = INDEXERS[kls](*args, **kwargs)
             return Layer(estimators=ests,
                          cls=kls,
                          proba=proba,
-                         indexer=idx,
-                         partitions=1 if kls != 'subset' else idx.n_partitions)
+                         indexer=indexer,
+                         dtype=np.float64,
+                         partitions=1 if kls != 'subset' else
+                         indexer.n_partitions,
+                         **kwargs)
 
-    @staticmethod
-    def get_layer_container(kls, proba, preprocessing, *args, **kwargs):
+    def get_layer_container(self, kls, proba, preprocessing, *args, **kwargs):
         """Generate a layer container instance.
 
         Parameters
@@ -399,19 +403,36 @@ class LayerGenerator(object):
         preprocessing : bool
             layer with preprocessing cases
         """
+        indexer, kwargs = self.load_indexer(kls, args, kwargs)
+
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
             return LayerContainer().add(estimators=ests,
                                         cls=kls,
                                         proba=proba,
-                                        indexer=INDEXERS[kls](*args, **kwargs),
-                                        preprocessing=PREPROCESSING)
+                                        indexer=indexer,
+                                        preprocessing=PREPROCESSING,
+                                        dtype=np.float64,
+                                        **kwargs)
         else:
             ests = ECM_PROBA if proba else ECM
             return LayerContainer().add(estimators=ests,
                                         cls=kls,
                                         proba=proba,
-                                        indexer=INDEXERS[kls](*args, **kwargs))
+                                        indexer=indexer,
+                                        dtype=np.float64,
+                                        **kwargs)
+
+    @staticmethod
+    def load_indexer(kls, args, kwargs):
+        """Load indexer and return remaining kwargs"""
+        indexer = INDEXERS[kls]
+        idx_kwargs = dict()
+        for var in indexer.__init__.__code__.co_varnames:
+            if var in kwargs:
+                idx_kwargs[var] = kwargs[var].pop()
+        indexer = indexer(*args, **idx_kwargs)
+        return indexer, kwargs
 
 
 class Cache(object):
@@ -945,6 +966,20 @@ def lc_transform(lc, X, F):
     """Test the layer containers transform method."""
     pred = lc.transform(X)
     np.testing.assert_array_equal(pred, F)
+
+
+def lc_feature_prop(lc, X, y, F):
+    """Test input feature propagation."""
+
+    feature_prop = lc.layers["layer-1"].propagate_features
+    n = lc.layers["layer-1"].n_feature_prop
+
+    r = X.shape[0] - F.shape[0]
+
+    preds = lc.fit(X, y, return_preds=True)[1]
+
+    np.testing.assert_array_equal(X[r:, feature_prop],  preds[:, :n])
+    np.testing.assert_array_equal(F, preds[:, n:])
 
 
 def lc_from_file(lc, cache, X, y, F, wf, P, wp):

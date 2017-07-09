@@ -129,7 +129,8 @@ class BlendEnsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    7.2309909413577111
+    7.656098...
+
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
@@ -155,7 +156,7 @@ class BlendEnsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    7.5812611042457716
+    7.9814242...
     """
 
     def __init__(self,
@@ -178,16 +179,24 @@ class BlendEnsemble(BaseEnsemble):
 
         self.test_size = test_size
 
-    def add_meta(self, estimator):
+    def add_meta(self, estimator, **kwargs):
         """Meta Learner.
 
         Compatibility method for adding a meta learner to be used for final
         predictions.
+
+        Parameters
+        ----------
+        estimator : instance
+            estimator instance.
+
+        **kwargs : optional
+            optional keyword arguments.
         """
-        return self.add(estimators=estimator, meta=True)
+        return self.add(estimators=estimator, meta=True, **kwargs)
 
     def add(self, estimators, preprocessing=None, test_size=None,
-            proba=False, meta=False):
+            proba=False, meta=False, **kwargs):
         """Add layer to ensemble.
 
         Parameters
@@ -254,6 +263,9 @@ class BlendEnsemble(BaseEnsemble):
         meta : bool (default = False)
             Whether the layer should be treated as the final meta estimator.
 
+        **kwargs : optional
+            optional keyword arguments to instantiate layer with.
+
         Returns
         -------
         self : instance
@@ -273,4 +285,5 @@ class BlendEnsemble(BaseEnsemble):
                 preprocessing=preprocessing,
                 indexer=idx,
                 proba=proba,
-                verbose=self.verbose)
+                verbose=self.verbose,
+                **kwargs)

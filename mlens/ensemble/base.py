@@ -11,7 +11,7 @@ from __future__ import division, print_function
 
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-
+from numpy import float32
 
 from ..base import INDEXERS
 from ..parallel import ParallelProcessing
@@ -473,6 +473,11 @@ class Layer(BaseEstimator):
     partitions : int (default = 1)
         Number of subset-specific fits to generate from the learner library.
 
+    propagate_features : list, optional
+        Features to propagate from the input array to the output array.
+        Carries input features to the output of the layer, useful for
+        propagating original data through several stacked layers.
+
     raise_on_exception : bool (default = False)
         whether to raise an error on soft exceptions, else issue warning.
 
@@ -488,6 +493,9 @@ class Layer(BaseEstimator):
 
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
         For verbosity in the layers themselves, use ``fit_params``.
+
+    dtype : numpy dtype class, default = :class:`numpy.float32`
+        dtype format of prediction array.
 
     cls_kwargs : dict or None
         optional arguments to pass to the layer type class.
@@ -510,9 +518,11 @@ class Layer(BaseEstimator):
                  preprocessing=None,
                  proba=False,
                  partitions=1,
+                 propagate_features=None,
                  scorer=None,
                  raise_on_exception=False,
                  name=None,
+                 dtype=float32,
                  verbose=False,
                  cls_kwargs=None):
 
@@ -526,9 +536,11 @@ class Layer(BaseEstimator):
         self.cls_kwargs = cls_kwargs
         self.proba = proba
         self.partitions = partitions
+        self.propagate_features = propagate_features
         self.scorer = scorer
         self.raise_on_exception = raise_on_exception
         self.name = name
+        self.dtype = dtype
         self.verbose = verbose
 
         self._store_layer_data()
@@ -538,7 +550,16 @@ class Layer(BaseEstimator):
         ests = self.estimators
         prep = self.preprocessing
 
-        # Store layer data
+        # Store feature propagation data
+        if self.propagate_features:
+            if not isinstance(self.propagate_features, list):
+                raise ValueError("propagate features expected list, got %s" %
+                                 self.propagate_features.__class__)
+            self.n_feature_prop = len(self.propagate_features)
+        else:
+            self.n_feature_prop = 0
+
+        # Store layer estimator data
         if isinstance(ests, list):
             # No preprocessing cases. Check if there is one uniform pipeline.
             self.n_prep = 0 if prep is None or len(prep) == 0 else 1
@@ -546,8 +567,8 @@ class Layer(BaseEstimator):
             self.n_est = len(ests)
             self.cases = [None]
         else:
-            # Need to number of predictions by moving through each
-            # case and counting estimators.
+            # Get the number of predictions by moving through each
+            # case and count estimators.
             self.n_prep = len(prep)
             self.cases = sorted(prep)
 

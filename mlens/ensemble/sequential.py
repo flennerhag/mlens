@@ -113,7 +113,7 @@ class SequentialEnsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    6.5628696546845635
+    6.5628...
     """
 
     def __init__(self,
@@ -133,12 +133,20 @@ class SequentialEnsemble(BaseEnsemble):
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
                 array_check=array_check, backend=backend)
 
-    def add_meta(self, estimator):
+    def add_meta(self, estimator, **kwargs):
         """Meta Learner.
 
         Meta learner to be used for final predictions.
+
+        Parameters
+        ----------
+        estimator : instance
+            estimator instance.
+
+        **kwargs : optional
+            optional keyword arguments.
         """
-        return self.add(cls='full', estimators=estimator)
+        return self.add(cls='full', estimators=estimator, **kwargs)
 
     def add(self, cls, estimators, preprocessing=None, **kwargs):
         """Add layer to ensemble.
@@ -204,7 +212,7 @@ class SequentialEnsemble(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-        kwargs : optional
+        **kwargs : optional
             optional keyword arguments to instantiate layer with. See
             respective ensemble for further details.
 

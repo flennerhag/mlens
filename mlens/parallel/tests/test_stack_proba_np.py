@@ -11,7 +11,8 @@ from mlens.utils.dummy import (layer_fit,
                                lc_from_file,
                                lc_from_csv,
                                lc_predict,
-                               lc_transform)
+                               lc_transform,
+                               lc_feature_prop)
 
 PROBA = True
 PROCESSING = False
@@ -29,6 +30,8 @@ X, y = data.get_data((LEN, WIDTH), MOD)
 
 layer = lg.get_layer('stack', PROBA, PROCESSING, FOLDS)
 lc = lg.get_layer_container('stack', PROBA, PROCESSING, FOLDS)
+lc_p = lg.get_layer_container('stack', PROBA, PROCESSING, FOLDS,
+                              propagate_features=[1])
 
 layer.indexer.fit(X)
 
@@ -73,6 +76,11 @@ def test_lc_file():
 def test_lc_csv():
     """[Parallel | Stack | No Prep | Proba] test layer container from csv."""
     lc_from_csv(lc, cache, X, y, F, wf, P, wp)
+
+
+def test_lc_prop():
+    """[Parallel | Stack | No Prep | Proba] test layer container feature propagation."""
+    lc_feature_prop(lc_p, X, y, F)
 
 
 def test_close():

@@ -37,7 +37,7 @@ def run(cls, proba, preprocessing, **kwargs):
     (F, wf), _ = data.ground_truth(X, y, p)
 
     ens = EnsembleTransformer()
-    ens.add(cls, ests, prep, proba=proba, **kwargs)
+    ens.add(cls, ests, prep, proba=proba, dtype=np.float64, **kwargs)
     ens.fit(X, y)
 
     pred = ens.transform(X)

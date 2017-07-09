@@ -32,12 +32,12 @@ X2, y2 = data1.get_data((LEN, WIDTH), MOD)
 G2 = OLS().fit(F2, y2).predict(P2)
 
 ens1 = SuperLearner(folds=FOLDS, scorer=rmse, verbose=100)
-ens1.add(ESTIMATORS, PREPROCESSING)
-ens1.add_meta(OLS())
+ens1.add(ESTIMATORS, PREPROCESSING, dtype=np.float64)
+ens1.add_meta(OLS(), dtype=np.float64)
 
 ens2 = SuperLearner(folds=FOLDS, scorer=rmse, verbose=100)
-ens2.add(ECM)
-ens2.add_meta(OLS())
+ens2.add(ECM, dtype=np.float64)
+ens2.add_meta(OLS(), dtype=np.float64)
 
 
 def test_run_w_folds():

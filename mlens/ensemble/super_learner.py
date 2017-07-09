@@ -155,6 +155,7 @@ class SuperLearner(BaseEnsemble):
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
     >>> from sklearn.svm import SVR
+    >>> import numpy as np
     >>>
     >>> X, y = load_boston(True)
     >>>
@@ -165,7 +166,7 @@ class SuperLearner(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    6.9553583775881407
+    6.955358...
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
@@ -191,7 +192,7 @@ class SuperLearner(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    7.8413294010791557
+    7.841329...
     """
 
     def __init__(self,
@@ -214,15 +215,23 @@ class SuperLearner(BaseEnsemble):
 
         self.folds = folds
 
-    def add_meta(self, estimator):
+    def add_meta(self, estimator, **kwargs):
         """Meta Learner.
 
         Meta learner to be used for final predictions.
+
+        Parameters
+        ----------
+        estimator : instance
+            estimator instance.
+
+        **kwargs : optional
+            optional keyword arguments.
         """
-        return self.add(estimators=estimator, meta=True)
+        return self.add(estimators=estimator, meta=True, **kwargs)
 
     def add(self, estimators, preprocessing=None,
-            folds=None, proba=False, meta=False):
+            folds=None, proba=False, meta=False, **kwargs):
         """Add layer to ensemble.
 
         Parameters
@@ -279,7 +288,6 @@ class SuperLearner(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-
         folds : int, optional
             Use if a different number of folds is desired than what the
             ensemble was instantiated with.
@@ -293,6 +301,9 @@ class SuperLearner(BaseEnsemble):
             indicator if the layer added is the final meta estimator. This will
             prevent folded or blended fits of the estimators and only fit them
             once on the full input data.
+
+        **kwargs : optional
+            optional keyword arguments.
 
         Returns
         -------
@@ -314,4 +325,5 @@ class SuperLearner(BaseEnsemble):
                 indexer=idx,
                 preprocessing=preprocessing,
                 proba=proba,
-                verbose=self.verbose)
+                verbose=self.verbose,
+                **kwargs)

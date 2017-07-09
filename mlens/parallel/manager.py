@@ -16,6 +16,7 @@ import warnings
 import numpy as np
 
 from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
+from .estimation import _assign_predictions
 from ..externals.joblib import Parallel, dump, load
 from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
@@ -153,13 +154,26 @@ class ParallelProcessing(object):
         # Release any memory before going into process
         gc.collect()
 
+    def _propagate_features(self, lyr):
+        """Propagate features from input array to output array."""
+        P_out, P_in = self.job.P[-1], self.job.P[-2]
+
+        # Need to account for loss of observations between layers (i.e. blend)
+        n_in, n_out = P_in.shape[0], P_out.shape[0]
+        r = n_in - n_out
+
+        # The propagated features are set as the n last features of the
+        # outgoing prediction array. Note that dropped observations are assumed
+        # to be strictly monotonic in indexing.
+        P_out[:, :lyr.n_feature_prop] = P_in[r:, lyr.propagate_features]
+
     def _gen_prediction_array(self, lyr, name):
         """Persist prediction array to disk."""
         f = os.path.join(self.job.dir, '%s.mmap' % name)
         shape = self._get_lyr_sample_size(lyr)
         try:
             self.job.P.append(np.memmap(filename=f,
-                                        dtype=np.float,
+                                        dtype=lyr.dtype,
                                         mode='w+',
                                         shape=shape))
         except Exception as exc:
@@ -170,6 +184,10 @@ class ParallelProcessing(object):
                           (shape[0], shape[1], 8 * shape[0] * shape[1] / 1e6,
                            name, exc))
 
+        # If asked, propagate features
+        if lyr.propagate_features:
+            self._propagate_features(lyr)
+
     def _get_lyr_sample_size(self, lyr):
         """Decide what sample size to create P with based on the job type."""
         # Sample size is full for prediction, for fitting
@@ -179,8 +197,9 @@ class ParallelProcessing(object):
 
         # Number of prediction columns depends on:
         # 1. number of estimators in layer
-        # 2. if predict_proba, number of classes in training set
+        # 2. if ``predict_proba``, number of classes in training set
         # 3. number of subsets (default is one for all data)
+        # 4. number of features to propagate
         # Note that 1. and 2. are encoded in n_pred (see Layer) but 2.
         # depends on the data and thus has to be handled by the manager.
         s1 = lyr.n_pred
@@ -190,6 +209,9 @@ class ParallelProcessing(object):
                 lyr.classes_ = self.job.l = np.unique(self.job.y).shape[0]
 
             s1 *= lyr.classes_
+
+        if lyr.propagate_features:
+            s1 += lyr.n_feature_prop
 
         return s0, s1
 

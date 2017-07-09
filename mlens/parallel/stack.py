@@ -35,7 +35,8 @@ class Stacker(BaseEstimator):
         """Assign unique col_id to every estimator."""
         c = getattr(self.layer, 'classes_', 1)
         p = len(self.layer.cases)
-        return _get_col_idx(self.e, p, c)
+        k = self.layer.n_feature_prop
+        return _get_col_idx(self.e, p, c, k)
 
 
 ###############################################################################
@@ -142,7 +143,7 @@ def _expand_instance_list(instance_list, indexer):
     return ls
 
 
-def _get_col_idx(instance_list, n_main, labels):
+def _get_col_idx(instance_list, n_main, labels, n_feature_prop):
     """Utility for assigning columns ids to each fold-specific estimator.
 
     Parameters
@@ -156,13 +157,16 @@ def _get_col_idx(instance_list, n_main, labels):
     labels : int
         number of labels to expand col_id with
 
+    n_feature_prop : int
+        number of features being propagated. Predictions are concatenated from
+        the right.
     """
     inc = 1 if labels is None else labels
 
     # Set up estimator column mapping
     # We select the main estimators by filtering out
     # fold-specific estimators and assigning each of the main ests a col_id
-    idx, col = dict(), 0
+    idx, col = dict(), n_feature_prop
     for meta_name, _, _, estimator_list in instance_list[:n_main]:
         for est_name, _ in estimator_list:
             idx[(meta_name, est_name)] = col

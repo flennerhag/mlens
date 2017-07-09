@@ -21,7 +21,7 @@ def ground_truth():
     P = np.zeros((12, 2 * 2))
     F = np.zeros((12, 2 * 2))
 
-    cols = _get_col_idx(e, 2, 1)
+    cols = _get_col_idx(e, 2, 1, 0)
 
     for name, tri, tei, est_list in e:
         for est_name, est in est_list:
@@ -49,7 +49,8 @@ def test_subset_fit_predict_transform():
                               cls='subset',
                               proba=False,
                               indexer=indexer,
-                              preprocessing=None)
+                              preprocessing=None,
+                              dtype=np.float64)
 
     f = lc.fit(x, y, return_preds=-1)[-1]
     p = lc.predict(x)

@@ -175,7 +175,7 @@ class Subsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    9.2393246953908577
+    9.2393246...
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
@@ -200,7 +200,7 @@ class Subsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    9.0115741283454458
+    9.0115741...
     """
 
     def __init__(self,
@@ -225,12 +225,21 @@ class Subsemble(BaseEnsemble):
         self.partitions = partitions
         self.folds = folds
 
-    def add_meta(self, estimators):
-        """Add meta estimator."""
-        return self.add(estimators, meta=True)
+    def add_meta(self, estimator, **kwargs):
+        """Add meta estimator.
+
+        Parameters
+        ----------
+        estimator : instance
+            estimator instance.
+
+        **kwargs : optional
+            optional keyword arguments.
+        """
+        return self.add(estimator, meta=True, **kwargs)
 
     def add(self, estimators, preprocessing=None, meta=False,
-            partitions=None, folds=None, proba=False):
+            partitions=None, folds=None, proba=False, **kwargs):
         """Add layer to ensemble.
 
         Parameters
@@ -305,6 +314,9 @@ class Subsemble(BaseEnsemble):
         proba : bool (default = False)
             whether to call ``predict_proba`` on base learners.
 
+        **kwargs : optional
+            optional keyword arguments to instantiate ensemble with.
+
         Returns
         -------
         self : instance
@@ -325,4 +337,5 @@ class Subsemble(BaseEnsemble):
                          preprocessing=preprocessing,
                          indexer=idx,
                          proba=proba,
-                         verbose=self.verbose)
+                         verbose=self.verbose,
+                         **kwargs)

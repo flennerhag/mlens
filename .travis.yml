@@ -1,9 +1,5 @@
 language: python
 
-os:
-  - linux
-  - osx
-
 matrix:
     include:
         - os: linux
@@ -26,7 +22,8 @@ matrix:
           python: 2.7
 
 install:
-  - ./.travis/install.sh
+  - PWD;
+  - mlens/.travis/install.sh
 
 script:
   - set -e

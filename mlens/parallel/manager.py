@@ -16,7 +16,6 @@ import warnings
 import numpy as np
 
 from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
-from .estimation import _assign_predictions
 from ..externals.joblib import Parallel, dump, load
 from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,

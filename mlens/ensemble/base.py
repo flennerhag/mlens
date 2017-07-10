@@ -692,7 +692,7 @@ class BaseEnsemble(BaseEstimator):
                         scorer=self.scorer,
                         **kwargs)
 
-        # Check parameter compatability
+        # Check parameter comparability
         if 'proba' in kwargs:
             scorer = getattr(self, 'scorer', None)
             if kwargs['proba'] and scorer:

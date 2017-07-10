@@ -530,7 +530,10 @@ class Cache(object):
         est = ENGINES[layer.cls]
 
         # Wrap in try-except to always close the tmp if asked to
+        # We test layers with n_jobs=1, and test n_jobs != 1 with
+        # the LayerContainer Class instead.
         with Parallel(temp_folder=self.job['dir'],
+                      n_jobs=1,
                       mmap_mode='r+',
                       max_nbytes=None) as parallel:
 

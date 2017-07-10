@@ -470,7 +470,7 @@ class Cache(object):
             self.classes_ = data.classes_
             s *= data.classes_
 
-        P_f = np.memmap(f, dtype=np.float, shape=(n, s), mode='w+')
+        P_f = np.memmap(f, dtype=np.float64, shape=(n, s), mode='w+')
 
         # Prediction for predict
         f = os.path.join(path, 'Pp.mmap')
@@ -483,7 +483,7 @@ class Cache(object):
         if data.proba:
             s *= data.classes_
 
-        P_p = np.memmap(f, dtype=np.float, shape=(n, s), mode='w+')
+        P_p = np.memmap(f, dtype=np.float64, shape=(n, s), mode='w+')
 
         # Prediction for transform
         f = os.path.join(path, 'Pt.mmap')
@@ -496,7 +496,7 @@ class Cache(object):
         if data.proba:
             s *= data.classes_
 
-        P_t = np.memmap(f, dtype=np.float, shape=(n, s), mode='w+')
+        P_t = np.memmap(f, dtype=np.float64, shape=(n, s), mode='w+')
 
         self.job = {'X': X,
                     'y': y,

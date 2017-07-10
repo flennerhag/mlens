@@ -394,7 +394,7 @@ class LayerGenerator(object):
 
         Parameters
         ----------
-        cls : str
+        kls : str
             class type
 
         proba : bool
@@ -430,7 +430,7 @@ class LayerGenerator(object):
         idx_kwargs = dict()
         for var in indexer.__init__.__code__.co_varnames:
             if var in kwargs:
-                idx_kwargs[var] = kwargs[var].pop()
+                idx_kwargs[var] = kwargs.pop(var)
         indexer = indexer(*args, **idx_kwargs)
         return indexer, kwargs
 
@@ -530,10 +530,7 @@ class Cache(object):
         est = ENGINES[layer.cls]
 
         # Wrap in try-except to always close the tmp if asked to
-        # We test layers with n_jobs=1, and test n_jobs != 1 with
-        # the LayerContainer Class instead.
         with Parallel(temp_folder=self.job['dir'],
-                      n_jobs=1,
                       mmap_mode='r+',
                       max_nbytes=None) as parallel:
 

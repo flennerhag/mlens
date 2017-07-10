@@ -159,7 +159,7 @@ class ParallelProcessing(object):
 
         # Need to account for loss of observations between layers (i.e. blend)
         n_in, n_out = P_in.shape[0], P_out.shape[0]
-        r = n_in - n_out
+        r = int(n_in - n_out)
 
         # The propagated features are set as the n last features of the
         # outgoing prediction array. Note that dropped observations are assumed
@@ -184,7 +184,7 @@ class ParallelProcessing(object):
                            name, exc))
 
         # If asked, propagate features
-        if lyr.propagate_features:
+        if lyr.propagate_features is not None:
             self._propagate_features(lyr)
 
     def _get_lyr_sample_size(self, lyr):
@@ -209,7 +209,7 @@ class ParallelProcessing(object):
 
             s1 *= lyr.classes_
 
-        if lyr.propagate_features:
+        if lyr.propagate_features is not None:
             s1 += lyr.n_feature_prop
 
         return s0, s1
@@ -240,7 +240,7 @@ class ParallelProcessing(object):
 
         self.__fitted__ = 1
 
-    def get_preds(self, n=-1, dtype=np.float, order='C'):
+    def get_preds(self, n=-1, dtype=None, order='C'):
         """Return prediction matrix.
 
         Parameters
@@ -251,7 +251,7 @@ class ParallelProcessing(object):
             List slicing is accepted, so ``n = -1`` retrieves the final
             predictions.
 
-        dtype : object (default = numpy.float)
+        dtype : numpy dtype object, optional
             data type to return
 
         order : str (default = 'C')
@@ -262,6 +262,8 @@ class ParallelProcessing(object):
                                           "cannot retrieve final prediction "
                                           "array as the estimation cache has "
                                           "been removed.")
+        if dtype is None:
+            dtype = self.layers.layers[self.layers.layer_names[n]].dtype
 
         return np.asarray(self.job.P[n], dtype=dtype, order=order)
 

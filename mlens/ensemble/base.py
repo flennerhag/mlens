@@ -65,7 +65,7 @@ class LayerContainer(BaseEstimator):
     def __init__(self,
                  layers=None,
                  n_jobs=-1,
-                 backend='threading',
+                 backend='multiprocessing',
                  raise_on_exception=False,
                  verbose=False):
 
@@ -171,6 +171,7 @@ class LayerContainer(BaseEstimator):
 
         # Attach to ordered dictionary
         self.layers[name] = lyr
+        self.layer_names.append(name)
 
         # Summarize
         self.summary[name] = self._get_layer_data(name)
@@ -198,9 +199,7 @@ class LayerContainer(BaseEstimator):
             no predictions are returned. Else, an integer corresponding to the
             layer count should be passed with 0-indexing. Thus, for predictions
             from ``layer-1``, set ``return_preds=0``. If ``return_preds=-1``
-            predictions from the ultimate layer is returned. Similarly,
-            ``return_preds=-2`` returns the predictions in the penultimate
-            layer.
+            predictions from the ultimate layer is returned.
 
         **process_kwargs : optional
             optional arguments to initialize processor with.
@@ -347,6 +346,9 @@ class LayerContainer(BaseEstimator):
             out = None
 
         if return_preds is not None:
+            if isinstance(return_preds, bool):
+                # Safeguard against boolean argument
+                return_preds = -1
             return out, processor.get_preds(return_preds)
         else:
             return out
@@ -358,11 +360,13 @@ class LayerContainer(BaseEstimator):
             layers.clear()
 
         self.layers = layers
+        self.layer_names = list()
         self.n_layers = len(self.layers)
 
         self.summary = dict()
         for name in self.layers:
             self.summary[name] = self._get_layer_data(name)
+            self.layer_names.append(name)
 
     def _get_layer_data(self, name,
                         attr=('cls', 'n_prep', 'n_pred', 'n_est', 'cases')):
@@ -644,7 +648,7 @@ class BaseEnsemble(BaseEstimator):
                  n_jobs=-1,
                  layers=None,
                  array_check=2,
-                 backend='threading'):
+                 backend='multiprocessing'):
 
         self.shuffle = shuffle
         self.random_state = random_state

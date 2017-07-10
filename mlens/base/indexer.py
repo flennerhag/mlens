@@ -891,6 +891,12 @@ class ClusteredSubsetIndex(BaseIndex):
         not be 1 if ``n_partition > 1``. Note that if ``n_splits = 1``,
         both the train and test set will index the full data.
 
+    fit_estimator : bool (default = True)
+        whether to fit the estimator separately before generating labels.
+
+    attr : str (default = 'predict')
+        the attribute to use for generating cluster membership labels.
+
     X : array-like of shape [n_samples,] , optional
         the training set to partition. The training label array is also,
         accepted, as only the first dimension is used. If ``X`` is not
@@ -944,9 +950,13 @@ class ClusteredSubsetIndex(BaseIndex):
                  n_splits=2,
                  X=None,
                  y=None,
+                 fit_estimator=True,
+                 attr='predict',
                  raise_on_exception=True):
 
         self.estimator = estimator
+        self.fit_estimator = fit_estimator
+        self.attr = attr
         self.n_partitions = n_partitions
         self.n_splits = n_splits
         self.raise_on_exception = raise_on_exception
@@ -967,33 +977,34 @@ class ClusteredSubsetIndex(BaseIndex):
             labels.
 
         job : str, ['fit', 'predict'] (default='fit')
-            type of estimation job. If 'fit', the estimator will be fitted,
-            else the estimator is assumed to have been fitted already.
+            type of estimation job. If 'fit', the indexer will be fitted,
+            which involves fitting the estimator. Otherwise, the indexer will
+            not be fitted (since it is not used for prediction).
 
         Returns
         -------
         instance :
             indexer with stores sample size data.
         """
-        n = X.shape[0]
-
         if 'fit' in job:
-            try:
-                self.estimator.fit(X, y)
-            except TypeError:
-                # Safeguard against estimators that do not accept y.
-                self.estimator.fit(X)
+            n = X.shape[0]
+            if self.fit_estimator:
+                try:
+                    self.estimator.fit(X, y)
+                except TypeError:
+                    # Safeguard against estimators that do not accept y.
+                    self.estimator.fit(X)
 
-        # Indexers are assumed to need fitting once, so we need to
-        # generate cluster predictions during the fit call. To minimize
-        # memory consumption, cluster indexes are stored as a list of
-        # tuples
-        self._clusters_ = self._get_partitions(X)
+            # Indexers are assumed to need fitting once, so we need to
+            # generate cluster predictions during the fit call. To minimize
+            # memory consumption, cluster indexes are stored as a list of
+            # tuples
+            self._clusters_ = self._get_partitions(X)
 
-        _check_subsample_index(n, self.n_partitions, self.n_splits,
-                               self.raise_on_exception)
+            _check_subsample_index(n, self.n_partitions, self.n_splits,
+                                   self.raise_on_exception)
 
-        self.n_samples = self.n_test_samples = n
+            self.n_samples = self.n_test_samples = n
 
         return self
 
@@ -1041,7 +1052,7 @@ class ClusteredSubsetIndex(BaseIndex):
         for further details.
         """
         n_samples = X.shape[0]
-        cluster_ids = self.estimator.predict(X)
+        cluster_ids = getattr(self.estimator, self.attr)(X)
         clusters = np.unique(cluster_ids)
         self.n_partitions = len(clusters)
 

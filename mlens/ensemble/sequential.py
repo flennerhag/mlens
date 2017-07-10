@@ -11,6 +11,7 @@ from __future__ import division
 
 from .base import BaseEnsemble
 from ..base import INDEXERS
+from ..utils import kwarg_parser
 
 
 class SequentialEnsemble(BaseEnsemble):
@@ -233,17 +234,8 @@ class SequentialEnsemble(BaseEnsemble):
             return self._add(estimators, cls, INDEXERS[cls](), preprocessing)
 
         # Else, pop arguments belonging to the indexer
-        indexer, kwargs_idx = INDEXERS[cls], dict()
-
-        args = indexer.__init__.__code__.co_varnames
-        for arg in args:
-            if arg in kwargs:
-                kwargs_idx[arg] = kwargs.pop(arg)
-
-        if 'raise_on_exception' in args and \
-                'raise_on_exception' not in kwargs_idx:
-            kwargs_idx['raise_on_exception'] = self.raise_on_exception
-
+        indexer = INDEXERS[cls]
+        kwargs_idx, kwargs = kwarg_parser(indexer.__init__, kwargs)
         indexer = indexer(**kwargs_idx)
 
         return self._add(estimators=estimators,

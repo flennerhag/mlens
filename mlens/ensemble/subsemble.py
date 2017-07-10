@@ -11,6 +11,7 @@ from __future__ import division
 
 from .base import BaseEnsemble
 from ..base import FullIndex, SubsetIndex, ClusteredSubsetIndex
+from ..utils import kwarg_parser
 
 
 class Subsemble(BaseEnsemble):
@@ -358,24 +359,30 @@ class Subsemble(BaseEnsemble):
         """
         if meta:
             cls = 'full'
-            idx = FullIndex()
+            indexer = FullIndex()
         else:
+            # Parse arguments for the indexer
             cls = 'subset'
+
             p = partitions if partitions is not None else self.partitions
             e = partition_estimator if partition_estimator is not None \
                 else self.partition_estimator
             c = folds if folds is not None else self.folds
-            if e:
-                idx = ClusteredSubsetIndex(e, p, c,
-                                           raise_on_exception=
-                                           self.raise_on_exception)
-            else:
-                idx = SubsetIndex(p, c, raise_on_exception=
-                                  self.raise_on_exception)
+
+            idx = ClusteredSubsetIndex if e is not None else SubsetIndex
+            args = (e, p, c) if e is not None else (p, c)
+
+            kwargs_idx, kwargs = kwarg_parser(idx.__init__, kwargs)
+
+            if 'raise_on_exception' not in kwargs_idx:
+                kwargs_idx['raise_on_exception'] = self.raise_on_exception
+
+            indexer = idx(*args, **kwargs_idx)
+
         return self._add(cls=cls,
                          estimators=estimators,
                          preprocessing=preprocessing,
-                         indexer=idx,
+                         indexer=indexer,
                          proba=proba,
                          verbose=self.verbose,
                          propagate_features=propagate_features,

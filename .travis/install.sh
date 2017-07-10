@@ -8,12 +8,7 @@ if [[ $TRAVIS_OS_NAME == 'linux' ]]; then
     sudo apt-get update;
 fi
 
-virtualenv .test;
-source .test/bin/activate;
-
-python --version;
-
-pip install coverage coveralls nose-exclude flake8 psutil numpy scipy scikit-learn;
+pip install coverage coveralls nose-exclude flake8 psutil scikit-learn;
 pip install -r requirements.txt;
 python setup.py install;
 

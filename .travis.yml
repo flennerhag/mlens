@@ -20,7 +20,7 @@ matrix:
 
 install:
   - set -e
-  - mlens/.travis/install.sh
+  - mlens_dev/.travis/install.sh
 
 script:
   - set -e

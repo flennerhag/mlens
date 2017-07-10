@@ -65,7 +65,7 @@ class LayerContainer(BaseEstimator):
     def __init__(self,
                  layers=None,
                  n_jobs=-1,
-                 backend='multiprocessing',
+                 backend='threading',
                  raise_on_exception=False,
                  verbose=False):
 
@@ -644,7 +644,7 @@ class BaseEnsemble(BaseEstimator):
                  n_jobs=-1,
                  layers=None,
                  array_check=2,
-                 backend='multiprocessing'):
+                 backend='threading'):
 
         self.shuffle = shuffle
         self.random_state = random_state

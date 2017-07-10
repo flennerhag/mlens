@@ -529,6 +529,7 @@ class Cache(object):
 
         # Wrap in try-except to always close the tmp if asked to
         with Parallel(temp_folder=self.job['dir'],
+                      backend="threading",
                       mmap_mode='r+',
                       max_nbytes=None) as parallel:
 

@@ -9,9 +9,9 @@ Base classes for ensemble layer management.
 
 from __future__ import division, print_function
 
+import numpy as np
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from numpy import float32
 
 from ..base import INDEXERS
 from ..parallel import ParallelProcessing
@@ -523,7 +523,7 @@ class Layer(BaseEstimator):
                  scorer=None,
                  raise_on_exception=False,
                  name=None,
-                 dtype=float32,
+                 dtype=np.float,
                  verbose=False,
                  cls_kwargs=None):
 

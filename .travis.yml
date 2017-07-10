@@ -11,18 +11,9 @@ matrix:
         - os: linux
           sudo: required
           python: 2.7
-        - os: osx
-          sudo: required
-          python: 3.6
-        - os: osx
-          sudo: required
-          python: 3.5
-        - os: osx
-          sudo: required
-          python: 2.7
 
 install:
-  - PWD;
+  - set -e
   - mlens/.travis/install.sh
 
 script:

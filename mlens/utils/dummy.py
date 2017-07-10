@@ -373,21 +373,19 @@ class LayerGenerator(object):
                          cls=kls,
                          proba=proba,
                          indexer=indexer,
-                         dtype=np.float64,
+                         dtype=np.float,
                          partitions=1 if kls != 'subset' else
                          indexer.n_partitions,
-                         preprocessing=PREPROCESSING,
-                         **kwargs)
+                         preprocessing=PREPROCESSING)
         else:
             ests = ECM_PROBA if proba else ECM
             return Layer(estimators=ests,
                          cls=kls,
                          proba=proba,
                          indexer=indexer,
-                         dtype=np.float64,
+                         dtype=np.float,
                          partitions=1 if kls != 'subset' else
-                         indexer.n_partitions,
-                         **kwargs)
+                         indexer.n_partitions)
 
     def get_layer_container(self, kls, proba, preprocessing, *args, **kwargs):
         """Generate a layer container instance.

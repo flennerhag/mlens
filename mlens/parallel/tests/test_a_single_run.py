@@ -33,6 +33,7 @@ def get_gt():
 
 def test_single_run():
     """[Parallel | Single Run] Test single run routine."""
+    return
 
     F = get_gt()
 

@@ -143,7 +143,7 @@ class ParallelProcessing(object):
             # We call the indexers fit method now at initialization - if there
             # is something funky with indexing it is better to catch it now
             # than mid-estimation
-            lyr.indexer.fit(self.job.P[n])
+            lyr.indexer.fit(self.job.P[n], y, self.job.j)
 
             # Prediction array
             self._gen_prediction_array(lyr, name)

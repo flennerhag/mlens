@@ -81,6 +81,7 @@ class BaseEstimator(object):
     @abstractmethod
     def _format_instance_list(self):
         """Formatting layer's estimator and preprocessing for parallel loop."""
+        return None, None
 
     @abstractmethod
     def _get_col_id(self):
@@ -157,8 +158,7 @@ class BaseEstimator(object):
                                             y=y,
                                             idx=tri,
                                             name=self.name)
-                         for i, (case, tri, _, instance_list)
-                         in enumerate(self.t))
+                         for case, tri, _, instance_list in self.t)
 
             parallel(delayed(fit_est)(dir=dir,
                                       case=case,
@@ -316,7 +316,7 @@ def _wrap(folded_list, name='__trans__'):
             case, tri, tei, instance_list in folded_list]
 
 
-def _slice_array(x, y, idx, r = 0):
+def _slice_array(x, y, idx, r=0):
     """Build training array index and slice data."""
     if idx is not None:
         # Check if the idx is a tuple and if so, whether it can be made

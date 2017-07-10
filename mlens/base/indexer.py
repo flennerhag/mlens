@@ -986,8 +986,8 @@ class ClusteredSubsetIndex(BaseIndex):
         instance :
             indexer with stores sample size data.
         """
+        n = X.shape[0]
         if 'fit' in job:
-            n = X.shape[0]
             if self.fit_estimator:
                 try:
                     self.estimator.fit(X, y)
@@ -1004,8 +1004,7 @@ class ClusteredSubsetIndex(BaseIndex):
             _check_subsample_index(n, self.n_partitions, self.n_splits,
                                    self.raise_on_exception)
 
-            self.n_samples = self.n_test_samples = n
-
+        self.n_samples = self.n_test_samples = n
         return self
 
     def partition(self, X=None, as_array=False):

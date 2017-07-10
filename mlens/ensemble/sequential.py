@@ -229,11 +229,7 @@ class SequentialEnsemble(BaseEnsemble):
             raise NotImplementedError("Layer class not implemented. Select "
                                       "one of %r." % sorted(INDEXERS))
 
-        # If no kwargs, instantiate with defaults
-        if kwargs is None:
-            return self._add(estimators, cls, INDEXERS[cls](), preprocessing)
-
-        # Else, pop arguments belonging to the indexer
+        # instantiate the indexer
         indexer = INDEXERS[cls]
         kwargs_idx, kwargs = kwarg_parser(indexer.__init__, kwargs)
         indexer = indexer(**kwargs_idx)

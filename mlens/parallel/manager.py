@@ -26,6 +26,7 @@ ENGINES = {'full': SingleRun,
            'stack': Stacker,
            'blend': Blender,
            'subset': SubStacker,
+           'subsemble': SubStacker,
            'evaluation': Evaluation
            }
 

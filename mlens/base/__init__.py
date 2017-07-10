@@ -18,6 +18,7 @@ from .indexer import (FoldIndex,
 INDEXERS = {'stack': FoldIndex,
             'blend': BlendIndex,
             'subset': SubsetIndex,
+            'subsemble': ClusteredSubsetIndex,
             'full': FullIndex
             }
 

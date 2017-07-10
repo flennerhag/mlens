@@ -20,8 +20,7 @@ matrix:
 
 install:
   - set -e
-  - ls -al
-  - sudo .travis/install.sh
+  - .travis/install.sh
 
 script:
   - set -e

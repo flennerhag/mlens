@@ -921,27 +921,24 @@ class ClusteredSubsetIndex(BaseIndex):
     >>> s.fit(X)
     >>>
     >>> P = s.estimator.predict(X)
-    >>> print("Cluster memberships: {}".format(P))
+    >>> print("cluster labels: {}".format(P))
     >>>
-    >>> for i in s.partition(as_array=True):
-    ...    print("partition index: {}, cluster membership: {}".format(i, P[i]))
+    >>> for j, i in enumerate(s.partition(as_array=True)):
+    ...    print("partition ({}) index: {}, cluster labels: {}".format(i, j + 1, P[i]))
     >>>
-    >>> print("\nTraining data folds:")
     >>> for i in s.generate(as_array=True):
-    ...     print("partition index: {}, cluster membership: {}".format(i[0], P[i[0]]))
+    ...     print("train fold index: {}, cluster labels: {}".format(i[0], P[i[0]]))
     Data: [ 8  7  5  2  4 10 11  1  3  6  9  0]
-    Cluster memberships: [0 2 2 1 2 0 0 1 1 2 0 1]
-    partition index: [ 0  5  6 10], cluster membership: [0 0 0 0]
-    partition index: [ 3  7  8 11], cluster membership: [1 1 1 1]
-    partition index: [1 2 4 9], cluster membership: [2 2 2 2]
-
-    Training data folds:
-    partition index: [0 3 5], cluster membership: [0 0 0]
-    partition index: [ 6 10], cluster membership: [0 0]
-    partition index: [2 7], cluster membership: [1 1]
-    partition index: [ 9 11], cluster membership: [1 1]
-    partition index: [1 4], cluster membership: [2 2]
-    partition index: [8], cluster membership: [2]
+    cluster labels: [0 2 2 1 2 0 0 1 1 2 0 1]
+    partition (1) index: [ 0  5  6 10], cluster labels: [0 0 0 0]
+    partition (2) index: [ 3  7  8 11], cluster labels: [1 1 1 1]
+    partition (3) index: [1 2 4 9], cluster labels: [2 2 2 2]
+    train fold index: [0 3 5], cluster labels: [0 0 0]
+    train fold index: [ 6 10], cluster labels: [0 0]
+    train fold index: [2 7], cluster labels: [1 1]
+    train fold index: [ 9 11], cluster labels: [1 1]
+    train fold index: [1 4], cluster labels: [2 2]
+    train fold index: [8], cluster labels: [2]
     """
 
     def __init__(self,
@@ -987,7 +984,10 @@ class ClusteredSubsetIndex(BaseIndex):
             indexer with stores sample size data.
         """
         n = X.shape[0]
+        self.n_samples = self.n_test_samples = n
+
         if 'fit' in job:
+            # Only generate new clusters if fitting an ensemble
             if self.fit_estimator:
                 try:
                     self.estimator.fit(X, y)
@@ -997,14 +997,12 @@ class ClusteredSubsetIndex(BaseIndex):
 
             # Indexers are assumed to need fitting once, so we need to
             # generate cluster predictions during the fit call. To minimize
-            # memory consumption, cluster indexes are stored as a list of
-            # tuples
+            # memory consumption, store cluster indexes as list of tuples
             self._clusters_ = self._get_partitions(X)
 
             _check_subsample_index(n, self.n_partitions, self.n_splits,
                                    self.raise_on_exception)
 
-        self.n_samples = self.n_test_samples = n
         return self
 
     def partition(self, X=None, as_array=False):
@@ -1045,7 +1043,7 @@ class ClusteredSubsetIndex(BaseIndex):
                 yield cluster_index
 
     def _get_partitions(self, X):
-        """Get clustered partition indices.
+        """Get clustered partition indices from estimator.
 
         Returns the index range for each partition of X. See :func:`partition`
         for further details.
@@ -1066,15 +1064,14 @@ class ClusteredSubsetIndex(BaseIndex):
         return out
 
     def _gen_indices(self):
-        """Create generator for subsample.
+        """Generator for clustered subsample.
 
         Generate indices of training set and test set for
             - each partition
             - each fold in the partition
 
         Note that the test index return is *global*, i.e. it contains the
-        test indices of that fold across partitions. See Examples for
-        further details.
+        test indices of that fold across partitions.
         """
         n_samples = self.n_samples
         n_splits = self.n_splits
@@ -1089,10 +1086,11 @@ class ClusteredSubsetIndex(BaseIndex):
                 t_start, t_stop = t_last, t_last + t_size
 
                 tri = partition[t_start:t_stop]
-                tei = [i for i in I if i not in tri]
-                tei = np.asarray(tei)
 
-                # Condense to list of tuples
+                # Create test set by iterating over the index range
+                tei = np.asarray([i for i in I if i not in tri])
+
+                # Condense indexes to list of tuples
                 tri = _make_tuple(tri)
                 tei = _make_tuple(tei)
 

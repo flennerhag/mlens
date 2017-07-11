@@ -28,7 +28,7 @@ We use the same preliminary settings as in the
 :ref:`getting started <getting-started>` section.
 
 
-.. _proba-tutorial:
+.. _propa-tutorial:
 
 Propagating input features
 --------------------------

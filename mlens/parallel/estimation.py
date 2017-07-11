@@ -11,6 +11,7 @@ import os
 import numpy as np
 from time import sleep
 from abc import ABCMeta, abstractmethod
+from scipy.sparse import issparse
 
 from ..externals.joblib import delayed
 from ..utils import (check_is_fitted,
@@ -342,6 +343,12 @@ def _slice_array(x, y, idx, r=0):
         if simple_slice:
             x = x[slice(idx[0] - r, idx[1] - r)]
             y = y[slice(idx[0] - r, idx[1] - r)] if y is not None else y
+
+    # Cast as ndarray to avoid passing memmaps to estimators
+    if y is not None:
+        y = y.view(type=np.ndarray)
+    if not issparse(x):
+        x = x.view(type=np.ndarray)
 
     return x, y
 

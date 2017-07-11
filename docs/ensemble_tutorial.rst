@@ -16,7 +16,6 @@ Tutorial                         Content
 \                                from probability distributions.
 :ref:`subsemble-tutorial`        Learn homogenous partitions of feature space
 \                                that maximize base learner's performance on each partition.
-
 :ref:`sequential-tutorial`       How to build ensembles with different layer classes
 :ref:`memory-tutorial`           Avoid loading data into the parent process by specifying a
 \                                file path to a memmaped array or a csv file.

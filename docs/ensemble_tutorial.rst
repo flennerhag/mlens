@@ -3,8 +3,8 @@
 Tutorials
 =========
 
-The following tutorials highlight advanced functionality and a more detailed
-view of how ensembles are built and trained.
+The following tutorials highlight advanced functionality and provide in-depth
+material on ensemble APIs.
 
 ===============================  ==============================================
 Tutorial                         Content

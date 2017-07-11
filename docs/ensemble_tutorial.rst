@@ -110,12 +110,14 @@ we need a simple ensemble evaluation routine. ::
 
 In our case, propagating the original features through two layers of the same
 library of base learners gives a dramatic increase in performance on the test
-set:
+set::
 
     >>> score_no_prep = evaluate_ensemble(None)
     >>> score_prep = evaluate_ensemble([0, 1, 2, 3])
     >>> print("Test set score no feature propagation  : %.3f" % score_no_prep)
     >>> print("Test set score with feature propagation: %.3f" % score_prep)
+    Test set score no feature propagation  : 0.666
+    Test set score with feature propagation: 0.987
 
 By combining feature propagation with the ``mlens.preprocessing.Subset``
 transformer, one can propagate the feature through several layers without
@@ -326,7 +328,7 @@ to drop features, the :class:`mlens.preprocessing.Subset` transformer::
     from sklearn.pipeline import make_pipeline
 
     cls = make_pipeline(Subset([0, 1]), KMeans(2))
-    sub = build_clustered_subsemble(KMeans(2))
+    sub = build_clustered_subsemble(cls)
 
 This subsemble can now be fitted on all data: the clustering algorithm will
 only see the first two features, but the base learners will be trained on all
@@ -364,9 +366,9 @@ option, while the ``folds`` option is completely independent. ::
 
     >>> sub = Subsemble(partitions=2, folds=3)
     >>> sub.add([SVC(), LogisticRegression()],
-                partition_estimator=SimplePartitioner(),
-                fit_estimator=False,
-                attr="our_custom_function")
+    ...         partition_estimator=SimplePartitioner(),
+    ...         fit_estimator=False,
+    ...         attr="our_custom_function")
     >>> sub.fit(X, y)
 
 For further information, see the :ref:`API` documentation of the :class:`Subsemble`

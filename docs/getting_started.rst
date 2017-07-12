@@ -25,14 +25,13 @@ We use the following setup throughout::
 
     import numpy as np
     from pandas import DataFrame
-    from mlens.metrics import make_scorer
     from sklearn.metrics import f1_score
     from sklearn.datasets import load_iris
 
     seed = 2017
     np.random.seed(seed)
 
-    f1 = make_scorer(f1_score, average='micro', greater_is_better=True)
+    def f1(y, p): return f1_score(y, p, average='micro')
 
     data = load_iris()
     idx = np.random.permutation(150)
@@ -45,7 +44,7 @@ Ensemble guide
 --------------
 
 Building an ensemble
-^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 Instantiating a fully specified ensemble is straightforward and requires
 three steps: first create the instance, second add the intermediate layers, and
@@ -58,7 +57,8 @@ finally the meta estimator. ::
 
     # --- Build ---
 
-    # Passing a scorer will create cv scores during fitting
+    # Passing a scoring function will create cv scores during fitting
+    # the scorer should be a simple function accepting to vectors and returning a scalar
     ensemble = SuperLearner(scorer=f1, random_state=seed)
 
     # Build the first layer
@@ -86,11 +86,11 @@ for a tabular format. ::
 
 To round off, let's see how the ensemble as a whole fared. ::
 
-    >>> f1_score(preds, y[75:], average='micro')
+    >>> f1(preds, y[75:])
     0.95999999999999996
 
 Multi-layer ensembles
-^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
 
 With each call to the ``add`` method, another layer is added to the ensemble.
 Note that all ensembles are *sequential* in the order layers are added. For
@@ -175,26 +175,88 @@ Model selection guide
 
 .. currentmodule:: mlens.model_selection
 
-The model selection suite is constantly expanding, so make sure to check in
-regularly. The work horse is the :class:`Evaluator` class that allows a user to
-evaluate several models in one go across several pipelines. The evaluator class
-pre-fits transformers, thus avoiding fitting the same preprocessing
-pipelines on the same data repeatedly.
+The work horse class is the :class:`Evaluator`, which allows you to
+grid search several models in one go across several preprocessing pipelines.
+The evaluator class pre-fits transformers, thus avoiding fitting the same
+preprocessing pipelines on the same data repeatedly.
 
 The following example evaluates a `Naive Bayes`_ estimator and a
 `K-Nearest-Neighbor`_ estimator under three different preprocessing scenarios:
 no preprocessing, standard scaling, and subset selection.
-In the latter case, preprocessing is constituted by selecting a subset
-:math:`x \subset X` consisting of the two columns of :math:`X`. ::
+In the latter case, preprocessing is constituted by selecting a subset of
+features.
 
-    from mlens.model_selection import Evaluator
+The scoring function
+^^^^^^^^^^^^^^^^^^^^
+.. currentmodule:: mlens.metrics
+
+An important note is that the scoring function must be wrapped by
+:func:`make_scorer`, to ensure all scoring functions behave similarly regardless
+of whether they measure accuracy or errors. To wrap a function, simple do::
+
+   from mlens.metrics import make_scorer
+   f1_scorer = make_scorer(f1_score, average='micro', greater_is_better=True)
+
+.. currentmodule:: mlens.model_selection
+
+The ``make_scorer`` wrapper
+is a copy of the Scikit-learn's :func:`sklearn.metrics.make_scorer`, and you
+can import the Scikit-learn version as well.
+Note however that to pickle the :class:`Evaluator`, you **must** import
+``make_scorer`` from mlens.
+
+A simple evaluation
+^^^^^^^^^^^^^^^^^^^
+
+Before throwing preprocessing into the mix, let's see how to evaluate a set of
+estimator. First, we need a list of estimator and a dictionary of parameter
+distributions that maps to each estimator. The estimators should be put in a
+list, either as is or as a named tuple (``(name, est)``). If you don't name
+the estimator, the :class:`Evaluator` will automatically name take the class
+name (in lower case). For each estimator, the parameter dictionary need to map
+to the name of the estimator. Let's see how to set this up::
+
+   from mlens.model_selection import Evaluator
+   from sklearn.naive_bayes import GaussianNB
+   from sklearn.neighbors import KNeighborsClassifier
+
+   from scipy.stats import randint
+
+   # Here we name the estimators ourselves
+   ests = [('gnb', GaussianNB()), ('knn', KNeighborsClassifier())]
+
+   # Now we map parameters to these
+   # The gnb doesn't have any parameters so we can skip it
+   pars = {'n_neighbors': randint(2, 20)}
+   params = {'knn': pars}
+
+We can now run an evaluation over these estimators and parameter distributions
+by calling the ``evaluate`` method. ::
+
+    >>> evaluator = Evaluator(f1_scorer, cv=10, random_state=seed, verbose=1)
+    >>> evaluator.evaluate(X, y, ests, params, n_iter=10)
+    Evaluating 2 models for 10 parameter draws over 10 CV folds, totalling 200 fits
+    [Parallel(n_jobs=-1)]: Done 110 out of 110 | elapsed:    0.2s finished
+    Evaluation done | 00:00:00
+
+The full history of the evaluation can be found in ``cv_results``. To compare
+models with their best parameters, we can pass the ``summary`` attribute to
+a :class:`Pandas.DataFrame`. ::
+
+   >>> DataFrame(evaluator.summary)
+           test_score_mean  test_score_std  train_score_mean  train_score_std  fit_time_mean  fit_time_std               params
+   gnb         0.960000        0.032660          0.957037         0.005543          0.001298      0.001131                   {}
+   knn         0.966667        0.033333          0.980000         0.004743          0.000866      0.001001  {'n_neighbors': 15}
+
+Preprocessing
+^^^^^^^^^^^^^
+
+Next, suppose we want to compare the models across a set of preprocessing pipelines.
+To do this, we first need to specify a dictionary of preprocessing pipelines to
+run through. Each entry in the dictionary should be a list of transformers to apply sequentially. ::
+
     from mlens.preprocessing import Subset
     from sklearn.preprocessing import StandardScaler
-
-    from sklearn.naive_bayes import GaussianNB
-    from sklearn.neighbors import KNeighborsClassifier
-
-    from scipy.stats import randint
 
     # Map preprocessing cases through a dictionary
     preprocess_cases = {'none': [],
@@ -202,12 +264,9 @@ In the latter case, preprocessing is constituted by selecting a subset
                         'sub': [Subset([0, 1])]
                         }
 
-    # Instantiate the evaluator
-    evaluator = Evaluator(f1, cv=10, random_state=seed, verbose=1)
-
-Once the :class:`Evaluator` is instantiated, we can pre-fit the transformers
-before we decide on estimators, if we wish to separate
-out the preprocessing part.
+We can either fit the preprocessing pipelines and estimators in one go using the
+``fit`` method, or we can pre-fit the transformers before we decide on
+estimators.
 
 .. currentmodule:: mlens.preprocessing
 
@@ -223,27 +282,39 @@ an example. To explicitly fit preprocessing pipelines, call ``preprocess``. ::
     [Parallel(n_jobs=-1)]: Done  30 out of  30 | elapsed:    0.2s finished
     Preprocessing done | 00:00:00
 
-To launch an evaluation, we need a mapping of parameter distributions to
-estimators. It is important that the name entries in the
-parameter distribution maps to the case *and* the name of the estimator, since
-estimators in different cases are likely to find optimal hyper parameter values
-in different region of parameter space. If no preprocessing is desired,
-simply pass a list of estimator. The list can contain a mixture of named
-tuples and estimator instance, like so:
-``estimator_list=[estimator_instance, ('name', estimator_instance)]``. In this
-example, we map parameter draws to cases and estimators::
+Model Selection across preprocessing pipelines
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    # The Gaussian model has no interesting parameters to tune, se we leave it
-    # out. We will rename the KNeighborsClassifier to 'knn' for simplicity.
-    pars = {'n_neighbors': randint(2, 20)}
-    params = {('sc', 'knn'): pars,
-              ('none', 'knn'): pars,
-              ('sub', 'knn'): pars}
+To evaluate the same set of estimators across all pipelines with the same
+parameter distributions, there is no need to take any heed of the preprocessing
+pipeline, just carry on as in the simple case::
 
-    ests = [('gnb', GaussianNB()), ('knn', KNeighborsClassifier())]
-    estimators = {'sc': ests,
-                  'none': ests,
-                  'sub': ests}
+    >>> evaluator.evaluate(X, y, ests, params, n_iter=10)
+    >>> DataFrame(evaluator.summary)
+              test_score_mean  test_score_std  train_score_mean  train_score_std  fit_time_mean  fit_time_std               params
+    none gnb         0.960000        0.032660          0.957037         0.005543       0.003507      0.003547                   {}
+         knn         0.960000        0.044222          0.974815         0.007554       0.002421      0.003270  {'n_neighbors': 11}
+    sc   gnb         0.960000        0.032660          0.957037         0.005543       0.000946      0.000161                   {}
+         knn         0.960000        0.044222          0.965185         0.003395       0.000890      0.000568   {'n_neighbors': 8}
+    sub  gnb         0.780000        0.133500          0.791111         0.019821       0.000658      0.000109                   {}
+         knn         0.786667        0.122202          0.825926         0.016646       0.000385      0.000063  {'n_neighbors': 11}
+
+You can also map different estimators to different preprocessing folds, and
+map different parameter distribution to each case. ::
+
+    # We will map two different parameter distributions
+    pars_1 = {'n_neighbors': randint(20, 30)}
+    pars_2 = {'n_neighbors': randint(2, 10)}
+    params = {('sc', 'knn'): pars_1,
+              ('none', 'knn'): pars_2,
+              ('sub', 'knn'): pars_2}
+
+    # We can map different estimators to different cases
+    ests_1 = [('gnb', GaussianNB()), ('knn', KNeighborsClassifier())]
+    ests_2 = [('knn', KNeighborsClassifier())]
+    estimators = {'sc': ests_1,
+                  'none': ests_2,
+                  'sub': ests_1}
 
 To run cross-validation, call the ``evaluate`` method.
 Make sure to specify the number of parameter draws to evaluate
@@ -254,24 +325,25 @@ Make sure to specify the number of parameter draws to evaluate
     [Parallel(n_jobs=-1)]: Done 600 out of 600 | elapsed:    1.0s finished
     Evaluation done | 00:00:01
 
-The results for all parameter draws are stored in ``cv_results``. The
-``summary`` attribute contains data pertaining to the best draw for each
-estimator in each preprocessing case. These attributes are stored as ``dict``
-objects, and can be passed to a :class:`pandas.DataFrame` instance for
-a tabular output::
+As before, we can summarize the evaluation in a nice ``DataFrame``. ::
 
    >>> DataFrame(evaluator.summary)
-             train_score_mean  train_score_std  test_score_mean  test_score_std  fit_time_mean  fit_time_std               params
-   none gnb          0.957037         0.005543         0.960000        0.032660       0.001000      0.000605                   {}
-        knn          0.980000         0.004743         0.966667        0.033333       0.000805      0.000520  {'n_neighbors': 15}
-   sc   gnb          0.957037         0.005543         0.960000        0.032660       0.000845      0.000279                   {}
-        knn          0.965185         0.003395         0.960000        0.044222       0.000501      0.000168   {'n_neighbors': 8}
-   sub  gnb          0.791111         0.019821         0.780000        0.133500       0.001026      0.000625                   {}
-        knn          0.837037         0.014815         0.800000        0.126491       0.000675      0.000447   {'n_neighbors': 9}
+          test_score_mean  test_score_std  train_score_mean  train_score_std    fit_time_mean  fit_time_std               params
+   none knn         0.966667        0.044721          0.960741         0.007444         0.001718      0.003330   {'n_neighbors': 3}
+   sc   gnb         0.960000        0.032660          0.957037         0.005543         0.000926      0.000139                   {}
+        knn         0.940000        0.055377          0.962963         0.005738         0.000430      0.000035  {'n_neighbors': 20}
+   sub  gnb         0.780000        0.133500          0.791111         0.019821         0.000869      0.000126                   {}
+        knn         0.800000        0.126491          0.837037         0.014815         0.000426      0.000068   {'n_neighbors': 9}
 
-So we can easily surmise that the two perform similarly when the KNN
-use 15 neighbours, the best performing setting. Moreover, the tested
-preprocessing pipelines does not seem to help in this case.
+.. currentmodule:: mlens.preprocessing
+
+The :class:`Evaluator` provides a one-stop-shop for comparing many different
+models in various configurations, and is a critical tool to leverage when
+building complex ensembles. It is especially helpful in combination with the
+:class:`EnsembleTransformer`, which allows use to evaluate the next layer
+of an ensemble or a set of potential meta learners without having to run the
+entire ensemble every time. As such, it provides a way to perform greedy
+layer-wise parameter tuning. For more details, see the :ref:`model-selection-tutorial` tutorial.
 
 .. _visualization-guide:
 
@@ -290,7 +362,7 @@ Principal Components Analysis. ::
 
     >>> from mlens.visualization import exp_var_plot
     >>> from sklearn.decomposition import PCA
-
+    >>>
     >>> exp_var_plot(X, PCA(), marker='s', where='post')
 
 .. image:: img/exp_var.png
@@ -307,8 +379,8 @@ are. ::
 
     >>> from mlens.visualization import pca_plot
     >>> from sklearn.decomposition import PCA
-
-    >>> pca_plot(X, PCA(n_components=2))
+    >>>
+    >>> pca_plot(X, PCA(n_components=2), y=y)
 
 .. image:: img/pca_plot.png
    :align: center
@@ -317,11 +389,11 @@ are. ::
 
 The :class:`pca_comp_plot` function
 plots a matrix of PCA analyses, one for each combination of
-``n_components in [1, 2]`` and ``kernel in ['linear', 'rbf']``. ::
+``n_components=2, 3`` and ``kernel='linear', 'rbf'``. ::
 
-    >>> from mlens.visualization import pca_plot_comp
-
-    >>> pca_plot_comp(X, y, figsize=(8, 6))
+    >>> from mlens.visualization import pca_comp_plot
+    >>>
+    >>> pca_comp_plot (X, y)
 
 .. image:: img/pca_comp_plot.png
    :align: center
@@ -329,22 +401,17 @@ plots a matrix of PCA analyses, one for each combination of
 **Correlation matrix plot**
 
 The :class:`corrmat` function plots the lower triangle of
-a correlation matrix. ::
+a correlation matrix and is adapted the `Seaborn`_ correlation matrix. ::
 
    >>> from mlens.visualization import corrmat
-   >>> from sklearn.linear_model import LogisticRegression
-   >>> from pandas import DataFrame
    >>>
    >>> # Generate som different predictions to correlate
    >>> params = [0.1, 0.3, 1.0, 3.0, 10, 30]
-   >>> preds = []
-   >>> for i in params:
-   >>>    p = LogisticRegression(C=i).fit(X, y).predict(X)
-   >>>    preds.append(p)
+   >>> preds = np.zeros((150, 6))
+   >>> for i, c in enumerate(params):
+   ...    preds[:, i] = LogisticRegression(C=c).fit(X, y).predict(X)
    >>>
-   >>> preds = np.vstack(preds).T
    >>> corr = DataFrame(preds, columns=['C=%.1f' % i for i in params]).corr()
-   >>>
    >>> corrmat(corr)
 
 .. image:: img/corrmat.png
@@ -377,14 +444,13 @@ lower triangle). ::
 
 The :class:`corr_X_y` function gives a dashboard of
 pairwise correlations between the input data (``X``) and the labels to be
-predicted (``y``). If the number of features is large, it is adviced to set
+predicted (``y``). If the number of features is large, it is advised to set
 the ``no_ticks`` parameter to ``True``, to avoid rendering an illegible
 x-axis. Note that ``X`` must be a :class:`pandas.DataFrame`. ::
 
-   >>> from mlens.visualization import corr_X_y
-   >>> from pandas import DataFrame, Series
-   >>>
-   >>> corr_X_y(DataFrame(X), y, 2)
+   >>> Z = DataFrame(X, columns=['feature_%i' %i for i in range(1, 5)])
+   >>> corr_X_y(Z, y, 2, no_ticks=False)
+
 
 .. image:: img/corr_X_y.png
    :align: center
@@ -395,3 +461,4 @@ x-axis. Note that ``X`` must be a :class:`pandas.DataFrame`. ::
 .. _Logistic regression: https://en.wikipedia.org/wiki/Logistic_regression
 .. _Naive Bayes: https://en.wikipedia.org/wiki/Naive_Bayes_classifier
 .. _K-Nearest-Neighbor: https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm
+.. _Seaborn: http://seaborn.pydata.org/examples/many_pairwise_correlations.html

@@ -1000,9 +1000,6 @@ class ClusteredSubsetIndex(BaseIndex):
             # memory consumption, store cluster indexes as list of tuples
             self._clusters_ = self._get_partitions(X)
 
-            _check_subsample_index(n, self.n_partitions, self.n_splits,
-                                   self.raise_on_exception)
-
         return self
 
     def partition(self, X=None, as_array=False):

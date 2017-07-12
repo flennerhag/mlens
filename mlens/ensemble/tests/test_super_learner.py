@@ -16,6 +16,14 @@ try:
 except ImportError:
     from mlens.externals.fixes import redirect as redirect_stdout
 
+try:
+    from sklearn.metrics import mean_squared_error
+    run_sklearn = True
+except ImportError:
+    run_sklearn = False
+
+
+
 FOLDS = 3
 LEN = 6
 WIDTH = 2
@@ -39,6 +47,11 @@ ens2 = SuperLearner(folds=FOLDS, scorer=rmse, verbose=100)
 ens2.add(ECM, dtype=np.float64)
 ens2.add_meta(OLS(), dtype=np.float64)
 
+if run_sklearn:
+    ens3 = SuperLearner(folds=FOLDS, scorer=mean_squared_error)
+    ens3.add(ECM, dtype=np.float64)
+    ens3.add_meta(OLS(), dtype=np.float64)
+
 
 def test_run_w_folds():
     """[SuperLearner] 'fit' and 'predict' runs correctly with folds."""
@@ -60,6 +73,7 @@ def test_run_wo_folds():
         pred = ens2.predict(X2)
 
     np.testing.assert_array_equal(pred, G2)
+
 
 def test_scores_w_folds():
     """[SuperLearner] test scoring with folds."""
@@ -107,3 +121,34 @@ def test_scores_wo_folds():
     for k in scores:
 
         assert scores[k] == ens2.scores_['score_mean'][('layer-1', k)]
+
+if run_sklearn:
+
+    def test_scores_wo_folds_sklearn():
+        """[SuperLearner] test scoring without folds on sklearn scorer."""
+        if not run_sklearn:
+            # Fail safe
+            return
+
+        with open(os.devnull, 'w') as f, redirect_stdout(f):
+            ens3.fit(X2, y2)
+            pred = ens3.predict(X2)
+
+        scores = dict()
+        for _, tei in FoldIndex(FOLDS, X2).generate(as_array=True):
+            col = 0
+            for est_name, __ in ECM:
+                s = mean_squared_error(y2[tei], F2[tei][:, col])
+
+                if est_name not in scores:
+                    scores[est_name] = []
+
+                scores[est_name].append(s)
+
+                col += 1
+
+        for k in scores:
+            scores[k] = np.mean(scores[k])
+
+        for k in scores:
+            assert scores[k] == ens3.scores_['score_mean'][('layer-1', k)]

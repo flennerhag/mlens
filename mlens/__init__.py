@@ -10,6 +10,10 @@ learning.
 
 __version__ = "0.1.4"
 
+
+BACKEND = 'threading'
+
+
 __all__ = ['base',
            'ensemble',
            'externals',

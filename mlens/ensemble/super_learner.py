@@ -133,10 +133,10 @@ class SuperLearner(BaseEnsemble):
     n_jobs : int (default = -1)
         number of CPU cores to use for fitting and prediction.
 
-    backend : str or object (default = 'multiprocessing')
+    backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation.
+        documentation. To set global backend, set ``mlens.config.BACKEND``.
 
     Attributes
     ----------
@@ -155,7 +155,6 @@ class SuperLearner(BaseEnsemble):
     >>> from sklearn.datasets import load_boston
     >>> from sklearn.linear_model import Lasso
     >>> from sklearn.svm import SVR
-    >>> import numpy as np
     >>>
     >>> X, y = load_boston(True)
     >>>
@@ -204,7 +203,7 @@ class SuperLearner(BaseEnsemble):
                  array_check=2,
                  verbose=False,
                  n_jobs=-1,
-                 backend='multiprocessing',
+                 backend=None,
                  layers=None):
 
         super(SuperLearner, self).__init__(

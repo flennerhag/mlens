@@ -1,0 +1,5 @@
+"""
+Global configurations.
+"""
+
+BACKEND = 'threading'

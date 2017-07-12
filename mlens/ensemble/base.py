@@ -13,6 +13,7 @@ from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from numpy import float32
 
+from .. import config
 from ..base import INDEXERS
 from ..parallel import ParallelProcessing
 from ..externals.sklearn.base import BaseEstimator
@@ -46,6 +47,9 @@ class LayerContainer(BaseEstimator):
         Number of CPUs to use. Set ``n_jobs = -1`` for all available CPUs, and
         ``n_jobs = -2`` for all available CPUs except one, e.tc..
 
+    backend : str, (default="threading")
+        the joblib backend to use (i.e. "multiprocessing" or "threading").
+
     raise_on_exception : bool (default = False)
         raise error on soft exceptions. Otherwise issue warning.
 
@@ -65,13 +69,13 @@ class LayerContainer(BaseEstimator):
     def __init__(self,
                  layers=None,
                  n_jobs=-1,
-                 backend='multiprocessing',
+                 backend=None,
                  raise_on_exception=False,
                  verbose=False):
 
         # True params
         self.n_jobs = n_jobs
-        self.backend = backend
+        self.backend = backend if backend is not None else config.BACKEND
         self.raise_on_exception = raise_on_exception
         self.verbose = verbose
 
@@ -648,7 +652,8 @@ class BaseEnsemble(BaseEstimator):
                  n_jobs=-1,
                  layers=None,
                  array_check=2,
-                 backend='multiprocessing'):
+                 backend=None
+                 ):
 
         self.shuffle = shuffle
         self.random_state = random_state
@@ -658,7 +663,7 @@ class BaseEnsemble(BaseEstimator):
         self.n_jobs = n_jobs
         self.layers = layers
         self.array_check = array_check
-        self.backend = backend
+        self.backend = backend if backend is not None else config.BACKEND
 
     def _add(self,
              estimators,

@@ -15,6 +15,7 @@ Change log
                   - :ref:`Feature propagation <propa-tutorial>`
                   - :ref:`Clustered subsemble partitioning <subsemble-tutorial>`
                   - No memmaps passed to estimators (only ndarray views)
+                  - Threading as default global backend (changeable through mlens.config.BACKEND)
 
 
 .. _Release: https://github.com/flennerhag/mlens/releases

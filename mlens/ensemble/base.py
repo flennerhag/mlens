@@ -11,7 +11,6 @@ from __future__ import division, print_function
 
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from numpy import float32
 
 from .. import config
 from ..base import INDEXERS
@@ -531,7 +530,7 @@ class Layer(BaseEstimator):
                  scorer=None,
                  raise_on_exception=False,
                  name=None,
-                 dtype=float32,
+                 dtype=None,
                  verbose=False,
                  cls_kwargs=None):
 
@@ -549,7 +548,7 @@ class Layer(BaseEstimator):
         self.scorer = scorer
         self.raise_on_exception = raise_on_exception
         self.name = name
-        self.dtype = dtype
+        self.dtype = dtype if dtype is not None else config.DTYPE
         self.verbose = verbose
 
         self._store_layer_data()

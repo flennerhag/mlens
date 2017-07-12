@@ -16,6 +16,7 @@ import warnings
 import numpy as np
 
 from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
+from .. import config
 from ..externals.joblib import Parallel, dump, load
 from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
@@ -99,6 +100,8 @@ class ParallelProcessing(object):
         self._check_job(job)
         self.job = Job(job)
 
+        if dir is None:
+            dir = config.TMPDIR
         try:
             # Fails on python 2
             self.job.tmp = \
@@ -349,7 +352,7 @@ class ParallelEvaluation(object):
         self.evaluator = evaluator
         self.__initialized__ = 0
 
-    def initialize(self, X, y=None, dir=None):
+    def initialize(self, X, y=None, dir=config.TMPDIR):
         """Create cache and memmap X and y."""
         self.job = Job('evaluate')
 

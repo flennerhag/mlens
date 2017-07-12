@@ -210,7 +210,7 @@ def clustered_corrmap(corr, cls, label_attr_name='labels_',
     return ax
 
 
-def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12, hspace=1,
+def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12, hspace=None,
              no_ticks=True, label_rotation=0, show=True):
     """Function for plotting input feature correlations with output.
 
@@ -230,7 +230,7 @@ def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12, hspace=1,
     figsize : tuple (default = (10, 8))
         Size of figure.
 
-    hspace : float (default = 1)
+    hspace : float, optional
         whitespace between top row of figures and bottom figure.
 
     fontsize : int
@@ -262,10 +262,14 @@ def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12, hspace=1,
         top = n
 
     # Render figure
+    names = corr.index.tolist()
+    if hspace is None:
+        hspace = 2 * fontsize / 100
+    if label_rotation > abs(45):
+        hspace += max([len(i) for i in names]) / 35 * (fontsize / 10)
+
     plt.figure(figsize=figsize)
     gs = GridSpec(2, 2, hspace=hspace)
-
-    names = corr.index.tolist()
 
     # Axes
     ax0 = plt.subplot(gs[0, 0])
@@ -292,7 +296,8 @@ def corr_X_y(X, y, top=5, figsize=(10, 8), fontsize=12, hspace=1,
     if no_ticks:
         ax2.set_xticks([], [])
     else:
-        ax2.set_xticks(range(len(names)), names)
+        plt.xticks(range(len(names)), names,
+                   rotation=label_rotation, fontsize=fontsize - 1)
 
     if show:
         plt.show()

@@ -7,10 +7,44 @@ Nosetests for :class:`mlens.base`
 
 import numpy as np
 
-from mlens.base import IdTrain, FoldIndex, BlendIndex, SubsetIndex, FullIndex
+from mlens.base import (IdTrain,
+                        FoldIndex,
+                        BlendIndex,
+                        SubsetIndex,
+                        ClusteredSubsetIndex,
+                        FullIndex)
 from mlens.base.indexer import _partition, _prune_train
 
 X = np.arange(25).reshape(5, 5)
+
+
+class ClusterEstimator(object):
+
+    """Dummy clustering estimator.
+    """
+
+    def __init__(self, type=1):
+        self.type = type
+        pass
+
+    @staticmethod
+    def fit(X):
+        """Vacuous"""
+        pass
+
+    def predict(self, X):
+        """Get cluster ids"""
+        if self.type == 1:
+            p = np.ones(X.shape[0])
+            n = int(np.floor(X.shape[0] / 2))
+            p[:n] = 0
+        elif self.type == 2:
+            p = np.arange(X.shape[0]) % 3
+        return p
+
+
+cl = ClusterEstimator()
+cl_2 = ClusterEstimator(2)
 
 
 ###############################################################################
@@ -184,7 +218,7 @@ def test_subset_index_is_fitted():
 
 def test_subset_partition_array():
     """[Base] Subset: test partition indexing on arrays."""
-    parts = []
+    parts = list()
     for part in SubsetIndex(X=X).partition(as_array=True):
         parts.append(part)
 
@@ -194,7 +228,7 @@ def test_subset_partition_array():
 
 def test_subset_partition():
     """[Base] Subset: test partition indexing on tuples."""
-    parts = []
+    parts = list()
     for part in SubsetIndex(X=X).partition():
         parts.append(part)
 
@@ -202,7 +236,7 @@ def test_subset_partition():
 
 
 def test_subset_tuple_shape():
-    """[Base] BlendIndex: test the tuple shape on generation."""
+    """[Base] SubsetIndex: test the tuple shape on generation."""
     tup = [(tri, tei) for tri, tei in SubsetIndex(2, 2).generate(X)]
 
     assert tup == [(((2, 3),), [(0, 2), (3, 4)]),
@@ -212,16 +246,69 @@ def test_subset_tuple_shape():
 
 
 def test_subset_array_shape():
-    """[Base] SubsetIndex: test the array shape on generation."""
+    """[Base] ClusteredSubsetIndex: test the array shape on generation."""
 
-    t = []
-    e = []
+    t = list()
+    e = list()
     for tri, tei in SubsetIndex(2, 2, X=X).generate(as_array=True):
         t.append(tri.tolist())
         e.append(tei.tolist())
 
     assert t == [[2], [0, 1], [4], [3]]
     assert e == [[0, 1, 3], [2, 4], [0, 1, 3], [2, 4]]
+
+
+def test_clustered_subset_partition_array():
+    """[Base] ClusteredSubsetIndex: test partition indexing on arrays."""
+    parts = list()
+    for part in ClusteredSubsetIndex(cl, X=X).partition(as_array=True):
+        parts.append(part)
+
+    np.testing.assert_array_equal(parts[0], np.array([0, 1]))
+    np.testing.assert_array_equal(parts[1], np.array([2, 3, 4]))
+
+
+def test_clustered_subset_partition():
+    """[Base] ClusteredSubsetIndex: test partition indexing on tuples."""
+    parts = list()
+    for part in ClusteredSubsetIndex(cl, X=X).partition():
+        parts.append(part)
+
+    assert parts == [(0, 2), (2, 5)]
+
+
+def test_clustered_subset_tuple_shape():
+    """[Base] ClusteredSubsetIndex: test the tuple shape on generation."""
+    tup = [(tri, tei) for tri, tei in
+           ClusteredSubsetIndex(cl, 2, 2).generate(X)]
+
+    assert tup == [([(0, 1)], [(1, 5)]),
+                   ([(1, 2)], [(0, 1), (2, 5)]),
+                   ([(2, 4)], [(0, 2), (4, 5)]),
+                   ([(4, 5)], [(0, 4)])]
+
+
+def test_clustered_subset_array_shape():
+    """[Base] ClusteredSubsetIndex: test the array shape on generation."""
+    t = list()
+    e = list()
+    for tri, tei in ClusteredSubsetIndex(cl,
+                                         2, 2, X=X).generate(as_array=True):
+        t.append(tri.tolist())
+        e.append(tei.tolist())
+
+    assert t == [[0], [1], [2, 3], [4]]
+    assert e == [[1, 2, 3, 4], [0, 2, 3, 4], [0, 1, 4], [0, 1, 2, 3]]
+
+
+def test_clustered_subset_separation():
+    """[Base] SubsetIndex: test the array shape on generation."""
+    classes = cl_2.predict(X)
+    t = list()
+    for partition in ClusteredSubsetIndex(cl_2,
+                                         2, 2, X=X).partition(as_array=True):
+        pc = np.unique(classes[partition])
+        assert len(pc) == 1
 
 
 def test_subset_warns_on_wo_raise_():

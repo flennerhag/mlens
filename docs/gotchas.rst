@@ -22,39 +22,41 @@ avoiding copying data during estimation, see :ref:`memory`.
 Third-party multiprocessed objects
 ----------------------------------
 
-This issue arises when a multit-hreaded python object is nested within another
-multi-threaded object. Examples include when a base estimator in an ensemble
-is multi-threaded or when a multi-threaded estimator (such as an ensemble) is
-passed to a grid search object that is run in parallel. This issue is due to a
-limitation of how `Python runs processes in parallel`_, and as such beyond the
-scope of ML-Ensemble to fix. In short, when Python forks the main process, the
-sub-processes will act as if they have the entire machine's threads at their
-disposal when in fact only the main thread has been forked. Hence, every
-sub-procsses will send jobs to all threads, causing a grid lock where every
-thread is waiting on each other. Your main process (where you executed the
-code) will not fail, but simple stall. You can detect this issue if your
-activity monitor shows not Python process with significant CPU usage (< 5%).
-Your script is executing, but not doing anything.
+ML-Ensemble runs by default on multi-threading. This requires releasing the
+GIL_, which can cause race conditions. In standard uses cases, releasing the
+GIL is harmless since input data is shared in read-only mode and output arrays
+are partitioned. If you experience issues with multithreading, you can try
+switching to multiprocessing either by the ``backend`` argument or by changing
+the global default (``mlens.config.BACKEND``). Estimation is then parallelized
+on processes instead of threads, and thus keeps the GIL in place. Multiprocessing however
+is not without its issues and can interact badly with third-party classes that
+are also multiprocessed, which can lead to deadlocks. This issue is due to a
+limitation of how `Python runs processes in parallel`_ and is an issue beyond
+the scope of ML-Ensemble.
 
-The simplest solution to avoid this is to turn off multi-threading in the
-sub-processes, for instance by setting ``n_jobs`` (or ``nthread``) to ``1``.
-Since an ensemble or grid search runs processes in parallel as is, this will
-not cause a significant performance drop.
+If you experience issues on both multithreading and multiprocessing, the simplest
+solution  is to turn off parallelism by setting ``n_jobs`` to ``1``. Start by
+switching off parallelism in the learners of the ensemble as this will not
+impact the training speed of the ensemble, and only switch off paralllism in the
+ensemble as a last resort.
 
-In Python 3.4+, it is possible to circumvent this issue by using the
-``forkprocess`` backend within the native python ``multiprocessing`` library.
-To do this, set the multiprocessing start method to ``forkserver`` as below. ::
+In Python 3.4+, it is possible to spawn a ``forkprocess`` backend within the
+native python ``multiprocessing`` library. To do this, set the multiprocessing
+start method to ``forkserver`` as below. ::
 
     import multiprocessing
 
-    # Imports and functions/class definitions
+    # You can put imports and functions/class definitions other than mlens here
 
     if __name__ == '__main__':
 
         multiprocessing.set_start_method('forkserver')
 
+        # Import mlens here
+
         # Your execution here
 
+Note that this solution is currently experimental.
 Further information can be found here_.
 
 File permissions on Windows

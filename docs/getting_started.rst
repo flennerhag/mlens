@@ -44,7 +44,7 @@ Ensemble guide
 --------------
 
 Building an ensemble
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
 
 Instantiating a fully specified ensemble is straightforward and requires
 three steps: first create the instance, second add the intermediate layers, and

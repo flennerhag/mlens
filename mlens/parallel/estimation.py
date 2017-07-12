@@ -127,7 +127,14 @@ class BaseEstimator(object):
 
         # Aggregate to get cross-validated mean scores
         for k, v in scores.items():
-            scores[k] = (np.mean(v), np.std(v))
+            if None in v:
+                continue
+            try:
+                scores[k] = (np.mean(v), np.std(v))
+            except Exception as exc:
+                warnings.warn("Aggregating scores failed. Scores:\n%r\n"
+                              "Details: %r" % (v, exc),
+                              ParallelProcessingWarning)
 
         return scores
 
@@ -507,14 +514,18 @@ def fit_est(dir, case, inst_name, inst, x, y, pred, idx, raise_on_exception,
         _assign_predictions(pred, p, tei, col, n)
 
         # Score predictions if applicable
-        try:
-            s = scorer(ytest, p)
-        except Exception:
-            s = None
+        s = None
+        if scorer is not None:
+            try:
+                s = scorer(ytest, p)
+            except Exception as exc:
+                warnings.warn("[%s] Could not score %s. Details:\n%r" %
+                              (name, inst_name, exc),
+                              ParallelProcessingWarning)
 
-        idx = idx[1:] # format as (tei, col)
+        idx = idx[1:]  # format as (tei, col)
     else:
-        idx = (None, idx[2]) # (tei, col), with tei = all observations
+        idx = (None, idx[2])  # (tei, col), with tei = all observations
         s = None
 
     f = os.path.join(dir, '%s__%s__e' % (case, inst_name))

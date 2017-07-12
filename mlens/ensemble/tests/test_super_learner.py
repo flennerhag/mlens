@@ -5,6 +5,7 @@ Place holder for more rigorous tests.
 """
 import numpy as np
 from mlens.metrics import rmse
+from mlens.utils.exceptions import ParallelProcessingWarning
 from mlens.base import FoldIndex
 from mlens.utils.dummy import Data, OLS, PREPROCESSING, ESTIMATORS, ECM
 
@@ -26,6 +27,16 @@ except ImportError:
 def in_script_func(y, p):
     """Test for use of in-script scoring functions."""
     return np.mean(y - p)
+
+
+def fail_func(y, p):
+    """Test for use of in-script scoring functions."""
+    raise ValueError
+
+
+def null_func(y, p):
+    """Test for failed aggregation"""
+    return 'not_value'
 
 
 FOLDS = 3
@@ -59,6 +70,14 @@ ens2_b = SuperLearner(folds=FOLDS, scorer=in_script_func, verbose=100)
 ens2_b.add(ECM, dtype=np.float64)
 ens2_b.add_meta(OLS(), dtype=np.float64)
 
+ens_f = SuperLearner(folds=FOLDS, scorer=fail_func)
+ens_f.add(ECM, dtype=np.float64)
+ens_f.add_meta(OLS(), dtype=np.float64)
+
+ens_n = SuperLearner(folds=FOLDS, scorer=fail_func)
+ens_n.add(ECM, dtype=np.float64)
+ens_n.add_meta(OLS(), dtype=np.float64)
+
 
 if run_sklearn:
     ens3 = SuperLearner(folds=FOLDS, scorer=mean_squared_error)
@@ -84,6 +103,16 @@ def test_run_wo_folds():
         pred = ens2.predict(X2)
 
     np.testing.assert_array_equal(pred, G2)
+
+
+def test_scores_fail():
+    """[SuperLearner] test scoring exception handling."""
+    np.testing.assert_warns(ParallelProcessingWarning, ens_f.fit, X1, y1)
+
+
+def test_score_agg_fail():
+    """[SuperLearner] test score aggregation exception handling."""
+    np.testing.assert_warns(ParallelProcessingWarning, ens_n.fit, X1, y1)
 
 
 def test_scores_w_folds():

@@ -274,7 +274,7 @@ def test_clustered_subset_partition():
     for part in ClusteredSubsetIndex(cl, X=X).partition():
         parts.append(part)
 
-    assert parts == [(0, 2), (2, 5)]
+    assert parts == [[(0, 2)], [(2, 5)]]
 
 
 def test_clustered_subset_tuple_shape():

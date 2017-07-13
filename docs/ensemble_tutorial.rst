@@ -343,23 +343,26 @@ number of partitions. Here's minimalist way of wrapping a Scikit-learn
 estimator::
 
     from sklearn.linear_model import LinearRegression
+
     class MyClass(LinearRegression):
 
         def __init__(self, **kwargs):
             super(MyClass, self).__init__(**kwargs)
 
         def fit(self, X, y):
+	    """Fit estimator."""
             super(MyClass, self).fit(X, y)
             return self
 
         def predict(self, X):
+	    """Generate partition"""
             p = super(MyClass, self).predict(X)
             return 1 * (p > p.mean())
 
 By default, the Subsemble will call the ``fit`` method of the partition
 estimator separately first, then the ``predict`` (or otherwise specified) method.
-To avoid the first ``fit`` call, passing ``fit_estimator=False`` when
-adding the layer. To put all functionality in one example,
+To avoid calling ``fit``, pass ``fit_estimator=False`` when
+adding the layer. Finally, to summarize the functionality in one example,
 let's implement a simple (but rather useless) partition estimator that splits
 the data in half based on the sum of the features. ::
 

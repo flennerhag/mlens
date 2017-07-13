@@ -93,8 +93,9 @@ of the meta learner::
            [ 3.20000005,  1.5       ,  1.        ,  1.        ],
            [ 2.79999995,  1.39999998,  1.        ,  1.        ]])
 
-This meta learner will not see the predictions made by the penultimate layer,
-as well as the second and fourth feature of the input array. By propagating
+In this scenario, the meta learner will see noth the predictions made by the
+penultimate layer, as well as the second and fourth feature of the original
+input. By propagating
 features, the issue of multicolinearity in deep ensembles can be mitigated.
 In particular, it can give the meta learner greater opportunity to identify
 neighborhoods in the original feature space where base learners struggle. We
@@ -119,13 +120,15 @@ set::
     Test set score no feature propagation  : 0.666
     Test set score with feature propagation: 0.987
 
-By combining feature propagation with the ``mlens.preprocessing.Subset``
-transformer, one can propagate the feature through several layers without
-any of the base estimators in those layers seeing the propagated features. This
-can be desirable if you want to propagate the input features to the meta
-learner, but don't want the intermediate base learners (in layers 2, 3, ...) to
-always have the original data as input. In this case, one specified propagation
-as we did above, but add a preprocessing pipeline to intermediate layers::
+.. py:currentmodule:: mlens.preprocessing
+
+By combining feature propagation with the :class:`Subset` transformer, you can
+propagate the feature through several layers without any of the base estimators
+in those layers seeing the propagated features. This can be desirable if you
+want to propagate the input features to the meta learner without intermediate
+base learners always having access to the original input data. In this case,
+we specify propagation as above, but add a preprocessing pipeline to
+intermediate layers::
 
         from mlens.preprocessing import Subset
 
@@ -169,7 +172,6 @@ feeding the predicted class to the meta learner. In essence, using class
 probabilities allow the meta learner to weigh in not just the predicted
 class label (the highest probability), but also with what confidence each
 estimator makes the prediction, and how estimators consider the alternative.
-
 First, let us set a benchmark ensemble performance when learning is by
 predicted class membership. ::
 
@@ -198,14 +200,8 @@ and test on the remainder. ::
     >>> f1_score(preds, y[75:], average='micro')
     0.69333333333333336
 
-Not particularly impressive. Recall that the blend ensemble consumes
-observation between layers; in this case, each layer sees only half of the
-samples.
-
-To enable probibalistic learning, we set ``proba=True`` in the ``add``
-method. Note that when a layer is declared as a meta learner (either through
-the ``add_meta`` method or by setting ``meta=True`` in the ``add`` method),
-the layer will always predict classes. ::
+Now, to enable probabilistic learning, we set ``proba=True`` in the ``add``
+method for all layers except the final meta learner layer. ::
 
     >>> ensemble = build_ensemble(proba=True)
     >>> ensemble.fit(X[:75], y[:75])
@@ -215,11 +211,10 @@ the layer will always predict classes. ::
     Prediction shape: (75,)
     0.97333333333333338
 
-In this case, using probabilities had a drastic effect on predictive
-performance, increasing some 40%. As a final remark, even though the base
-learners predict probabilities, the meta layer returns predictions. If you
-want an ensemble to return the matrix of predicted probabilities, avoid
-specifying a meta layer.
+In this case, using probabilities has a drastic effect on predictive
+performance, increasing some 40 percentage points. As a final remark, if you
+want the *ensemble* to return predicted probabilities, specify the final layer
+using the ``add`` method with ``meta=True``.
 
 .. _subsemble-tutorial:
 
@@ -228,26 +223,31 @@ Advanced Subsemble techniques
 
 .. currentmodule:: mlens.ensemble
 
-Subsembles are built on the idea of carving out neighborhoods of the feature
-space to allow base learners to optimize their performance in each neighborhood,
-leaving the task of generalizing across neighborhoods to the meta learner.
-For instance, suppose we wish to learn the probability distribution of some
-variable :math:`y`. Often, the true distribution is multi-modal, which is
-extremely hard for a learning algorithm to represent. Even worse, most
-machine learning algorithms based on maximizing a convex objective function are
-not equipped to solve this problem. Subsembles can overcome this issue by
-splitting up the feature space in homogeneous neighborhoods. This way, the
-base learners need only consider how to generalize one neighborhood at a time,
-or in the previous example, how to fit one mode of the distribution at a time.
-It' then up to the meta learner to combine the base learner's prediction from
-each neighborhood.
+Subsembles leverages the idea that neighborhoods of feature space have a
+specific local structure. When we fit an estimator across all feature space,
+it is very hard to capture several such local properties. Subsembles partition
+the feature space and fits each base learner to each partitions, thereby
+allow base learners to optimize locally. Instead, the task of generalizing
+across neighborhoods is left to the meta learner. This strategy can be very
+powerful when the local structure first needs to be extracted, before an
+estimator can learn to generalize. Suppose you want to learn the probability
+distribution of some variable :math:`y`. Often, the true distribution is
+multi-modal, which is an extremely hard problem. In fact, most
+machine learning algorithms, especially with convex optimization objectives, are
+ill equipped to solve this problem. Subsembles can overcome this issue allowing
+base estimators to fit one mode of the distribution at a time, which yields a
+better representation of the distribution and greatly facilitates the learning
+problem of the meta learner.
 
-In the simplest case, we build a subsemble by simply partitioning the dataset
-randomly. In ML-Ensemble, partitioning is sequential, so if you're data is not
-randomly ordered, their will the partitions be. Unless the problem at hand involves
-a time dimension, it is recommended to shuffle the data (e.g. via the ``shuffle``
-option at instantiation). To do this, simply specify the ``partitions``
-option when instantiating the :class:`Subsemble`. ::
+.. py:currentmodule:: mlens.ensemble
+
+By default, the :class:`Subsemble` class partitioning the dataset randomly.
+Note however that partitions are created on the data "as is", so if the ordering
+of observations is not randomly, neither will the partitioning be. For this
+reason, it is recommended to shuffle the data (e.g. via the ``shuffle``
+option at instantiation). To build a subsemble with random partitions, the
+only parameter to consider is the number of ``partitions`` when instantiating
+the :class:`Subsemble`. ::
 
     from mlens.ensemble import Subsemble
     from sklearn.linear_model import LogisticRegression
@@ -259,7 +259,7 @@ option when instantiating the :class:`Subsemble`. ::
         sub.add([SVC(), LogisticRegression()])
         return sub
 
-When the Subsemble is fitted, the base learners are copied to each partition,
+During training, the base learners are copied to each partition,
 so the output of each layer gets multiplied by the number of partitions. In this
 case, we have 2 base learners for 3 partitions, giving 6 prediction features. ::
 
@@ -268,67 +268,67 @@ case, we have 2 base learners for 3 partitions, giving 6 prediction features. ::
     >>> sub.predict(X[:10])shape
     (10, 6)
 
-This method has two advantages. First, by creating partitions, subsembles scale
-significantly better than Super Learner, but in contrast to blended ensembles,
-the full training data is still covered during training. Second, by fitting
-estimators on subsets of the full data, base learners have the chance to
-capture different patterns in the data and thus induce greater variation in
-predictions. With small datasets, partitioning can make predictions noisy, but
-for medium and large data sets, subsembles are often on par with Super Learners
-and can outperform them on certain tasks.
-
-Randomly partitioning the data does however not exploit the full advantage of
-locality, since it is only by luck that we happen to create such partitions. A
-better way is to *learn* how to best partition the data. We can either use
+By creating partitions, subsembles scale significantly better than the
+:class:`SuperLearner`, but in contrast to :class:`BlendEnsemble`,
+the full training data is leveraged during training. But randomly partitioning
+the data does however not exploit the full advantage of locality, since it is
+only by luck that we happen to create such partitions. A better way is to
+*learn* how to best partition the data. We can either use
 unsupervised algorithms to generate clusters, or supervised estimators and
-create partitions based on their predictions. In ML-Ensemble, any estimator
-that accepts a ``fit`` and a ``predict`` call are acceptable, as long as the
-``predict`` call generates a discrete range of output that can be used for
-partitioning the dataset. For instance, we can use unsupervised K-Means
-clustering to partition the data, or use class label predictions from a
-classifier to assigning partitions. In regression problems or classification
-tasks with a high number of classes, the user need to build custom class that
-reduces the estimator's predictions to a pre-specified number of partitions. ::
+create partitions based on their predictions. In ML-Ensemble, this is
+achieved by passing an estimator as ``partition_estimator``. This estimator
+can differ between layers.
+
+Very few limitation are imposed on the estimator: it must have a ``fit``
+method that takes ``X`` (and possibly ``y``) as inputs, and there must be
+a method that generates class labels (i.e. partition ids) to a passed dataset.
+The default method is ``predict``, but
+you can specify another method with the ``attr`` option when adding a layer.
+This level of generality does impose some responsibility on the user. In
+particular, it is up to the user to ensure that sensible partitions are created.
+Problems to watch out for is too small partitions (too many clusters, too uneven
+cluster sizes) and clusters with too little variation: for instance with only
+a single class label in the entire partition, base learners have nothing to
+learn.
+
+So let's see how to do this in practice. For instance, we can use an unsupervised K-Means
+clustering estimator to partition the data, like so::
 
     from sklearn.cluster import KMeans
 
     def build_clustered_subsemble(estimator):
         """Build a subsemble with random partitions"""
-        sub = Subsemble(partitions=2, partition_estimator=estimator,
+        sub = Subsemble(partitions=2,
+                        partition_estimator=estimator,
                         folds=2)
 
         sub.add([SVC(), LogisticRegression()])
         sub.add_meta(SVC())
         return sub
 
-To build a subsemble with K-Means clustering, simply pass an instantiated
-estimator::
+Note that the :class:`sklearn.cluster.KMeans` estimator generates class labels
+through the ``predict`` method. To build a subsemble with K-Means clustering we
+carry on as usual::
 
     >>> sub = build_clustered_subsemble(KMeans(2))
     >>> sub.fit(X[:, [0, 1]], y)
 
-There are a few things to note when using estimators to generate partitions.
-Unless the user takes care to ensure that the *estimator* creates sufficiently
-large fold-sizes, some partitions can become too small to generalize.
-Similarly, the user must ensure that partitions are created in ways that are
-compatible with learning; for instance, if the partitioning is
-so effective that each partition only has one class, there is nothing for the
-base estimators to learn. It is for this reason precisely that we above only
-fitted the ensemble on the first two columns: fitting the above ensemble on
-all features, the K-Means algorithm will perfectly separate the training data
-so that the each partition only contains one label. Obviously, trading off
-features for creating partitions is not desirable, but fortunately it is easily
-solved by creating a customer estimator that manipulates the input in desired
-ways. For instance, we can use Scikit-learn's `class`:sklearn.pipeline.Pipeline`
+In our toy example, fitting the KMeans estimator on all data leads to
+completely separated class clusters, so each partition has not output
+variation. For this reason, we had to fit on only the two first columns. But
+this is not a very good way of doing it: instead, we should customize the
+partitioning estimator. For instance, we can use Scikit-learn's
+:class:`sklearn.pipeline.Pipeline`
 class to put a dimensionality reduction transformer before the partitioning
-estimator, such as a :class:`sklearn.decomposition.PCA` or if we simply want
-to drop features, the :class:`mlens.preprocessing.Subset` transformer::
+estimator, such as a :class:`sklearn.decomposition.PCA`, or the
+:class:`mlens.preprocessing.Subset` transformer to drop some features before
+estimation. ::
 
     from mlens.preprocessing import Subset
     from sklearn.pipeline import make_pipeline
 
-    cls = make_pipeline(Subset([0, 1]), KMeans(2))
-    sub = build_clustered_subsemble(cls)
+    pe = make_pipeline(Subset([0, 1]), KMeans(2))
+    sub = build_clustered_subsemble(pe)
 
 This subsemble can now be fitted on all data: the clustering algorithm will
 only see the first two features, but the base learners will be trained on all
@@ -336,18 +336,32 @@ data. ::
 
     >>> sub.fit(X, y)
 
-In this way, you might need to write you own classes to ensure partitioning is
-well behaved. This is actually very straight-forward, as all that is needed
-is a method for generating partition labels, such as ``predict``, and if required,
-a method for fitting the estimator. By default, the Subsemble will try to call
-``fit`` separately on the estimator, but you can avoid this behavior by
-passing ``fit_estimator=False`` when adding the relvant layer (i.e. during the
-``add`` call). Similarly, the Subsemble defaults to calling ``predict`` to get
-class labels, but you can alter the method to use with the ``attr`` option during
-the ``add`` call.
+In general, you may need to wrap an estimator around a custom class to modify
+it's output to generate good partitions. For instance, in regression problems,
+the output of a supervised estimator needs to be binarized to give a discrete
+number of partitions. Here's minimalist way of wrapping a Scikit-learn
+estimator::
 
-To make matters concrete, let's implement a simple estimator (but rather useless)
-that splits the data in half based on the sum of the features. ::
+    from sklearn.linear_model import LinearRegression
+    class MyClass(LinearRegression):
+
+        def __init__(self, **kwargs):
+            super(MyClass, self).__init__(**kwargs)
+
+        def fit(self, X, y):
+            super(MyClass, self).fit(X, y)
+            return self
+
+        def predict(self, X):
+            p = super(MyClass, self).predict(X)
+            return 1 * (p > p.mean())
+
+By default, the Subsemble will call the ``fit`` method of the partition
+estimator separately first, then the ``predict`` (or otherwise specified) method.
+To avoid the first ``fit`` call, passing ``fit_estimator=False`` when
+adding the layer. To put all functionality in one example,
+let's implement a simple (but rather useless) partition estimator that splits
+the data in half based on the sum of the features. ::
 
     class SimplePartitioner():
 
@@ -360,9 +374,10 @@ that splits the data in half based on the sum of the features. ::
             return 1 * (X.sum(axis=1) > X.sum(axis=1).mean())
 
 To build the ensemble, we need specify that we don't want to fit the estimator,
-and that the ``our_custom_function`` should be called. Also note that the
-number of partitions the estimator creates *must* match with the ``partitions``
-option, while the ``folds`` option is completely independent. ::
+and that ``our_custom_function`` should be called for partitioning. An important
+note is that the number of partitions the estimator creates *must* match the
+``partitions`` argument of the Subsemble. In contrast, the ``folds`` option
+is completely independent. ::
 
     >>> sub = Subsemble(partitions=2, folds=3)
     >>> sub.add([SVC(), LogisticRegression()],
@@ -371,7 +386,11 @@ option, while the ``folds`` option is completely independent. ::
     ...         attr="our_custom_function")
     >>> sub.fit(X, y)
 
-For further information, see the :ref:`API` documentation of the :class:`Subsemble`
+A final word of caution. When implementing custom estimators from scratch, some
+care needs to be taken if you plan on copying the Subsemble. It is advised that
+the estimator inherits the :class:`sklearn.base.BaseEstimator` class to
+provide a Scikit-learn compatible interface. For further information,
+see the :ref:`API` documentation of the :class:`Subsemble`
 and :class:`mlens.base.indexer.ClusteredSubsetIndex`.
 
 .. _sequential-tutorial:

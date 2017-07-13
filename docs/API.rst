@@ -5,7 +5,7 @@
 API
 ====
 
-ML-Ensemble estimators behaves essentially identical to `Scikit-learn`_
+ML-Ensemble estimators behave identically to `Scikit-learn`_
 estimators, with one main difference: to properly instantiate an ensemble,
 at least on layer, and if applicable a meta estimator, must be added to the
 ensemble. Otherwise, there is no ensemble to estimate. The difference

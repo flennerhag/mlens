@@ -12,7 +12,7 @@ API for ensemble classes, model selection and visualization.
                       Guides                                            Content
 ============================  =================================================
 :ref:`ensemble-guide`         how to build, fit and predict with an ensemble
-:ref:`model-selection-guide`  how to evaluate estimators across preprocessing cases
+:ref:`model-selection-guide`  how to compare several estimators in one go
 :ref:`visualization-guide`    plotting functionality
 ============================  =================================================
 
@@ -90,7 +90,7 @@ To round off, let's see how the ensemble as a whole fared. ::
     0.95999999999999996
 
 Multi-layer ensembles
-^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
 
 With each call to the ``add`` method, another layer is added to the ensemble.
 Note that all ensembles are *sequential* in the order layers are added. For
@@ -203,7 +203,7 @@ The ``make_scorer`` wrapper
 is a copy of the Scikit-learn's :func:`sklearn.metrics.make_scorer`, and you
 can import the Scikit-learn version as well.
 Note however that to pickle the :class:`Evaluator`, you **must** import
-``make_scorer`` from mlens.
+``make_scorer`` from ``mlens``.
 
 A simple evaluation
 ^^^^^^^^^^^^^^^^^^^
@@ -212,9 +212,9 @@ Before throwing preprocessing into the mix, let's see how to evaluate a set of
 estimator. First, we need a list of estimator and a dictionary of parameter
 distributions that maps to each estimator. The estimators should be put in a
 list, either as is or as a named tuple (``(name, est)``). If you don't name
-the estimator, the :class:`Evaluator` will automatically name take the class
-name (in lower case). For each estimator, the parameter dictionary need to map
-to the name of the estimator. Let's see how to set this up::
+the estimator, the :class:`Evaluator` will automatically name the model as the
+class name in lower case. This name must be the key in the parameter
+dictionary. Let's see how to set this up::
 
    from mlens.model_selection import Evaluator
    from sklearn.naive_bayes import GaussianNB
@@ -241,7 +241,7 @@ by calling the ``evaluate`` method. ::
 
 The full history of the evaluation can be found in ``cv_results``. To compare
 models with their best parameters, we can pass the ``summary`` attribute to
-a :class:`Pandas.DataFrame`. ::
+a :obj:`pandas.DataFrame`. ::
 
    >>> DataFrame(evaluator.summary)
            test_score_mean  test_score_std  train_score_mean  train_score_std  fit_time_mean  fit_time_std               params

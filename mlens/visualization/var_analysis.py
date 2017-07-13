@@ -10,13 +10,25 @@ Explained variance plots.
 from __future__ import division, print_function
 
 import numpy as np
-from pandas import DataFrame,Series
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from sklearn.decomposition import KernelPCA
-from matplotlib.colors import ListedColormap
-from seaborn import color_palette
+import warnings
+
+try:
+    from pandas import DataFrame, Series
+except ImportError:
+    DataFrame = Series = None
+    warnings.warn("Pandas not installed. Visualization module may not work "
+                  "as intended.", ImportWarning)
+
+try:
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    from sklearn.decomposition import KernelPCA
+    from matplotlib.colors import ListedColormap
+    from seaborn import color_palette
+except:
+    warnings.warn("Matplotlib and Seaborn not installed. Cannot load "
+                  "visualization module.", ImportWarning)
 
 
 def pca_comp_plot(X, y=None, figsize=(10, 8),

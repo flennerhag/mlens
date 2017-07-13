@@ -8,7 +8,7 @@ ML-Ensemble, a Python library for memory efficient parallelized ensemble
 learning.
 """
 
-__version__ = "0.1.5"
+__version__ = "0.1.4.dev"
 
 
 __all__ = ['base',

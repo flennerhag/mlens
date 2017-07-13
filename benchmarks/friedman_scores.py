@@ -97,6 +97,7 @@ from sklearn.datasets import make_friedman1
 from sklearn.base import clone
 from sklearn.pipeline import make_pipeline
 
+from sklearn.cluster import KMeans
 from sklearn.linear_model import Lasso, ElasticNet
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.svm import SVR

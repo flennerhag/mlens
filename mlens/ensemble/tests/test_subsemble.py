@@ -25,7 +25,7 @@ def ground_truth():
     P = np.zeros((12, 2 * 2))
     F = np.zeros((12, 2 * 2))
 
-    cols = _get_col_idx(e, 2, 1)
+    cols = _get_col_idx(e, 2, 1, 0)
 
     for name, tri, tei, est_list in e:
         for est_name, est in est_list:
@@ -54,8 +54,8 @@ def test_subset_fit():
     g = meta.predict(P)
 
     ens = Subsemble()
-    ens.add(estimators, partitions=2, folds=3)
-    ens.add_meta(OLS())
+    ens.add(estimators, partitions=2, folds=3, dtype=np.float64)
+    ens.add_meta(OLS(), dtype=np.float64)
 
     ens.fit(X, y)
 
@@ -70,8 +70,8 @@ def test_subset_equiv():
     sub = Subsemble(partitions=1)
     sl = SuperLearner()
 
-    sub.add(ECM)
-    sl.add(ECM)
+    sub.add(ECM, dtype=np.float64)
+    sl.add(ECM, dtype=np.float64)
 
     F = sub.fit(X, y).predict(X)
     P = sl.fit(X, y).predict(X)

@@ -10,12 +10,11 @@ try:
 except ImportError:
     from mlens.externals.fixes import redirect as redirect_stdout
 
-from mlens.base import FoldIndex
 from mlens.ensemble.base import Layer, LayerContainer
 from mlens.utils.dummy import OLS, LogisticRegression, Scale, InitMixin
 from mlens.utils.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \
     ECM, ECM_PROBA
-from mlens.utils.dummy import Data, Cache, LayerGenerator
+from mlens.utils.dummy import Data, LayerGenerator
 
 from mlens.utils import assert_correct_format
 from mlens.utils.formatting import _assert_format
@@ -244,7 +243,6 @@ def test_ground_truth():
     gwp = np.array([[-2.        ,  8.28571429],
                     [-4.        ,  6.28571429],
                     [ 3.14285714,  3.14285714]])
-
 
     t, z = Data('stack', False, True).get_data((6, 2), 2)
 

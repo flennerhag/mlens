@@ -97,10 +97,10 @@ class BlendEnsemble(BaseEnsemble):
     n_jobs : int (default = -1)
         number of CPU cores to use for fitting and prediction.
 
-    backend : str or object (default = 'multiprocessing')
+    backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation.
+        documentation. To set global backend, set ``mlens.config.BACKEND``.
 
     Attributes
     ----------
@@ -129,7 +129,8 @@ class BlendEnsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    7.2309909413577111
+    7.656098...
+
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
@@ -155,7 +156,7 @@ class BlendEnsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    7.5812611042457716
+    7.9814242...
     """
 
     def __init__(self,
@@ -167,7 +168,7 @@ class BlendEnsemble(BaseEnsemble):
                  array_check=2,
                  verbose=False,
                  n_jobs=-1,
-                 backend='multiprocessing',
+                 backend=None,
                  layers=None):
 
         super(BlendEnsemble, self).__init__(
@@ -178,16 +179,24 @@ class BlendEnsemble(BaseEnsemble):
 
         self.test_size = test_size
 
-    def add_meta(self, estimator):
+    def add_meta(self, estimator, **kwargs):
         """Meta Learner.
 
         Compatibility method for adding a meta learner to be used for final
         predictions.
+
+        Parameters
+        ----------
+        estimator : instance
+            estimator instance.
+
+        **kwargs : optional
+            optional keyword arguments.
         """
-        return self.add(estimators=estimator, meta=True)
+        return self.add(estimators=estimator, meta=True, **kwargs)
 
     def add(self, estimators, preprocessing=None, test_size=None,
-            proba=False, meta=False):
+            proba=False, meta=False, propagate_features=None, **kwargs):
         """Add layer to ensemble.
 
         Parameters
@@ -251,8 +260,20 @@ class BlendEnsemble(BaseEnsemble):
         proba : bool (default = False)
             Whether to call ``predict_proba`` on base learners.
 
+        propagate_features : list, optional
+            List of column indexes to propagate from the input of
+            the layer to the output of the layer. Propagated features are
+            concatenated and stored in the leftmost columns of the output
+            matrix. The ``propagate_features`` list should define a slice of
+            the numpy array containing the input data, e.g. ``[0, 1]`` to
+            propagate the first two columns of the input matrix to the output
+            matrix.
+
         meta : bool (default = False)
             Whether the layer should be treated as the final meta estimator.
+
+        **kwargs : optional
+            optional keyword arguments to instantiate layer with.
 
         Returns
         -------
@@ -273,4 +294,6 @@ class BlendEnsemble(BaseEnsemble):
                 preprocessing=preprocessing,
                 indexer=idx,
                 proba=proba,
-                verbose=self.verbose)
+                verbose=self.verbose,
+                propagate_features=propagate_features ,
+                **kwargs)

@@ -11,6 +11,7 @@ import os
 import numpy as np
 from time import sleep
 from abc import ABCMeta, abstractmethod
+from scipy.sparse import issparse
 
 from ..externals.joblib import delayed
 from ..utils import (check_is_fitted,
@@ -81,6 +82,7 @@ class BaseEstimator(object):
     @abstractmethod
     def _format_instance_list(self):
         """Formatting layer's estimator and preprocessing for parallel loop."""
+        return None, None
 
     @abstractmethod
     def _get_col_id(self):
@@ -125,7 +127,14 @@ class BaseEstimator(object):
 
         # Aggregate to get cross-validated mean scores
         for k, v in scores.items():
-            scores[k] = (np.mean(v), np.std(v))
+            if None in v:
+                continue
+            try:
+                scores[k] = (np.mean(v), np.std(v))
+            except Exception as exc:
+                warnings.warn("Aggregating scores failed. Scores:\n%r\n"
+                              "Details: %r" % (v, exc),
+                              ParallelProcessingWarning)
 
         return scores
 
@@ -157,8 +166,7 @@ class BaseEstimator(object):
                                             y=y,
                                             idx=tri,
                                             name=self.name)
-                         for i, (case, tri, _, instance_list)
-                         in enumerate(self.t))
+                         for case, tri, _, instance_list in self.t)
 
             parallel(delayed(fit_est)(dir=dir,
                                       case=case,
@@ -316,7 +324,7 @@ def _wrap(folded_list, name='__trans__'):
             case, tri, tei, instance_list in folded_list]
 
 
-def _slice_array(x, y, idx, r = 0):
+def _slice_array(x, y, idx, r=0):
     """Build training array index and slice data."""
     if idx is not None:
         # Check if the idx is a tuple and if so, whether it can be made
@@ -342,6 +350,12 @@ def _slice_array(x, y, idx, r = 0):
         if simple_slice:
             x = x[slice(idx[0] - r, idx[1] - r)]
             y = y[slice(idx[0] - r, idx[1] - r)] if y is not None else y
+
+    # Cast as ndarray to avoid passing memmaps to estimators
+    if y is not None:
+        y = y.view(type=np.ndarray)
+    if not issparse(x):
+        x = x.view(type=np.ndarray)
 
     return x, y
 
@@ -500,14 +514,18 @@ def fit_est(dir, case, inst_name, inst, x, y, pred, idx, raise_on_exception,
         _assign_predictions(pred, p, tei, col, n)
 
         # Score predictions if applicable
-        try:
-            s = scorer(ytest, p)
-        except Exception:
-            s = None
+        s = None
+        if scorer is not None:
+            try:
+                s = scorer(ytest, p)
+            except Exception as exc:
+                warnings.warn("[%s] Could not score %s. Details:\n%r" %
+                              (name, inst_name, exc),
+                              ParallelProcessingWarning)
 
-        idx = idx[1:] # format as (tei, col)
+        idx = idx[1:]  # format as (tei, col)
     else:
-        idx = (None, idx[2]) # (tei, col), with tei = all observations
+        idx = (None, idx[2])  # (tei, col), with tei = all observations
         s = None
 
     f = os.path.join(dir, '%s__%s__e' % (case, inst_name))

@@ -39,6 +39,7 @@ import warnings
 def _check_scorer(scorer):
     """Check that the scorer instance passed behaves as expected."""
     if not type(scorer).__name__ in ['_PredictScorer', '_ProbaScorer']:
+
         raise ValueError("The passes scorer does not seem to be a valid "
                          "scorer. Expected type '_PredictScorer', got '%s'."
                          "Use the mlens.metrics.make_scorer function to "

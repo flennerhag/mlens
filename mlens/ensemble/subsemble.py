@@ -10,7 +10,8 @@ Subsemble class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import FullIndex, SubsetIndex
+from ..base import FullIndex, SubsetIndex, ClusteredSubsetIndex
+from ..utils import kwarg_parser
 
 
 class Subsemble(BaseEnsemble):
@@ -90,6 +91,17 @@ class Subsemble(BaseEnsemble):
         Note: this parameter can be specified on a layer-specific basis in the
         :attr:`add` method.
 
+    partition_estimator : instance, optional
+        To use a supervised or unsupervised estimator to learn partitions,
+        pass an instantiated estimator as ``partition_estimator``. The
+        estimator must accept a ``fit`` call for fitting the training data,
+        and a ``predict`` call that *assigns cluster partitions labels*.
+        For instance, clustering estimator or classifiers (where their class
+        predictions will be used for partitioning). The number of partitions
+        by the estimator must correspond to the ``partitions`` argument.
+        Specific estimators can be added to each layer by passing the
+        estimator during the call to the ensemble's ``add`` method.
+
     folds : int (default = 2)
         number of folds to use during fitting. Note: this parameter can be
         specified on a layer-specific basis in the :attr:`add` method.
@@ -143,10 +155,10 @@ class Subsemble(BaseEnsemble):
     n_jobs : int (default = -1)
         number of CPU cores to use for fitting and prediction.
 
-    backend : str or object (default = 'multiprocessing')
+    backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation.
+        documentation. To set global backend, set ``mlens.config.BACKEND``.
 
     Attributes
     ----------
@@ -175,7 +187,7 @@ class Subsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    9.2393246953908577
+    9.2393246...
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
 
@@ -200,11 +212,12 @@ class Subsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    9.0115741283454458
+    9.0115741...
     """
 
     def __init__(self,
                  partitions=2,
+                 partition_estimator=None,
                  folds=2,
                  shuffle=False,
                  random_state=None,
@@ -213,7 +226,7 @@ class Subsemble(BaseEnsemble):
                  array_check=2,
                  verbose=False,
                  n_jobs=-1,
-                 backend='multiprocessing',
+                 backend=None,
                  layers=None):
 
         super(Subsemble, self).__init__(
@@ -222,15 +235,26 @@ class Subsemble(BaseEnsemble):
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
                 array_check=array_check, backend=backend)
 
+        self.partition_estimator = partition_estimator
         self.partitions = partitions
         self.folds = folds
 
-    def add_meta(self, estimators):
-        """Add meta estimator."""
-        return self.add(estimators, meta=True)
+    def add_meta(self, estimator, **kwargs):
+        """Add meta estimator.
+
+        Parameters
+        ----------
+        estimator : instance
+            estimator instance.
+
+        **kwargs : optional
+            optional keyword arguments.
+        """
+        return self.add(estimator, meta=True, **kwargs)
 
     def add(self, estimators, preprocessing=None, meta=False,
-            partitions=None, folds=None, proba=False):
+            partitions=None, partition_estimator=None, folds=None, proba=False,
+            propagate_features=None, **kwargs):
         """Add layer to ensemble.
 
         Parameters
@@ -298,12 +322,35 @@ class Subsemble(BaseEnsemble):
             to the number of estimators. Specifying this parameter overrides
             the ensemble-wide parameter.
 
+        partition_estimator : instance, optional
+            To use a supervised or unsupervised estimator to learn partitions,
+            pass an instantiated estimator as ``partition_estimator``. The
+            estimator must accept a ``fit`` call for fitting the training data,
+            and a ``predict`` call that *assigns cluster partitions labels*.
+            For instance, clustering estimator or classifiers (where class
+            predictions will be used for partitioning). The number of
+            partitions by the estimator must correspond to the layer's
+            ``partitions`` argument. Passing an estimator here supersedes any
+            other estimator previously passed.
+
         folds : int, optional
             Use if a different number of folds is desired than what the
             ensemble was instantiated with.
 
         proba : bool (default = False)
             whether to call ``predict_proba`` on base learners.
+
+        propagate_features : list, optional
+            List of column indexes to propagate from the input of
+            the layer to the output of the layer. Propagated features are
+            concatenated and stored in the leftmost columns of the output
+            matrix. The ``propagate_features`` list should define a slice of
+            the numpy array containing the input data, e.g. ``[0, 1]`` to
+            propagate the first two columns of the input matrix to the output
+            matrix.
+
+        **kwargs : optional
+            optional keyword arguments to instantiate ensemble with.
 
         Returns
         -------
@@ -312,17 +359,31 @@ class Subsemble(BaseEnsemble):
         """
         if meta:
             cls = 'full'
-            idx = FullIndex()
+            indexer = FullIndex()
         else:
+            # Parse arguments for the indexer
             cls = 'subset'
+
             p = partitions if partitions is not None else self.partitions
+            e = partition_estimator if partition_estimator is not None \
+                else self.partition_estimator
             c = folds if folds is not None else self.folds
-            idx = SubsetIndex(p, c,
-                              raise_on_exception=self.raise_on_exception)
+
+            idx = ClusteredSubsetIndex if e is not None else SubsetIndex
+            args = (e, p, c) if e is not None else (p, c)
+
+            kwargs_idx, kwargs = kwarg_parser(idx.__init__, kwargs)
+
+            if 'raise_on_exception' not in kwargs_idx:
+                kwargs_idx['raise_on_exception'] = self.raise_on_exception
+
+            indexer = idx(*args, **kwargs_idx)
 
         return self._add(cls=cls,
                          estimators=estimators,
                          preprocessing=preprocessing,
-                         indexer=idx,
+                         indexer=indexer,
                          proba=proba,
-                         verbose=self.verbose)
+                         verbose=self.verbose,
+                         propagate_features=propagate_features,
+                         **kwargs)

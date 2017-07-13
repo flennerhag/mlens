@@ -44,6 +44,16 @@ def pickle_load(name):
 
 
 ###############################################################################
+def kwarg_parser(func, kwargs):
+    """Utility function for parsing keyword arguments"""
+    func_kwargs = dict()
+    args = func.__code__.co_varnames
+    for arg in args:
+        if arg in kwargs:
+            func_kwargs[arg] = kwargs.pop(arg)
+    return func_kwargs, kwargs
+
+
 def safe_print(*objects, **kwargs):
     """Safe print function for backwards compatibility."""
     # Get stream

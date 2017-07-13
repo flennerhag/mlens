@@ -35,7 +35,8 @@ class SubStacker(BaseEstimator):
         """Assign unique col_id to every estimator."""
         c = getattr(self.layer, 'classes_', 1)
         p = len(self.layer.cases) * self.layer.indexer.n_partitions
-        return _get_col_idx(self.e, p, c)
+        k = self.layer.n_feature_prop
+        return _get_col_idx(self.e, p, c, k)
 
 
 ###############################################################################
@@ -94,10 +95,10 @@ def _expand_instance_list(instance_list, indexer):
         # Estimators to be fitted on full data. List entries have format:
         # (case, no_train_idx, no_test_idx, est_list)
         # Each est_list have entries (inst_name, cloned_est)
-        ls = [('%s__j%i' % (case, j), (t0, t1), None,
+        ls = [('%s__j%i' % (case, j), partition, None,
                [(n, clone(e)) for n, e in instance_list[case]])
               for case in sorted(instance_list)
-              for j, (t0, t1) in enumerate(indexer.partition())]
+              for j, partition in enumerate(indexer.partition())]
 
         # --- Folds ---
         # Estimators to be fitted on each fold. List entries have format:
@@ -121,9 +122,9 @@ def _expand_instance_list(instance_list, indexer):
         # Estimators to be fitted on full data. List entries have format:
         # (no_case, no_train_idx, no_test_idx, est_list)
         # Each est_list have entries (inst_name, cloned_est)
-        ls = [('j%i' % i, (t0, t1), None,
+        ls = [('j%i' % i, partition, None,
                [(n, clone(e)) for n, e in instance_list])
-              for i, (t0, t1) in enumerate(indexer.partition())]
+              for i, partition in enumerate(indexer.partition())]
 
         # --- Folds ---
         # Estimators to be fitted on each fold. List entries have format:
@@ -140,7 +141,7 @@ def _expand_instance_list(instance_list, indexer):
     return ls
 
 
-def _get_col_idx(instance_list, n_main, labels):
+def _get_col_idx(instance_list, n_main, labels, n_feature_prop):
     """Utility for assigning columns ids to each subset-specific estimator.
 
     Parameters
@@ -155,13 +156,16 @@ def _get_col_idx(instance_list, n_main, labels):
     labels : int
         number of labels to expand col_id with
 
+    n_feature_prop : int
+        number of features being propagated. Predictions are concatenated from
+        the right.
     """
     inc = 1 if labels is None else labels
 
     # Set up estimator column mapping
     # We select the main estimators by filtering out
     # fold-specific estimators and assigning each of the main ests a col_id
-    idx, col = dict(), 0
+    idx, col = dict(), n_feature_prop
     for meta_name, _, _, estimator_list in instance_list[:n_main]:
         for est_name, _ in estimator_list:
             idx[(meta_name, est_name)] = col

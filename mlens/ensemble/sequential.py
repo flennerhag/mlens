@@ -11,6 +11,7 @@ from __future__ import division
 
 from .base import BaseEnsemble
 from ..base import INDEXERS
+from ..utils import kwarg_parser
 
 
 class SequentialEnsemble(BaseEnsemble):
@@ -77,10 +78,11 @@ class SequentialEnsemble(BaseEnsemble):
     n_jobs : int (default = -1)
         number of CPU cores to use for fitting and prediction.
 
-    backend : str or object (default = 'multiprocessing')
+    backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation.
+        documentation. To change global backend, set
+        ``mlens.config.BACKEND``
 
     Attributes
     ----------
@@ -113,7 +115,7 @@ class SequentialEnsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    6.5628696546845635
+    6.5628...
     """
 
     def __init__(self,
@@ -124,7 +126,7 @@ class SequentialEnsemble(BaseEnsemble):
                  array_check=2,
                  verbose=False,
                  n_jobs=-1,
-                 backend='multiprocessing',
+                 backend=None,
                  layers=None):
 
         super(SequentialEnsemble, self).__init__(
@@ -133,15 +135,26 @@ class SequentialEnsemble(BaseEnsemble):
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
                 array_check=array_check, backend=backend)
 
-    def add_meta(self, estimator):
+    def add_meta(self, estimator, **kwargs):
         """Meta Learner.
 
         Meta learner to be used for final predictions.
+
+        Parameters
+        ----------
+        estimator : instance
+            estimator instance.
+
+        **kwargs : optional
+            optional keyword arguments.
         """
-        return self.add(cls='full', estimators=estimator)
+        return self.add(cls='full', estimators=estimator, **kwargs)
 
     def add(self, cls, estimators, preprocessing=None, **kwargs):
         """Add layer to ensemble.
+
+        For full set of optional arguments, see the ensemble API for the
+        specified type.
 
         Parameters
         ----------
@@ -204,7 +217,7 @@ class SequentialEnsemble(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-        kwargs : optional
+        **kwargs : optional
             optional keyword arguments to instantiate layer with. See
             respective ensemble for further details.
 
@@ -217,22 +230,9 @@ class SequentialEnsemble(BaseEnsemble):
             raise NotImplementedError("Layer class not implemented. Select "
                                       "one of %r." % sorted(INDEXERS))
 
-        # If no kwargs, instantiate with defaults
-        if kwargs is None:
-            return self._add(estimators, cls, INDEXERS[cls](), preprocessing)
-
-        # Else, pop arguments belonging to the indexer
-        indexer, kwargs_idx = INDEXERS[cls], dict()
-
-        args = indexer.__init__.__code__.co_varnames
-        for arg in args:
-            if arg in kwargs:
-                kwargs_idx[arg] = kwargs.pop(arg)
-
-        if 'raise_on_exception' in args and \
-                'raise_on_exception' not in kwargs_idx:
-            kwargs_idx['raise_on_exception'] = self.raise_on_exception
-
+        # instantiate the indexer
+        indexer = INDEXERS[cls]
+        kwargs_idx, kwargs = kwarg_parser(indexer.__init__, kwargs)
         indexer = indexer(**kwargs_idx)
 
         return self._add(estimators=estimators,

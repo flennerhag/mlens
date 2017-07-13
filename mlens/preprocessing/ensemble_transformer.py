@@ -232,7 +232,7 @@ class EnsembleTransformer(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-        kwargs : optional
+        **kwargs : optional
             optional keyword arguments to instantiate layer with. See
             respective ensemble for further details.
 

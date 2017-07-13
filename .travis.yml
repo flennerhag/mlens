@@ -2,20 +2,31 @@ language: python
 
 matrix:
     include:
-        - python: 2.7
-        - python: 3.6
-        - python: 3.5
+        - os: linux
+          python: 3.6
+          sudo: required
+        - os: linux
+          python: 3.5
+          sudo: required
+        - os: linux
+          python: 2.7
+          sudo: required
+        - os: osx
+          language: generic
+          sudo: required
+          python: 3.6
+        - os: osx
+          language: generic
+          sudo: required
+          python: 3.5
+        - os: osx
+          language: generic
+          sudo: required
+          python: 2.7
 
 install:
   - set -e
-  - sudo apt-get update
-  - pip install coverage coveralls
-  - pip install nose-exclude
-  - pip install flake8
-  - pip install psutil
-  - pip install scikit-learn
-  - pip install -r requirements.txt
-  - python setup.py install
+  - .travis/install.sh
 
 script:
   - set -e

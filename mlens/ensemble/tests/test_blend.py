@@ -27,8 +27,8 @@ def test_run():
     g = meta.predict(P)
 
     ens = BlendEnsemble(test_size=3)
-    ens.add(ESTIMATORS, PREPROCESSING)
-    ens.add_meta(OLS())
+    ens.add(ESTIMATORS, PREPROCESSING, dtype=np.float64)
+    ens.add(OLS(), meta=True, dtype=np.float64)
 
     ens.fit(X, y)
 

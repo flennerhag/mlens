@@ -10,11 +10,13 @@ network API similar to that of popular deep learning libraries like Keras_,
 it is straightforward to build fast and memory efficient
 multi-layered ensembles.
 
-ML-Ensemble is looking for contributors at all levels of experience.
-If you would like to get involved, reach out to the project's Github_
-repository.
+ML-Ensemble is looking for contributors at all levels of experience. There are
+currently some low hanging fruit to build introductory example, use cases and
+general benchmarks. If you would like to get involved, reach out to the
+project's Github_ repository.
 
-ML-Ensemble is currently in beta testing, shout out if you find a bug : )
+ML-Ensemble is currently in beta testing, please do report any bugs or
+issues by creating an issue at Github_issues_.
 
 Core Features
 -------------
@@ -147,6 +149,7 @@ as in the example below. ::
    :caption: Documentation
 
    API
+   mlens_configs
 
 .. toctree::
    :hidden:
@@ -168,6 +171,7 @@ as in the example below. ::
 
 ML Ensemble is licenced under :ref:`MIT <license>` and is hosted on Github_.
 
+.. _Github_issues: https://github.com/flennerhag/mlens/issues
 .. _Github: https://github.com/flennerhag/mlens
 .. _Scikit-learn: http://scikit-learn.org/stable/
 .. _Keras: https://keras.io

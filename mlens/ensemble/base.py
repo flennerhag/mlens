@@ -12,7 +12,7 @@ from __future__ import division, print_function
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 
-
+from .. import config
 from ..base import INDEXERS
 from ..parallel import ParallelProcessing
 from ..externals.sklearn.base import BaseEstimator
@@ -46,6 +46,9 @@ class LayerContainer(BaseEstimator):
         Number of CPUs to use. Set ``n_jobs = -1`` for all available CPUs, and
         ``n_jobs = -2`` for all available CPUs except one, e.tc..
 
+    backend : str, (default="threading")
+        the joblib backend to use (i.e. "multiprocessing" or "threading").
+
     raise_on_exception : bool (default = False)
         raise error on soft exceptions. Otherwise issue warning.
 
@@ -65,13 +68,13 @@ class LayerContainer(BaseEstimator):
     def __init__(self,
                  layers=None,
                  n_jobs=-1,
-                 backend='multiprocessing',
+                 backend=None,
                  raise_on_exception=False,
                  verbose=False):
 
         # True params
         self.n_jobs = n_jobs
-        self.backend = backend
+        self.backend = backend if backend is not None else config.BACKEND
         self.raise_on_exception = raise_on_exception
         self.verbose = verbose
 
@@ -171,6 +174,7 @@ class LayerContainer(BaseEstimator):
 
         # Attach to ordered dictionary
         self.layers[name] = lyr
+        self.layer_names.append(name)
 
         # Summarize
         self.summary[name] = self._get_layer_data(name)
@@ -198,9 +202,7 @@ class LayerContainer(BaseEstimator):
             no predictions are returned. Else, an integer corresponding to the
             layer count should be passed with 0-indexing. Thus, for predictions
             from ``layer-1``, set ``return_preds=0``. If ``return_preds=-1``
-            predictions from the ultimate layer is returned. Similarly,
-            ``return_preds=-2`` returns the predictions in the penultimate
-            layer.
+            predictions from the ultimate layer is returned.
 
         **process_kwargs : optional
             optional arguments to initialize processor with.
@@ -347,6 +349,9 @@ class LayerContainer(BaseEstimator):
             out = None
 
         if return_preds is not None:
+            if isinstance(return_preds, bool):
+                # Safeguard against boolean argument
+                return_preds = -1
             return out, processor.get_preds(return_preds)
         else:
             return out
@@ -358,11 +363,13 @@ class LayerContainer(BaseEstimator):
             layers.clear()
 
         self.layers = layers
+        self.layer_names = list()
         self.n_layers = len(self.layers)
 
         self.summary = dict()
         for name in self.layers:
             self.summary[name] = self._get_layer_data(name)
+            self.layer_names.append(name)
 
     def _get_layer_data(self, name,
                         attr=('cls', 'n_prep', 'n_pred', 'n_est', 'cases')):
@@ -473,6 +480,12 @@ class Layer(BaseEstimator):
     partitions : int (default = 1)
         Number of subset-specific fits to generate from the learner library.
 
+    propagate_features : list, optional
+        Features to propagate from the input array to the output array.
+        Carries input features to the output of the layer, useful for
+        propagating original data through several stacked layers. Propagated
+        features are stored in the left-most columns.
+
     raise_on_exception : bool (default = False)
         whether to raise an error on soft exceptions, else issue warning.
 
@@ -488,6 +501,9 @@ class Layer(BaseEstimator):
 
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
         For verbosity in the layers themselves, use ``fit_params``.
+
+    dtype : numpy dtype class, default = :class:`numpy.float32`
+        dtype format of prediction array.
 
     cls_kwargs : dict or None
         optional arguments to pass to the layer type class.
@@ -510,9 +526,11 @@ class Layer(BaseEstimator):
                  preprocessing=None,
                  proba=False,
                  partitions=1,
+                 propagate_features=None,
                  scorer=None,
                  raise_on_exception=False,
                  name=None,
+                 dtype=None,
                  verbose=False,
                  cls_kwargs=None):
 
@@ -526,9 +544,11 @@ class Layer(BaseEstimator):
         self.cls_kwargs = cls_kwargs
         self.proba = proba
         self.partitions = partitions
+        self.propagate_features = propagate_features
         self.scorer = scorer
         self.raise_on_exception = raise_on_exception
         self.name = name
+        self.dtype = dtype if dtype is not None else config.DTYPE
         self.verbose = verbose
 
         self._store_layer_data()
@@ -538,7 +558,16 @@ class Layer(BaseEstimator):
         ests = self.estimators
         prep = self.preprocessing
 
-        # Store layer data
+        # Store feature propagation data
+        if self.propagate_features:
+            if not isinstance(self.propagate_features, list):
+                raise ValueError("propagate features expected list, got %s" %
+                                 self.propagate_features.__class__)
+            self.n_feature_prop = len(self.propagate_features)
+        else:
+            self.n_feature_prop = 0
+
+        # Store layer estimator data
         if isinstance(ests, list):
             # No preprocessing cases. Check if there is one uniform pipeline.
             self.n_prep = 0 if prep is None or len(prep) == 0 else 1
@@ -546,8 +575,8 @@ class Layer(BaseEstimator):
             self.n_est = len(ests)
             self.cases = [None]
         else:
-            # Need to number of predictions by moving through each
-            # case and counting estimators.
+            # Get the number of predictions by moving through each
+            # case and count estimators.
             self.n_prep = len(prep)
             self.cases = sorted(prep)
 
@@ -622,7 +651,8 @@ class BaseEnsemble(BaseEstimator):
                  n_jobs=-1,
                  layers=None,
                  array_check=2,
-                 backend='multiprocessing'):
+                 backend=None
+                 ):
 
         self.shuffle = shuffle
         self.random_state = random_state
@@ -632,7 +662,7 @@ class BaseEnsemble(BaseEstimator):
         self.n_jobs = n_jobs
         self.layers = layers
         self.array_check = array_check
-        self.backend = backend
+        self.backend = backend if backend is not None else config.BACKEND
 
     def _add(self,
              estimators,
@@ -670,7 +700,7 @@ class BaseEnsemble(BaseEstimator):
                         scorer=self.scorer,
                         **kwargs)
 
-        # Check parameter compatability
+        # Check parameter comparability
         if 'proba' in kwargs:
             scorer = getattr(self, 'scorer', None)
             if kwargs['proba'] and scorer:

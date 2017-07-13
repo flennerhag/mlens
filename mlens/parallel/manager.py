@@ -16,6 +16,7 @@ import warnings
 import numpy as np
 
 from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
+from .. import config
 from ..externals.joblib import Parallel, dump, load
 from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
@@ -26,6 +27,7 @@ ENGINES = {'full': SingleRun,
            'stack': Stacker,
            'blend': Blender,
            'subset': SubStacker,
+           'subsemble': SubStacker,
            'evaluation': Evaluation
            }
 
@@ -98,6 +100,8 @@ class ParallelProcessing(object):
         self._check_job(job)
         self.job = Job(job)
 
+        if dir is None:
+            dir = config.TMPDIR
         try:
             # Fails on python 2
             self.job.tmp = \
@@ -143,7 +147,7 @@ class ParallelProcessing(object):
             # We call the indexers fit method now at initialization - if there
             # is something funky with indexing it is better to catch it now
             # than mid-estimation
-            lyr.indexer.fit(self.job.P[n])
+            lyr.indexer.fit(self.job.P[n], y, self.job.j)
 
             # Prediction array
             self._gen_prediction_array(lyr, name)
@@ -153,13 +157,26 @@ class ParallelProcessing(object):
         # Release any memory before going into process
         gc.collect()
 
+    def _propagate_features(self, lyr):
+        """Propagate features from input array to output array."""
+        P_out, P_in = self.job.P[-1], self.job.P[-2]
+
+        # Need to account for loss of observations between layers (i.e. blend)
+        n_in, n_out = P_in.shape[0], P_out.shape[0]
+        r = int(n_in - n_out)
+
+        # The propagated features are set as the n last features of the
+        # outgoing prediction array. Note that dropped observations are assumed
+        # to be strictly monotonic in indexing.
+        P_out[:, :lyr.n_feature_prop] = P_in[r:, lyr.propagate_features]
+
     def _gen_prediction_array(self, lyr, name):
         """Persist prediction array to disk."""
         f = os.path.join(self.job.dir, '%s.mmap' % name)
         shape = self._get_lyr_sample_size(lyr)
         try:
             self.job.P.append(np.memmap(filename=f,
-                                        dtype=np.float,
+                                        dtype=lyr.dtype,
                                         mode='w+',
                                         shape=shape))
         except Exception as exc:
@@ -170,6 +187,10 @@ class ParallelProcessing(object):
                           (shape[0], shape[1], 8 * shape[0] * shape[1] / 1e6,
                            name, exc))
 
+        # If asked, propagate features
+        if lyr.propagate_features is not None:
+            self._propagate_features(lyr)
+
     def _get_lyr_sample_size(self, lyr):
         """Decide what sample size to create P with based on the job type."""
         # Sample size is full for prediction, for fitting
@@ -179,8 +200,9 @@ class ParallelProcessing(object):
 
         # Number of prediction columns depends on:
         # 1. number of estimators in layer
-        # 2. if predict_proba, number of classes in training set
+        # 2. if ``predict_proba``, number of classes in training set
         # 3. number of subsets (default is one for all data)
+        # 4. number of features to propagate
         # Note that 1. and 2. are encoded in n_pred (see Layer) but 2.
         # depends on the data and thus has to be handled by the manager.
         s1 = lyr.n_pred
@@ -190,6 +212,9 @@ class ParallelProcessing(object):
                 lyr.classes_ = self.job.l = np.unique(self.job.y).shape[0]
 
             s1 *= lyr.classes_
+
+        if lyr.propagate_features is not None:
+            s1 += lyr.n_feature_prop
 
         return s0, s1
 
@@ -219,7 +244,7 @@ class ParallelProcessing(object):
 
         self.__fitted__ = 1
 
-    def get_preds(self, n=-1, dtype=np.float, order='C'):
+    def get_preds(self, n=-1, dtype=None, order='C'):
         """Return prediction matrix.
 
         Parameters
@@ -230,7 +255,7 @@ class ParallelProcessing(object):
             List slicing is accepted, so ``n = -1`` retrieves the final
             predictions.
 
-        dtype : object (default = numpy.float)
+        dtype : numpy dtype object, optional
             data type to return
 
         order : str (default = 'C')
@@ -241,6 +266,8 @@ class ParallelProcessing(object):
                                           "cannot retrieve final prediction "
                                           "array as the estimation cache has "
                                           "been removed.")
+        if dtype is None:
+            dtype = self.layers.layers[self.layers.layer_names[n]].dtype
 
         return np.asarray(self.job.P[n], dtype=dtype, order=order)
 
@@ -325,7 +352,7 @@ class ParallelEvaluation(object):
         self.evaluator = evaluator
         self.__initialized__ = 0
 
-    def initialize(self, X, y=None, dir=None):
+    def initialize(self, X, y=None, dir=config.TMPDIR):
         """Create cache and memmap X and y."""
         self.job = Job('evaluate')
 

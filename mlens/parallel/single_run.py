@@ -34,7 +34,9 @@ class SingleRun(BaseEstimator):
     def _get_col_id(self):
         """Assign unique col_id to every estimator."""
         c = getattr(self.layer, 'classes_', 1)
-        return _get_col_idx(self.layer.preprocessing, self.layer.estimators, c)
+        k = self.layer.n_feature_prop
+        return _get_col_idx(self.layer.preprocessing, self.layer.estimators,
+                            c, k)
 
 
 ###############################################################################
@@ -51,7 +53,7 @@ def _expand_instance_list(instance_list):
                  [(n, clone(e)) for n, e in instance_list])]
 
 
-def _get_col_idx(preprocessing, estimators, labels):
+def _get_col_idx(preprocessing, estimators, labels, n_feature_prop):
     """Utility for assigning each ``est`` in each ``prep`` a unique ``col_id``.
 
     Parameters
@@ -61,16 +63,23 @@ def _get_col_idx(preprocessing, estimators, labels):
 
     estimators : dict or list
         mapping of estimators per preprocessing case, or list of estimators.
+
+    labels : int
+        number of labels to expand col_id with
+
+    n_feature_prop : int
+        number of features being propagated. Predictions are concatenated from
+        the right.
     """
     inc = 1 if labels is None else labels
 
     # Set up main columns mapping
     if isinstance(preprocessing, list) or preprocessing is None:
-        idx = {(None, inst_name): int(inc * i) for i, (inst_name, _) in
-               enumerate(estimators)}
+        idx = {(None, inst_name): int(n_feature_prop + inc * i)
+               for i, (inst_name, _) in enumerate(estimators)}
     else:
         # Nested for loop required
-        case_list, idx, col = sorted(preprocessing), dict(), 0
+        case_list, idx, col = sorted(preprocessing), dict(), n_feature_prop
 
         for case in case_list:
             for inst_name, _ in estimators[case]:

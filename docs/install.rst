@@ -14,8 +14,8 @@ ML-Ensemble is available through PyPi. For latest stable version, install
 Bleeding edge
 ^^^^^^^^^^^^^
 
-ML-Ensemble is rapidly developing. To keep up with the latest stable
-development version, install the ``master`` branch of the Github repository.
+To latest stable development version can be install through the
+``master`` branch of the :mod:`mlens` repository.
 
 .. code-block:: bash
 
@@ -25,9 +25,9 @@ development version, install the ``master`` branch of the Github repository.
 Developer
 ^^^^^^^^^
 
-For the latest in-development version, install the ``dev`` branch of the
+The developmer version can be installed through the ``dev`` branch of the
 :mod:`mlens` repository. It is advised to check the CI build status
-first to ensure the current version does not contain apparent errors.
+first to ensure the branch builds correctly.
 
 Dependencies
 ^^^^^^^^^^^^

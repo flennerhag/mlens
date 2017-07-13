@@ -74,6 +74,7 @@ development machines indicates this exception handling is successful and
 Windows users should not expect any issues. If however you do notice
 memory performance issues, create an issue at the `issue tracker`_.
 
+.. _GIL: https://wiki.python.org/moin/GlobalInterpreterLock
 .. _view: http://scipy-cookbook.readthedocs.io/items/ViewsVsCopies.html
 .. _Python runs processes in parallel: https://wiki.python.org/moin/ParallelProcessing
 .. _here: https://docs.python.org/3/library/multiprocessing.html#contexts-and-start-methods

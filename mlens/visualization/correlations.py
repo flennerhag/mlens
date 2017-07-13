@@ -12,9 +12,15 @@ from __future__ import division, print_function
 import numpy as np
 from scipy.stats import pearsonr
 
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-from seaborn import diverging_palette, heatmap
+import warnings
+
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+    from seaborn import diverging_palette, heatmap
+except ImportError:
+    warnings.warn("Matplotlib and Seaborn not installed. Cannot load "
+                  "visualization module.", ImportWarning)
 
 
 def corrmat(corr, figsize=(11, 9), annotate=True, inflate=True,

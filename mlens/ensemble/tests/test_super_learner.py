@@ -58,7 +58,7 @@ ens1 = SuperLearner(folds=FOLDS, scorer=rmse, verbose=100)
 ens1.add(ESTIMATORS, PREPROCESSING, dtype=np.float64)
 ens1.add_meta(OLS(), dtype=np.float64)
 
-ens1_b = SuperLearner(folds=FOLDS, scorer=in_script_func, verbose=100)
+ens1_b = SuperLearner(folds=FOLDS, scorer=in_script_func)
 ens1_b.add(ESTIMATORS, PREPROCESSING, dtype=np.float64)
 ens1_b.add_meta(OLS(), dtype=np.float64)
 
@@ -66,7 +66,7 @@ ens2 = SuperLearner(folds=FOLDS, scorer=rmse, verbose=100)
 ens2.add(ECM, dtype=np.float64)
 ens2.add_meta(OLS(), dtype=np.float64)
 
-ens2_b = SuperLearner(folds=FOLDS, scorer=in_script_func, verbose=100)
+ens2_b = SuperLearner(folds=FOLDS, scorer=in_script_func)
 ens2_b.add(ECM, dtype=np.float64)
 ens2_b.add_meta(OLS(), dtype=np.float64)
 

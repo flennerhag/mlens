@@ -883,7 +883,6 @@ class DummyPartition(object):
 ###############################################################################
 def layer_fit(layer, cache, F, wf):
     """Test the layer's fit method."""
-    return
     # Check predictions against ground truth
     preds = cache.layer_est(layer, 'fit')
     np.testing.assert_array_equal(preds, F)
@@ -905,7 +904,6 @@ def layer_fit(layer, cache, F, wf):
 
 def layer_predict(layer, cache, P, wp):
     """Test the layer's predict method."""
-    return
     preds = cache.layer_est(layer, 'predict')
     np.testing.assert_array_equal(preds, P)
 
@@ -918,7 +916,6 @@ def layer_predict(layer, cache, P, wp):
 
 def layer_transform(layer, cache, F):
     """Test the layer's transform method."""
-    return
     # Check predictions against ground truth
     preds = cache.layer_est(layer, 'transform')
 

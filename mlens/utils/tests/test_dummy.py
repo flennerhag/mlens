@@ -14,7 +14,7 @@ from mlens.ensemble.base import Layer, LayerContainer
 from mlens.utils.dummy import OLS, LogisticRegression, Scale, InitMixin
 from mlens.utils.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \
     ECM, ECM_PROBA
-from mlens.utils.dummy import Data, Cache, LayerGenerator
+from mlens.utils.dummy import Data, LayerGenerator
 
 from mlens.utils import assert_correct_format
 from mlens.utils.formatting import _assert_format
@@ -38,13 +38,6 @@ z = np.ones(12)
 z[:3] = 1
 z[3:8] = 2
 z[8:12] = 3
-
-# Layer estimation
-data = Data('stack', False, False, 2)
-X_, y_ = data.get_data((5, 2), 2)
-_ = data.ground_truth(X_, y_)
-layer = LayerGenerator().get_layer('stack', False, False)
-layer.indexer.fit(X_)
 
 
 if check_estimator is not None:
@@ -251,7 +244,6 @@ def test_ground_truth():
                     [-4.        ,  6.28571429],
                     [ 3.14285714,  3.14285714]])
 
-
     t, z = Data('stack', False, True).get_data((6, 2), 2)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
@@ -261,10 +253,3 @@ def test_ground_truth():
     np.testing.assert_array_almost_equal(wf, gwf)
     np.testing.assert_array_almost_equal(P, gp)
     np.testing.assert_array_almost_equal(wp, gwp)
-
-
-def test_cache():
-    """[Utils] testing: test cache for layer estimation."""
-    cache = Cache(X_, y_, data)
-    _ = cache.layer_est(layer, 'fit')
-    cache.terminate()

@@ -152,7 +152,7 @@ pip install mlens
 To ensure latest version is installed, fork the GitHub repository.
 
 ```bash
-git clone https://flennerhag/mlens.git; cd mlens;
+git clone https://github.com/flennerhag/mlens.git; cd mlens;
 python install setup.py
 ```
 
@@ -162,7 +162,7 @@ For the latest in-development version, install the ``dev`` branch of the
 repository.
 
 ```bash
-git clone https://flennerhag/mlens.git; cd mlens; git checkout dev;
+git clone https://github.com/flennerhag/mlens.git; cd mlens; git checkout dev;
 python install setup.py
 ```
 

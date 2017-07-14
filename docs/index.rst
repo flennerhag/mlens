@@ -84,11 +84,11 @@ learners.
 Differentiated preprocessing pipelines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-ML-Ensemble offers the possibility to specify, for each layer, a set
-of preprocessing pipelines that maps to different (or the same) sets of
-estimators. For instance, for one set of estimators, min-max-scaling might
+As mentioned, ML-Ensemble offers the possibility to specify for each layer a set
+of preprocessing pipelines to map to subsets (or all) of the layer's base learners.
+For instance, for one set of estimators, min-max-scaling might
 be desired, while for a different set of estimators standardization could be
-preferred. This can easily be achieved in ML-Ensemble::
+preferred. ::
 
       ensemble = SuperLearner()
 

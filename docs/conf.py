@@ -27,14 +27,6 @@ import sphinx_rtd_theme
 # Ensure numpydoc exists
 subprocess.run(['pip', 'install', 'numpydoc'])
 
-# We need matplotlib and seaborn for plotting
-try:
-    import matplotlib
-    import seaborn
-except ImportError:
-    subprocess.run(['pip', 'install', 'matplotlib'])
-    subprocess.run(['pip', 'install', 'seaborn'])
-
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.append(sys.path[-1] + '/mlens')
 

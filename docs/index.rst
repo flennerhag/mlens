@@ -13,13 +13,35 @@ with complex interactions.
 ML-Ensemble is open for contributions at all levels. There are
 some low hanging fruit to build introductory example, use cases and
 general benchmarks. If you would like to get involved, reach out to the
-project's Github_ repository.
-
-ML-Ensemble is currently in beta testing, please do report any bugs or
-issues by creating an issue_.
+project's Github_ repository. We are currently in beta testing, so please do
+report any bugs or issues by creating an issue_.
 
 Core Features
 -------------
+
+Modular build of multi-layered ensembles
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Ensembles are build as a feed-forward network, with a set of **layers** stacked
+on each other. Each layer is associated with a library of base learners, a mapping from
+preprocessing pipelines to subsets of base learners, and an estimation method.
+Layers are stacked sequentially with each layer taking the previous
+layer's output as input. You can propagate features through layers,
+differentiate preprocessing between subsets of base learners, vary the
+estimation method between layers and much more to build ensembles of almost
+any shape and form.
+
+.. figure:: img/network.png
+   :align: center
+   :scale: 60%
+
+   The computational graph of a layer. The input :math:`X` is either the
+   original data or the previous layer's output;
+   :math:`\textrm{Tr}^{(j)}` represents preprocessing pipelines that transform
+   the input to its associated base learners :math:`f^{(i)}`. The
+   :math:`\textrm{Ft}` operation propagates specified features :math:`s` from input to
+   output. Base learner predictions :math:`p^{(i)}_j` are concatenated to
+   propagated features :math:`X_{:, s}` to form the output matrix :math:`P`.
 
 Transparent Architecture API
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -55,30 +77,18 @@ processing. For more details, see :ref:`memory`.
 
 Expect 95-97% of training time to be spent fitting the base estimators. Training
 time depends primarily on the number of base learners in the ensemble, the
-number of threads or cores available, and the size of the dataset. Ensembles
-that partition the training data scale more efficiently than base
-learners.
-
-Modular build of multi-layered ensembles
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-A modular network design enables great flexibility in network design. The core
-of an ensemble is a **layer**, much as a hidden layer in a neural
-network. Each layer contains a library of base learners and a mapping of from
-preprocessing pipelines to subsets of base learners. Layers are stacked
-sequentially with each layer trained on the predictions made by the previous
-layer. You can propagate features through layers, differentiate preprocessing
-between subsets of base learners, vary the estimation method between layers and
-much more to build ensembles of almost any shape and form.
+number of threads or cores available, and the size of the dataset. Speaking of size,
+ensembles that partition the data during training scale more efficiently than
+their base learners.
 
 Differentiated preprocessing pipelines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-ML-Ensemble offers the possibility to specify, for each layer, a set
-of preprocessing pipelines that maps to different (or the same) sets of
-estimators. For instance, for one set of estimators, min-max-scaling might
+As mentioned, ML-Ensemble offers the possibility to specify for each layer a set
+of preprocessing pipelines to map to subsets (or all) of the layer's base learners.
+For instance, for one set of estimators, min-max-scaling might
 be desired, while for a different set of estimators standardization could be
-preferred. This can easily be achieved in ML-Ensemble::
+preferred. ::
 
       ensemble = SuperLearner()
 

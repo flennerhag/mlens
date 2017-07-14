@@ -20,11 +20,18 @@ can be used as any Scikit-learn estimator.
 
 The core principle of ML-Ensemble is to maximize parallel processing at minimum
 memory consumption. ML-Ensemble uses memory mapping to remain memory neutral
-during parallel estimation.
-
-For full documentation, see [here](http://mlens.readthedocs.io/en/latest/).
+during parallel estimation. For full documentation, see [here](http://mlens.readthedocs.io/en/latest/).
 
 ## Core Features
+
+
+Ensembles are build as a feed-forward network, with each layer
+allowing different fitting procedures, differentiated preprocessing
+for subsets of estimators and input feature propagation. It is straightforward 
+to build deep ensembles with complex network structures.
+
+![Network](docs/img/network.png)
+
 
 ### Transparent Architecture API
 

@@ -77,9 +77,9 @@ processing. For more details, see :ref:`memory`.
 
 Expect 95-97% of training time to be spent fitting the base estimators. Training
 time depends primarily on the number of base learners in the ensemble, the
-number of threads or cores available, and the size of the dataset. Ensembles
-that partition the training data scale more efficiently than base
-learners.
+number of threads or cores available, and the size of the dataset. Speaking of size,
+ensembles that partition the data during training scale more efficiently than
+their base learners.
 
 Differentiated preprocessing pipelines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

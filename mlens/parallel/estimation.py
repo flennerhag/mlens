@@ -72,11 +72,6 @@ class BaseEstimator(object):
         self.scorer = self.layer.scorer
         self.ivals = (getattr(layer, 'ival', 0.1), getattr(layer, 'lim', 600))
 
-        # Set estimator and transformer lists to loop over, and collect
-        # estimator column ids for the prediction matrix
-        self.e, self.t = self._format_instance_list()
-        self.c = self._get_col_id()
-
         self.dual = dual
 
     @abstractmethod
@@ -144,6 +139,11 @@ class BaseEstimator(object):
             printout = "stderr" if self.verbose < 50 else "stdout"
             safe_print('Fitting %s' % self.name, file=printout)
             t0 = time_()
+
+        # Set estimator and transformer lists to loop over, and collect
+        # estimator column ids for the prediction matrix
+        self.e, self.t = self._format_instance_list()
+        self.c = self._get_col_id()
 
         # Auxiliary variables
         preprocess = self.t is not None

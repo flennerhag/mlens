@@ -949,11 +949,13 @@ class ClusteredSubsetIndex(BaseIndex):
                  y=None,
                  fit_estimator=True,
                  attr='predict',
+                 partition_on='X',
                  raise_on_exception=True):
 
         self.estimator = estimator
         self.fit_estimator = fit_estimator
         self.attr = attr
+        self.partition_on = partition_on
         self.n_partitions = n_partitions
         self.n_splits = n_splits
         self.raise_on_exception = raise_on_exception
@@ -998,30 +1000,33 @@ class ClusteredSubsetIndex(BaseIndex):
             # Indexers are assumed to need fitting once, so we need to
             # generate cluster predictions during the fit call. To minimize
             # memory consumption, store cluster indexes as list of tuples
-            self._clusters_ = self._get_partitions(X)
+            self._clusters_ = self._get_partitions(X, y)
 
         return self
 
-    def partition(self, X=None, as_array=False):
+    def partition(self, X=None, y=None, as_array=False):
         """Get partition indices for training full subset estimators.
 
         Returns the index range for each partition of X.
 
         Parameters
         ----------
-        X : array-like of shape [n_samples,] , optional
-            the training set to partition. The training label array is also,
+        X : array-like of shape [n_samples, n_features] , optional
+            the set to partition. The training label array is also,
             accepted, as only the first dimension is used. If ``X`` is not
             passed at instantiation, the ``fit`` method must be called before
             ``generate``, or ``X`` must be passed as an argument of
             ``generate``.
 
+        y : array-like of shape [n_samples,], optional
+            the labels of the set to partition.
+
         as_array : bool (default = False)
             whether to return partition as an index array. Otherwise tuples
             of ``(start, stop)`` indices are returned.
         """
-        if X:
-            self.fit(X)
+        if X is not None:
+            self.fit(X, y)
         return self._partition_generator(as_array)
 
     def _partition_generator(self, as_array):
@@ -1039,14 +1044,22 @@ class ClusteredSubsetIndex(BaseIndex):
             else:
                 yield cluster_index
 
-    def _get_partitions(self, X):
+    def _get_partitions(self, X, y=None):
         """Get clustered partition indices from estimator.
 
         Returns the index range for each partition of X. See :func:`partition`
         for further details.
         """
         n_samples = X.shape[0]
-        cluster_ids = getattr(self.estimator, self.attr)(X)
+
+        f = getattr(self.estimator, self.attr)
+        if self.partition_on == 'X':
+            cluster_ids = f(X)
+        elif self.partition_on == 'y':
+            cluster_ids = f(y)
+        else:
+            cluster_ids = f(X, y)
+
         clusters = np.unique(cluster_ids)
         self.n_partitions = len(clusters)
 

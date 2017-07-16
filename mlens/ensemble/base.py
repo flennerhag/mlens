@@ -664,6 +664,13 @@ class BaseEnsemble(BaseEstimator):
         self.array_check = array_check
         self.backend = backend if backend is not None else config.BACKEND
 
+    def set_verbosity(self, verbose):
+        """Adjust the level of verbosity."""
+        self.verbose = verbose
+        self.layers.verbose = verbose
+        for layer in self.layers.layers.values():
+            layer.verbose = verbose
+
     def _add(self,
              estimators,
              cls,

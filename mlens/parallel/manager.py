@@ -35,14 +35,38 @@ JOBS = ['predict', 'fit', 'transform']
 
 
 ###############################################################################
+def dump_array(array, name, dir):
+    """Dump array for memmapping."""
+    # First check if the array is on file
+    if isinstance(array, str):
+        # Load file from disk. Need to dump if not memmaped already
+        if not array.split('.')[-1] in ['mmap', 'npy', 'npz']:
+            # Try loading the file assuming a csv-like format
+            array = _load(array)
+
+    if isinstance(array, str):
+        # If arr remains a string, it's pointing to an mmap file
+        f = array
+    else:
+        # Dump ndarray on disk
+        f = os.path.join(dir, '%s.mmap' % name)
+        if os.path.exists(f):
+            os.unlink(f)
+        dump(array, f)
+    return f
+
+
 def _load(arr):
     """Load array from file using default settings."""
-    try:
-        return np.genfromtxt(arr)
-    except Exception as e:
-        raise IOError("Could not load X from %s, does not "
-                      "appear to be a valid ndarray. "
-                      "Details:\n%r" % e)
+    if arr.split('.')[-1] in ['npy', 'npz']:
+        return np.load(arr)
+    else:
+        try:
+            return np.genfromtxt(arr)
+        except Exception as e:
+            raise IOError("Could not load X from %s, does not "
+                          "appear to be a valid ndarray. "
+                          "Details:\n%r" % (arr, e))
 
 
 def _load_mmap(f):
@@ -93,12 +117,14 @@ class ParallelProcessing(object):
     def __init__(self, layers):
         self.layers = layers
         self.__initialized__ = 0
-        self.__fitted__ = 0
 
     def initialize(self, job, X, y=None, dir=None):
         """Create a job instance for estimation."""
         self._check_job(job)
         self.job = Job(job)
+
+#        threading = self.layers.backend == 'threading'
+        threading = False
 
         if dir is None:
             dir = config.TMPDIR
@@ -110,35 +136,29 @@ class ParallelProcessing(object):
         except Exception:
             self.job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
 
-        # Build mmaps for inputs
+        # --- Prepare inputs
         for name, arr in zip(('X', 'y'), (X, y)):
 
             if arr is None:
                 # Can happen if y is not specified (i.e. during prediction)
                 continue
 
-            if isinstance(arr, str):
-                # Load file from disk. Need to dump if not memmaped already
-                if not arr.split('.')[-1] in ['mmap', 'npy', 'npz']:
-                    # Try loading the file assuming a csv-like format
+            # Check if array currently is on file
+            if threading:
+                # For threading, keep all data in parent process memory
+                f = None
+                if isinstance(arr, str):
                     arr = _load(arr)
-
-            if isinstance(arr, str):
-                # If arr remains a string, it's pointing to an mmap file
-                f = arr
             else:
-                # Dump ndarray on disk
-                f = os.path.join(self.job.dir, '%s.mmap' % name)
-                if os.path.exists(f):
-                    os.unlink(f)
-                dump(arr, f)
+                # Dump as memmaps on disk
+                f = dump_array(arr, name, self.job.dir)
 
-            # Get memmap in read-only mode (we don't want to corrupt the input)
+            # Store data for processing
             if name is 'y' and y is not None:
-                self.job.y = _load_mmap(f)
+                self.job.y = arr if threading else _load_mmap(f)
             else:
                 # Store X as the first input matrix in list of inputs matrices
-                self.job.P = [_load_mmap(f)]
+                self.job.P = [arr if threading else _load_mmap(f)]
 
         # Append pre-allocated prediction arrays in r+ to the P list
         # Each layer will be fitted on P[i] and write to P[i + 1]
@@ -150,7 +170,7 @@ class ParallelProcessing(object):
             lyr.indexer.fit(self.job.P[n], y, self.job.j)
 
             # Prediction array
-            self._gen_prediction_array(lyr, name)
+            self._gen_prediction_array(lyr, name, threading)
 
         self.__initialized__ = 1
 
@@ -170,22 +190,27 @@ class ParallelProcessing(object):
         # to be strictly monotonic in indexing.
         P_out[:, :lyr.n_feature_prop] = P_in[r:, lyr.propagate_features]
 
-    def _gen_prediction_array(self, lyr, name):
-        """Persist prediction array to disk."""
-        f = os.path.join(self.job.dir, '%s.mmap' % name)
+    def _gen_prediction_array(self, lyr, name, threading):
+        """Generate prediction array either in-memory or persist to disk."""
         shape = self._get_lyr_sample_size(lyr)
-        try:
-            self.job.P.append(np.memmap(filename=f,
-                                        dtype=lyr.dtype,
-                                        mode='w+',
-                                        shape=shape))
-        except Exception as exc:
-            raise OSError("Cannot create prediction matrix of shape ("
-                          "%i, %i), size %i MBs, for %s.\n Note that "
-                          "files sizes are limited to 2GB on 32-bit "
-                          "platforms. Details:\n%r" %
-                          (shape[0], shape[1], 8 * shape[0] * shape[1] / 1e6,
-                           name, exc))
+        if threading:
+            # Store empty array in memory
+            self.job.P.append(np.empty(shape, dtype=lyr.dtype))
+        else:
+            # Persist memmap to disk
+            f = os.path.join(self.job.dir, '%s.mmap' % name)
+            try:
+                self.job.P.append(np.memmap(filename=f,
+                                            dtype=lyr.dtype,
+                                            mode='w+',
+                                            shape=shape))
+            except Exception as exc:
+                raise OSError("Cannot create prediction matrix of shape ("
+                              "%i, %i), size %i MBs, for %s.\n Note that "
+                              "files sizes are limited to 2GB on 32-bit "
+                              "platforms. Details:\n%r" %
+                              (shape[0], shape[1], 8 * shape[0] * shape[1] / 1e6,
+                               name, exc))
 
         # If asked, propagate features
         if lyr.propagate_features is not None:

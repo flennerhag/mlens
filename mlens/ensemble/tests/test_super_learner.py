@@ -70,11 +70,11 @@ ens2_b = SuperLearner(folds=FOLDS, scorer=in_script_func)
 ens2_b.add(ECM, dtype=np.float64)
 ens2_b.add_meta(OLS(), dtype=np.float64)
 
-ens_f = SuperLearner(folds=FOLDS, scorer=fail_func)
+ens_f = SuperLearner(folds=FOLDS, scorer=fail_func, n_jobs=1)
 ens_f.add(ECM, dtype=np.float64)
 ens_f.add_meta(OLS(), dtype=np.float64)
 
-ens_n = SuperLearner(folds=FOLDS, scorer=fail_func)
+ens_n = SuperLearner(folds=FOLDS, scorer=fail_func, n_jobs=1)
 ens_n.add(ECM, dtype=np.float64)
 ens_n.add_meta(OLS(), dtype=np.float64)
 

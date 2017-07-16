@@ -123,8 +123,7 @@ class ParallelProcessing(object):
         self._check_job(job)
         self.job = Job(job)
 
-#        threading = self.layers.backend == 'threading'
-        threading = False
+        threading = self.layers.backend == 'threading'
 
         if dir is None:
             dir = config.TMPDIR

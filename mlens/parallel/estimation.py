@@ -10,6 +10,7 @@ Base class for estimation.
 import os
 import numpy as np
 from time import sleep
+from copy import deepcopy
 from abc import ABCMeta, abstractmethod
 from scipy.sparse import issparse
 
@@ -225,7 +226,7 @@ class BaseEstimator(object):
         prep, ests = self._retrieve('full')
 
         parallel(delayed(predict_est)(case=case,
-                                      tr_list=prep[case]
+                                      tr_list=deepcopy(prep[case])
                                       if prep is not None else [],
                                       inst_name=inst_name,
                                       est=est,

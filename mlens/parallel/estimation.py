@@ -172,7 +172,7 @@ class BaseEstimator(object):
             parallel(delayed(fit_est)(dir=dir,
                                       case=case,
                                       inst_name=inst_name,
-                                      inst=instance,
+                                      inst=deepcopy(instance),
                                       x=X,
                                       y=y,
                                       pred=P if tei is not None else None,
@@ -229,7 +229,7 @@ class BaseEstimator(object):
                                       tr_list=deepcopy(prep[case])
                                       if prep is not None else [],
                                       inst_name=inst_name,
-                                      est=est,
+                                      est=deepcopy(est),
                                       xtest=X,
                                       pred=P,
                                       col=col,

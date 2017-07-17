@@ -84,6 +84,7 @@ def __get_default_start_method(method):
 
         if new_python:
             # Use forkserver for unix and spawn for windows
+            # Travis currently stalling on OSX, use 'spawn' until investigated
 #            method = 'forkserver' if not win else 'spawn'
             method = 'spawn'
         else:

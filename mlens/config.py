@@ -84,7 +84,8 @@ def __get_default_start_method(method):
 
         if new_python:
             # Use forkserver for unix and spawn for windows
-            method = 'forkserver' if not win else 'spawn'
+#            method = 'forkserver' if not win else 'spawn'
+            method = 'spawn'
         else:
             # Use fork (multiprocessing default)
             method = 'fork'

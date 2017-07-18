@@ -18,9 +18,10 @@ Change log
         - Global configuration (mlens.config)
         - Scoring exception handling
 
-    * 07/2017: Release_ of version 0.1.4.1
+    * 07/2017: Release_ of version 0.1.5
         - Possible to set environmental variables
-        - ``forkserver`` and ``spawn`` as default start methods
+        - ``spawn`` as default start method for parallel jobs (w. multiprocessing)
+        - Possible to specify ``y`` as partition input in clustered partition
         - Minor bug fixes
 
 

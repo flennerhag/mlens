@@ -12,14 +12,17 @@ matrix:
           python: 2.7
           sudo: required
         - os: osx
+          osx_image: xcode8
           language: generic
           sudo: required
           python: 3.6
         - os: osx
+          osx_image: xcode8
           language: generic
           sudo: required
           python: 3.5
         - os: osx
+          osx_image: xcode8
           language: generic
           sudo: required
           python: 2.7

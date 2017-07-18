@@ -22,6 +22,7 @@ import numpy as np
 import warnings
 from ..externals.joblib import Parallel, dump, load
 
+from ..parallel.manager import  Job
 from .exceptions import NotFittedError
 from ..externals.sklearn.base import BaseEstimator, TransformerMixin, clone
 from ..externals.sklearn.validation import check_X_y, check_array
@@ -533,29 +534,25 @@ class Cache(object):
                       max_nbytes=None) as parallel:
 
             # Run test
+            job = Job(attr)
+            job.y = self.job['y']
+            job.dir = self.job['dir']
             if attr == 'fit':
-                kwargs = {'X': self.job['X'],
-                          'y': self.job['y'],
-                          'P': self.job['P_fit'],
-                          'dir': self.job['dir']}
+                job.P = [self.job['X'], self.job['P_fit']]
             elif attr == 'transform':
-                kwargs = {'X': self.job['X'],
-                          'P': self.job['P_transform']}
+                job.P = [self.job['X'], self.job['P_transform']]
             else:
-                kwargs = {'X': self.job['X'],
-                          'P': self.job['P_predict']}
-
-            kwargs['parallel'] = parallel
+                job.P = [self.job['X'], self.job['P_predict']]
 
             if hasattr(self, 'classes_'):
                 layer.classes_ = self.classes_
 
-            e = est(layer=layer)
-            getattr(e, attr)(**kwargs)
+            e = est(layer=layer, job=job, n=0)
+            e(parallel)
 
         # Get prediction output
         P = self.job['P_%s' % attr.split('_')[0]]
-        P.flush()
+#        P.flush()
         preds = np.asarray(P)
 
         return preds

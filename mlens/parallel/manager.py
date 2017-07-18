@@ -139,17 +139,15 @@ class ParallelProcessing(object):
         for name, arr in zip(('X', 'y'), (X, y)):
 
             if arr is None:
-                # Can happen if y is not specified (i.e. during prediction)
+                # e.g predict X
                 continue
 
-            # Check if array currently is on file
+            # For threading, don't memmap
             if threading:
-                # For threading, keep all data in parent process memory
                 f = None
                 if isinstance(arr, str):
                     arr = _load(arr)
             else:
-                # Dump as memmaps on disk
                 f = dump_array(arr, name, self.job.dir)
 
             # Store data for processing
@@ -163,40 +161,31 @@ class ParallelProcessing(object):
         # Each layer will be fitted on P[i] and write to P[i + 1]
         for n, (name, lyr) in enumerate(self.layers.layers.items()):
 
-            # We call the indexers fit method now at initialization - if there
-            # is something funky with indexing it is better to catch it now
-            # than mid-estimation
+            # Pre-check indexer
             lyr.indexer.fit(self.job.P[n], y, self.job.j)
 
-            # Prediction array
             self._gen_prediction_array(lyr, name, threading)
 
         self.__initialized__ = 1
-
-        # Release any memory before going into process
         gc.collect()
 
     def _propagate_features(self, lyr):
         """Propagate features from input array to output array."""
         P_out, P_in = self.job.P[-1], self.job.P[-2]
 
-        # Need to account for loss of observations between layers (i.e. blend)
+        # Check for loss of obs between layers (i.e. blend)
         n_in, n_out = P_in.shape[0], P_out.shape[0]
         r = int(n_in - n_out)
 
-        # The propagated features are set as the n last features of the
-        # outgoing prediction array. Note that dropped observations are assumed
-        # to be strictly monotonic in indexing.
+        # Propagate features as the n first features of the outgoing array
         P_out[:, :lyr.n_feature_prop] = P_in[r:, lyr.propagate_features]
 
     def _gen_prediction_array(self, lyr, name, threading):
         """Generate prediction array either in-memory or persist to disk."""
         shape = self._get_lyr_sample_size(lyr)
         if threading:
-            # Store empty array in memory
             self.job.P.append(np.empty(shape, dtype=lyr.dtype))
         else:
-            # Persist memmap to disk
             f = os.path.join(self.job.dir, '%s.mmap' % name)
             try:
                 self.job.P.append(np.memmap(filename=f,
@@ -205,10 +194,9 @@ class ParallelProcessing(object):
                                             shape=shape))
             except Exception as exc:
                 raise OSError("Cannot create prediction matrix of shape ("
-                              "%i, %i), size %i MBs, for %s.\n Note that "
-                              "files sizes are limited to 2GB on 32-bit "
-                              "platforms. Details:\n%r" %
-                              (shape[0], shape[1], 8 * shape[0] * shape[1] / 1e6,
+                              "%i, %i), size %i MBs, for %s.\n Details:\n%r" %
+                              (shape[0], shape[1],
+                               8 * shape[0] * shape[1] / (1024 ** 2),
                                name, exc))
 
         # If asked, propagate features
@@ -217,8 +205,6 @@ class ParallelProcessing(object):
 
     def _get_lyr_sample_size(self, lyr):
         """Decide what sample size to create P with based on the job type."""
-        # Sample size is full for prediction, for fitting
-        # it can be less if predictions are not generated for full train set
         s0 = lyr.indexer.n_test_samples if self.job.j != 'predict' else \
             lyr.indexer.n_samples
 
@@ -227,8 +213,7 @@ class ParallelProcessing(object):
         # 2. if ``predict_proba``, number of classes in training set
         # 3. number of subsets (default is one for all data)
         # 4. number of features to propagate
-        # Note that 1. and 2. are encoded in n_pred (see Layer) but 2.
-        # depends on the data and thus has to be handled by the manager.
+        # Note that 1., 3. and 4. are params but 2. is data dependent
         s1 = lyr.n_pred
 
         if lyr.proba:
@@ -265,8 +250,6 @@ class ParallelProcessing(object):
 
             for n, lyr in enumerate(self.layers.layers.values()):
                 self._partial_process(n, lyr, parallel)
-
-        self.__fitted__ = 1
 
     def get_preds(self, n=-1, dtype=None, order='C'):
         """Return prediction matrix.
@@ -336,27 +319,8 @@ class ParallelProcessing(object):
         """Generic method for processing a :class:`layer` with ``attr``."""
         # Fire up the estimation instance
         kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
-        e = ENGINES[lyr.cls](lyr, **kwd)
-
-        # Get function to process and its variables
-        f = getattr(e, self.job.j)
-        fargs = f.__func__.__code__.co_varnames
-
-        # Strip variables we don't want to set from job directly
-        args = [a for a in fargs
-                if a not in {'parallel', 'X', 'P', 'self'}]
-
-        # Build argument list
-        kwargs = {a: getattr(self.job, a) for a in args if a in
-                  self.job.__slots__}
-
-        kwargs['parallel'] = parallel
-        if 'X' in fargs:
-            kwargs['X'] = self.job.P[n]
-        if 'P' in fargs:
-            kwargs['P'] = self.job.P[n + 1]
-
-        f(**kwargs)
+        e = ENGINES[lyr.cls](self.job, lyr, n, **kwd)
+        e.run(parallel)
 
 
 ###############################################################################

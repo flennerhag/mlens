@@ -6,12 +6,18 @@
 
 Estimation engine for parallel preprocessing of blend layer.
 """
-
+from ._base_functions import predict_fold_est, fit, predict, construct_args
 from .estimation import BaseEstimator
-from .estimation import predict_fold_est, time_
-from ..utils import safe_print, print_time
 from ..externals.joblib import delayed
 from ..externals.sklearn.base import clone
+
+from copy import deepcopy
+
+
+FUNCS = {'fit': fit,
+         'predict': predict,
+         'predict_proba': predict,
+         }
 
 
 ###############################################################################
@@ -22,61 +28,69 @@ class Blender(BaseEstimator):
     Class for fitting a Layer using Blending.
     """
 
-    def __init__(self, layer, dual=True):
-        super(Blender, self).__init__(layer=layer, dual=dual)
+    def __init__(self, job, layer, n):
+        super(Blender, self).__init__(layer=layer)
+        self.dir = job.dir
+
+        self.execute = FUNCS[job.j] if job.j != 'transform' else transform
+        self.args = construct_args(self.execute, job, n)
+
+    def run(self, parallel):
+        """Execute stacking."""
+        super(Blender, self).run(parallel)
 
     def _format_instance_list(self):
         """Expand the instance lists to every fold with associated indices."""
-        e = _expand_instance_list(self.layer.estimators, self.layer.indexer)
+        self.e = _expand_instance_list(self.layer.estimators,
+                                       self.layer.indexer)
 
-        t = _expand_instance_list(self.layer.preprocessing,
-                                  self.layer.indexer)
-
-        return e, t
+        self.t = _expand_instance_list(self.layer.preprocessing,
+                                       self.layer.indexer)
 
     def _get_col_id(self):
         """Assign unique col_id to every estimator."""
         c = getattr(self.layer, 'classes_', 1)
         k = self.layer.n_feature_prop
-        return _get_col_idx(self.layer.preprocessing,
-                            self.layer.estimators,
-                            c, k)
+        self.c = _get_col_idx(self.layer.preprocessing, self.layer.estimators,
+                              c, k)
 
-    def transform(self, X, P, parallel):
-        """Predict X.
+    def _build_scores(self, s):
+        """Build a cv-score mapping."""
+        scores = dict()
+        for k, v in s:
+            case_name, est_name = k.split('___')
 
-        Since a blend ensemble does not use folds, transform coincides with
-        predict, except that the prediction in fitting is only for a subset
-        of X.
-        """
-        self._check_fitted()
+            if case_name == '':
+                name = est_name
+            else:
+                name = '%s__%s' % (case_name, est_name)
 
-        if self.verbose:
-            printout = "stderr" if self.verbose < 50 else "stdout"
-            safe_print('Transforming %s' % self.name)
-            t0 = time_()
+            scores[name] = (v, 0.)  # mean, std
+        return scores
 
-        pred_method = 'predict' if not self.proba else 'predict_proba'
 
-        # Collect estimators - blend only has estimators fitted on 'full'
-        # since no folds are used in building the prediction matrix during
-        # fitting
-        prep, ests = self._retrieve('full')
+def transform(inst, X, P, parallel):
+    """Predict X.
 
-        parallel(delayed(predict_fold_est)(case=case,
-                                           tr_list=prep[case]
-                                           if prep is not None else [],
-                                           inst_name=est_name,
-                                           est=est,
-                                           xtest=X,
-                                           pred=P,
-                                           idx=idx,
-                                           name=self.name,
-                                           attr=pred_method)
-                 for case, (est_name, est, idx) in ests)
+    Since a blend ensemble does not use folds, transform coincides with
+    predict, except that the prediction in fitting is only for a subset
+    of X.
+    """
+    inst._check_fitted()
+    pred_method = inst.layer._predict_attr
 
-        if self.verbose:
-            print_time(t0, '%s Done' % self.name, file=printout)
+    # Collect estimators - blend only has estimators fitted on 'full'
+    # since no folds are used in building the prediction matrix during fitting
+    prep, ests = inst._retrieve('full')
+
+    parallel(delayed(predict_fold_est)(tr_list=deepcopy(prep[case])
+                                       if prep is not None else [],
+                                       est=est,
+                                       x=X,
+                                       pred=P,
+                                       idx=idx,
+                                       attr=pred_method)
+             for case, (_, est, idx) in ests)
 
 
 ###############################################################################

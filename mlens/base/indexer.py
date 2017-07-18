@@ -453,7 +453,7 @@ class FoldIndex(BaseIndex):
 
     K-Fold iterator that generates fold index tuples.
 
-    FullIndex creates a generator that returns a tuple of stop and start
+    FoldIndex creates a generator that returns a tuple of stop and start
     positions to be used for numpy array slicing [stop:start]. Note that
     slicing works well for the test set, but for the training set it is
     recommended to concatenate the index for training data that comes before
@@ -592,10 +592,10 @@ class SubsetIndex(BaseIndex):
 
         2. For each partition:
 
-            (a) For each fold v, create train index of all idx not in v
+            (a) For each fold ``v``, create train index of all idx not in ``v``
 
-            (b) Concatenate all the fold v indices into a test index for fold v
-                that spans all partitions
+            (b) Concatenate all the fold ``v`` indices into a test index for
+                fold ``v`` that spans all partitions
 
     Setting ``J = 1`` is equivalent to the :class:`FullIndexer`, which returns
     standard K-Fold train and test set indices.
@@ -855,10 +855,11 @@ class ClusteredSubsetIndex(BaseIndex):
 
         2. For each partition:
 
-            (a) For each fold v, create train index of all idx not in v
+            (a) For each fold ``v``, create train index of all idx not in ``v``
 
-            (b) Concatenate all the fold v indices into a test index for fold v
-                that spans all partitions
+            (b) Concatenate all the fold ``v`` indices into a test index for
+                fold ``v`` that spans all partitions
+
 
     Setting ``J = 1`` is equivalent to the :class:`FullIndexer`, which returns
     standard K-Fold train and test set indices.
@@ -1112,11 +1113,12 @@ class FullIndex(BaseIndex):
 
     """Vacuous indexer to be used with final layers.
 
-    FoldIndex is a compatibility class that stores the sample size to be
-    predicted and yields a ``None, None`` index upon generation.
-    However, it is preferable to build code that avoids call the ``generate``
-    method when the indexer is known to be an instance of :class:`FoldIndex`
-    for transparency and maintainability.
+    FullIndex is a compatibility class to be used with meta layers. It stores
+    the sample size to be predicted for use with the
+    :class:`ParallelProcessing` job manager, and yields a ``None, None``
+    index when `generate` is called. However, it is preferable to build code
+    that avoids call the ``generate`` method when the indexer is known to be
+    an instance of FullIndex for transparency and maintainability.
     """
 
     def __init__(self, X=None):

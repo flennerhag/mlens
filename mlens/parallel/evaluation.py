@@ -10,7 +10,7 @@ Cross-validation jobs for an :class:`Evaluator` instance.
 import os
 import warnings
 
-from .estimation import (fit_trans, _slice_array, _transform)
+from ._base_functions import fit_trans, _slice_array, _transform
 from ..externals.joblib import delayed
 from ..utils import pickle_load
 from ..utils.exceptions import FitFailedWarning
@@ -65,8 +65,7 @@ class Evaluation(object):
                                     inst=instance_list,
                                     x=X,
                                     y=y,
-                                    idx=tri,
-                                    name=None)
+                                    idx=tri)
                  for case, tri, _, instance_list in preprocessing)
 
         self.evaluator.preprocessing_ = \

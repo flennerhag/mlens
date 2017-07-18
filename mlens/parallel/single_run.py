@@ -21,22 +21,25 @@ class SingleRun(BaseEstimator):
     Class for fitting a estimators in a layer without any sub-fits.
     """
 
-    def __init__(self, layer, dual=True):
-        super(SingleRun, self).__init__(layer=layer, dual=dual)
+    def __init__(self, job, layer, n):
+        super(SingleRun, self).__init__(layer=layer)
+        self._default_initialization(job, n)
+
+    def run(self, parallel):
+        """Execute blending."""
+        super(SingleRun, self).run(parallel)
 
     def _format_instance_list(self):
         """Expand the instance lists to every fold with associated indices."""
-        e = _expand_instance_list(self.layer.estimators)
-        t = _expand_instance_list(self.layer.preprocessing)
-
-        return e, t
+        self.e = _expand_instance_list(self.layer.estimators)
+        self.t = _expand_instance_list(self.layer.preprocessing)
 
     def _get_col_id(self):
         """Assign unique col_id to every estimator."""
         c = getattr(self.layer, 'classes_', 1)
         k = self.layer.n_feature_prop
-        return _get_col_idx(self.layer.preprocessing, self.layer.estimators,
-                            c, k)
+        self.c = _get_col_idx(self.layer.preprocessing, self.layer.estimators,
+                              c, k)
 
 
 ###############################################################################

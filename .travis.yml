@@ -27,6 +27,7 @@ matrix:
 install:
   - set -e
   - .travis/install.sh
+  - python --version
 
 script:
   - set -e

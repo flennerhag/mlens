@@ -21,9 +21,9 @@ Change log
     * 07/2017: Release_ of version 0.1.5
         - Possible to set environmental variables
         - ``spawn`` as default start method for parallel jobs (w. multiprocessing)
-        - Possible to specify ``y`` as partition input in clustered partition
+        - Possible to specify ``y`` as partition input in :ref:`Clustered subsemble partitioning <subsemble-tutorial>`
         - Minor bug fixes
-
+        - Refactored backend for streamlined front-end feature development
 
 .. _Release: https://github.com/flennerhag/mlens/releases
 .. _Feature propagation:

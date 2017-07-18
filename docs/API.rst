@@ -72,6 +72,8 @@ For developers
 The following base classes are good starting points for building new ensembles.
 You may want to study the source code directly.
 
+.. _indexer-api:
+
 Indexers
 ^^^^^^^^
 
@@ -85,6 +87,8 @@ Indexers
     SubsetIndex
     FullIndex
     ClusteredSubsetIndex
+
+.. _estimation-api:
 
 Estimation routines
 ^^^^^^^^^^^^^^^^^^^

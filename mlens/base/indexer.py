@@ -845,7 +845,7 @@ class SubsetIndex(BaseIndex):
 
 class ClusteredSubsetIndex(BaseIndex):
 
-    r"""Clustered Subsample index generator.
+    """Clustered Subsample index generator.
 
     Generates cross-validation folds according used to create ``J``
     partitions of the data and ``v`` folds on each partition according to as

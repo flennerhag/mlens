@@ -3,7 +3,7 @@
 """
 import os
 import numpy as np
-from mlens.parallel.estimation import _load_trans
+from mlens.parallel._base_functions import _load_trans
 from mlens.utils.exceptions import ParallelProcessingError
 import warnings
 

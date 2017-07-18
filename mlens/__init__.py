@@ -7,8 +7,10 @@
 ML-Ensemble, a Python library for memory efficient parallelized ensemble
 learning.
 """
+# Initialize configurations
+import mlens.config
 
-__version__ = "0.1.4.dev0"
+__version__ = "0.1.5"
 
 
 __all__ = ['base',

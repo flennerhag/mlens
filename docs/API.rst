@@ -66,4 +66,45 @@ Visualization
    exp_var_plot
 
 
+For developers
+==============
+
+The following base classes are good starting points for building new ensembles.
+You may want to study the source code directly.
+
+.. _indexer-api:
+
+Indexers
+^^^^^^^^
+
+.. currentmodule:: mlens.base
+
+.. autosummary::
+
+    IdTrain
+    BlendIndex
+    FoldIndex
+    SubsetIndex
+    FullIndex
+    ClusteredSubsetIndex
+
+.. _estimation-api:
+
+Estimation routines
+^^^^^^^^^^^^^^^^^^^
+
+.. currentmodule:: mlens.parallel
+
+.. autosummary::
+
+    ParallelProcessing
+    ParallelEvaluation
+    Stacker
+    Blender
+    SubStacker
+    SingleRun
+    Evaluation
+    BaseEstimator
+
+
 .. _Scikit-learn: http://scikit-learn.org/stable/

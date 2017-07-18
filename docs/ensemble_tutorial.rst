@@ -282,16 +282,16 @@ can differ between layers.
 Very few limitation are imposed on the estimator: it must have a ``fit``
 method that takes ``X`` (and possibly ``y``) as inputs, and there must be
 a method that generates class labels (i.e. partition ids) to a passed dataset.
-The default method is ``predict``, but
-you can specify another method with the ``attr`` option when adding a layer.
-This level of generality does impose some responsibility on the user. In
-particular, it is up to the user to ensure that sensible partitions are created.
-Problems to watch out for is too small partitions (too many clusters, too uneven
-cluster sizes) and clusters with too little variation: for instance with only
-a single class label in the entire partition, base learners have nothing to
-learn.
+The default method is ``predict``, but you can specify another method with the
+``attr`` option when adding a layer, and which data to use with this method
+(``partition_on='X', 'y', 'both'``). This level of generality does impose some
+responsibility on the user. In particular, it is up to the user to ensure that
+sensible partitions are created. Problems to watch out for is too small
+partitions (too many clusters, too uneven cluster sizes) and clusters with too
+little variation: for instance with only a single class label in the entire
+partition, base learners have nothing to learn.
 
-So let's see how to do this in practice. For instance, we can use an unsupervised K-Means
+Let's see how to do this in practice. For instance, we can use an unsupervised K-Means
 clustering estimator to partition the data, like so::
 
     from sklearn.cluster import KMeans

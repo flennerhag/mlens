@@ -223,7 +223,7 @@ class LayerContainer(BaseEstimator):
         """
         if self.verbose:
             pout = "stdout" if self.verbose >= 3 else "stderr"
-            safe_print("Processing layers (%d)" % self.n_layers,
+            safe_print("Fitting layers (%d)" % self.n_layers,
                        file=pout, flush=True, end="\n\n")
             t0 = time()
 
@@ -543,6 +543,7 @@ class Layer(BaseEstimator):
         self.preprocessing = check_instances(preprocessing)
         self.cls_kwargs = cls_kwargs
         self.proba = proba
+        self._predict_attr = 'predict' if not proba else 'predict_proba'
         self.partitions = partitions
         self.propagate_features = propagate_features
         self.scorer = scorer
@@ -663,6 +664,13 @@ class BaseEnsemble(BaseEstimator):
         self.layers = layers
         self.array_check = array_check
         self.backend = backend if backend is not None else config.BACKEND
+
+    def set_verbosity(self, verbose):
+        """Adjust the level of verbosity."""
+        self.verbose = verbose
+        self.layers.verbose = verbose
+        for layer in self.layers.layers.values():
+            layer.verbose = verbose
 
     def _add(self,
              estimators,

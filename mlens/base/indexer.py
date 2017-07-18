@@ -453,7 +453,7 @@ class FoldIndex(BaseIndex):
 
     K-Fold iterator that generates fold index tuples.
 
-    FullIndex creates a generator that returns a tuple of stop and start
+    FoldIndex creates a generator that returns a tuple of stop and start
     positions to be used for numpy array slicing [stop:start]. Note that
     slicing works well for the test set, but for the training set it is
     recommended to concatenate the index for training data that comes before
@@ -592,10 +592,10 @@ class SubsetIndex(BaseIndex):
 
         2. For each partition:
 
-            (a) For each fold v, create train index of all idx not in v
+            (a) For each fold ``v``, create train index of all idx not in ``v``
 
-            (b) Concatenate all the fold v indices into a test index for fold v
-                that spans all partitions
+            (b) Concatenate all the fold ``v`` indices into a test index for
+                fold ``v`` that spans all partitions
 
     Setting ``J = 1`` is equivalent to the :class:`FullIndexer`, which returns
     standard K-Fold train and test set indices.
@@ -845,7 +845,7 @@ class SubsetIndex(BaseIndex):
 
 class ClusteredSubsetIndex(BaseIndex):
 
-    r"""Clustered Subsample index generator.
+    """Clustered Subsample index generator.
 
     Generates cross-validation folds according used to create ``J``
     partitions of the data and ``v`` folds on each partition according to as
@@ -855,10 +855,11 @@ class ClusteredSubsetIndex(BaseIndex):
 
         2. For each partition:
 
-            (a) For each fold v, create train index of all idx not in v
+            (a) For each fold ``v``, create train index of all idx not in ``v``
 
-            (b) Concatenate all the fold v indices into a test index for fold v
-                that spans all partitions
+            (b) Concatenate all the fold ``v`` indices into a test index for
+                fold ``v`` that spans all partitions
+
 
     Setting ``J = 1`` is equivalent to the :class:`FullIndexer`, which returns
     standard K-Fold train and test set indices.
@@ -949,11 +950,13 @@ class ClusteredSubsetIndex(BaseIndex):
                  y=None,
                  fit_estimator=True,
                  attr='predict',
+                 partition_on='X',
                  raise_on_exception=True):
 
         self.estimator = estimator
         self.fit_estimator = fit_estimator
         self.attr = attr
+        self.partition_on = partition_on
         self.n_partitions = n_partitions
         self.n_splits = n_splits
         self.raise_on_exception = raise_on_exception
@@ -998,30 +1001,33 @@ class ClusteredSubsetIndex(BaseIndex):
             # Indexers are assumed to need fitting once, so we need to
             # generate cluster predictions during the fit call. To minimize
             # memory consumption, store cluster indexes as list of tuples
-            self._clusters_ = self._get_partitions(X)
+            self._clusters_ = self._get_partitions(X, y)
 
         return self
 
-    def partition(self, X=None, as_array=False):
+    def partition(self, X=None, y=None, as_array=False):
         """Get partition indices for training full subset estimators.
 
         Returns the index range for each partition of X.
 
         Parameters
         ----------
-        X : array-like of shape [n_samples,] , optional
-            the training set to partition. The training label array is also,
+        X : array-like of shape [n_samples, n_features] , optional
+            the set to partition. The training label array is also,
             accepted, as only the first dimension is used. If ``X`` is not
             passed at instantiation, the ``fit`` method must be called before
             ``generate``, or ``X`` must be passed as an argument of
             ``generate``.
 
+        y : array-like of shape [n_samples,], optional
+            the labels of the set to partition.
+
         as_array : bool (default = False)
             whether to return partition as an index array. Otherwise tuples
             of ``(start, stop)`` indices are returned.
         """
-        if X:
-            self.fit(X)
+        if X is not None:
+            self.fit(X, y)
         return self._partition_generator(as_array)
 
     def _partition_generator(self, as_array):
@@ -1039,14 +1045,22 @@ class ClusteredSubsetIndex(BaseIndex):
             else:
                 yield cluster_index
 
-    def _get_partitions(self, X):
+    def _get_partitions(self, X, y=None):
         """Get clustered partition indices from estimator.
 
         Returns the index range for each partition of X. See :func:`partition`
         for further details.
         """
         n_samples = X.shape[0]
-        cluster_ids = getattr(self.estimator, self.attr)(X)
+
+        f = getattr(self.estimator, self.attr)
+        if self.partition_on == 'X':
+            cluster_ids = f(X)
+        elif self.partition_on == 'y':
+            cluster_ids = f(y)
+        else:
+            cluster_ids = f(X, y)
+
         clusters = np.unique(cluster_ids)
         self.n_partitions = len(clusters)
 
@@ -1099,11 +1113,12 @@ class FullIndex(BaseIndex):
 
     """Vacuous indexer to be used with final layers.
 
-    FoldIndex is a compatibility class that stores the sample size to be
-    predicted and yields a ``None, None`` index upon generation.
-    However, it is preferable to build code that avoids call the ``generate``
-    method when the indexer is known to be an instance of :class:`FoldIndex`
-    for transparency and maintainability.
+    FullIndex is a compatibility class to be used with meta layers. It stores
+    the sample size to be predicted for use with the
+    :class:`ParallelProcessing` job manager, and yields a ``None, None``
+    index when `generate` is called. However, it is preferable to build code
+    that avoids call the ``generate`` method when the indexer is known to be
+    an instance of FullIndex for transparency and maintainability.
     """
 
     def __init__(self, X=None):

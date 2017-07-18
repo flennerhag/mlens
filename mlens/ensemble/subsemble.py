@@ -27,7 +27,8 @@ class Subsemble(BaseEnsemble):
     ensure :math:`Z` reflects test errors within each partition. A final
     user-specified meta learner is fitted to the final ensemble layer's
     prediction, to learn the best combination of subset-specific estimator
-    predictions. The algorithm in sudo code follows:
+    predictions. By passing a ``partition_estimator``, the partitions can be
+    learnt. The algorithm in sudo code :
 
         #. For each layer in the ensemble, do:
 
@@ -65,18 +66,19 @@ class Subsemble(BaseEnsemble):
     by achieving a tighter fit on each subset. Since all observations in the
     training set are predicted, no information is lost between layers.
 
+    This implementation allows very general partition estimators. The user
+    must ensure that the partition estimator behaves as desired. To alter
+    the expected behavior, see the ``kwd`` parameter under the ``add`` method
+    and the :class:`mlens.base.ClusteredSubsetIndex`. Also see
+    the `advanced tutorials <http://mlens.readthedocs.io/en/latest/ensemble_tutorial.html#advanced-subsemble-techniques>`_
+    for example use cases.
+
     References
     ----------
     .. [#] Sapp, S., van der Laan, M. J., & Canny, J. (2014).
        Subsemble: an  ensemble method for combining subset-specific algorithm
        fits. Journal of Applied Statistics, 41(6), 1247-1259.
        http://doi.org/10.1080/02664763.2013.864263
-
-    Notes
-    -----
-    This implementation splits X into partitions sequentially, i.e. without
-    randomizing indices. To achieve randomized partitioning, set ``shuffle``
-    to ``True``. Supervised partitioning is under development.
 
     See Also
     --------
@@ -255,7 +257,7 @@ class Subsemble(BaseEnsemble):
     def add(self, estimators, preprocessing=None, meta=False,
             partitions=None, partition_estimator=None, folds=None, proba=False,
             propagate_features=None, **kwargs):
-        """Add layer to ensemble.
+        r"""Add layer to ensemble.
 
         Parameters
         ----------
@@ -350,7 +352,20 @@ class Subsemble(BaseEnsemble):
             matrix.
 
         **kwargs : optional
-            optional keyword arguments to instantiate ensemble with.
+            optional keyword arguments to instantiate ensemble with. In
+            particular, keywords for clustered subsemble learning
+
+                * **fit_estimator** *(Bool, default = True)* -
+                  whether to call ``fit`` on the partition estimator.
+
+                * **attr** *(str, default = 'predict')* -
+                  the method attribute to call for generating partition ids
+                  for the input data.
+
+                * **partition_on** *(str, default = 'X')* -
+                  the input data for the ``attr`` method.
+                  One of ``'X'``, ``'y'`` or ``'both'``.
+
 
         Returns
         -------

@@ -19,24 +19,28 @@ class SubStacker(BaseEstimator):
     Class for fitting a Layer using Subsemble.
     """
 
-    def __init__(self, layer, dual=True):
-        super(SubStacker, self).__init__(layer=layer, dual=dual)
+    def __init__(self, job, layer, n):
+        super(SubStacker, self).__init__(layer=layer)
+        self._default_initialization(job, n)
+
+    def run(self, parallel):
+        """Execute subsembling"""
+        super(SubStacker, self).run(parallel)
 
     def _format_instance_list(self):
         """Expand the instance lists to every fold with associated indices."""
-        e = _expand_instance_list(self.layer.estimators, self.layer.indexer)
+        self.e = _expand_instance_list(self.layer.estimators,
+                                       self.layer.indexer)
 
-        t = _expand_instance_list(self.layer.preprocessing,
-                                  self.layer.indexer)
-
-        return e, t
+        self.t = _expand_instance_list(self.layer.preprocessing,
+                                       self.layer.indexer)
 
     def _get_col_id(self):
         """Assign unique col_id to every estimator."""
         c = getattr(self.layer, 'classes_', 1)
         p = len(self.layer.cases) * self.layer.indexer.n_partitions
         k = self.layer.n_feature_prop
-        return _get_col_idx(self.e, p, c, k)
+        self.c = _get_col_idx(self.e, p, c, k)
 
 
 ###############################################################################

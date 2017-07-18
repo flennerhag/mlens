@@ -12,24 +12,18 @@ matrix:
           python: 2.7
           sudo: required
         - os: osx
-          osx_image: xcode8
-          language: generic
-          sudo: required
           python: 3.6
-        - os: osx
-          osx_image: xcode8
           language: generic
+        - os: osx
           python: 3.5
-        - os: osx
-          osx_image: xcode8
           language: generic
-          sudo: required
+        - os: osx
           python: 2.7
+          language: generic
 
 install:
   - set -e
   - .travis/install.sh
-  - python --version
 
 script:
   - set -e

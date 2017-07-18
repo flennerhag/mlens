@@ -12,13 +12,16 @@ matrix:
           python: 2.7
           sudo: required
         - os: osx
+          env: PY_VERSION=3.6
           python: 3.6
           language: generic
         - os: osx
           python: 3.5
+          env: PY_VERSION=3.5
           language: generic
         - os: osx
           python: 2.7
+          env: PY_VERSION=2.7
           language: generic
 
 install:

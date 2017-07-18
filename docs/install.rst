@@ -19,7 +19,7 @@ To latest stable development version can be install through the
 
 .. code-block:: bash
 
-    git clone https://flennerhag/mlens.git; cd mlens;
+    git clone https://github.com/flennerhag/mlens.git; cd mlens;
     python install setup.py
 
 Developer

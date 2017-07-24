@@ -465,8 +465,7 @@ class Evaluator(object):
 
         # Fill list of parameter settings by param
         for param, dist in param_dists.items():
-
-            draws = dist.rvs(self.n_iter, random_state=self.random_state)
+            draws = dist.rvs(size=self.n_iter, random_state=self.random_state)
 
             for i, draw in enumerate(draws):
                 param_draws[i][param] = draw

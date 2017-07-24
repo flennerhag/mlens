@@ -6,7 +6,7 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/99g65kvraic8w2la/branch/master?svg=true)](https://ci.appveyor.com/project/flennerhag/mlens/branch/master)
 [![Code Health](https://landscape.io/github/flennerhag/mlens/master/landscape.svg?style=flat)](https://landscape.io/github/flennerhag/mlens/master)
 [![Coverage Status](https://coveralls.io/repos/github/flennerhag/mlens/badge.svg?branch=master)](https://coveralls.io/github/flennerhag/mlens?branch=master)
-[![Documentation Status](http://readthedocs.org/projects/mlens/badge/?version=stable)](http://mlens.readthedocs.io/en/stable/?badge=stable)
+[![Documentation Status](http://readthedocs.org/projects/mlens/badge/?version=stable)](http://mlens.readthedocs.io/en/stable/?badge=latest)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 # ML- Ensemble

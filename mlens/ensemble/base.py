@@ -27,6 +27,40 @@ except ImportError:
     from time import time
 
 
+def print_job(lc, start_message):
+    """Print job details.
+
+    Parameters
+    ----------
+    lc : :class:`LayerContainer`
+        The LayerContainer instance running the job.
+
+    start_message : str
+        Initial message.
+    """
+    pout = "stdout" if lc.verbose >= 50 else "stderr"
+
+    if lc.verbose:
+        safe_print("\n%s %d layers" % (start_message, lc.n_layers),
+                   file=pout, flush=True, end="\n\n")
+
+        if lc.verbose >= 10:
+            safe_print("""\n
+     Job description     
+-------------------------
+n_jobs = %i
+backend = %r
+start_method = %r
+cache = %r
+""" % (lc.n_jobs, lc.backend, config.START_METHOD, config.TMPDIR),
+                       file=pout, flush=True, end="\n\n")
+
+    t0 = time()
+    return pout, t0
+
+###############################################################################
+
+
 class LayerContainer(BaseEstimator):
 
     r"""Container class for layers.
@@ -221,11 +255,7 @@ class LayerContainer(BaseEstimator):
         X : array-like, optional
             predictions from final layer's ``fit_proba`` call.
         """
-        if self.verbose:
-            pout = "stdout" if self.verbose >= 3 else "stderr"
-            safe_print("Fitting layers (%d)" % self.n_layers,
-                       file=pout, flush=True, end="\n\n")
-            t0 = time()
+        pout, t0 = print_job(self, "Fitting")
 
         # Initialize cache
         processor = ParallelProcessing(self)
@@ -266,7 +296,14 @@ class LayerContainer(BaseEstimator):
         X_pred : array-like of shape = [n_samples, n_fitted_estimators]
             predictions from final layer.
         """
-        return self._predict(X, 'predict', *args, **kwargs)
+        pout, t0 = print_job(self, "Predicting with")
+
+        out = self._predict(X, 'predict', *args, **kwargs)
+
+        if self.verbose:
+            print_time(t0, "Prediction complete", file=pout, flush=True)
+
+        return out
 
     def transform(self, X=None, *args, **kwargs):
         """Generic method for reproducing predictions of the ``fit`` call.
@@ -287,7 +324,18 @@ class LayerContainer(BaseEstimator):
         X_pred : array-like of shape = [n_test_samples, n_fitted_estimators]
             predictions from ``fit`` call to final layer.
         """
-        return self._predict(X, 'transform', *args, **kwargs)
+        if self.verbose:
+            pout = "stdout" if self.verbose >= 3 else "stderr"
+            safe_print("Transforming layers (%d)" % self.n_layers,
+                       file=pout, flush=True, end="\n\n")
+            t0 = time()
+
+        out = self._predict(X, 'transform', *args, **kwargs)
+
+        if self.verbose:
+            print_time(t0, "Transform complete", file=pout, flush=True)
+
+        return out
 
     def _predict(self, X, job, *args, **kwargs):
         r"""Generic for processing a predict job through all layers.
@@ -307,12 +355,6 @@ class LayerContainer(BaseEstimator):
             or new predictions on X using base learners fitted on all training
             data.
         """
-        if self.verbose:
-            pout = "stdout" if self.verbose >= 3 else "stderr"
-            safe_print("Processing layers (%d)" % self.n_layers,
-                       file=pout, flush=True, end="\n\n")
-            t0 = time()
-
         # Initialize cache
         processor = ParallelProcessing(self)
         processor.initialize(job, X, *args, **kwargs)
@@ -320,11 +362,7 @@ class LayerContainer(BaseEstimator):
         # Predict with ensemble
         try:
             processor.process()
-
             preds = processor.get_preds()
-
-            if self.verbose:
-                print_time(t0, "Done", file=pout, flush=True)
 
         finally:
             # Always terminate job manager unless user explicitly initialized
@@ -631,6 +669,8 @@ class Layer(BaseEstimator):
 
         return out
 
+###############################################################################
+
 
 class BaseEnsemble(BaseEstimator):
 
@@ -695,31 +735,32 @@ class BaseEnsemble(BaseEstimator):
         # Check if a Layer Container instance is initialized
         if getattr(self, 'layers', None) is None:
             self.layers = LayerContainer(
-                            n_jobs=self.n_jobs,
-                            raise_on_exception=self.raise_on_exception,
-                            backend=self.backend,
-                            verbose=self.verbose)
+                n_jobs=self.n_jobs,
+                raise_on_exception=self.raise_on_exception,
+                backend=self.backend,
+                verbose=self.verbose)
 
         # Add layer to Layer Container
+        verbose = kwargs.pop('verbose', self.verbose)
+        scorer = kwargs.pop('scorer', self.scorer)
+
+        if 'proba' in kwargs:
+            if kwargs['proba'] and scorer is not None:
+                raise ValueError("Cannot score probability-based predictions."
+                                 "Set ensemble attribute 'scorer' to "
+                                 "None or layer parameter 'Proba' to False.")
+
         self.layers.add(estimators=estimators,
                         cls=cls,
                         indexer=indexer,
                         preprocessing=preprocessing,
-                        scorer=self.scorer,
+                        scorer=scorer,
+                        verbose=verbose,
                         **kwargs)
-
-        # Check parameter comparability
-        if 'proba' in kwargs:
-            scorer = getattr(self, 'scorer', None)
-            if kwargs['proba'] and scorer:
-                raise ValueError("Cannot score probability-based predictions."
-                                 "Set either ensemble parameter 'scorer' to "
-                                 "None or layer parameter 'Proba' to False.")
 
         # Set the layer as an attribute of the ensemble
         lyr = list(self.layers.layers)[-1]
         attr = lyr.replace('-', '_').replace(' ', '').strip()
-
         setattr(self, attr, self.layers.layers[lyr])
 
         return self

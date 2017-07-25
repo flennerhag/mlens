@@ -144,15 +144,15 @@ def check_cache(tmp):
         try:
             for res in residuals:
                 shutil.rmtree(res[0])
-
             print("done.", file=sys.stderr)
 
         except OSError:
             # Can fail on windows, need to use the shell
             try:
-                subprocess.Popen('rmdir /S /Q %s' % res[0],
-                                 shell=True, stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
+                for res in residuals:
+                    subprocess.Popen('rmdir /S /Q %s' % res[0],
+                                     shell=True, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
             except OSError:
                 warnings.warn("Failed to delete cache at %s." % res[0])
 

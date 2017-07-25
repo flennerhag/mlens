@@ -6,9 +6,11 @@ from __future__ import print_function
 import os
 import sys
 import numpy
+import shutil
 import tempfile
+import warnings
 import sysconfig
-
+import subprocess
 
 ###############################################################################
 # Variables
@@ -23,6 +25,7 @@ _PY_VERSION = float(sysconfig._PY_VERSION_SHORT)
 
 ###############################################################################
 # Configuration calls
+
 
 def set_tmpdir(tmp):
     """Set the root directory for temporary caches during estimation.
@@ -85,16 +88,65 @@ def __get_default_start_method(method):
         if new_python:
             # Use forkserver for unix and spawn for windows
             # Travis currently stalling on OSX, use 'spawn' until investigated
-#            method = 'forkserver' if not win else 'spawn'
-            method = 'spawn'
+            # method = 'forkserver' if not win else 'spawn'
+            method = 'spawn' if win else 'spawn'
         else:
             # Use fork (multiprocessing default)
             method = 'fork'
     return method
 
+###############################################################################
+# Handlers
+
+
+def check_cache(tmp):
+    """ Check that cache directory is empty.
+
+    Checks that a specified directory do not contain any directories with
+    the ML-Ensemble temporary cache signature. Attempts to remove any found
+    directories.
+
+    Parameters
+    ----------
+    tmp : str
+        the directory to check for residual caches in.
+    """
+    residuals = [i for i in os.walk(tmp)
+                 if os.path.split(i[0])[-1].startswith('.mlens_est_cache')]
+
+    n = len(residuals)
+    if n > 0:
+        print("[MLENS] Found %i residual cache(s):" % n, file=sys.stderr)
+
+        size = 0
+        for i, res in enumerate(residuals):
+            s = os.path.getsize(res[0])
+            size += s
+
+            print("        %i (%i): %s" % (i + 1, s, res[0]), file=sys.stderr)
+
+        print("        Total size: %i\n[MLENS] Removing..." % size,
+              end=" ", file=sys.stderr)
+
+        try:
+            for res in residuals:
+                shutil.rmtree(res[0])
+
+            print("done.", file=sys.stderr)
+
+        except OSError:
+            # Can fail on windows, need to use the shell
+            try:
+                subprocess.Popen('rmdir /S /Q %s' % res[0],
+                                 shell=True, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+            except OSError:
+                warnings.warn("Failed to delete cache at %s." % res[0])
 
 ###############################################################################
 # Set up
 
+
 START_METHOD = __get_default_start_method(START_METHOD)
 set_start_method(START_METHOD)
+check_cache(TMPDIR)

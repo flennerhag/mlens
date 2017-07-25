@@ -17,6 +17,7 @@ import subprocess
 
 DTYPE = getattr(numpy, os.environ.get('MLENS_DTYPE', 'float32'))
 TMPDIR = os.environ.get('MLENS_TMPDIR', tempfile.gettempdir())
+PREFIX = os.environ.get('MLENS_PREFIX', ".mlens_tmp_cache_")
 BACKEND = os.environ.get('MLENS_BACKEND', 'multiprocessing')
 START_METHOD = os.environ.get('MLENS_START_METHOD', '')
 
@@ -37,6 +38,18 @@ def set_tmpdir(tmp):
     """
     global TMPDIR
     TMPDIR = tmp
+
+
+def set_prefix(prefix):
+    """Set the prefix assigned to temporary directories during estimation.
+
+    Parameters
+    ----------
+    prefix : str
+        cache file name prefix
+    """
+    global PREFIX
+    PREFIX = prefix
 
 
 def set_dtype(dtype):
@@ -88,7 +101,6 @@ def __get_default_start_method(method):
         if new_python:
             # Use forkserver for unix and spawn for windows
             # Travis currently stalling on OSX, use 'spawn' until investigated
-            # method = 'forkserver' if not win else 'spawn'
             method = 'spawn' if win else 'spawn'
         else:
             # Use fork (multiprocessing default)
@@ -111,8 +123,9 @@ def check_cache(tmp):
     tmp : str
         the directory to check for residual caches in.
     """
+    global PREFIX
     residuals = [i for i in os.walk(tmp)
-                 if os.path.split(i[0])[-1].startswith('.mlens_est_cache')]
+                 if os.path.split(i[0])[-1].startswith(PREFIX)]
 
     n = len(residuals)
     if n > 0:

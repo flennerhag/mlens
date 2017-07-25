@@ -68,10 +68,11 @@ def test_set_dir():
 
 def test_check_cache():
     """[Base] Test check cache."""
-    os.mkdir(".mlens_est_cache_test")
+    tmp = config.PREFIX + "test"
+    os.mkdir(tmp)
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        subprocess.Popen("echo this is a test >> "
-                         ".mlens_est_cache_test/test.txt", shell=True)
+        subprocess.Popen("echo this is a test >> " + tmp +
+                         "/test.txt", shell=True)
         config.check_cache(config.TMPDIR)
 
 

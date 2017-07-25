@@ -5,8 +5,11 @@
 Nosetests for :class:`mlens.base`
 """
 
+import os
+import subprocess
 import numpy as np
 
+from mlens import config
 from mlens.base import (IdTrain,
                         FoldIndex,
                         BlendIndex,
@@ -14,6 +17,10 @@ from mlens.base import (IdTrain,
                         ClusteredSubsetIndex,
                         FullIndex)
 from mlens.base.indexer import _partition, _prune_train
+try:
+    from contextlib import redirect_stdout
+except ImportError:
+    from mlens.externals.fixes import redirect as redirect_stdout
 
 X = np.arange(25).reshape(5, 5)
 
@@ -45,6 +52,27 @@ class ClusterEstimator(object):
 
 cl = ClusterEstimator()
 cl_2 = ClusterEstimator(2)
+
+
+###############################################################################
+def test_set_dir():
+    """[Base] Test setting temp dir."""
+    before = config.TMPDIR
+
+    config.set_tmpdir(os.getcwd())
+
+    after = config.TMPDIR
+
+    assert before != after
+
+
+def test_check_cache():
+    """[Base] Test check cache."""
+    os.mkdir(".mlens_est_cache_test")
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
+        subprocess.Popen("echo this is a test >> "
+                         ".mlens_est_cache_test/test.txt", shell=True)
+        config.check_cache(config.TMPDIR)
 
 
 ###############################################################################

@@ -1,16 +1,19 @@
 language: python
 
+env:
+  - COVERALLS_PARALLEL=true
+
 matrix:
-    include:
-        - os: linux
-          python: 3.6
-          sudo: required
-        - os: linux
-          python: 3.5
-          sudo: required
-        - os: linux
-          python: 2.7
-          sudo: required
+  include:
+      - os: linux
+        python: 3.6
+        sudo: required
+      - os: linux
+        python: 3.5
+        sudo: required
+      - os: linux
+        python: 2.7
+        sudo: required
 
 install:
   - set -e
@@ -20,5 +23,7 @@ script:
   - set -e
   - nosetests -s -v --with-coverage --exclude mlens/visualization --exclude mlens/externals
 
-after_success:
-  - coveralls
+notificiations:
+  webhooks: https://coveralls.io/webhook?repo_token=nr753FmF3w0xDGdbqwzsD8JJSjKL1ojQL
+    on_success: always
+    on_failure: never

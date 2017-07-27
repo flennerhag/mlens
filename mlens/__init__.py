@@ -13,7 +13,6 @@ from mlens.config import clear_cache
 
 __version__ = "0.1.5.2"
 
-
 __all__ = ['base',
            'ensemble',
            'externals',

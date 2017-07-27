@@ -63,14 +63,14 @@ class BaseEstimator(object):
         parallel : object
             :class:`Parallel` instance.
         """
-        if self.layer.verbose:
+        if self.layer.verbose >= 2:
             printout = "stderr" if self.layer.verbose < 50 else "stdout"
             safe_print('Processing %s' % self.layer.name, file=printout)
             t0 = time_()
 
         self.run(parallel)
 
-        if self.layer.verbose:
+        if self.layer.verbose >= 2:
             print_time(t0, '%s Done' % self.layer.name, file=printout)
 
     @abstractmethod

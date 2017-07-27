@@ -5,8 +5,11 @@
 Nosetests for :class:`mlens.base`
 """
 
+import os
+import subprocess
 import numpy as np
 
+from mlens import config
 from mlens.base import (IdTrain,
                         FoldIndex,
                         BlendIndex,
@@ -14,8 +17,14 @@ from mlens.base import (IdTrain,
                         ClusteredSubsetIndex,
                         FullIndex)
 from mlens.base.indexer import _partition, _prune_train
+try:
+    from contextlib import redirect_stderr
+except ImportError:
+    from mlens.externals.fixes import redirect as redirect_stderr
 
 X = np.arange(25).reshape(5, 5)
+
+tmpdir = config.TMPDIR
 
 
 class ClusterEstimator(object):
@@ -45,6 +54,34 @@ class ClusterEstimator(object):
 
 cl = ClusterEstimator()
 cl_2 = ClusterEstimator(2)
+
+
+###############################################################################
+def test_set_dir():
+    """[Base] Test setting temp dir."""
+    before = config.TMPDIR
+
+    config.set_tmpdir(os.getcwd())
+
+    after = config.TMPDIR
+
+    assert before != after
+
+
+def test_check_cache():
+    """[Base] Test check cache."""
+    tmp = config.PREFIX + "test"
+    os.mkdir(tmp)
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+        subprocess.Popen("echo this is a test >> " + tmp +
+                         "/test.txt", shell=True)
+        config.clear_cache(config.TMPDIR)
+
+
+def test_reset_dir():
+    """[Base] Test resetting temp dir."""
+    config.set_tmpdir(tmpdir)
+    assert config.TMPDIR == tmpdir
 
 
 ###############################################################################

@@ -9,16 +9,17 @@ learning.
 """
 # Initialize configurations
 import mlens.config
+from mlens.config import clear_cache
 
-__version__ = "0.1.5.dev0"
-
+__version__ = "0.1.5.2"
 
 __all__ = ['base',
+           'utils',
+           'metrics',
+           'parallel',
            'ensemble',
            'externals',
-           'metrics',
-           'model_selection',
-           'parallel',
+           'visualization',
            'preprocessing',
-           'utils',
-           'visualization']
+           'model_selection',
+          ]

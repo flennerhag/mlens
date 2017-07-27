@@ -130,10 +130,10 @@ class ParallelProcessing(object):
         try:
             # Fails on python 2
             self.job.tmp = \
-                tempfile.TemporaryDirectory(prefix='mlens_', dir=dir)
+                tempfile.TemporaryDirectory(prefix=config.PREFIX, dir=dir)
             self.job.dir = self.job.tmp.name
         except Exception:
-            self.job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
+            self.job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=dir)
 
         # --- Prepare inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -310,7 +310,7 @@ class ParallelProcessing(object):
 
             if not len(gc.garbage) == 0:
                 warnings.warn("Clearing process memory failed, "
-                              "uncollectable : %r." % gc.garbage,
+                              "uncollected:\n%r." % gc.garbage,
                               ParallelProcessingWarning)
 
             self.__initialized__ = 0
@@ -319,8 +319,8 @@ class ParallelProcessing(object):
         """Generic method for processing a :class:`layer` with ``attr``."""
         # Fire up the estimation instance
         kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
-        e = ENGINES[lyr.cls](self.job, lyr, n, **kwd)
-        e.run(parallel)
+        engine = ENGINES[lyr.cls](self.job, lyr, n, **kwd)
+        engine(parallel)
 
 
 ###############################################################################
@@ -347,10 +347,10 @@ class ParallelEvaluation(object):
         try:
             # Fails on python 2
             self.job.tmp = \
-                tempfile.TemporaryDirectory(prefix='mlens_', dir=dir)
+                tempfile.TemporaryDirectory(prefix=config.PREFIX, dir=dir)
             self.job.dir = self.job.tmp.name
         except Exception:
-            self.job.dir = tempfile.mkdtemp(prefix='mlens_', dir=dir)
+            self.job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=dir)
 
         # Build mmaps for inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -431,7 +431,7 @@ class ParallelEvaluation(object):
 
             if not len(gc.garbage) == 0:
                 warnings.warn("Clearing process memory failed, "
-                              "uncollectable : %r." % gc.garbage,
+                              "uncollected :\n%r." % gc.garbage,
                               ParallelProcessingWarning)
 
             self.__initialized__ = 0

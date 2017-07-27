@@ -25,5 +25,9 @@ Change log
         - Minor bug fixes
         - Refactored backend for streamlined front-end feature development
 
+    * 07/2017 Release_ of version 0.1.5.1 and 0.1.5.2
+        - Bug fixes
+        - ```clear_cache`` function to check for residual caches. Safeguard against old caches not being killed.
+
 .. _Release: https://github.com/flennerhag/mlens/releases
 .. _Feature propagation:

@@ -347,10 +347,10 @@ class ParallelEvaluation(object):
         try:
             # Fails on python 2
             self.job.tmp = \
-                tempfile.TemporaryDirectory(prefix='.mlens_tmpcache_', dir=dir)
+                tempfile.TemporaryDirectory(prefix=config.PREFIX, dir=dir)
             self.job.dir = self.job.tmp.name
         except Exception:
-            self.job.dir = tempfile.mkdtemp(prefix='.mlens_tmpcache_', dir=dir)
+            self.job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=dir)
 
         # Build mmaps for inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -431,7 +431,7 @@ class ParallelEvaluation(object):
 
             if not len(gc.garbage) == 0:
                 warnings.warn("Clearing process memory failed, "
-                              "uncollectable : %r." % gc.garbage,
+                              "uncollected :\n%r." % gc.garbage,
                               ParallelProcessingWarning)
 
             self.__initialized__ = 0

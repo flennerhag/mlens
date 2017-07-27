@@ -11,6 +11,7 @@ import tempfile
 import warnings
 import sysconfig
 import subprocess
+from multiprocessing import current_process
 
 ###############################################################################
 # Variables
@@ -111,7 +112,7 @@ def __get_default_start_method(method):
 # Handlers
 
 
-def check_cache(tmp):
+def clear_cache(tmp):
     """ Check that cache directory is empty.
 
     Checks that a specified directory do not contain any directories with
@@ -159,7 +160,7 @@ def check_cache(tmp):
 ###############################################################################
 # Set up
 
-
-START_METHOD = __get_default_start_method(START_METHOD)
-set_start_method(START_METHOD)
-check_cache(TMPDIR)
+if current_process().name == 'MainProcess':
+    START_METHOD = __get_default_start_method(START_METHOD)
+    set_start_method(START_METHOD)
+    clear_cache(TMPDIR)

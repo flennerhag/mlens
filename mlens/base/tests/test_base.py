@@ -18,11 +18,13 @@ from mlens.base import (IdTrain,
                         FullIndex)
 from mlens.base.indexer import _partition, _prune_train
 try:
-    from contextlib import redirect_stdout
+    from contextlib import redirect_stderr
 except ImportError:
-    from mlens.externals.fixes import redirect as redirect_stdout
+    from mlens.externals.fixes import redirect as redirect_stderr
 
 X = np.arange(25).reshape(5, 5)
+
+tmpdir = config.TMPDIR
 
 
 class ClusterEstimator(object):
@@ -70,10 +72,16 @@ def test_check_cache():
     """[Base] Test check cache."""
     tmp = config.PREFIX + "test"
     os.mkdir(tmp)
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
         subprocess.Popen("echo this is a test >> " + tmp +
                          "/test.txt", shell=True)
-        config.check_cache(config.TMPDIR)
+        config.clear_cache(config.TMPDIR)
+
+
+def test_reset_dir():
+    """[Base] Test resetting temp dir."""
+    config.set_tmpdir(tmpdir)
+    assert config.TMPDIR == tmpdir
 
 
 ###############################################################################

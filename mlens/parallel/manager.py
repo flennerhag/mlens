@@ -14,6 +14,7 @@ import tempfile
 import warnings
 
 import numpy as np
+from scipy.sparse import issparse, hstack
 
 from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
 from .. import config
@@ -178,7 +179,15 @@ class ParallelProcessing(object):
         r = int(n_in - n_out)
 
         # Propagate features as the n first features of the outgoing array
-        P_out[:, :lyr.n_feature_prop] = P_in[r:, lyr.propagate_features]
+        if not issparse(P_in):
+            P_out[:, :lyr.n_feature_prop] = P_in[r:, lyr.propagate_features]
+        else:
+            # Need to use scipy sparse hstack. Use lil format for output and csr for input
+            self.job.P[n + 1] = hstack((P_in[r:, lyr.propagate_features],
+                                        P_out[:, lyr.n_feature_prop:])
+                                       ).tolil()
+
+            self.job.P[n] = self.job.P[n].tocsr()
 
     def _gen_prediction_array(self, lyr, name, threading):
         """Generate prediction array either in-memory or persist to disk."""
@@ -272,7 +281,11 @@ class ParallelProcessing(object):
         if dtype is None:
             dtype = self.layers.layers[self.layers.layer_names[n]].dtype
 
-        return np.asarray(self.job.P[n], dtype=dtype, order=order)
+        out = self.job.P[n]
+        if issparse(out):
+            return out
+        else:
+            return np.asarray(out, dtype=dtype, order=order)
 
     def terminate(self):
         """Remove temporary folder and all cache data."""

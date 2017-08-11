@@ -169,9 +169,9 @@ class ParallelProcessing(object):
         self.__initialized__ = 1
         gc.collect()
 
-    def _propagate_features(self, lyr):
+    def _propagate_features(self, lyr, n):
         """Propagate features from input array to output array."""
-        P_out, P_in = self.job.P[-1], self.job.P[-2]
+        P_out, P_in = self.job.P[n + 1], self.job.P[n]
 
         # Check for loss of obs between layers (i.e. blend)
         n_in, n_out = P_in.shape[0], P_out.shape[0]
@@ -198,10 +198,6 @@ class ParallelProcessing(object):
                               (shape[0], shape[1],
                                8 * shape[0] * shape[1] / (1024 ** 2),
                                name, exc))
-
-        # If asked, propagate features
-        if lyr.propagate_features is not None:
-            self._propagate_features(lyr)
 
     def _get_lyr_sample_size(self, lyr):
         """Decide what sample size to create P with based on the job type."""
@@ -317,6 +313,10 @@ class ParallelProcessing(object):
 
     def _partial_process(self, n, lyr, parallel):
         """Generic method for processing a :class:`layer` with ``attr``."""
+        # If asked, propagate features
+        if lyr.propagate_features is not None:
+            self._propagate_features(lyr, n)
+
         # Fire up the estimation instance
         kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
         engine = ENGINES[lyr.cls](self.job, lyr, n, **kwd)

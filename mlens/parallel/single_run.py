@@ -21,9 +21,9 @@ class SingleRun(BaseEstimator):
     Class for fitting a estimators in a layer without any sub-fits.
     """
 
-    def __init__(self, job, layer, n):
+    def __init__(self, job, layer):
         super(SingleRun, self).__init__(layer=layer)
-        self._default_initialization(job, n)
+        self._default_initialization(job)
 
     def run(self, parallel):
         """Execute blending."""

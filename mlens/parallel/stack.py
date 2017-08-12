@@ -19,9 +19,9 @@ class Stacker(BaseEstimator):
     Class for fitting a Layer using Stacking.
     """
 
-    def __init__(self, job, layer, n):
+    def __init__(self, job, layer):
         super(Stacker, self).__init__(layer=layer)
-        self._default_initialization(job, n)
+        self._default_initialization(job)
 
     def run(self, parallel):
         """Execute stacking."""

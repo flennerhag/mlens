@@ -19,7 +19,7 @@ from multiprocessing import current_process
 DTYPE = getattr(numpy, os.environ.get('MLENS_DTYPE', 'float32'))
 TMPDIR = os.environ.get('MLENS_TMPDIR', tempfile.gettempdir())
 PREFIX = os.environ.get('MLENS_PREFIX', ".mlens_tmp_cache_")
-BACKEND = os.environ.get('MLENS_BACKEND', 'multiprocessing')
+BACKEND = os.environ.get('MLENS_BACKEND', 'threading')
 START_METHOD = os.environ.get('MLENS_START_METHOD', '')
 
 _PY_VERSION = float(sysconfig._PY_VERSION_SHORT)

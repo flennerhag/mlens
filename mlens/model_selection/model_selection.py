@@ -14,6 +14,7 @@ import gc
 import sys
 import numpy as np
 
+from .. import config
 from ..base import FoldIndex
 from ..parallel import ParallelEvaluation
 from ..utils import (print_time,
@@ -134,7 +135,7 @@ class Evaluator(object):
                  cv=2,
                  shuffle=True,
                  random_state=None,
-                 backend='multiprocessing',
+                 backend=None,
                  error_score=None,
                  metrics=None,
                  array_check=2,
@@ -144,13 +145,15 @@ class Evaluator(object):
         self.cv = cv
         self.indexer = FoldIndex(cv)
         self.shuffle = shuffle
-        self.backend = backend
+        self.backend = backend if backend is not None else config.BACKEND
         self.n_jobs = n_jobs
         self.error_score = error_score
         self.metrics = [np.mean, np.std] if metrics is None else metrics
         self.array_check = array_check
         self.random_state = random_state
         self.verbose = verbose
+        self.evaluator = None
+        self.preprocessing = None
 
         _check_scorer(scorer)
         self.scorer = scorer
@@ -158,15 +161,14 @@ class Evaluator(object):
 
     def initialize(self, X, y):
         """Set up :class:`ParallelEvaluation` job manager."""
-        self.indexer.fit(X)
-
+        self.indexer.fit(X, y)
         self.evaluator = ParallelEvaluation(self)
-        self.evaluator.initialize(X, y)
+        self.evaluator.initialize('evaluate', X, y)
 
     def terminate(self):
         """Terminate evaluation job."""
         self.evaluator.terminate()
-        del self.evaluator
+        self.evaluator = None
         gc.collect()
 
     def fit(self, X, y, estimators, param_dicts, n_iter=2, preprocessing=None):
@@ -488,7 +490,7 @@ class Evaluator(object):
         """For each estimator, create a mapping of parameter draws."""
         self.params = dict()
 
-        if len(getattr(self, 'preprocessing', [])) == 0:
+        if not self.preprocessing:
             # No preprocessing
             # the expected param_dicts key is 'est_name'
             for est_name, _ in self.estimators:

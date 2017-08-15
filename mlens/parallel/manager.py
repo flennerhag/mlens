@@ -14,6 +14,7 @@ import tempfile
 import warnings
 
 import numpy as np
+from scipy.sparse import issparse, hstack
 
 from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
 from .. import config
@@ -31,7 +32,7 @@ ENGINES = {'full': SingleRun,
            'evaluation': Evaluation
            }
 
-JOBS = ['predict', 'fit', 'transform']
+JOBS = ['predict', 'fit', 'transform', 'evaluate']
 
 
 ###############################################################################
@@ -78,6 +79,15 @@ def _load_mmap(f):
         return np.load(f, mmap_mode='r')
 
 
+def _check_job(job):
+    """Check that a valid job is initialized."""
+    if job not in JOBS:
+        raise NotImplementedError('The job %s is not valid input '
+                                  'for the ParallelProcessing job '
+                                  'manager. Accepted jobs: %r.'
+                                  % (job, list(JOBS)))
+
+
 ###############################################################################
 class Job(object):
 
@@ -88,15 +98,25 @@ class Job(object):
     :class:`ParallelProcessing`, :class:`ParallelEvaluation`
     """
 
-    __slots__ = ['y', 'P', 'dir', 'l', 'j', 'tmp']
+    __slots__ = ['y', 'predict_in', 'predict_out', 'dir', 'job', 'tmp']
 
     def __init__(self, job):
-        self.j = job
+        _check_job(job)
+        self.job = job
         self.y = None
-        self.P = None
-        self.l = None
+        self.predict_in = None
+        self.predict_out = None
         self.tmp = None
         self.dir = None
+
+    def update(self):
+        """Shift output array to input array."""
+        # Enforce csr on spare matrices
+        if issparse(self.predict_out) and not \
+                self.predict_out.__class__.__name__.startswith('csr'):
+            self.predict_out = self.predict_out.tocsr()
+
+        self.predict_in = self.predict_out
 
 
 ###############################################################################
@@ -112,38 +132,36 @@ class ParallelProcessing(object):
         The ``LayerContainer`` that instantiated the processor.
     """
 
-    __slots__ = ['layers', '__initialized__', '__fitted__', 'job']
+    __slots__ = ['layers', '__initialized__', '__threading__', 'job']
 
     def __init__(self, layers):
+        self.job = None
         self.layers = layers
         self.__initialized__ = 0
+        self.__threading__ = self.layers.backend == 'threading'
 
     def initialize(self, job, X, y=None, dir=None):
         """Create a job instance for estimation."""
-        self._check_job(job)
         self.job = Job(job)
-
-        threading = self.layers.backend == 'threading'
 
         if dir is None:
             dir = config.TMPDIR
         try:
-            # Fails on python 2
             self.job.tmp = \
                 tempfile.TemporaryDirectory(prefix=config.PREFIX, dir=dir)
             self.job.dir = self.job.tmp.name
-        except Exception:
+        except AttributeError:
+            # Fails on python 2
             self.job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=dir)
 
         # --- Prepare inputs
         for name, arr in zip(('X', 'y'), (X, y)):
-
             if arr is None:
-                # e.g predict X
                 continue
 
-            # For threading, don't memmap
-            if threading:
+            # Dump data in cache
+            if self.__threading__:
+                # No need to memmap
                 f = None
                 if isinstance(arr, str):
                     arr = _load(arr)
@@ -152,46 +170,44 @@ class ParallelProcessing(object):
 
             # Store data for processing
             if name is 'y' and y is not None:
-                self.job.y = arr if threading else _load_mmap(f)
+                self.job.y = arr if self.__threading__ else _load_mmap(f)
             else:
-                # Store X as the first input matrix in list of inputs matrices
-                self.job.P = [arr if threading else _load_mmap(f)]
-
-        # Append pre-allocated prediction arrays in r+ to the P list
-        # Each layer will be fitted on P[i] and write to P[i + 1]
-        for n, (name, lyr) in enumerate(self.layers.layers.items()):
-
-            # Pre-check indexer
-            lyr.indexer.fit(self.job.P[n], y, self.job.j)
-
-            self._gen_prediction_array(lyr, name, threading)
+                self.job.predict_in = arr \
+                    if self.__threading__ else _load_mmap(f)
 
         self.__initialized__ = 1
         gc.collect()
 
     def _propagate_features(self, lyr):
         """Propagate features from input array to output array."""
-        P_out, P_in = self.job.P[-1], self.job.P[-2]
+        p_out, p_in = self.job.predict_out, self.job.predict_in
 
         # Check for loss of obs between layers (i.e. blend)
-        n_in, n_out = P_in.shape[0], P_out.shape[0]
+        n_in, n_out = p_in.shape[0], p_out.shape[0]
         r = int(n_in - n_out)
 
         # Propagate features as the n first features of the outgoing array
-        P_out[:, :lyr.n_feature_prop] = P_in[r:, lyr.propagate_features]
+        if not issparse(p_in):
+            # Simple item setting
+            p_out[:, :lyr.n_feature_prop] = p_in[r:, lyr.propagate_features]
+        else:
+            # Need to populate propagated features using scipy sparse hstack
+            self.job.predict_out = hstack([p_in[r:, lyr.propagate_features],
+                                           p_out[:, lyr.n_feature_prop:]]
+                                          ).tolil()
 
-    def _gen_prediction_array(self, lyr, name, threading):
+    def _gen_prediction_array(self, name, lyr, threading):
         """Generate prediction array either in-memory or persist to disk."""
         shape = self._get_lyr_sample_size(lyr)
         if threading:
-            self.job.P.append(np.empty(shape, dtype=lyr.dtype))
+            self.job.predict_out = np.empty(shape, dtype=lyr.dtype)
         else:
             f = os.path.join(self.job.dir, '%s.mmap' % name)
             try:
-                self.job.P.append(np.memmap(filename=f,
-                                            dtype=lyr.dtype,
-                                            mode='w+',
-                                            shape=shape))
+                self.job.predict_out = np.memmap(filename=f,
+                                                 dtype=lyr.dtype,
+                                                 mode='w+',
+                                                 shape=shape)
             except Exception as exc:
                 raise OSError("Cannot create prediction matrix of shape ("
                               "%i, %i), size %i MBs, for %s.\n Details:\n%r" %
@@ -199,13 +215,9 @@ class ParallelProcessing(object):
                                8 * shape[0] * shape[1] / (1024 ** 2),
                                name, exc))
 
-        # If asked, propagate features
-        if lyr.propagate_features is not None:
-            self._propagate_features(lyr)
-
     def _get_lyr_sample_size(self, lyr):
         """Decide what sample size to create P with based on the job type."""
-        s0 = lyr.indexer.n_test_samples if self.job.j != 'predict' else \
+        s0 = lyr.indexer.n_test_samples if self.job.job != 'predict' else \
             lyr.indexer.n_samples
 
         # Number of prediction columns depends on:
@@ -217,8 +229,8 @@ class ParallelProcessing(object):
         s1 = lyr.n_pred
 
         if lyr.proba:
-            if self.job.j == 'fit':
-                lyr.classes_ = self.job.l = np.unique(self.job.y).shape[0]
+            if self.job.job == 'fit':
+                lyr.classes_ = np.unique(self.job.y).shape[0]
 
             s1 *= lyr.classes_
 
@@ -227,20 +239,11 @@ class ParallelProcessing(object):
 
         return s0, s1
 
-    @staticmethod
-    def _check_job(job):
-        """Check that a valid job is initialized."""
-        if job not in JOBS:
-            raise NotImplementedError('The job %s is not valid input '
-                                      'for the ParallelProcessing job '
-                                      'manager. Accepted jobs: %r.'
-                                      % (job, list(JOBS)))
-
     def process(self):
         """Fit all layers in the attached :class:`LayerContainer`."""
         check_initialized(self)
 
-        # Use context manager to ensure same parallel job during entire process
+        # Process each layer sequentially with the same worker pool
         with Parallel(n_jobs=self.layers.n_jobs,
                       temp_folder=self.job.dir,
                       max_nbytes=None,
@@ -248,20 +251,19 @@ class ParallelProcessing(object):
                       verbose=self.layers.verbose,
                       backend=self.layers.backend) as parallel:
 
-            for n, lyr in enumerate(self.layers.layers.values()):
-                self._partial_process(n, lyr, parallel)
+            for name, lyr in self.layers.layers.items():
 
-    def get_preds(self, n=-1, dtype=None, order='C'):
+                # Process layer
+                self._partial_process(name, lyr, parallel)
+
+                # Update input array with output array
+                self.job.update()
+
+    def get_preds(self, dtype=None, order='C'):
         """Return prediction matrix.
 
         Parameters
         ----------
-        n : int (default = -1)
-            layer to retrieves as indexed from base 0 (i.e.
-            predictions form layer-1 is retrieved as ``n = 0``).
-            List slicing is accepted, so ``n = -1`` retrieves the final
-            predictions.
-
         dtype : numpy dtype object, optional
             data type to return
 
@@ -271,12 +273,14 @@ class ParallelProcessing(object):
         if not hasattr(self, 'job'):
             raise ParallelProcessingError("Processor has been terminated: "
                                           "cannot retrieve final prediction "
-                                          "array as the estimation cache has "
-                                          "been removed.")
+                                          "array from cache.")
         if dtype is None:
-            dtype = self.layers.layers[self.layers.layer_names[n]].dtype
+            dtype = self.layers.layers[self.layers.layer_names[-1]].dtype
 
-        return np.asarray(self.job.P[n], dtype=dtype, order=order)
+        if issparse(self.job.predict_out):
+            return self.job.predict_out
+        else:
+            return np.asarray(self.job.predict_out, dtype=dtype, order=order)
 
     def terminate(self):
         """Remove temporary folder and all cache data."""
@@ -315,12 +319,19 @@ class ParallelProcessing(object):
 
             self.__initialized__ = 0
 
-    def _partial_process(self, n, lyr, parallel):
-        """Generic method for processing a :class:`layer` with ``attr``."""
-        # Fire up the estimation instance
-        kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
-        engine = ENGINES[lyr.cls](self.job, lyr, n, **kwd)
+    def _partial_process(self, name, lyr, parallel):
+        """Generate prediction matrix for a given :class:`layer`."""
+        lyr.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
+        self._gen_prediction_array(name, lyr, self.__threading__)
+
+        # Run estimation to populate prediction matrix
+        kwd = lyr.cls_kwargs if lyr.cls_kwargs else {}
+        engine = ENGINES[lyr.cls](self.job, lyr, **kwd)
         engine(parallel)
+
+        # Propagate features from input to output
+        if lyr.propagate_features is not None:
+            self._propagate_features(lyr)
 
 
 ###############################################################################
@@ -375,7 +386,7 @@ class ParallelEvaluation(object):
             if name is 'y':
                 self.job.y = _load_mmap(f)
             else:
-                self.job.P = _load_mmap(f)
+                self.job.predict_in = _load_mmap(f)
 
         self.__initialized__ = 1
 
@@ -396,7 +407,7 @@ class ParallelEvaluation(object):
 
             f = ENGINES['evaluation'](self.evaluator)
 
-            getattr(f, attr)(parallel, self.job.P, self.job.y,
+            getattr(f, attr)(parallel, self.job.predict_in, self.job.y,
                              self.job.dir)
 
     def terminate(self):

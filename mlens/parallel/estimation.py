@@ -87,11 +87,11 @@ class BaseEstimator(object):
         """
         self.execute(self, parallel=parallel, **self.args)
 
-    def _default_initialization(self, job, n):
+    def _default_initialization(self, job):
         """Utility method for default initialization scheme."""
         self.dir = job.dir
-        self.execute = FUNCS[job.j]
-        self.args = construct_args(self.execute, job, n)
+        self.execute = FUNCS[job.job]
+        self.args = construct_args(self.execute, job)
 
     def _build_scores(self, s):
         """Build a cv-score mapping."""

@@ -52,7 +52,7 @@ def test_subset_fit_predict_transform():
                               preprocessing=None,
                               dtype=np.float64)
 
-    f = lc.fit(x, y, return_preds=-1)[-1]
+    f = lc.fit(x, y, return_preds=True)[-1]
     p = lc.predict(x)
     t = lc.transform(x)
 

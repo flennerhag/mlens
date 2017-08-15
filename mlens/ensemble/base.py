@@ -231,12 +231,8 @@ class LayerContainer(BaseEstimator):
         y : array-like of shape = [n_samples, ]
             training labels.
 
-        return_preds : int or None (default = -1)
-            How to handle the final prediction matrix. If ``return_preds=None``
-            no predictions are returned. Else, an integer corresponding to the
-            layer count should be passed with 0-indexing. Thus, for predictions
-            from ``layer-1``, set ``return_preds=0``. If ``return_preds=-1``
-            predictions from the ultimate layer is returned.
+        return_preds : bool
+            whether to return final prediction array
 
         **process_kwargs : optional
             optional arguments to initialize processor with.
@@ -386,11 +382,8 @@ class LayerContainer(BaseEstimator):
         if len(out['score_mean']) == 0:
             out = None
 
-        if return_preds is not None:
-            if isinstance(return_preds, bool):
-                # Safeguard against boolean argument
-                return_preds = -1
-            return out, processor.get_preds(return_preds)
+        if return_preds:
+            return out, processor.get_preds()
         else:
             return out
 

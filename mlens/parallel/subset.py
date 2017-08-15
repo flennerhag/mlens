@@ -19,9 +19,9 @@ class SubStacker(BaseEstimator):
     Class for fitting a Layer using Subsemble.
     """
 
-    def __init__(self, job, layer, n):
+    def __init__(self, job, layer):
         super(SubStacker, self).__init__(layer=layer)
-        self._default_initialization(job, n)
+        self._default_initialization(job)
 
     def run(self, parallel):
         """Execute subsembling"""

@@ -537,22 +537,22 @@ class Cache(object):
             job = Job(attr)
             job.y = self.job['y']
             job.dir = self.job['dir']
+            job.predict_in = self.job['X']
             if attr == 'fit':
-                job.P = [self.job['X'], self.job['P_fit']]
+                job.predict_out = self.job['P_fit']
             elif attr == 'transform':
-                job.P = [self.job['X'], self.job['P_transform']]
+                job.predict_out = self.job['P_transform']
             else:
-                job.P = [self.job['X'], self.job['P_predict']]
+                job.predict_out = self.job['P_predict']
 
             if hasattr(self, 'classes_'):
                 layer.classes_ = self.classes_
 
-            e = est(layer=layer, job=job, n=0)
+            e = est(layer=layer, job=job)
             e(parallel)
 
         # Get prediction output
         P = self.job['P_%s' % attr.split('_')[0]]
-#        P.flush()
         preds = np.asarray(P)
 
         return preds

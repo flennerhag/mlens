@@ -28,12 +28,12 @@ class Blender(BaseEstimator):
     Class for fitting a Layer using Blending.
     """
 
-    def __init__(self, job, layer, n):
+    def __init__(self, job, layer):
         super(Blender, self).__init__(layer=layer)
         self.dir = job.dir
 
-        self.execute = FUNCS[job.j] if job.j != 'transform' else transform
-        self.args = construct_args(self.execute, job, n)
+        self.execute = FUNCS[job.job] if job.job != 'transform' else transform
+        self.args = construct_args(self.execute, job)
 
     def run(self, parallel):
         """Execute stacking."""

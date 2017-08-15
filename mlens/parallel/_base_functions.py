@@ -219,7 +219,7 @@ def assemble(inst):
         inst.layer.scores_ = inst._build_scores(s)
 
 
-def construct_args(func, job, n):
+def construct_args(func, job):
     """Helper to construct argument list from a ``job`` instance."""
     fargs = func.__code__.co_varnames
 
@@ -229,9 +229,9 @@ def construct_args(func, job, n):
     kwargs = {a: getattr(job, a) for a in args if a in job.__slots__}
 
     if 'X' in fargs:
-        kwargs['X'] = job.P[n]
+        kwargs['X'] = job.predict_in
     if 'P' in fargs:
-        kwargs['P'] = job.P[n + 1]
+        kwargs['P'] = job.predict_out
     return kwargs
 
 
@@ -333,12 +333,9 @@ def _assemble(dir, instance_list, suffix):
 def _transform(tr, x, y):
     """Try transforming with X and y. Else, transform with only X."""
     try:
-        x = tr.transform(x, y)
-        if isinstance(x, (tuple, list)):
-            x, y = x
-
-    except TypeError:
         x = tr.transform(x)
+    except TypeError:
+        x, y = tr.transform(x, y)
 
     return x, y
 

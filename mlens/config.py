@@ -93,10 +93,10 @@ def set_start_method(method):
 def __get_default_start_method(method):
     """Determine default backend."""
     # Check for environmental variables
+    win = sys.platform.startswith('win') or sys.platform.startswith('cygwin')
     if method == '':
-        return 'fork'
-    else:
-        return method
+        method = 'fork' if not win else 'spawn'
+    return method
 
 ###############################################################################
 # Handlers

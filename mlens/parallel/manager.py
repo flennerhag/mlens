@@ -196,7 +196,7 @@ class ParallelProcessing(object):
                                            p_out[:, lyr.n_feature_prop:]]
                                           ).tolil()
 
-    def _gen_prediction_array(self, lyr, name, threading):
+    def _gen_prediction_array(self, name, lyr, threading):
         """Generate prediction array either in-memory or persist to disk."""
         shape = self._get_lyr_sample_size(lyr)
         if threading:
@@ -253,14 +253,10 @@ class ParallelProcessing(object):
 
             for name, lyr in self.layers.layers.items():
 
-                # Initialize indexer and output array
-                lyr.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
-                self._gen_prediction_array(lyr, name, self.__threading__)
+                # Process layer
+                self._partial_process(name, lyr, parallel)
 
-                # Populate output array
-                self._partial_process(lyr, parallel)
-
-                # Update input array
+                # Update input array with output array
                 self.job.update()
 
     def get_preds(self, dtype=None, order='C'):
@@ -323,16 +319,19 @@ class ParallelProcessing(object):
 
             self.__initialized__ = 0
 
-    def _partial_process(self, lyr, parallel):
+    def _partial_process(self, name, lyr, parallel):
         """Generate prediction matrix for a given :class:`layer`."""
+        lyr.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
+        self._gen_prediction_array(name, lyr, self.__threading__)
+
+        # Run estimation to populate prediction matrix
+        kwd = lyr.cls_kwargs if lyr.cls_kwargs else {}
+        engine = ENGINES[lyr.cls](self.job, lyr, **kwd)
+        engine(parallel)
+
         # Propagate features from input to output
         if lyr.propagate_features is not None:
             self._propagate_features(lyr)
-
-        # Populate prediction matrix
-        kwd = lyr.cls_kwargs if lyr.cls_kwargs is not None else {}
-        engine = ENGINES[lyr.cls](self.job, lyr, **kwd)
-        engine(parallel)
 
 
 ###############################################################################

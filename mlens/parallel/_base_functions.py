@@ -333,12 +333,9 @@ def _assemble(dir, instance_list, suffix):
 def _transform(tr, x, y):
     """Try transforming with X and y. Else, transform with only X."""
     try:
-        x = tr.transform(x, y)
-        if isinstance(x, (tuple, list)):
-            x, y = x
-
-    except TypeError:
         x = tr.transform(x)
+    except TypeError:
+        x, y = tr.transform(x, y)
 
     return x, y
 

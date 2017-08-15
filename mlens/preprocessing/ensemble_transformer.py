@@ -9,13 +9,12 @@ Ensemble transformer class. Fully integrable with Scikit-learn.
 
 from __future__ import division
 
+from .. import config
 from ..base import INDEXERS, IdTrain
 from ..utils import check_ensemble_build, check_inputs
 from ..ensemble.base import BaseEnsemble
-from ..externals.sklearn.base import TransformerMixin
 from ..externals.sklearn.validation import check_random_state
 
-from ..base import FoldIndex
 
 class EnsembleTransformer(BaseEnsemble):
 
@@ -156,7 +155,7 @@ class EnsembleTransformer(BaseEnsemble):
                  verbose=False,
                  n_jobs=1,
                  layers=None,
-                 backend='multiprocessing',
+                 backend=None,
                  sample_dim=10):
 
         super(EnsembleTransformer, self).__init__(

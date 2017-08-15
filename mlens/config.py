@@ -19,7 +19,7 @@ from multiprocessing import current_process
 DTYPE = getattr(numpy, os.environ.get('MLENS_DTYPE', 'float32'))
 TMPDIR = os.environ.get('MLENS_TMPDIR', tempfile.gettempdir())
 PREFIX = os.environ.get('MLENS_PREFIX', ".mlens_tmp_cache_")
-BACKEND = os.environ.get('MLENS_BACKEND', 'multiprocessing')
+BACKEND = os.environ.get('MLENS_BACKEND', 'threading')
 START_METHOD = os.environ.get('MLENS_START_METHOD', '')
 
 _PY_VERSION = float(sysconfig._PY_VERSION_SHORT)
@@ -93,19 +93,9 @@ def set_start_method(method):
 def __get_default_start_method(method):
     """Determine default backend."""
     # Check for environmental variables
+    win = sys.platform.startswith('win') or sys.platform.startswith('cygwin')
     if method == '':
-        # Else set default depending on platform and system
-        new_python = _PY_VERSION >= 3.4
-        win = \
-            sys.platform.startswith('win') or sys.platform.startswith('cygwin')
-
-        if new_python:
-            # Use forkserver for unix and spawn for windows
-            # Travis currently stalling on OSX, use 'spawn' until investigated
-            method = 'spawn' if win else 'spawn'
-        else:
-            # Use fork (multiprocessing default)
-            method = 'fork'
+        method = 'fork' if not win else 'spawn'
     return method
 
 ###############################################################################
@@ -142,25 +132,39 @@ def clear_cache(tmp):
         print("        Total size: %i\n[MLENS] Removing..." % size,
               end=" ", file=sys.stderr)
 
-        try:
-            for res in residuals:
-                shutil.rmtree(res[0])
-            print("done.", file=sys.stderr)
-
-        except OSError:
-            # Can fail on windows, need to use the shell
+        for res in residuals:
             try:
-                for res in residuals:
-                    subprocess.Popen('rmdir /S /Q %s' % res[0],
-                                     shell=True, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
+                shutil.rmtree(res[0])
             except OSError:
-                warnings.warn("Failed to delete cache at %s." % res[0])
+                try:
+                    subprocess.Popen('rmdir /S /Q %s' % res[0],
+                                     shell=True,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+                except OSError:
+                    warnings.warn("Failed to delete cache at %s." % res[0])
+        print("done.", file=sys.stderr)
 
 ###############################################################################
 # Set up
 
+
+def print_settings():
+    """Print package settings on system."""
+    if BACKEND == 'threading':
+        msg = "[MLENS] backend: %s"
+        arg = BACKEND,
+    else:
+        msg = "[MLENS] backend: %s | start method: %s"
+        arg = (BACKEND, START_METHOD)
+
+    print(msg % arg, file=sys.stderr)
+
+
 if current_process().name == 'MainProcess':
     START_METHOD = __get_default_start_method(START_METHOD)
     set_start_method(START_METHOD)
+
+    print_settings()
+
     clear_cache(TMPDIR)

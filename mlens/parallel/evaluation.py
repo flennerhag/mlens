@@ -94,22 +94,22 @@ class Evaluation(object):
                                            self.evaluator.indexer)
 
         scores = parallel(delayed(fit_score)(
-                case=case,
-                tr_list=preprocessing[case] if case in preprocessing else [],
-                est_name=est_name,
-                est=est,
-                params=(i, params),
-                x=X,
-                y=y,
-                idx=(tri, tei),
-                scorer=self.evaluator.scorer,
-                error_score=self.evaluator.error_score)
+            case=case,
+            tr_list=preprocessing[case] if case in preprocessing else [],
+            est_name=est_name,
+            est=est,
+            params=(i, params),
+            x=X,
+            y=y,
+            idx=(tri, tei),
+            scorer=self.evaluator.scorer,
+            error_score=self.evaluator.error_score)
                           for case, tri, tei, est_list in estimators
                           for est_name, est in est_list
                           for i, params in
                           enumerate(
-                                  self.evaluator.params[_name(case, est_name)]
-                                    ))
+                              self.evaluator.params[_name(case, est_name)])
+                          )
         self.evaluator.scores_ = scores
 
 

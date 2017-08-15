@@ -41,19 +41,17 @@ def print_job(lc, start_message):
     pout = "stdout" if lc.verbose >= 50 else "stderr"
 
     if lc.verbose:
-        safe_print("\n%s %d layers" % (start_message, lc.n_layers),
-                   file=pout, flush=True, end="\n\n")
+        safe_print("%s %d layers" % (start_message, lc.n_layers),
+                   file=pout, flush=True)
 
         if lc.verbose >= 10:
-            safe_print("""\n
-     Job description     
--------------------------
-n_jobs = %i
-backend = %r
-start_method = %r
-cache = %r
+            safe_print(
+"""[INFO] n_jobs = %i
+[INFO] backend = %r
+[INFO] start_method = %r
+[INFO] cache = %r
 """ % (lc.n_jobs, lc.backend, config.START_METHOD, config.TMPDIR),
-                       file=pout, flush=True, end="\n\n")
+                       file=pout, flush=True)
 
     t0 = time()
     return pout, t0

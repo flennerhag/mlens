@@ -120,25 +120,19 @@ class Job(object):
 
 
 ###############################################################################
-class ParallelProcessing(object):
+class BaseProcessor(object):
 
-    """Parallel processing engine.
+    """Parallel processing base class.
 
-    Engine for running ensemble estimation.
-
-    Parameters
-    ----------
-    layers : :class:`mlens.ensemble.base.LayerContainer`
-        The ``LayerContainer`` that instantiated the processor.
+    Base class for parallel processing engines.
     """
+    __slots__ = ['caller', '__initialized__', '__threading__', 'job']
 
-    __slots__ = ['layers', '__initialized__', '__threading__', 'job']
-
-    def __init__(self, layers):
+    def __init__(self, caller):
         self.job = None
-        self.layers = layers
+        self.caller = caller
         self.__initialized__ = 0
-        self.__threading__ = self.layers.backend == 'threading'
+        self.__threading__ = self.caller.backend == 'threading'
 
     def initialize(self, job, X, y=None, dir=None):
         """Create a job instance for estimation."""
@@ -177,6 +171,92 @@ class ParallelProcessing(object):
 
         self.__initialized__ = 1
         gc.collect()
+
+    def terminate(self):
+        """Remove temporary folder and all cache data."""
+        # Delete all contents from cache
+        try:
+            self.job.tmp.cleanup()
+
+        except (AttributeError, OSError):
+            # Fall back on shutil for python 2, can also fail on windows
+            try:
+                shutil.rmtree(self.job.dir)
+
+            except OSError:
+                # Can fail on windows, need to use the shell
+                try:
+                    subprocess.Popen('rmdir /S /Q %s' % self.job.dir,
+                                     shell=True, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+                except OSError:
+                    warnings.warn("Failed to delete cache at %s."
+                                  "If created with default settings, will be "
+                                  "removed on reboot. For immediate "
+                                  "removal, manual removal is required." %
+                                  self.job.dir, ParallelProcessingWarning)
+
+        finally:
+            # Always release process memory
+            del self.job
+
+            gc.collect()
+
+            if not len(gc.garbage) == 0:
+                warnings.warn("Clearing process memory failed, "
+                              "uncollected:\n%r." % gc.garbage,
+                              ParallelProcessingWarning)
+
+            self.__initialized__ = 0
+
+
+class ParallelProcessing(BaseProcessor):
+
+    """Parallel processing engine.
+
+    Engine for running ensemble estimation.
+
+    Parameters
+    ----------
+    layers : :class:`mlens.ensemble.base.LayerContainer`
+        The ``LayerContainer`` that instantiated the processor.
+    """
+    def __init__(self, caller):
+        super(ParallelProcessing, self).__init__(caller)
+
+    def process(self):
+        """Fit all layers in the attached :class:`LayerContainer`."""
+        check_initialized(self)
+
+        # Process each layer sequentially with the same worker pool
+        with Parallel(n_jobs=self.caller.n_jobs,
+                      temp_folder=self.job.dir,
+                      max_nbytes=None,
+                      mmap_mode='w+',
+                      verbose=self.caller.verbose,
+                      backend=self.caller.backend) as parallel:
+
+            for name, lyr in self.caller.layers.items():
+
+                # Process layer
+                self._partial_process(name, lyr, parallel)
+
+                # Update input array with output array
+                self.job.update()
+
+    def _partial_process(self, name, lyr, parallel):
+        """Generate prediction matrix for a given :class:`layer`."""
+        lyr.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
+        self._gen_prediction_array(name, lyr, self.__threading__)
+
+        # Run estimation to populate prediction matrix
+        kwd = lyr.cls_kwargs if lyr.cls_kwargs else {}
+        engine = ENGINES[lyr.cls](self.job, lyr, **kwd)
+        engine(parallel)
+
+        # Propagate features from input to output
+        if lyr.propagate_features is not None:
+            self._propagate_features(lyr)
 
     def _propagate_features(self, lyr):
         """Propagate features from input array to output array."""
@@ -239,26 +319,6 @@ class ParallelProcessing(object):
 
         return s0, s1
 
-    def process(self):
-        """Fit all layers in the attached :class:`LayerContainer`."""
-        check_initialized(self)
-
-        # Process each layer sequentially with the same worker pool
-        with Parallel(n_jobs=self.layers.n_jobs,
-                      temp_folder=self.job.dir,
-                      max_nbytes=None,
-                      mmap_mode='w+',
-                      verbose=self.layers.verbose,
-                      backend=self.layers.backend) as parallel:
-
-            for name, lyr in self.layers.layers.items():
-
-                # Process layer
-                self._partial_process(name, lyr, parallel)
-
-                # Update input array with output array
-                self.job.update()
-
     def get_preds(self, dtype=None, order='C'):
         """Return prediction matrix.
 
@@ -275,174 +335,43 @@ class ParallelProcessing(object):
                                           "cannot retrieve final prediction "
                                           "array from cache.")
         if dtype is None:
-            dtype = self.layers.layers[self.layers.layer_names[-1]].dtype
+            dtype = self.caller.layers[self.caller.layer_names[-1]].dtype
 
         if issparse(self.job.predict_out):
             return self.job.predict_out
         else:
             return np.asarray(self.job.predict_out, dtype=dtype, order=order)
 
-    def terminate(self):
-        """Remove temporary folder and all cache data."""
-        # Delete all contents from cache
-        try:
-            self.job.tmp.cleanup()
-
-        except (AttributeError, OSError):
-            # Fall back on shutil for python 2, can also fail on windows
-            try:
-                shutil.rmtree(self.job.dir)
-
-            except OSError:
-                # Can fail on windows, need to use the shell
-                try:
-                    subprocess.Popen('rmdir /S /Q %s' % self.job.dir,
-                                     shell=True, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-                except OSError:
-                    warnings.warn("Failed to delete cache at %s."
-                                  "If created with default settings, will be "
-                                  "removed on reboot. For immediate "
-                                  "removal, manual removal is required." %
-                                  self.job.dir, ParallelProcessingWarning)
-
-        finally:
-            # Always release process memory
-            del self.job
-
-            gc.collect()
-
-            if not len(gc.garbage) == 0:
-                warnings.warn("Clearing process memory failed, "
-                              "uncollected:\n%r." % gc.garbage,
-                              ParallelProcessingWarning)
-
-            self.__initialized__ = 0
-
-    def _partial_process(self, name, lyr, parallel):
-        """Generate prediction matrix for a given :class:`layer`."""
-        lyr.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
-        self._gen_prediction_array(name, lyr, self.__threading__)
-
-        # Run estimation to populate prediction matrix
-        kwd = lyr.cls_kwargs if lyr.cls_kwargs else {}
-        engine = ENGINES[lyr.cls](self.job, lyr, **kwd)
-        engine(parallel)
-
-        # Propagate features from input to output
-        if lyr.propagate_features is not None:
-            self._propagate_features(lyr)
-
 
 ###############################################################################
-class ParallelEvaluation(object):
+class ParallelEvaluation(BaseProcessor):
 
     """Parallel cross-validation engine.
 
     Parameters
     ----------
-    evaluator : :class:`Evaluator`
+    caller : :class:`Evaluator`
         The ``Evaluator`` that instantiated the processor.
     """
 
-    __slots__ = ['evaluator', '__initialized__', 'job']
-
-    def __init__(self, evaluator):
-        self.evaluator = evaluator
-        self.__initialized__ = 0
-
-    def initialize(self, X, y=None, dir=config.TMPDIR):
-        """Create cache and memmap X and y."""
-        self.job = Job('evaluate')
-
-        try:
-            # Fails on python 2
-            self.job.tmp = \
-                tempfile.TemporaryDirectory(prefix=config.PREFIX, dir=dir)
-            self.job.dir = self.job.tmp.name
-        except Exception:
-            self.job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=dir)
-
-        # Build mmaps for inputs
-        for name, arr in zip(('X', 'y'), (X, y)):
-
-            if isinstance(arr, str):
-                # Load file from disk. Need to dump if not memmaped already
-                if not arr.split('.')[-1] in ['mmap', 'npy', 'npz']:
-                    # Try loading the file assuming a csv-like format
-                    arr = _load(arr)
-
-            if isinstance(arr, str):
-                # If arr remains a string, it's pointing to an mmap file
-                f = arr
-            else:
-                # Dump ndarray on disk
-                f = os.path.join(self.job.dir, '%s.mmap' % name)
-                if os.path.exists(f):
-                    os.unlink(f)
-                dump(arr, f)
-
-            # Get memmap in read-only mode (we don't want to corrupt the input)
-            if name is 'y':
-                self.job.y = _load_mmap(f)
-            else:
-                self.job.predict_in = _load_mmap(f)
-
-        self.__initialized__ = 1
-
-        # Release any memory before going into process
-        gc.collect()
+    def __init__(self, caller):
+        super(ParallelEvaluation, self).__init__(caller)
 
     def process(self, attr):
         """Fit all layers in the attached :class:`LayerContainer`."""
         check_initialized(self)
 
         # Use context manager to ensure same parallel job during entire process
-        with Parallel(n_jobs=self.evaluator.n_jobs,
+        with Parallel(n_jobs=self.caller.n_jobs,
                       temp_folder=self.job.dir,
                       max_nbytes=None,
                       mmap_mode='w+',
-                      verbose=self.evaluator.verbose,
-                      backend=self.evaluator.backend) as parallel:
+                      verbose=self.caller.verbose,
+                      backend=self.caller.backend) as parallel:
 
-            f = ENGINES['evaluation'](self.evaluator)
+            f = ENGINES['evaluation'](self.caller)
 
-            getattr(f, attr)(parallel, self.job.predict_in, self.job.y,
+            getattr(f, attr)(parallel,
+                             self.job.predict_in,
+                             self.job.y,
                              self.job.dir)
-
-    def terminate(self):
-        """Remove temporary folder and all cache data."""
-        # Delete all contents from cache
-        try:
-            self.job.tmp.cleanup()
-
-        except (AttributeError, OSError):
-            # Fall back on shutil for python 2, can also fail on windows
-            try:
-                shutil.rmtree(self.job.dir)
-
-            except OSError:
-                # Can fail on windows, need to use the shell
-                try:
-                    subprocess.Popen('rmdir /S /Q %s' % self.job.dir,
-                                     shell=True, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-                except OSError:
-                    warnings.warn("Failed to delete cache at %s."
-                                  "If created with default settings, will be "
-                                  "removed on reboot. For immediate "
-                                  "removal, manual removal is required." %
-                                  self.job.dir, ParallelProcessingWarning)
-
-        finally:
-            # Always release process memory
-            del self.job
-
-            gc.collect()
-
-            if not len(gc.garbage) == 0:
-                warnings.warn("Clearing process memory failed, "
-                              "uncollected :\n%r." % gc.garbage,
-                              ParallelProcessingWarning)
-
-            self.__initialized__ = 0

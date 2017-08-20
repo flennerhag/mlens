@@ -27,7 +27,13 @@ Change log
 
     * 07/2017 Release_ of version 0.1.5.1 and 0.1.5.2
         - Bug fixes
-        - ```clear_cache`` function to check for residual caches. Safeguard against old caches not being killed.
+        - ``clear_cache`` function to check for residual caches. Safeguard against old caches not being killed.
+
+    * 08/2017 Release_ of version 0.1.6
+        - Propagate sparse input features
+        - On the fly prediction array generation
+        - Threading as default backend, ``fork`` as default fork method
+        - Bug fixes
 
 .. _Release: https://github.com/flennerhag/mlens/releases
 .. _Feature propagation:

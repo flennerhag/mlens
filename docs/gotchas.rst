@@ -12,30 +12,16 @@ problem is not addressed here.
 Bad interaction with third-party packages
 -----------------------------------------
 
-Parallel processing with generic Python objects is a difficult task, and while
-ML-Ensemble is routinely tested to function seamlessly with Scikit-learn, other machine
-learning libraries can cause bad behaviour during parallel estimations. This
-is unfortunately a fundamental problem rooted in how `Python runs processes in parallel`_,
-and in particular that Python is not thread-safe. ML-Ensemble is by configured
-to avoid such issues to the greatest extent possible, but issues can occur.
+ML-Ensemble is designed to work with any estimator that implements a minimal API, and is specifically unit tested to work with Scikit-learn. When using estimators from other libraries, it can happen that the estimation stalls and fails to complete. A clear sign of this is if there is no python process with high CPU usage. 
 
-In particular, ensemble can run either on multiprocessing or multithreading.
-For standard Scikit-learn use cases, the GIL_ can be released and
-multithreading used. This will speed up estimation and consume less memory.
-However, Python is not inherently thread-safe, so this strategy is not stable.
-For this reason, the safest choice to avoid corrupting the estimation process
-is to use multiprocessing instead. This requires creating sub-process to run
-each job, and so increases additional overhead both in terms of job management
-and sharing memory. As of this writing, the default setting in ML-Ensemble is
-'multiprocessing', but you can change this variable globally: see :ref:`configs`.
+Due to how `Python runs processes in parallel`_, child workers can receive a corrupted thread state that causes the worker to try to acquire more threads than are available, resulting in a deadlock. If this happens, raise an issue at the Github repository.
+There are a few things to try that might alleviate the problem:
 
-In Python 3.4+, ML-Ensemble defaults to ``'forkserver'`` on unix systems
-and ``'spawn'`` on Windows for generating sub-processes. These require more
-overhead than the default ``'fork'`` method, but avoids corrupting the thread
-state and as such is much more stable against third-party conflict. These
-conflicts are caused by each worker thinking they have more threads available
-than they actually do, leading to deadlocks and race conditions. For more
-information on this issue see the `Scikit-learn FAQ`_.
+    #. ensure that all estimators in the ensemble or evaluator has ``n_jobs`` or ``nthread`` equal to ``1``,
+    #. change the ``backend`` parameter to either ``threading`` or ``multiprocessing`` depending on what the current setting is, 
+    #. try using ``multiprocessing`` together with a fork method (see :ref:`configs`).
+          
+For more information on this issue see the `Scikit-learn FAQ`_.
 
 Array copying during fitting
 ----------------------------

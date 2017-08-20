@@ -10,11 +10,7 @@ estimator. By leveraging API elements from deep learning libraries like Keras_
 for building ensembles, it is straightforward to build deep ensembles
 with complex interactions.
 
-ML-Ensemble is open for contributions at all levels. There are
-some low hanging fruit to build introductory example, use cases and
-general benchmarks. If you would like to get involved, reach out to the
-project's Github_ repository. We are currently in beta testing, so please do
-report any bugs or issues by creating an issue_. If you are interested in
+ML-Ensemble is open for contributions at all levels.If you would like to get involved, reach out to the project's Github_ repository. We are currently in beta testing, so please report any bugs or issues by creating an issue_. If you are interested in
 contributing to development, see :ref:`dev` for a quick introduction to
 ensemble implementation, or check out the issue tracker.
 

@@ -16,7 +16,6 @@ from .. import config
 from ..base import INDEXERS
 from ..parallel import ParallelProcessing
 from ..externals.sklearn.base import BaseEstimator
-from ..externals.sklearn.validation import check_random_state
 from ..utils import assert_correct_format, check_ensemble_build, \
     check_inputs, check_instances, print_time, safe_print
 try:
@@ -94,7 +93,6 @@ class LayerContainer(BaseEstimator):
 
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
         For verbosity in the layers themselves, use ``fit_params``.
-
     """
 
     def __init__(self,
@@ -531,6 +529,9 @@ class Layer(BaseEstimator):
         If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
         For verbosity in the layers themselves, use ``fit_params``.
 
+    shuffle : bool (default = False)
+        Whether to shuffle data before fitting layer.
+
     dtype : numpy dtype class, default = :class:`numpy.float32`
         dtype format of prediction array.
 
@@ -559,6 +560,7 @@ class Layer(BaseEstimator):
                  scorer=None,
                  raise_on_exception=False,
                  name=None,
+                 shuffle=False,
                  dtype=None,
                  verbose=False,
                  cls_kwargs=None):
@@ -578,6 +580,7 @@ class Layer(BaseEstimator):
         self.scorer = scorer
         self.raise_on_exception = raise_on_exception
         self.name = name
+        self.shuffle = shuffle
         self.dtype = dtype if dtype is not None else config.DTYPE
         self.verbose = verbose
 
@@ -685,7 +688,6 @@ class BaseEnsemble(BaseEstimator):
                  array_check=2,
                  backend=None
                  ):
-
         self.shuffle = shuffle
         self.random_state = random_state
         self.scorer = scorer
@@ -734,6 +736,7 @@ class BaseEnsemble(BaseEstimator):
         # Add layer to Layer Container
         verbose = kwargs.pop('verbose', self.verbose)
         scorer = kwargs.pop('scorer', self.scorer)
+        shuffle = kwargs.pop('shuffle', self.shuffle)
 
         if 'proba' in kwargs:
             if kwargs['proba'] and scorer is not None:
@@ -746,6 +749,7 @@ class BaseEnsemble(BaseEstimator):
                         indexer=indexer,
                         preprocessing=preprocessing,
                         scorer=scorer,
+                        shuffle=shuffle,
                         verbose=verbose,
                         **kwargs)
 
@@ -778,11 +782,6 @@ class BaseEnsemble(BaseEstimator):
 
         X, y = check_inputs(X, y, self.array_check)
 
-        if self.shuffle:
-            r = check_random_state(self.random_state)
-            idx = r.permutation(X.shape[0])
-            X, y = X[idx], y[idx]
-
         self.scores_ = self.layers.fit(X, y)
 
         return self
@@ -806,13 +805,7 @@ class BaseEnsemble(BaseEstimator):
 
         X, _ = check_inputs(X, check_level=self.array_check)
 
-        if self.shuffle:
-            r = check_random_state(self.random_state)
-            idx = r.permutation(X.shape[0])
-            X = X[idx]
-
         y = self.layers.predict(X)
-
         if y.shape[1] == 1:
             # The meta estimator is treated as a layer and thus a prediction
             # matrix with shape [n_samples, 1] is created. Ravel before return

@@ -19,6 +19,7 @@ from scipy.sparse import issparse, hstack
 from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
 from .. import config
 from ..externals.joblib import Parallel, dump, load
+from ..externals.sklearn.validation import check_random_state
 from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
                                 ParallelProcessingWarning)
@@ -109,8 +110,14 @@ class Job(object):
         self.tmp = None
         self.dir = None
 
-    def update(self):
-        """Shift output array to input array."""
+    def update(self, shuffle):
+        """Shift output array to input array.
+
+        Parameters
+        ----------
+        shuffle : boolean
+            whether to shuffle the new input data.
+        """
         # Enforce csr on spare matrices
         if issparse(self.predict_out) and not \
                 self.predict_out.__class__.__name__.startswith('csr'):
@@ -118,6 +125,11 @@ class Job(object):
 
         self.predict_in = self.predict_out
 
+        if shuffle:
+            r = check_random_state(self.random_state)
+            idx = r.permutation(self.y.shape[0])
+            self.predict_in = self.predict_in[idx]
+            self.y = self.y[idx]
 
 ###############################################################################
 class BaseProcessor(object):
@@ -242,7 +254,7 @@ class ParallelProcessing(BaseProcessor):
                 self._partial_process(name, lyr, parallel)
 
                 # Update input array with output array
-                self.job.update()
+                self.job.update(lyr.shuffle)
 
     def _partial_process(self, name, lyr, parallel):
         """Generate prediction matrix for a given :class:`layer`."""

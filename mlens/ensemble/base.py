@@ -532,6 +532,9 @@ class Layer(BaseEstimator):
     shuffle : bool (default = False)
         Whether to shuffle data before fitting layer.
 
+    random_state : int, optional
+        Random seed number to use for shuffling inputs
+
     dtype : numpy dtype class, default = :class:`numpy.float32`
         dtype format of prediction array.
 
@@ -561,6 +564,7 @@ class Layer(BaseEstimator):
                  raise_on_exception=False,
                  name=None,
                  shuffle=False,
+                 random_state=None,
                  dtype=None,
                  verbose=False,
                  cls_kwargs=None):
@@ -581,6 +585,7 @@ class Layer(BaseEstimator):
         self.raise_on_exception = raise_on_exception
         self.name = name
         self.shuffle = shuffle
+        self.random_state = random_state
         self.dtype = dtype if dtype is not None else config.DTYPE
         self.verbose = verbose
 
@@ -737,6 +742,7 @@ class BaseEnsemble(BaseEstimator):
         verbose = kwargs.pop('verbose', self.verbose)
         scorer = kwargs.pop('scorer', self.scorer)
         shuffle = kwargs.pop('shuffle', self.shuffle)
+        random_state = kwargs.pop('random_state', self.random_state)
 
         if 'proba' in kwargs:
             if kwargs['proba'] and scorer is not None:
@@ -750,6 +756,7 @@ class BaseEnsemble(BaseEstimator):
                         preprocessing=preprocessing,
                         scorer=scorer,
                         shuffle=shuffle,
+                        random_state=random_state,
                         verbose=verbose,
                         **kwargs)
 

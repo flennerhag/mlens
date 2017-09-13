@@ -57,6 +57,22 @@ def print_job(lc, start_message):
     return pout, t0
 
 ###############################################################################
+class Learner(object):
+
+    r"""Container class for an estimator.
+
+    A ``Learner`` is a wrapper around an estimator that stores associaded data
+    used for fitting a layer,
+
+    Parameters
+    ----------
+    est : estimator
+    """
+    def __init__(self, est, name):
+        self.est = est
+        self.name = name
+
+
 class LayerContainer(BaseEstimator):
 
     r"""Container class for layers.
@@ -481,6 +497,7 @@ class Layer(BaseEstimator):
 
     cls : str
         type of layers. Should be the name of an accepted estimator class.
+
     meta : bool (default = False)
         flag for whether given layer is the final meta layer
 
@@ -590,6 +607,7 @@ class Layer(BaseEstimator):
         self.estimators = check_instances(estimators)
         self.cls = \
             cls.strip().lower() if not cls.islower() or ' ' in cls else cls
+        self.meta = meta
         self.indexer = indexer if indexer is not None else INDEXERS[cls]()
         self.preprocessing = check_instances(preprocessing)
         self.cls_kwargs = cls_kwargs

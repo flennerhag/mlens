@@ -182,7 +182,7 @@ def fit_est(dir, case, inst_name, inst, x, y, pred, idx, raise_on_exception,
     inst.fit(xtemp, ytemp)
 
     # Predict if asked
-    if idx[1] is not None:
+    if idx[1]:
         tei = idx[1]
         col = idx[2]
 
@@ -237,7 +237,10 @@ def construct_args(func, job):
 
 def _slice_array(x, y, idx, r=0):
     """Build training array index and slice data."""
-    if idx is not None:
+    if idx == 'all':
+        idx = None
+
+    if idx:
         # Check if the idx is a tuple and if so, whether it can be made
         # into a simple slice
         if isinstance(idx[0], tuple):
@@ -273,21 +276,25 @@ def _slice_array(x, y, idx, r=0):
 
 def _assign_predictions(pred, p, tei, col, n):
     """Assign predictions to memmaped prediction array."""
-    r = n - pred.shape[0]
+    if tei == 'all':
+        # Assign to all data
+        pred[:, col] = p
+    else:
+        r = n - pred.shape[0]
 
-    if isinstance(tei[0], tuple):
-        if len(tei) > 1:
-            idx = np.hstack([np.arange(t0 - r, t1 - r) for t0, t1 in tei])
+        if isinstance(tei[0], tuple):
+            if len(tei) > 1:
+                idx = np.hstack([np.arange(t0 - r, t1 - r) for t0, t1 in tei])
+            else:
+                tei = tei[0]
+                idx = slice(tei[0] - r, tei[1] - r)
         else:
-            tei = tei[0]
             idx = slice(tei[0] - r, tei[1] - r)
-    else:
-        idx = slice(tei[0] - r, tei[1] - r)
 
-    if len(p.shape) == 1:
-        pred[idx, col] = p
-    else:
-        pred[(idx, slice(col, col + p.shape[1]))] = p
+        if len(p.shape) == 1:
+            pred[idx, col] = p
+        else:
+            pred[(idx, slice(col, col + p.shape[1]))] = p
 
 
 def _score_predictions(y, p, scorer, name, inst_name):

@@ -24,6 +24,7 @@ class SingleRun(BaseEstimator):
     def __init__(self, job, layer):
         super(SingleRun, self).__init__(layer=layer)
         self._default_initialization(job)
+        self.get_idx = None if self.layer.meta else 'all'
 
     def run(self, parallel):
         """Execute blending."""
@@ -31,8 +32,8 @@ class SingleRun(BaseEstimator):
 
     def _format_instance_list(self):
         """Expand the instance lists to every fold with associated indices."""
-        self.e = _expand_instance_list(self.layer.estimators)
-        self.t = _expand_instance_list(self.layer.preprocessing)
+        self.e = _expand_instance_list(self.layer.estimators, self.get_idx)
+        self.t = _expand_instance_list(self.layer.preprocessing, self.get_idx)
 
     def _get_col_id(self):
         """Assign unique col_id to every estimator."""
@@ -43,16 +44,16 @@ class SingleRun(BaseEstimator):
 
 
 ###############################################################################
-def _expand_instance_list(instance_list):
+def _expand_instance_list(instance_list, meta):
     """Build a list of estimation tuples with train and test indices."""
     # We modify the instance list slightly by adding None for the
     # training and test set indices
     if isinstance(instance_list, dict):
-        return [(case, None, None,
+        return [(case, None, meta,
                  [(n, clone(e)) for n, e in instance_list[case]])
                 for case in sorted(instance_list)]
     else:
-        return [(None, None, None,
+        return [(None, None, meta,
                  [(n, clone(e)) for n, e in instance_list])]
 
 

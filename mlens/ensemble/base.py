@@ -56,23 +56,8 @@ def print_job(lc, start_message):
     t0 = time()
     return pout, t0
 
+
 ###############################################################################
-class Learner(object):
-
-    r"""Container class for an estimator.
-
-    A ``Learner`` is a wrapper around an estimator that stores associaded data
-    used for fitting a layer,
-
-    Parameters
-    ----------
-    est : estimator
-    """
-    def __init__(self, est, name):
-        self.est = est
-        self.name = name
-
-
 class LayerContainer(BaseEstimator):
 
     r"""Container class for layers.

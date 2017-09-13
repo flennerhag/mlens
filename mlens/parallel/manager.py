@@ -110,13 +110,16 @@ class Job(object):
         self.tmp = None
         self.dir = None
 
-    def update(self, shuffle):
+    def update(self):
         """Shift output array to input array.
 
         Parameters
         ----------
-        shuffle : boolean
+        shuffle : bool (default = False)
             whether to shuffle the new input data.
+
+        random_state : int, optional
+            random seed to use.
         """
         # Enforce csr on spare matrices
         if issparse(self.predict_out) and not \
@@ -125,11 +128,14 @@ class Job(object):
 
         self.predict_in = self.predict_out
 
+    def shuffle(self, shuffle, random_state):
+        """Shuffle inputs if asked."""
         if shuffle:
-            r = check_random_state(self.random_state)
+            r = check_random_state(random_state)
             idx = r.permutation(self.y.shape[0])
             self.predict_in = self.predict_in[idx]
             self.y = self.y[idx]
+
 
 ###############################################################################
 class BaseProcessor(object):
@@ -177,7 +183,7 @@ class BaseProcessor(object):
             # Store data for processing
             if name is 'y' and y is not None:
                 self.job.y = arr if self.__threading__ else _load_mmap(f)
-            else:
+            elif name == 'X':
                 self.job.predict_in = arr \
                     if self.__threading__ else _load_mmap(f)
 
@@ -194,7 +200,6 @@ class BaseProcessor(object):
             # Fall back on shutil for python 2, can also fail on windows
             try:
                 shutil.rmtree(self.job.dir)
-
             except OSError:
                 # Can fail on windows, need to use the shell
                 try:
@@ -211,10 +216,9 @@ class BaseProcessor(object):
         finally:
             # Always release process memory
             del self.job
-
             gc.collect()
 
-            if not len(gc.garbage) == 0:
+            if gc.garbage:
                 warnings.warn("Clearing process memory failed, "
                               "uncollected:\n%r." % gc.garbage,
                               ParallelProcessingWarning)
@@ -249,12 +253,15 @@ class ParallelProcessing(BaseProcessor):
                       backend=self.caller.backend) as parallel:
 
             for name, lyr in self.caller.layers.items():
+                # Shuffle inputs during training if required
+                if self.job.job == 'fit':
+                    self.job.shuffle(lyr.shuffle, lyr.random_state)
 
                 # Process layer
                 self._partial_process(name, lyr, parallel)
 
                 # Update input array with output array
-                self.job.update(lyr.shuffle)
+                self.job.update()
 
     def _partial_process(self, name, lyr, parallel):
         """Generate prediction matrix for a given :class:`layer`."""

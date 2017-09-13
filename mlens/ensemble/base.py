@@ -11,6 +11,7 @@ from __future__ import division, print_function
 
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
+import warnings
 
 from .. import config
 from ..base import INDEXERS
@@ -56,8 +57,6 @@ def print_job(lc, start_message):
     return pout, t0
 
 ###############################################################################
-
-
 class LayerContainer(BaseEstimator):
 
     r"""Container class for layers.
@@ -66,6 +65,7 @@ class LayerContainer(BaseEstimator):
     and modifies possesses a ``get_params`` method to appear as an estimator
     in the Scikit-learn API. This allows correct cloning and parameter
     updating.
+
 
     Parameters
     ----------
@@ -110,8 +110,9 @@ class LayerContainer(BaseEstimator):
 
         # Set up layer
         self._init_layers(layers)
+        self._has_meta_layer = False
 
-    def add(self, estimators, cls, indexer=None, preprocessing=None, **kwargs):
+    def add(self, estimators, cls, meta=False, indexer=None, preprocessing=None, **kwargs):
         """Method for adding a layer.
 
         Parameters
@@ -144,6 +145,9 @@ class LayerContainer(BaseEstimator):
             Type of layer, as defined by the estimation class to instantiate
             when processing a layer. See :mod:`mlens.ensemble` for available
             classes.
+
+        meta : bool
+            flag for if added layer is a meta layer
 
         indexer : instance or None (default = None)
             Indexer instance to use. Defaults to the layer class
@@ -184,6 +188,14 @@ class LayerContainer(BaseEstimator):
             if ``in_place = True``, returns ``self`` with the layer
             instantiated.
         """
+        if meta:
+            if self._has_meta_layer:
+                warnings.Warn("Ensemble already has meta layer, "
+                              "adding a second meta layer can "
+                              "result in unexpected behavior.")
+            else:
+                self._has_meta_layer = True
+
         # Check verbosity
         if kwargs is None:
             kwargs = {'verbose': self.verbose}
@@ -196,6 +208,7 @@ class LayerContainer(BaseEstimator):
 
         lyr = Layer(estimators=estimators,
                     cls=cls,
+                    meta=meta,
                     indexer=indexer,
                     preprocessing=preprocessing,
                     raise_on_exception=self.raise_on_exception,
@@ -468,6 +481,8 @@ class Layer(BaseEstimator):
 
     cls : str
         type of layers. Should be the name of an accepted estimator class.
+    meta : bool (default = False)
+        flag for whether given layer is the final meta layer
 
     indexer : instance, optional
         Indexer instance to use. Defaults to the layer class indexer
@@ -555,6 +570,7 @@ class Layer(BaseEstimator):
     def __init__(self,
                  estimators,
                  cls,
+                 meta=False,
                  indexer=None,
                  preprocessing=None,
                  proba=False,
@@ -713,6 +729,7 @@ class BaseEnsemble(BaseEstimator):
     def _add(self,
              estimators,
              cls,
+             meta,
              indexer,
              preprocessing=None,
              **kwargs):
@@ -752,6 +769,7 @@ class BaseEnsemble(BaseEstimator):
 
         self.layers.add(estimators=estimators,
                         cls=cls,
+                        meta=meta,
                         indexer=indexer,
                         preprocessing=preprocessing,
                         scorer=scorer,

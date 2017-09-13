@@ -9,7 +9,6 @@ Ensemble transformer class. Fully integrable with Scikit-learn.
 
 from __future__ import division
 
-from .. import config
 from ..base import INDEXERS, IdTrain
 from ..utils import check_ensemble_build, check_inputs
 from ..ensemble.base import BaseEnsemble
@@ -266,6 +265,7 @@ class EnsembleTransformer(BaseEnsemble):
 
         return self._add(estimators=estimators,
                          cls=cls,
+                         meta=False,
                          indexer=indexer,
                          preprocessing=preprocessing,
                          verbose=self.verbose,

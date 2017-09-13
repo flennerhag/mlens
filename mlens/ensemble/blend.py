@@ -292,6 +292,7 @@ class BlendEnsemble(BaseEnsemble):
         return self._add(
                 estimators=estimators,
                 cls=cls,
+                meta=meta,
                 preprocessing=preprocessing,
                 indexer=idx,
                 proba=proba,

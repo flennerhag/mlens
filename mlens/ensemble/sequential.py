@@ -148,9 +148,9 @@ class SequentialEnsemble(BaseEnsemble):
         **kwargs : optional
             optional keyword arguments.
         """
-        return self.add(cls='full', estimators=estimator, **kwargs)
+        return self.add(cls='full', estimators=estimator, meta=True, **kwargs)
 
-    def add(self, cls, estimators, preprocessing=None, **kwargs):
+    def add(self, cls, estimators, preprocessing=None, meta=False, **kwargs):
         """Add layer to ensemble.
 
         For full set of optional arguments, see the ensemble API for the
@@ -237,6 +237,7 @@ class SequentialEnsemble(BaseEnsemble):
 
         return self._add(estimators=estimators,
                          cls=cls,
+                         meta=meta,
                          indexer=indexer,
                          preprocessing=preprocessing,
                          verbose=self.verbose,

@@ -395,6 +395,7 @@ class Subsemble(BaseEnsemble):
             indexer = idx(*args, **kwargs_idx)
 
         return self._add(cls=cls,
+                         meta=meta,
                          estimators=estimators,
                          preprocessing=preprocessing,
                          indexer=indexer,

@@ -49,8 +49,9 @@ class BlendEnsemble(BaseEnsemble):
         fraction of the available data to be used for training, and so
         ``0. < test_size < 1.``.
 
-    shuffle : bool (default = True)
-        whether to shuffle data before selecting training data.
+    shuffle : bool (default = False)
+        whether to shuffle data before before processing each layer.
+        For greater control, specify ``shuffle`` when adding the layer.
 
     random_state : int (default = None)
         random seed if shuffling inputs.

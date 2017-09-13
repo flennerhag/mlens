@@ -84,8 +84,9 @@ class SuperLearner(BaseEnsemble):
         number of folds to use during fitting. Note: this parameter can be
         specified on a layer-specific basis in the :attr:`add` method.
 
-    shuffle : bool (default = True)
-        whether to shuffle data before generating folds.
+    shuffle : bool (default = False)
+        whether to shuffle data before before processing each layer.
+        For greater control, specify ``shuffle`` when adding the layer.
 
     random_state : int (default = None)
         random seed if shuffling inputs.
@@ -205,7 +206,6 @@ class SuperLearner(BaseEnsemble):
                  n_jobs=-1,
                  backend=None,
                  layers=None):
-
         super(SuperLearner, self).__init__(
                 shuffle=shuffle, random_state=random_state,
                 scorer=scorer, raise_on_exception=raise_on_exception,

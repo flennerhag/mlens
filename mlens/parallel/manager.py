@@ -19,6 +19,7 @@ from scipy.sparse import issparse, hstack
 from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
 from .. import config
 from ..externals.joblib import Parallel, dump, load
+from ..externals.sklearn.validation import check_random_state
 from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
                                 ParallelProcessingWarning)
@@ -110,13 +111,30 @@ class Job(object):
         self.dir = None
 
     def update(self):
-        """Shift output array to input array."""
+        """Shift output array to input array.
+
+        Parameters
+        ----------
+        shuffle : bool (default = False)
+            whether to shuffle the new input data.
+
+        random_state : int, optional
+            random seed to use.
+        """
         # Enforce csr on spare matrices
         if issparse(self.predict_out) and not \
                 self.predict_out.__class__.__name__.startswith('csr'):
             self.predict_out = self.predict_out.tocsr()
 
         self.predict_in = self.predict_out
+
+    def shuffle(self, shuffle, random_state):
+        """Shuffle inputs if asked."""
+        if shuffle:
+            r = check_random_state(random_state)
+            idx = r.permutation(self.y.shape[0])
+            self.predict_in = self.predict_in[idx]
+            self.y = self.y[idx]
 
 
 ###############################################################################
@@ -165,7 +183,7 @@ class BaseProcessor(object):
             # Store data for processing
             if name is 'y' and y is not None:
                 self.job.y = arr if self.__threading__ else _load_mmap(f)
-            else:
+            elif name == 'X':
                 self.job.predict_in = arr \
                     if self.__threading__ else _load_mmap(f)
 
@@ -182,7 +200,6 @@ class BaseProcessor(object):
             # Fall back on shutil for python 2, can also fail on windows
             try:
                 shutil.rmtree(self.job.dir)
-
             except OSError:
                 # Can fail on windows, need to use the shell
                 try:
@@ -199,10 +216,9 @@ class BaseProcessor(object):
         finally:
             # Always release process memory
             del self.job
-
             gc.collect()
 
-            if not len(gc.garbage) == 0:
+            if gc.garbage:
                 warnings.warn("Clearing process memory failed, "
                               "uncollected:\n%r." % gc.garbage,
                               ParallelProcessingWarning)
@@ -237,6 +253,9 @@ class ParallelProcessing(BaseProcessor):
                       backend=self.caller.backend) as parallel:
 
             for name, lyr in self.caller.layers.items():
+                # Shuffle inputs during training if required
+                if self.job.job == 'fit':
+                    self.job.shuffle(lyr.shuffle, lyr.random_state)
 
                 # Process layer
                 self._partial_process(name, lyr, parallel)

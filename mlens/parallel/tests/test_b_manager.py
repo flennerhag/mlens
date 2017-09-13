@@ -29,8 +29,8 @@ class OLSSparse(OLS):
         return super(OLSSparse, self).predict(X.toarray())
 
 
-X = np.arange(500).reshape(10, 50)
-y = np.random.random(10)
+X = np.random.rand(10, 50).astype(np.float32)
+y = np.arange(10).astype(np.float32)
 
 first_prop = [1, 2, 3]
 n_first_prop = len(first_prop)
@@ -65,7 +65,7 @@ def test_propagation_one():
     # Check that original data is propagated through first layer
     out_1 = ens1.fit(X, y, return_preds=True)[1]
     np.testing.assert_array_equal(
-        out_1.astype('int32')[:, :n_first_prop], X[:, first_prop])
+        out_1[:, :n_first_prop], X[:, first_prop])
 
 
 def test_propagation_two():
@@ -73,7 +73,7 @@ def test_propagation_two():
     # Check that original data is propagated through second layer
     out_2 = ens2.fit(X, y, return_preds=True)[1]
     np.testing.assert_array_equal(
-        out_2.astype('int32')[:, :n_first_prop], X[:, first_prop])
+        out_2[:, :n_first_prop], X[:, first_prop])
 
 
 def test_propagation_three():

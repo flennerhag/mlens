@@ -10,7 +10,7 @@ Performance benchmarks
 MNIST
 ^^^^^
 
-MNIST is a standardized image dataset of handwritten digits [#]_, commonly used to benchmark classifiers. Here, we adapt `Scikit-learn's MNIST benchmark <https://github.com/scikit-learn/scikit-learn/blob/master/benchmarks/bench_mnist.py>` to include a supervised :class:`Subsemble`. We use the :class:`sklearn.cluster.MiniBatchKMeans` clustering algorithm to create five partitions that we train using 2-fold cross validation.
+MNIST is a standardized image dataset of handwritten digits [#]_, commonly used to benchmark classifiers. Here, we adapt `Scikit-learn's MNIST benchmark`_ to include a supervised :class:`Subsemble`. We use the :class:`sklearn.cluster.MiniBatchKMeans` clustering algorithm to create five partitions that we train using 2-fold cross validation.
 
 Benchmark
 ---------
@@ -51,7 +51,7 @@ The Supervised :class:`Subsemble` outperforms the benchmarks, improving the erro
 The Friedman Regression Problem 1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The The Friedman Regression Problem 1, as described in [#]_ and [#]_,
+`The Friedman Regression Problem 1`_, as described in [#]_ and [#]_,
 is constructed as follows. Set some sample size :math:`m` ,
 feature dimensionality :math:`n`, and noise level :math:`e`. Then the input
 data :math:`\mathbf{X}` and output data :math:`y(\mathbf{X})` is given by:
@@ -138,3 +138,6 @@ References
        Machine Learning 24, pages 123-140, 1996.
 
 .. _The Friedman Regression Problem 1: http://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_friedman1.html#sklearn.datasets.make_friedman1
+
+
+.. _Scikit-learn's MNIST benchmark: https://github.com/scikit-learn/scikit-learn/blob/master/benchmarks/bench_mnist.py

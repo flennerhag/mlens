@@ -216,6 +216,8 @@ performance, increasing some 40 percentage points. As a final remark, if you
 want the *ensemble* to return predicted probabilities, specify the final layer
 using the ``add`` method with ``meta=True``.
 
+For an example see the :ref:`mnist` benchmark.
+
 .. _subsemble-tutorial:
 
 Advanced Subsemble techniques
@@ -395,6 +397,8 @@ the estimator inherits the :class:`sklearn.base.BaseEstimator` class to
 provide a Scikit-learn compatible interface. For further information,
 see the :ref:`API` documentation of the :class:`Subsemble`
 and :class:`mlens.base.indexer.ClusteredSubsetIndex`.
+
+For an example, see the :ref:`mnist` benchmark.
 
 .. _sequential-tutorial:
 

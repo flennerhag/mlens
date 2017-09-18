@@ -1,7 +1,52 @@
 .. _benchmarks:
 
+.. currentmodule:: mlens.ensemble
+
 Performance benchmarks
 ======================
+
+.. _mnist:
+
+MNIST
+^^^^^
+
+MNIST is a standardized image dataset of handwritten digits [#]_, commonly used to benchmark classifiers. Here, we adapt `Scikit-learn's MNIST benchmark <https://github.com/scikit-learn/scikit-learn/blob/master/benchmarks/bench_mnist.py>` to include a supervised :class:`Subsemble`. We use the :class:`sklearn.cluster.MiniBatchKMeans` clustering algorithm to create five partitions that we train using 2-fold cross validation.
+
+Benchmark
+---------
+We use four base learners, the MLP fitted with Adam, the two random forests and the logistic regression fitted with SAG. Each base learner is predicts with ``predict_proba`` to create a :math:`N \times (10 \times L)` prediction matrix, where :math:`N` is the number of observations and :math:`L` is the number base learners. A :class:`sklearn.ensemble.RandomForestClassifier` is used as meta learner. Here's the code:: 
+
+        clt = MiniBatchKMeans(n_clusters=5, random_state=0)
+
+        ens = Subsemble(partition_estimator=clt,
+                        partitions=5,
+                        folds=2,
+                        verbose=1,
+                        n_jobs=-2)
+
+        ens.add(base_learners, proba=True, shuffle=True, random_state=1)
+        ens.add_meta(meta, shuffle=True, random_state=2)
+
+The Supervised :class:`Subsemble` outperforms the benchmarks, improving the error rate by about :math:`6\%`. ::
+
+    >>> python mnist.py
+    [..]
+
+    Classification performance:
+    ===========================
+    Classifier               train-time   test-time   error-rate
+    ------------------------------------------------------------
+    Subsemble                   343.31s       3.17s       0.0210
+    MLP_adam                     53.46s       0.11s       0.0224
+    Nystroem-SVM                112.97s       0.92s       0.0228
+    MultilayerPerceptron         24.33s       0.14s       0.0287
+    ExtraTrees                   42.99s       0.57s       0.0294
+    RandomForest                 42.70s       0.49s       0.0318
+    SampledRBF-SVM              135.81s       0.56s       0.0486
+    LinearRegression-SAG         16.67s       0.06s       0.0824
+    CART                         20.69s       0.02s       0.1219
+    dummy                         0.00s       0.01s       0.8973
+
 
 The Friedman Regression Problem 1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -24,8 +69,6 @@ data :math:`\mathbf{X}` and output data :math:`y(\mathbf{X})` is given by:
 
 Benchmark
 ---------
-
-.. currentmodule:: mlens.ensemble
 
 The following benchmark uses 10 features and scores a relatively wide selection
 of Scikit-learn estimators against a specified :class:`SuperLearner`. All
@@ -83,6 +126,9 @@ stand-alone estimator by 25%. ::
 
 References
 ----------
+
+.. [#] Y. LeCun, C. Cortes, C.J.C. Burges "MNIST handwritten digit database",
+       http://yann.lecun.com/exdb/mnist/, 2013. 
 
 .. [#] J. Friedman, “Multivariate adaptive regression splines”,
        The Annals of Statistics 19 (1), pages 1-67, 1991.

@@ -35,14 +35,16 @@ def test_fit():
 
     S = lc_s.fit(X, y, -1)[-1]
     B = lc_b.fit(S, y, -1)[-1]
-    U = lc_u.fit(B, y, -1)[-1]
+
+    r = y.shape[0] - B.shape[0]
+    U = lc_u.fit(B, y[r:], -1)[-1]
 
     ens = SequentialEnsemble()
     ens.add('stack', ESTIMATORS, PREPROCESSING, dtype=np.float64)
     ens.add('blend', ECM, dtype=np.float64)
     ens.add('subset', ECM, dtype=np.float64)
 
-    out = ens.layers.fit(X, y, -1)[-1]
+    out = ens.layers.fit(X, y, return_preds=True)[-1]
 
     np.testing.assert_array_equal(U, out)
 

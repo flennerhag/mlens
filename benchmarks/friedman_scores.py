@@ -61,9 +61,9 @@ SCORES
 
 FIT TIMES
   size | Ensemble |      GBM |      KNN | Kern Rid |    Lasso | Random F |
-  2000 |     0:01 |     0:00 |     0:00 |     0:00 |     0:00 |     0:00 |
-  4000 |     0:02 |     0:00 |     0:00 |     0:00 |     0:00 |     0:00 |
-  6000 |     0:03 |     0:00 |     0:00 |     0:01 |     0:00 |     0:00 |
+  2000 |     0:00 |     0:00 |     0:00 |     0:00 |     0:00 |     0:00 |
+  4000 |     0:01 |     0:00 |     0:00 |     0:00 |     0:00 |     0:00 |
+  6000 |     0:02 |     0:00 |     0:00 |     0:01 |     0:00 |     0:00 |
   8000 |     0:04 |     0:00 |     0:00 |     0:04 |     0:00 |     0:00 |
  10000 |     0:06 |     0:01 |     0:00 |     0:08 |     0:00 |     0:00 |
  12000 |     0:08 |     0:01 |     0:00 |     0:12 |     0:00 |     0:00 |
@@ -96,8 +96,6 @@ from mlens.metrics import rmse
 from sklearn.datasets import make_friedman1
 from sklearn.base import clone
 from sklearn.pipeline import make_pipeline
-
-from sklearn.cluster import KMeans
 from sklearn.linear_model import Lasso, ElasticNet
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.svm import SVR

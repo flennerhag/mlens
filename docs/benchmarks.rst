@@ -14,7 +14,7 @@ MNIST is a standardized image dataset of handwritten digits [#]_, commonly used 
 
 Benchmark
 ---------
-We use four base learners, the MLP fitted with Adam, the two random forests and the logistic regression fitted with SAG. Each base learner is predicts with ``predict_proba`` to create a :math:`N \times (10 \times L)` prediction matrix, where :math:`N` is the number of observations and :math:`L` is the number base learners. A :class:`sklearn.ensemble.RandomForestClassifier` is used as meta learner. Here's the code:: 
+We use four base learners from the baseline estimators, the MLP fitted with Adam, the random forest and the extreme random forest, as well as the logistic regression fitted with SAG. Each base learner predicts with ``predict_proba`` to create a :math:`N \times [P \times (10 \times L)]` prediction matrix, where :math:`N` is the number of observations, :math:`P` is the number of partitions created by the clustering algorithm and :math:`L` is the number base learners. A Random forest classifier is used as meta learner. Here's the code:: 
 
         clt = MiniBatchKMeans(n_clusters=5, random_state=0)
 

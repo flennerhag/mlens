@@ -164,6 +164,7 @@ class SequentialEnsemble(BaseEnsemble):
                 * 'blend' : blend ensemble
                 * 'subset' : subsemble
                 * 'stack' : super learner
+                * 'clustered_subset' : subsemble with clustering estimator
 
         estimators: dict of lists or list or instance
             estimators constituting the layer. If preprocessing is none and the
@@ -234,6 +235,9 @@ class SequentialEnsemble(BaseEnsemble):
         indexer = INDEXERS[cls]
         kwargs_idx, kwargs = kwarg_parser(indexer.__init__, kwargs)
         indexer = indexer(**kwargs_idx)
+
+        if cls == 'clustered_subset':
+            cls = 'subset'
 
         return self._add(estimators=estimators,
                          cls=cls,

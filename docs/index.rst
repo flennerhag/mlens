@@ -6,11 +6,11 @@ ML-Ensemble
 **A Python library for memory efficient parallelized ensemble learning**.
 
 ML-Ensemble is a library for building `Scikit-learn`_ compatible ensemble
-estimator. By leveraging API elements from deep learning libraries like Keras_
-for building ensembles, it is straightforward to build deep ensembles
+estimators. By leveraging API elements from deep learning libraries such as Keras_
+to build ensembles, it is straightforward to build deep ensembles
 with complex interactions.
 
-ML-Ensemble is open for contributions at all levels.If you would like to get involved, reach out to the project's Github_ repository. We are currently in beta testing, so please report any bugs or issues by creating an issue_. If you are interested in
+ML-Ensemble is open for contributions at all levels.If you would like to get involved, reach out to the project's Github_ repository. We are currently in beta testing, so please report any bugs or issues by at the `issue tracker`_. If you are interested in
 contributing to development, see :ref:`dev` for a quick introduction to
 ensemble implementation, or check out the issue tracker.
 
@@ -20,13 +20,13 @@ Core Features
 Modular build of multi-layered ensembles
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Ensembles are build as a feed-forward network, with a set of **layers** stacked
-on each other. Each layer is associated with a library of base learners, a mapping from
-preprocessing pipelines to subsets of base learners, and an estimation method.
+Ensembles are build as feed-forward networks, with a set of **layers** stacked
+on top of each other. Each layer is associated with a library of base learners, a mapping from
+preprocessing pipelines to subsets of base learners, and a training method.
 Layers are stacked sequentially with each layer taking the previous
 layer's output as input. You can propagate features through layers,
-differentiate preprocessing between subsets of base learners, vary the
-estimation method between layers and much more to build ensembles of almost
+differentiate preprocessing between subsets of base learners, vary training methods 
+between layers and much more to build ensembles of almost
 any shape and form.
 
 .. figure:: img/network.png
@@ -171,7 +171,7 @@ ensemble output. Output is summarized for easy comparison of performance. ::
 
 ML Ensemble is licenced under :ref:`MIT <license>` and is hosted on Github_.
 
-.. _issue: https://github.com/flennerhag/mlens/issues
+.. _issue tracker: https://github.com/flennerhag/mlens/issues
 .. _Github: https://github.com/flennerhag/mlens
 .. _Scikit-learn: http://scikit-learn.org/stable/
 .. _Keras: https://keras.io

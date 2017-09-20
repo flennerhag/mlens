@@ -1,17 +1,22 @@
 """
 Global configurations.
 """
+# pylint: disable=protected-access
+# pylint: disable=global-statement
+# pylint: disable=not-callable
+
 from __future__ import print_function
 
 import os
 import sys
-import numpy
 import shutil
 import tempfile
 import warnings
 import sysconfig
 import subprocess
 from multiprocessing import current_process
+
+import numpy
 
 ###############################################################################
 # Variables
@@ -22,8 +27,10 @@ PREFIX = os.environ.get('MLENS_PREFIX', ".mlens_tmp_cache_")
 BACKEND = os.environ.get('MLENS_BACKEND', 'threading')
 START_METHOD = os.environ.get('MLENS_START_METHOD', '')
 
-_PY_VERSION = float(sysconfig._PY_VERSION_SHORT)
+IVALS = os.environ.get('MLENS_IVALS', '0.01_120').split('_')
+IVALS = (float(IVALS[0]), float(IVALS[1]))
 
+_PY_VERSION = float(sysconfig._PY_VERSION_SHORT)
 
 ###############################################################################
 # Configuration calls

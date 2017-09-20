@@ -69,10 +69,13 @@ docs/_build_html/
 target/
 
 # IPython Notebook
-.ipynb_checkpoints
+*.ipynb_checkpoints
 
 # pyenv
-.python-version
+*.python-version
+
+# VIM
+*.swp
 
 # celery beat schedule file
 celerybeat-schedule

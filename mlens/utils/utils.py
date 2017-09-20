@@ -7,10 +7,15 @@
 
 from __future__ import division, print_function, with_statement
 
-from numpy import array
-import subprocess
-import sys
 import os
+import sys
+import warnings
+
+import subprocess
+from numpy import array
+
+from ..config import IVALS
+from .exceptions import ParallelProcessingError, ParallelProcessingWarning
 
 try:
     import psutil
@@ -31,16 +36,56 @@ except ImportError:
 
 
 ###############################################################################
+def pickable(name):
+    """Filetype enforcer"""
+    if not name.endswith('.pkl'):
+        name = '.'.join([name, 'pkl'])
+    return name
+
+
 def pickle_save(obj, name):
     """Utility function for pickling an object"""
-    with open(name + '.pkl', 'wb') as f:
+    with open(pickable(name), 'wb') as f:
         pickle.dump(obj, f)
 
 
 def pickle_load(name):
     """Utility function for loading pickled object"""
-    with open(name, 'rb') as f:
+    with open(pickable(name), 'rb') as f:
         return pickle.load(f)
+
+
+def load(file, raise_on_exception, enforce_filetype=True):
+    """Utility exception handler for loading file"""
+    s, lim = IVALS
+    if enforce_filetype:
+        file = pickable(file)
+
+    try:
+        return pickle_load(file)
+    except (OSError, IOError) as exc:
+        msg = str(exc)
+
+        ts = _time()
+        while not os.path.exists(file):
+            sleep(s)
+
+            if _time() - ts > lim:
+                if raise_on_exception:
+                    raise ParallelProcessingError(
+                        "Could not load transformer at %s\nDetails:\n%r" %
+                        (dir, msg))
+
+                warnings.warn("Could not load transformer at %s. "
+                              "Will check every %.1f seconds for %i seconds "
+                              "before aborting. " % (file, s, lim),
+                              ParallelProcessingWarning)
+
+                # Set raise_on_exception to True now to ensure timeout
+                raise_on_exception = True
+                ts = _time()
+
+        return pickle_load(file)
 
 
 ###############################################################################

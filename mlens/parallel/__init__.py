@@ -11,6 +11,7 @@ from .subset import SubStacker
 from .single_run import SingleRun
 from .evaluation import Evaluation
 from .estimation import BaseEstimator
+from .learner import Learner, Transformer
 from .manager import ParallelProcessing, ParallelEvaluation
 
 __all__ = ['ParallelProcessing',
@@ -20,5 +21,7 @@ __all__ = ['ParallelProcessing',
            'SubStacker',
            'SingleRun',
            'Evaluation',
-           'BaseEstimator'
+           'BaseEstimator',
+           'Learner',
+           'Transformer',
            ]

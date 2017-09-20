@@ -340,7 +340,7 @@ class ParallelProcessing(BaseProcessor):
 
         if lyr.proba:
             if self.job.job == 'fit':
-                lyr.classes_ = np.unique(self.job.y).shape[0]
+                lyr.set_output_columns(self.job.y)
 
             s1 *= lyr.classes_
 

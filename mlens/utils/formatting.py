@@ -66,7 +66,7 @@ def _format_instances(instances):
             name += '-%d' % current_name_count  # rename
         out.append((name, instance))
 
-    return out
+    return sorted(out)
 
 
 def _check_format(instance_list):
@@ -120,7 +120,7 @@ def _assert_format(instances):
     return _check_format(instances)
 
 
-def check_instances(instances):
+def check_instances(instances, flatten_sort=False):
     """Helper to ensure all instances are named.
 
     Check if ``instances`` is formatted as expected, and if not convert
@@ -131,13 +131,17 @@ def check_instances(instances):
     instances : iterable
         instance iterable to test.
 
+    flatten_sort : bool (default=False)
+        whether to flatten a dict into a list and sort on case_est keys,
+        where 'case' is the preprocessing key and 'est' is the estimator name.
+
     Returns
     -------
     formatted : list or dict
         formatted ``instances`` object. Will be formatted as a dict if
         preprocessing cases are detected, otherwise as a list. The dict will
         contain lists identical to those in the single preprocessing case.
-        Each list is of the form ``[('name', instance]`` and no names overlap.
+        Each list is of the form ``[('name', instance)]`` and no names overlap.
 
     Raises
     ------
@@ -157,17 +161,24 @@ def check_instances(instances):
         # Instance is the estimator, wrap in list and continue
         instances = [instances]
 
-    if _assert_format(instances):
-        # If format is ok, return as is
+    if not flatten_sort and _assert_format(instances):
+        # If format is ok and no force flattening, return as is
         return instances
-    else:
-        # reformat
-        if isinstance(instances, dict):
-            # We need to check the instance list of each case
-            out = {}
-            for case, case_list in instances.items():
-                out['-'.join(case.lower().split())] = \
-                    _format_instances(case_list)
-            return out
-        else:
-            return _format_instances(instances)
+
+    # reformat
+    if isinstance(instances, dict):
+        # We need to check the instance list of each case
+        out = {}
+        for case, case_list in instances.items():
+            out['-'.join(case.lower().split())] = \
+                _format_instances(case_list)
+
+        if flatten_sort:
+            # Compress dicitonary and sort on case_est keys
+            vps = [('%s__%s' % (case, est_name), est)
+                   for case, instance_list in out.items()
+                   for est_name, est in instance_list]
+            out = sorted(vps)
+        return out
+
+    return _format_instances(instances)

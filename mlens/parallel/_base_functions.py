@@ -3,26 +3,17 @@ Functions for base computations
 """
 
 import os
-import numpy as np
-from time import sleep
-from scipy.sparse import issparse
+import warnings
 from copy import deepcopy
+from scipy.sparse import issparse
+import numpy as np
 
 from ..externals.joblib import delayed
-from ..utils import pickle_load, pickle_save
-from ..utils.exceptions import (ParallelProcessingError,
-                                ParallelProcessingWarning)
-
-try:
-    from time import perf_counter as time_
-except ImportError:
-    from time import time as time_
-
-import warnings
+from ..utils import pickle_load
 
 
 # Default params
-IVALS = (0.01, 120)
+
 def predict_fold_est(*args): pass
 def fit_est(*args): pass
 def predict(*args): pass
@@ -241,34 +232,3 @@ def _transform(tr, x, y):
         x, y = tr.transform(x, y)
 
     return x, y
-
-
-def _load_trans(dir, ivals, raise_on_exception):
-    """Try loading transformers, and handle exception if not ready yet."""
-    s = ivals[0]
-    lim = ivals[1]
-    try:
-        return pickle_load(dir)
-    except (OSError, IOError) as exc:
-        msg = str(exc)
-
-        ts = time_()
-        while not os.path.exists(dir):
-            sleep(s)
-
-            if time_() - ts > lim:
-                if raise_on_exception:
-                    raise ParallelProcessingError(
-                        "Could not load transformer at %s\nDetails:\n%r" %
-                        (dir, msg))
-
-                warnings.warn("Could not load transformer at %s. "
-                              "Will check every %.1f seconds for %i seconds "
-                              "before aborting. " % (dir, s, lim),
-                              ParallelProcessingWarning)
-
-                # Set raise_on_exception to True now to ensure timeout
-                raise_on_exception = True
-                ts = time_()
-
-        return pickle_load(dir)

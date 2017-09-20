@@ -6,6 +6,9 @@
 
 Base classes for ensemble layer management.
 """
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-instance-attributes
+
 
 from __future__ import division, print_function
 
@@ -13,9 +16,11 @@ from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 import warnings
 
+import numpy as np
+
 from .. import config
 from ..base import INDEXERS
-from ..parallel import ParallelProcessing
+from ..parallel import ParallelProcessing, Learner, Transformer
 from ..externals.sklearn.base import BaseEstimator
 from ..utils import assert_correct_format, check_ensemble_build, \
     check_inputs, check_instances, print_time, safe_print
@@ -113,7 +118,13 @@ class LayerContainer(BaseEstimator):
         self._init_layers(layers)
         self._has_meta_layer = False
 
-    def add(self, estimators, cls, meta=False, indexer=None, preprocessing=None, **kwargs):
+    def add(self,
+            estimators,
+            cls,
+            meta=False,
+            indexer=None,
+            preprocessing=None,
+            **kwargs):
         """Method for adding a layer.
 
         Parameters
@@ -192,8 +203,8 @@ class LayerContainer(BaseEstimator):
         if meta:
             if self._has_meta_layer:
                 warnings.warn("Ensemble already has meta layer, "
-                               "adding a second meta layer can "
-                               "result in unexpected behavior.")
+                              "adding a second meta layer can "
+                              "result in unexpected behavior.")
             else:
                 self._has_meta_layer = True
 
@@ -389,7 +400,7 @@ class LayerContainer(BaseEstimator):
                         out['score_mean'][(layer_name, est_name)] = s[0]
                         out['score_std'][(layer_name, est_name)] = s[1]
 
-        if len(out['score_mean']) == 0:
+        if not out['score_mean']:
             out = None
 
         if return_preds:
@@ -579,6 +590,7 @@ class Layer(BaseEstimator):
                  partitions=1,
                  propagate_features=None,
                  scorer=None,
+                 fit_on_all=True,
                  raise_on_exception=False,
                  name=None,
                  shuffle=False,
@@ -586,35 +598,122 @@ class Layer(BaseEstimator):
                  dtype=None,
                  verbose=False,
                  cls_kwargs=None):
-
-        assert_correct_format(estimators, preprocessing)
-
-        self.estimators = check_instances(estimators)
+        self.name = name
+        self.meta = meta
+        self.proba = proba
+        self.scorer = scorer
+        self.shuffle = shuffle
+        self.verbose = verbose
+        self.cls_kwargs = cls_kwargs
+        self.partitions = partitions
+        self.random_state = random_state
+        self.fit_on_all = fit_on_all
+        self.propagate_features = propagate_features
+        self.raise_on_exception = raise_on_exception
+        self._predict_attr = 'predict' if not proba else 'predict_proba'
+        self.dtype = dtype if dtype is not None else config.DTYPE
         self.cls = \
             cls.strip().lower() if not cls.islower() or ' ' in cls else cls
-        self.meta = meta
         self.indexer = indexer if indexer is not None else INDEXERS[cls]()
-        self.preprocessing = check_instances(preprocessing)
-        self.cls_kwargs = cls_kwargs
-        self.proba = proba
-        self._predict_attr = 'predict' if not proba else 'predict_proba'
-        self.partitions = partitions
-        self.propagate_features = propagate_features
-        self.scorer = scorer
-        self.raise_on_exception = raise_on_exception
-        self.name = name
-        self.shuffle = shuffle
-        self.random_state = random_state
-        self.dtype = dtype if dtype is not None else config.DTYPE
-        self.verbose = verbose
 
-        self._store_layer_data()
+        self._set_learners(estimators, preprocessing)
 
-    def _store_layer_data(self):
+    def _set_learners(self, estimators, preprocessing):
+        """Set learners and preprocessing pipelines in layer"""
+        assert_correct_format(estimators, preprocessing)
+        self._estimators = check_instances(estimators, flatten_sort=True)
+        self._preprocessing = check_instances(preprocessing)  # Don't flatten
+
+        self._learners = [
+            Learner(estimator=est,
+                    preprocess=learner_name.split('__')[0],
+                    indexer=self.indexer,
+                    name=learner_name,
+                    attr=self._predict_attr,
+                    partitions=self.partitions,
+                    n_prediction_features=1,        # Let users specify this
+                    output_columns=None,
+                    scorer=self.scorer,
+                    fit_on_all=self.fit_on_all,
+                    raise_on_exception=self.raise_on_exception)
+            for learner_name, est in self._estimators
+        ]
+
+        self._transformers = [
+            Transformer(pipeline=transformers,
+                        name=prep_name,
+                        indexer=self.indexer,
+                        partitions=self.partitions,
+                        fit_on_all=self.fit_on_all,
+                        raise_on_exception=self.raise_on_exception)
+            for prep_name, transformers in sorted(self._preprocessing.items())
+        ]
+
+        self._store_layer_data(
+            check_instances(estimators, flatten_sort=False), preprocessing)
+
+    @property
+    def learners(self):
+        """Generator for learners in layer"""
+        for learner in self._learners:
+            yield learner
+
+    @learners.setter
+    def learners(self, estimators, preprocessing=None):
+        """Update learners in layer"""
+        if preprocessing is None:
+            preprocessing = self._preprocessing
+        self._set_learners(estimators, preprocessing)
+
+    @property
+    def transformers(self):
+        """Generator for learners in layer"""
+        for transformer in self._transformers:
+            yield transformer
+
+    @transformers.setter
+    def transformers(self, preprocessing, estimators=None):
+        """Update learners in layer"""
+        if estimators is None:
+            estimators = self._estimators
+        self._set_learners(estimators, preprocessing)
+
+    def set_output_columns(self, y=None):
+        """Set output columns for learners"""
+        # First make dummy allocation to check that it works out
+        if self.proba:
+            self.classes_ = multiplier = np.unique(y).shape[0]
+        else:
+            multiplier = 1
+        n_prediction_features = self.n_pred * multiplier
+
+        col_index = 0
+        col_map = list()
+        for lr in self.learners:
+            col_dict = dict()
+
+            for partition_index in range(self.partitions):
+                col_dict[partition_index] = col_index
+
+                col_index += lr.n_prediction_features * multiplier
+
+            col_map.append([lr, col_dict])
+
+        if col_index != n_prediction_features:
+            # Note that since col_index is incremented at the end,
+            # the largest index_value we have col_index - 1
+            raise ValueError(
+                "Mismatch feature size in prediction array (%i) "
+                "and max column index implied by learner "
+                "predictions sizes (%i)" %
+                (n_prediction_features, col_index - 1))
+
+        # Good to go
+        for lr, col_dict in col_map:
+            lr.output_columns = col_dict
+
+    def _store_layer_data(self, ests, prep):
         """Utility for storing aggregate attributes about the layer."""
-        ests = self.estimators
-        prep = self.preprocessing
-
         # Store feature propagation data
         if self.propagate_features:
             if not isinstance(self.propagate_features, list):
@@ -645,7 +744,7 @@ class Layer(BaseEstimator):
 
             self.n_pred = self.n_est = n_pred
 
-        if self.cls is 'subset':
+        if self.cls == 'subset':
             self.n_pred *= self.indexer.n_partitions
             self.n_prep *= self.indexer.n_partitions
 

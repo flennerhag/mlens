@@ -23,7 +23,10 @@ import warnings
 
 # Default params
 IVALS = (0.01, 120)
-
+def predict_fold_est(*args): pass
+def fit_est(*args): pass
+def predict(*args): pass
+def fit_trans(*args): pass
 
 ###############################################################################
 # Base estimation jobs
@@ -97,110 +100,6 @@ def transform(inst, X, P, parallel):
              for case, (est_name, est, idx) in ests)
 
 ###############################################################################
-# Estimation functions
-
-
-def predict_est(tr_list, est, x, pred, col, attr):
-    """Method for predicting with fitted transformers and estimators."""
-    x, _ = _slice_array(x, None, None)
-
-    for tr_name, tr in tr_list:
-        x = tr.transform(x)
-
-    p = getattr(est, attr)(x)
-
-    if len(p.shape) == 1:
-        pred[:, col] = p
-    else:
-        pred[:, col:(col + p.shape[1])] = p
-
-
-def predict_fold_est(tr_list, est, x, pred, idx, attr):
-    """Method for predicting with transformers and estimators from fit call."""
-    tei, col = idx[0], idx[1]
-    n = x.shape[0]
-
-    x, _ = _slice_array(x, None, tei)
-
-    for tr_name, tr in tr_list:
-        x = tr.transform(x)
-
-    p = getattr(est, attr)(x)
-    _assign_predictions(pred, p, tei, col, n)
-
-
-def fit_trans(dir, case, inst, x, y, idx):
-    """Fit transformers and write to cache."""
-    x, y = _slice_array(x, y, idx)
-
-    out = []
-    for tr_name, tr in inst:
-        # Fit transformer
-        tr.fit(x, y)
-
-        # If more than one step, transform input for next step.
-        if len(inst) > 1:
-            x, y = _transform(tr, x, y)
-
-        out.append((tr_name, tr))
-
-    # Write transformer list to cache
-    f = os.path.join(dir, '%s__t' % case)
-    pickle_save(out, f)
-
-
-def fit_est(dir, case, inst_name, inst, x, y, pred, idx, raise_on_exception,
-            preprocess, name, ivals, attr, scorer=None):
-    """Fit estimator and write to cache along with predictions."""
-    # Have to be careful in prepping data for estimation.
-    # We need to slice memmap and convert to a proper array - otherwise
-    # estimators can store results memmaped to the cache, which will
-    # prevent the garbage collector from releasing memmaps from memory
-    n = x.shape[0]
-    xtemp, ytemp = _slice_array(x, y, idx[0])
-
-    # Load transformers
-    if preprocess:
-        f = os.path.join(dir, '%s__t' % case)
-        tr_list = _load_trans(f, case, ivals, raise_on_exception)
-    else:
-        tr_list = []
-
-    # Transform input (triggers copying)
-    for tr_name, tr in tr_list:
-        xtemp, ytemp = _transform(tr, xtemp, ytemp)
-
-    # Fit estimator
-    inst.fit(xtemp, ytemp)
-
-    # Predict if asked
-    if idx[1]:
-        tei = idx[1]
-        col = idx[2]
-
-        xtemp, ytemp = _slice_array(x, y, tei)
-
-        for tr_name, tr in tr_list:
-            xtemp = tr.transform(xtemp)
-
-        p = getattr(inst, attr)(xtemp)
-
-        # Assign predictions to matrix
-        _assign_predictions(pred, p, tei, col, n)
-
-        # Score predictions if applicable
-        s = _score_predictions(ytemp, p, scorer, name, inst_name)
-
-        idx = idx[1:]  # format as (tei, col)
-    else:
-        idx = (None, idx[2])  # format as (None, col), where None => all obs
-        s = None
-
-    f = os.path.join(dir, '%s__%s__e' % (case, inst_name))
-    pickle_save((inst_name, inst, idx, s), f)
-
-
-###############################################################################
 # Helpers
 def assemble(inst):
     """Store fitted transformer and estimators in the layer."""
@@ -269,8 +168,13 @@ def _slice_array(x, y, idx, r=0):
 def _assign_predictions(pred, p, tei, col, n):
     """Assign predictions to memmaped prediction array."""
     if tei == 'all':
-        # Assign to all data
-        pred[:, col] = p
+        tei = None
+
+    if tei is None:
+        if len(p.shape) == 1:
+            pred[:, col] = p
+        else:
+            pred[:, col:(col + p.shape[1])] = p
     else:
         r = n - pred.shape[0]
 
@@ -339,43 +243,31 @@ def _transform(tr, x, y):
     return x, y
 
 
-def _load_trans(dir, case, ivals, raise_on_exception):
+def _load_trans(dir, ivals, raise_on_exception):
     """Try loading transformers, and handle exception if not ready yet."""
     s = ivals[0]
     lim = ivals[1]
     try:
-        # Assume file exists
         return pickle_load(dir)
     except (OSError, IOError) as exc:
-        # We would expect an OSError, but Python 2.7 we get an IOError
         msg = str(exc)
-        error_msg = ("The file %s cannot be found after %i seconds of "
-                     "waiting. Check that time to fit transformers is "
-                     "sufficiently fast to complete fitting before "
-                     "fitting estimators. Consider reducing the "
-                     "preprocessing intensity in the ensemble, or "
-                     "increase the '__lim__' attribute to wait extend "
-                     "period of waiting on transformation to complete."
-                     " Details:\n%r")
 
-        # Wait and check if transformer is readied.
         ts = time_()
         while not os.path.exists(dir):
-
             sleep(s)
 
             if time_() - ts > lim:
-                # If timeout limit is reached, raise error
                 if raise_on_exception:
-                    raise ParallelProcessingError(error_msg % (dir, lim, msg))
+                    raise ParallelProcessingError(
+                        "Could not load transformer at %s\nDetails:\n%r" %
+                        (dir, msg))
 
-                warnings.warn("Transformer %s not found in cache (%s). "
+                warnings.warn("Could not load transformer at %s. "
                               "Will check every %.1f seconds for %i seconds "
-                              "before aborting. " % (case, dir, s, lim),
+                              "before aborting. " % (dir, s, lim),
                               ParallelProcessingWarning)
 
-                # If not raise_on_exception, we set it to True now to ensure
-                # a second timeout aborts the job
+                # Set raise_on_exception to True now to ensure timeout
                 raise_on_exception = True
                 ts = time_()
 

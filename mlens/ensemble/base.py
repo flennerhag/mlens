@@ -191,9 +191,9 @@ class LayerContainer(BaseEstimator):
         """
         if meta:
             if self._has_meta_layer:
-                warnings.Warn("Ensemble already has meta layer, "
-                              "adding a second meta layer can "
-                              "result in unexpected behavior.")
+                warnings.warn("Ensemble already has meta layer, "
+                               "adding a second meta layer can "
+                               "result in unexpected behavior.")
             else:
                 self._has_meta_layer = True
 
@@ -687,9 +687,8 @@ class Layer(BaseEstimator):
 
         return out
 
+
 ###############################################################################
-
-
 class BaseEnsemble(BaseEstimator):
 
     """BaseEnsemble class.

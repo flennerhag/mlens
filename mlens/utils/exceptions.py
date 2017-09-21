@@ -82,6 +82,14 @@ class InputDataWarning(UserWarning):
     """
 
 
+class MetricWarning(UserWarning):
+
+    """Warning to notify that scoring do not behave as expected.
+
+    Raised if scoring fails or if aggregating scores fails.
+    """
+
+
 ###############################################################################
 class EfficiencyWarning(UserWarning):
 

@@ -288,6 +288,7 @@ class ParallelProcessing(BaseProcessor):
         self._gen_prediction_array(name, layer, self.__threading__)
 
         # Run estimation to populate prediction matrix
+        layer.set_output_columns(self.job.y)
         layer(parallel, self.job.args)
 
         # Propagate features from input to output

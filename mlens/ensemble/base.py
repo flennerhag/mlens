@@ -6,6 +6,7 @@
 
 Base classes for ensemble layer management.
 """
+# pylint: disable=protected-access
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-instance-attributes
 
@@ -16,14 +17,14 @@ from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 import warnings
 
-import numpy as np
-
+from .layer import Layer
 from .. import config
-from ..base import INDEXERS
-from ..parallel import ParallelProcessing, Learner, Transformer
+from ..parallel import ParallelProcessing
 from ..externals.sklearn.base import BaseEstimator
-from ..utils import assert_correct_format, check_ensemble_build, \
-    check_inputs, check_instances, print_time, safe_print
+from ..utils import (check_ensemble_build,
+                     check_inputs,
+                     print_time,
+                     safe_print)
 try:
     # Try get performance counter
     from time import perf_counter as time
@@ -37,7 +38,7 @@ def print_job(lc, start_message):
 
     Parameters
     ----------
-    lc : :class:`LayerContainer`
+    lc : :class:`Sequential`
         The LayerContainer instance running the job.
 
     start_message : str
@@ -63,11 +64,11 @@ def print_job(lc, start_message):
 
 
 ###############################################################################
-class LayerContainer(BaseEstimator):
+class Sequential(BaseEstimator):
 
     r"""Container class for layers.
 
-    The LayerContainer class stories all layers as an ordered dictionary
+    The Sequential class stories all layers as an ordered dictionary
     and modifies possesses a ``get_params`` method to appear as an estimator
     in the Scikit-learn API. This allows correct cloning and parameter
     updating.
@@ -77,7 +78,7 @@ class LayerContainer(BaseEstimator):
     ----------
     layers : OrderedDict, None (default = None)
         An ordered dictionary of Layer instances. To initiate a new
-        ``LayerContainer`` instance, set ``layers = None``.
+        ``Sequential`` instance, set ``layers = None``.
 
     n_jobs : int (default = -1)
         Number of CPUs to use. Set ``n_jobs = -1`` for all available CPUs, and
@@ -115,14 +116,36 @@ class LayerContainer(BaseEstimator):
         self.verbose = verbose
 
         # Set up layer
+        self.scores = None
         self._init_layers(layers)
         self._has_meta_layer = False
 
+    def __call__(self, *layers):
+        """Add layers to instance"""
+        for lyr in layers:
+            if lyr._name in self.layer_names:
+                raise ValueError("Layer name exists in stack. "
+                                 "Rename layers before attempting to push.")
+
+            if lyr.meta:
+                if self._has_meta_layer:
+                    warnings.warn("Ensemble already has meta layer, "
+                                  "adding a second meta layer can "
+                                  "result in unexpected behavior.")
+                else:
+                    self._has_meta_layer = True
+
+            self.n_layers += 1
+
+            self.layer_names.append(lyr._name)
+            self.layers[lyr._name] = lyr
+            self.summary[lyr._name] = self._get_layer_data(lyr._name)
+            return self
+
     def add(self,
             estimators,
-            cls,
+            indexer,
             meta=False,
-            indexer=None,
             preprocessing=None,
             **kwargs):
         """Method for adding a layer.
@@ -152,11 +175,6 @@ class LayerContainer(BaseEstimator):
 
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
-
-        cls : str
-            Type of layer, as defined by the estimation class to instantiate
-            when processing a layer. See :mod:`mlens.ensemble` for available
-            classes.
 
         meta : bool
             flag for if added layer is a meta layer
@@ -200,14 +218,6 @@ class LayerContainer(BaseEstimator):
             if ``in_place = True``, returns ``self`` with the layer
             instantiated.
         """
-        if meta:
-            if self._has_meta_layer:
-                warnings.warn("Ensemble already has meta layer, "
-                              "adding a second meta layer can "
-                              "result in unexpected behavior.")
-            else:
-                self._has_meta_layer = True
-
         # Check verbosity
         if kwargs is None:
             kwargs = {'verbose': self.verbose}
@@ -215,11 +225,8 @@ class LayerContainer(BaseEstimator):
             kwargs['verbose'] = self.verbose
 
         # Instantiate layer
-        self.n_layers += 1
         name = "layer-%i" % self.n_layers
-
         lyr = Layer(estimators=estimators,
-                    cls=cls,
                     meta=meta,
                     indexer=indexer,
                     preprocessing=preprocessing,
@@ -227,14 +234,8 @@ class LayerContainer(BaseEstimator):
                     name=name,
                     **kwargs)
 
-        # Attach to ordered dictionary
-        self.layers[name] = lyr
-        self.layer_names.append(name)
-
-        # Summarize
-        self.summary[name] = self._get_layer_data(name)
-
-        return self
+        # Add layer to stack
+        return self(lyr)
 
     def fit(self, X=None, y=None, return_preds=None, **process_kwargs):
         r"""Fit instance by calling ``predict_proba`` in the first layer.
@@ -389,24 +390,17 @@ class LayerContainer(BaseEstimator):
 
     def _post_process(self, processor, return_preds):
         """Aggregate output from processing layers and _collect final preds."""
-        out = {'score_mean': {}, 'score_std': {}}
+        out = dict()
         for layer_name, layer in self.layers.items():
-            if layer.cls != 'full':
-                # Layers of class 'full' make no cv predictions
-                layer_scores = getattr(layer, 'scores_', None)
+            layer_scores = getattr(layer, 'scores', None)
+            if layer_scores is not None:
+                out.update(layer_scores)
 
-                if layer_scores is not None:
-                    for est_name, s in layer_scores.items():
-                        out['score_mean'][(layer_name, est_name)] = s[0]
-                        out['score_std'][(layer_name, est_name)] = s[1]
-
-        if not out['score_mean']:
-            out = None
+        if out:
+            self.scores = out
 
         if return_preds:
-            return out, processor.get_preds()
-        else:
-            return out
+            return processor.get_preds()
 
     def _init_layers(self, layers):
         """Return a clean ordered dictionary or copy the passed dictionary."""
@@ -443,7 +437,7 @@ class LayerContainer(BaseEstimator):
             mapping of parameter names mapped to their values.
         """
         if not deep:
-            return super(LayerContainer, self).get_params()
+            return super(Sequential, self).get_params()
 
         out = {}
         for layer_name, layer in self.layers.items():
@@ -453,336 +447,6 @@ class LayerContainer(BaseEstimator):
             for key, val in layer.get_params(deep=True).items():
                 # Add the parameters (instances) of each layer
                 out["%s__%s" % (layer_name, key)] = val
-
-        return out
-
-
-class Layer(BaseEstimator):
-
-    r"""Layer of preprocessing pipes and estimators.
-
-    Layer is an internal class that holds a layer and its associated data
-    including an estimation procedure. It behaves as an estimator from an
-    Scikit-learn API point of view.
-
-    Parameters
-    ----------
-    estimators: dict of lists or list
-        estimators constituting the layer. If ``preprocessing`` is
-        ``None`` or ``list``, ``estimators`` should be a ``list``.
-        The list can either contain estimator instances,
-        named tuples of estimator instances, or a combination of both. ::
-
-            option_1 = [estimator_1, estimator_2]
-            option_2 = [("est-1", estimator_1), ("est-2", estimator_2)]
-            option_3 = [estimator_1, ("est-2", estimator_2)]
-
-        If different preprocessing pipelines are desired, a dictionary
-        that maps estimators to preprocessing pipelines must be passed.
-        The names of the estimator dictionary must correspond to the
-        names of the estimator dictionary. ::
-
-            preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                   "case-2": [alt_trans_1, alt_trans_2]}
-
-            estimators = {"case-1": [est_a, est_b].
-                          "case-2": [est_c, est_d]}
-
-        The lists for each dictionary entry can be any of ``option_1``,
-        ``option_2`` and ``option_3``.
-
-    cls : str
-        type of layers. Should be the name of an accepted estimator class.
-
-    meta : bool (default = False)
-        flag for whether given layer is the final meta layer
-
-    indexer : instance, optional
-        Indexer instance to use. Defaults to the layer class indexer
-        instantiated with default settings. Required arguments depend on the
-        indexer. See :mod:`mlens.base` for details.
-
-    preprocessing: dict of lists or list, optional (default = None)
-        preprocessing pipelines for given layer. If
-        the same preprocessing applies to all estimators, ``preprocessing``
-        should be a list of transformer instances. The list can contain the
-        instances directly, named tuples of transformers,
-        or a combination of both. ::
-
-            option_1 = [transformer_1, transformer_2]
-            option_2 = [("trans-1", transformer_1),
-                        ("trans-2", transformer_2)]
-            option_3 = [transformer_1, ("trans-2", transformer_2)]
-
-        If different preprocessing pipelines are desired, a dictionary
-        that maps preprocessing pipelines must be passed. The names of the
-        preprocessing dictionary must correspond to the names of the
-        estimator dictionary. ::
-
-            preprocessing_cases = {"case-1": [trans_1, trans_2].
-                                   "case-2": [alt_trans_1, alt_trans_2]}
-
-            estimators = {"case-1": [est_a, est_b].
-                          "case-2": [est_c, est_d]}
-
-        The lists for each dictionary entry can be any of ``option_1``,
-        ``option_2`` and ``option_3``.
-
-    proba : bool (default = False)
-        whether to call `predict_proba` on the estimators in the layer when
-        predicting.
-
-    partitions : int (default = 1)
-        Number of subset-specific fits to generate from the learner library.
-
-    propagate_features : list, optional
-        Features to propagate from the input array to the output array.
-        Carries input features to the output of the layer, useful for
-        propagating original data through several stacked layers. Propagated
-        features are stored in the left-most columns.
-
-    raise_on_exception : bool (default = False)
-        whether to raise an error on soft exceptions, else issue warning.
-
-    verbose : int or bool (default = False)
-        level of verbosity.
-
-            - ``verbose = 0`` silent (same as ``verbose = False``)
-
-            - ``verbose = 1`` messages at start and finish \
-              (same as ``verbose = True``)
-
-            - ``verbose = 2`` messages for each layer
-
-        If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
-        For verbosity in the layers themselves, use ``fit_params``.
-
-    shuffle : bool (default = False)
-        Whether to shuffle data before fitting layer.
-
-    random_state : int, optional
-        Random seed number to use for shuffling inputs
-
-    dtype : numpy dtype class, default = :class:`numpy.float32`
-        dtype format of prediction array.
-
-    cls_kwargs : dict or None
-        optional arguments to pass to the layer type class.
-
-    Attributes
-    ----------
-    estimators\_ : OrderedDict, list
-        container for fitted estimators, possibly mapped to preprocessing
-        cases and / or folds.
-
-    preprocessing\_ : OrderedDict, list
-        container for fitted preprocessing pipelines, possibly mapped to
-        preprocessing cases and / or folds.
-    """
-
-    def __init__(self,
-                 estimators,
-                 cls,
-                 meta=False,
-                 indexer=None,
-                 preprocessing=None,
-                 proba=False,
-                 partitions=1,
-                 propagate_features=None,
-                 scorer=None,
-                 fit_on_all=True,
-                 raise_on_exception=False,
-                 name=None,
-                 shuffle=False,
-                 random_state=None,
-                 dtype=None,
-                 verbose=False,
-                 cls_kwargs=None):
-        self.name = name
-        self.meta = meta
-        self.proba = proba
-        self.scorer = scorer
-        self.shuffle = shuffle
-        self.verbose = verbose
-        self.cls_kwargs = cls_kwargs
-        self.partitions = partitions
-        self.random_state = random_state
-        self.fit_on_all = fit_on_all
-        self.propagate_features = propagate_features
-        self.raise_on_exception = raise_on_exception
-        self._predict_attr = 'predict' if not proba else 'predict_proba'
-        self.dtype = dtype if dtype is not None else config.DTYPE
-        self.cls = \
-            cls.strip().lower() if not cls.islower() or ' ' in cls else cls
-        self.indexer = indexer if indexer is not None else INDEXERS[cls]()
-
-        self._set_learners(estimators, preprocessing)
-
-    def _set_learners(self, estimators, preprocessing):
-        """Set learners and preprocessing pipelines in layer"""
-        assert_correct_format(estimators, preprocessing)
-        self._estimators = check_instances(estimators, flatten_sort=True)
-        self._preprocessing = check_instances(preprocessing)  # Don't flatten
-
-        self._learners = [
-            Learner(estimator=est,
-                    preprocess=learner_name.split('__')[0],
-                    indexer=self.indexer,
-                    name=learner_name,
-                    attr=self._predict_attr,
-                    partitions=self.partitions,
-                    n_prediction_features=1,        # Let users specify this
-                    output_columns=None,
-                    scorer=self.scorer,
-                    fit_on_all=self.fit_on_all,
-                    raise_on_exception=self.raise_on_exception)
-            for learner_name, est in self._estimators
-        ]
-
-        self._transformers = [
-            Transformer(pipeline=transformers,
-                        name=prep_name,
-                        indexer=self.indexer,
-                        partitions=self.partitions,
-                        fit_on_all=self.fit_on_all,
-                        raise_on_exception=self.raise_on_exception)
-            for prep_name, transformers in sorted(self._preprocessing.items())
-        ]
-
-        self._store_layer_data(
-            check_instances(estimators, flatten_sort=False), preprocessing)
-
-    @property
-    def learners(self):
-        """Generator for learners in layer"""
-        for learner in self._learners:
-            yield learner
-
-    @learners.setter
-    def learners(self, estimators, preprocessing=None):
-        """Update learners in layer"""
-        if preprocessing is None:
-            preprocessing = self._preprocessing
-        self._set_learners(estimators, preprocessing)
-
-    @property
-    def transformers(self):
-        """Generator for learners in layer"""
-        for transformer in self._transformers:
-            yield transformer
-
-    @transformers.setter
-    def transformers(self, preprocessing, estimators=None):
-        """Update learners in layer"""
-        if estimators is None:
-            estimators = self._estimators
-        self._set_learners(estimators, preprocessing)
-
-    def set_output_columns(self, y=None):
-        """Set output columns for learners"""
-        # First make dummy allocation to check that it works out
-        if self.proba:
-            self.classes_ = multiplier = np.unique(y).shape[0]
-        else:
-            multiplier = 1
-        n_prediction_features = self.n_pred * multiplier
-
-        col_index = 0
-        col_map = list()
-        for lr in self.learners:
-            col_dict = dict()
-
-            for partition_index in range(self.partitions):
-                col_dict[partition_index] = col_index
-
-                col_index += lr.n_prediction_features * multiplier
-
-            col_map.append([lr, col_dict])
-
-        if col_index != n_prediction_features:
-            # Note that since col_index is incremented at the end,
-            # the largest index_value we have col_index - 1
-            raise ValueError(
-                "Mismatch feature size in prediction array (%i) "
-                "and max column index implied by learner "
-                "predictions sizes (%i)" %
-                (n_prediction_features, col_index - 1))
-
-        # Good to go
-        for lr, col_dict in col_map:
-            lr.output_columns = col_dict
-
-    def _store_layer_data(self, ests, prep):
-        """Utility for storing aggregate attributes about the layer."""
-        # Store feature propagation data
-        if self.propagate_features:
-            if not isinstance(self.propagate_features, list):
-                raise ValueError("propagate features expected list, got %s" %
-                                 self.propagate_features.__class__)
-            self.n_feature_prop = len(self.propagate_features)
-        else:
-            self.n_feature_prop = 0
-
-        # Store layer estimator data
-        if isinstance(ests, list):
-            # No preprocessing cases. Check if there is one uniform pipeline.
-            self.n_prep = 0 if prep is None or len(prep) == 0 else 1
-            self.n_pred = len(ests)
-            self.n_est = len(ests)
-            self.cases = [None]
-        else:
-            # Get the number of predictions by moving through each
-            # case and count estimators.
-            self.n_prep = len(prep)
-            self.cases = sorted(prep)
-
-            n_pred = 0
-            for case in self.cases:
-                n_est = len(ests[case])
-                setattr(self, '%s_n_est' % case, n_est)
-                n_pred += n_est
-
-            self.n_pred = self.n_est = n_pred
-
-        if self.cls == 'subset':
-            self.n_pred *= self.indexer.n_partitions
-            self.n_prep *= self.indexer.n_partitions
-
-    def get_params(self, deep=True):
-        """Get parameters for this estimator.
-
-        Parameters
-        ----------
-        deep : boolean (default = True)
-            If ``True``, will return the layers separately as individual
-            parameters. If ``False``, will return the collapsed dictionary.
-
-        Returns
-        -------
-        params : dict
-            mapping of parameter names mapped to their values.
-        """
-        if not deep:
-            return super(Layer, self).get_params()
-
-        out = dict()
-        for step in [self.preprocessing, self.estimators]:
-            if isinstance(step, dict):
-                # Mapped preprocessing: need to control for case membership
-                for case, instances in step.items():
-                    for instance_name, instance in instances:
-                        out["%s-%s" % (case, instance_name)] = instance
-                        # Get instance parameters
-                        for k, v in instances.get_params().items():
-                            out["%s-%s__%s" % (case, instance_name, k)] = v
-
-            else:
-                # Simple named list of estimators / transformers
-                for instance_name, instance in step:
-                    out[instance_name] = instance
-                    # Get instance parameters
-                    for k, v in instance.get_params().items():
-                        out["%s__%s" % (instance_name, k)] = v
 
         return out
 
@@ -836,12 +500,12 @@ class BaseEnsemble(BaseEstimator):
              **kwargs):
         """Auxiliary method to be called by ``add``.
 
-        Checks if the ensemble's :class:`LayerContainer` is instantiated and
+        Checks if the ensemble's :class:`Sequential` is instantiated and
         if not, creates one.
 
         See Also
         --------
-        :class:`LayerContainer`
+        :class:`Sequential`
 
         Returns
         -------
@@ -850,7 +514,7 @@ class BaseEnsemble(BaseEstimator):
         """
         # Check if a Layer Container instance is initialized
         if getattr(self, 'layers', None) is None:
-            self.layers = LayerContainer(
+            self.layers = Sequential(
                 n_jobs=self.n_jobs,
                 raise_on_exception=self.raise_on_exception,
                 backend=self.backend,

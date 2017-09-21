@@ -16,7 +16,6 @@ import warnings
 import numpy as np
 from scipy.sparse import issparse, hstack
 
-from . import Blender, Evaluation, SingleRun, Stacker, SubStacker
 from .. import config
 from ..externals.joblib import Parallel, dump, load
 from ..externals.sklearn.validation import check_random_state
@@ -24,16 +23,8 @@ from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
                                 ParallelProcessingWarning)
 
-
-ENGINES = {'full': SingleRun,
-           'stack': Stacker,
-           'blend': Blender,
-           'subset': SubStacker,
-           'subsemble': SubStacker,
-           'evaluation': Evaluation
-           }
-
 JOBS = ['predict', 'fit', 'transform', 'evaluate']
+ENGINES = list()
 
 
 ###############################################################################
@@ -147,6 +138,23 @@ class Job(object):
             self.predict_in = self.predict_in[idx]
             self.y = self.y[idx]
 
+    @property
+    def args(self):
+        """Produce args dict"""
+        trans_feed = {'X': self.predict_in}
+        learn_feed = {'X': self.predict_in,
+                      'P': self.predict_out}
+
+        if self.job == 'fit':
+            trans_feed['y'] = self.y
+            learn_feed['y'] = self.y
+
+        out = {'transformer': trans_feed,
+               'learner': learn_feed,
+               'dir': self.dir,
+               'job': self.job}
+        return out
+
 
 ###############################################################################
 class BaseProcessor(object):
@@ -245,14 +253,14 @@ class ParallelProcessing(BaseProcessor):
 
     Parameters
     ----------
-    layers : :class:`mlens.ensemble.base.LayerContainer`
+    layers : :class:`mlens.ensemble.base.Sequential`
         The ``LayerContainer`` that instantiated the processor.
     """
     def __init__(self, caller):
         super(ParallelProcessing, self).__init__(caller)
 
     def process(self):
-        """Fit all layers in the attached :class:`LayerContainer`."""
+        """Fit all layers in the attached :class:`Sequential`."""
         check_initialized(self)
 
         # Process each layer sequentially with the same worker pool
@@ -274,19 +282,17 @@ class ParallelProcessing(BaseProcessor):
                 # Update input array with output array
                 self.job.update()
 
-    def _partial_process(self, name, lyr, parallel):
+    def _partial_process(self, name, layer, parallel):
         """Generate prediction matrix for a given :class:`layer`."""
-        lyr.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
-        self._gen_prediction_array(name, lyr, self.__threading__)
+        layer.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
+        self._gen_prediction_array(name, layer, self.__threading__)
 
         # Run estimation to populate prediction matrix
-        kwd = lyr.cls_kwargs if lyr.cls_kwargs else {}
-        engine = ENGINES[lyr.cls](self.job, lyr, **kwd)
-        engine(parallel)
+        layer(parallel, self.job.args)
 
         # Propagate features from input to output
-        if lyr.propagate_features is not None:
-            self._propagate_features(lyr)
+        if layer.propagate_features is not None:
+            self._propagate_features(layer)
 
     def _propagate_features(self, lyr):
         """Propagate features from input array to output array."""
@@ -388,7 +394,7 @@ class ParallelEvaluation(BaseProcessor):
         super(ParallelEvaluation, self).__init__(caller)
 
     def process(self, attr):
-        """Fit all layers in the attached :class:`LayerContainer`."""
+        """Fit all layers in the attached :class:`Sequential`."""
         check_initialized(self)
 
         # Use context manager to ensure same parallel job during entire process

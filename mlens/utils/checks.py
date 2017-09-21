@@ -36,7 +36,7 @@ def check_ensemble_build(inst, attr='layers'):
         # No layer container. This should not happen!
 
         msg = ("No layer class attached to instance (%s). (Cannot find a "
-               "'LayerContainer' class instance as attribute [%s].)")
+               "'Sequential' class instance as attribute [%s].)")
 
         raise AttributeError(msg % (inst.__class__.__name__, attr))
 

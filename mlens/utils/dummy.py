@@ -27,7 +27,7 @@ from .exceptions import NotFittedError
 from ..externals.sklearn.base import BaseEstimator, TransformerMixin, clone
 from ..externals.sklearn.validation import check_X_y, check_array
 from ..base import INDEXERS
-from ..ensemble.base import Layer, LayerContainer
+from ..ensemble.base import Layer, Sequential
 from ..parallel.manager import ENGINES
 
 
@@ -327,7 +327,7 @@ class InitMixin(object):
 
 
 ###############################################################################
-# Pre-made Layer and LayerContainer classes
+# Pre-made Layer and Sequential classes
 
 PREPROCESSING = {'no': [], 'sc': [('scale', Scale())]}
 
@@ -406,21 +406,21 @@ class LayerGenerator(object):
 
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
-            return LayerContainer().add(estimators=ests,
-                                        cls=kls,
-                                        proba=proba,
-                                        indexer=indexer,
-                                        preprocessing=PREPROCESSING,
-                                        dtype=np.float64,
-                                        **kwargs)
+            return Sequential().add(estimators=ests,
+                                    cls=kls,
+                                    proba=proba,
+                                    indexer=indexer,
+                                    preprocessing=PREPROCESSING,
+                                    dtype=np.float64,
+                                    **kwargs)
         else:
             ests = ECM_PROBA if proba else ECM
-            return LayerContainer().add(estimators=ests,
-                                        cls=kls,
-                                        proba=proba,
-                                        indexer=indexer,
-                                        dtype=np.float64,
-                                        **kwargs)
+            return Sequential().add(estimators=ests,
+                                    cls=kls,
+                                    proba=proba,
+                                    indexer=indexer,
+                                    dtype=np.float64,
+                                    **kwargs)
 
     @staticmethod
     def load_indexer(kls, args, kwargs):
@@ -674,7 +674,12 @@ class Data(object):
         col_ass = 0
 
         # Sort at every occasion
-        for key in sorted(prep):
+        vps = ['%s__%s' % (c, e[0])
+               for c in prep.keys()
+               for e in ests[c]]
+        for meta_key in sorted(vps):
+            key, est_name = meta_key.split('__')
+            est = dict(ests[key])[est_name]
             for i, (tri, tei) in enumerate(self.indexer.generate(X, True)):
 
                 if subsets > 1:
@@ -682,50 +687,49 @@ class Data(object):
                 else:
                     i = 0
 
-                for est_name, est in ests[key]:
 
-                    if '%s-%s-%s' % (i, key, est_name) not in col_id:
-                        col_id['%s-%s-%s' % (i, key, est_name)] = col_ass
-                        col_ass += labels
+                if '%s-%s-%s' % (i, key, est_name) not in col_id:
+                    col_id['%s-%s-%s' % (i, key, est_name)] = col_ass
+                    col_ass += labels
 
-                    xtrain = X[tri]
-                    xtest = X[tei]
+                xtrain = X[tri]
+                xtest = X[tei]
 
-                    # Transform inputs
-                    for _, tr in prep[key]:
-                        t = clone(tr)
-                        xtrain = t.fit_transform(xtrain)
-                        xtest = t.transform(xtest)
+                # Transform inputs
+                for _, tr in prep[key]:
+                    t = clone(tr)
+                    xtrain = t.fit_transform(xtrain)
+                    xtest = t.transform(xtest)
 
-                    # Fit estimator
-                    e = clone(est).fit(xtrain, y[tri])
-                    w = e.coef_
-                    weights.append(w.tolist())
+                # Fit estimator
+                e = clone(est).fit(xtrain, y[tri])
+                w = e.coef_
+                weights.append(w.tolist())
 
-                    # Get out-of-sample predictions
-                    p = getattr(e, attr)(xtest)
+                # Get out-of-sample predictions
+                p = getattr(e, attr)(xtest)
 
-                    rebase = X.shape[0] - F.shape[0]
-                    fix = tei - rebase
+                rebase = X.shape[0] - F.shape[0]
+                fix = tei - rebase
 
-                    if labels == 1:
-                        F[fix, col_id['%s-%s-%s' % (i, key, est_name)]] = p
-                    else:
-                        c = col_id['%s-%s-%s' % (i, key, est_name)]
-                        F[np.ix_(fix, np.arange(c, c + labels))] = p
+                if labels == 1:
+                    F[fix, col_id['%s-%s-%s' % (i, key, est_name)]] = p
+                else:
+                    c = col_id['%s-%s-%s' % (i, key, est_name)]
+                    F[np.ix_(fix, np.arange(c, c + labels))] = p
 
-                    try:
-                        if verbose:
-                            print('%s | %r | %r | %r | %r | %13r | %r' % (
-                                '%s-%s' % (key, est_name),
-                                list(tri),
-                                list(tei),
-                                [float('%.1f' % i) for i in y[tei]],
-                                [float('%.1f' % i) for i in y[tri]],
-                                [float('%.1f' % i) for i in w],
-                                [float('%.1f' % i) for i in p]))
-                    except Exception:
-                        pass
+                try:
+                    if verbose:
+                        print('%s | %r | %r | %r | %r | %13r | %r' % (
+                            '%s-%s' % (key, est_name),
+                            list(tri),
+                            list(tei),
+                            [float('%.1f' % i) for i in y[tei]],
+                            [float('%.1f' % i) for i in y[tri]],
+                            [float('%.1f' % i) for i in w],
+                            [float('%.1f' % i) for i in p]))
+                except Exception:
+                    pass
 
         return F, weights
 
@@ -753,47 +757,50 @@ class Data(object):
         col_id = {}
         col_ass = 0
 
-        for key in sorted(prep):
+        vps = ['%s__%s' % (c, e[0])
+               for c in prep.keys()
+               for e in ests[c]]
+        for meta_key in sorted(vps):
+            key, est_name = meta_key.split('__')
+            est = dict(ests[key])[est_name]
             for i, tri in enumerate(indexer.partition(as_array=True)):
-                for est_name, est in ests[key]:
+                if '%s-%s-%s' % (i, key, est_name) not in col_id:
+                    col_id['%s-%s-%s' % (i, key, est_name)] = col_ass
+                    col_ass += labels
 
-                    if '%s-%s-%s' % (i, key, est_name) not in col_id:
-                        col_id['%s-%s-%s' % (i, key, est_name)] = col_ass
-                        col_ass += labels
+                # Transform input
+                xtrain = X[tri]
+                ytrain = y[tri]
 
-                    # Transform input
-                    xtrain = X[tri]
-                    ytrain = y[tri]
+                xtest = X
 
-                    xtest = X
+                for _, tr in prep[key]:
+                    t = clone(tr)
+                    xtrain = t.fit_transform(xtrain)
+                    xtest = t.transform(xtest)
 
-                    for _, tr in prep[key]:
-                        t = clone(tr)
-                        xtrain = t.fit_transform(xtrain)
-                        xtest = t.transform(xtest)
+                # Fit est
+                e = clone(est).fit(xtrain, ytrain)
+                w = e.coef_
+                weights.append(w.tolist())
 
-                    # Fit est
-                    e = clone(est).fit(xtrain, ytrain)
-                    w = e.coef_
-                    weights.append(w.tolist())
+                # Predict
+                p = getattr(e, attr)(xtest)
+                c = col_id['%s-%s-%s' % (i, key, est_name)]
+                if labels == 1:
+                    P[:, c] = p
+                else:
+                    P[:, c:c + labels] = p
 
-                    # Predict
-                    p = getattr(e, attr)(xtest)
-                    c = col_id['%s-%s-%s' % (i, key, est_name)]
-                    if labels == 1:
-                        P[:, c] = p
-                    else:
-                        P[:, c:c + labels] = p
-
-                    try:
-                        if verbose:
-                            print('%s | %r | %11r | %r' % (
-                                '%s-%s' % (key, est_name),
-                                [float('%.1f' % i) for i in y],
-                                [float('%.1f' % i) for i in w],
-                                [float('%.1f' % i) for i in p]))
-                    except Exception:
-                        pass
+                try:
+                    if verbose:
+                        print('%s | %r | %11r | %r' % (
+                            '%s-%s' % (key, est_name),
+                            [float('%.1f' % i) for i in y],
+                            [float('%.1f' % i) for i in w],
+                            [float('%.1f' % i) for i in p]))
+                except Exception:
+                    pass
 
         return P, weights
 

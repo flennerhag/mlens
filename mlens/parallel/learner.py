@@ -1,4 +1,5 @@
 """
+
 ML-Ensemble
 
 :author: Sebastian Flennerhag
@@ -15,9 +16,10 @@ from __future__ import print_function, division
 import os
 from copy import deepcopy
 
+from ..metrics import build_scores
 from ..utils import pickle_save, pickle_load, load
 from ..utils.exceptions import NotFittedError
-from ..externals.sklearn.base import clone
+from ..externals.sklearn.base import clone, BaseEstimator
 from ._base_functions import (_slice_array,
                               _transform,
                               _assign_predictions,
@@ -51,7 +53,7 @@ class IndexedEstimator(object):
         self._estimator = estimator
 
 
-class Learner(object):
+class Learner(BaseEstimator):
 
     """Base Learner
 
@@ -88,35 +90,41 @@ class Learner(object):
                  indexer,
                  name,
                  attr,
-                 partitions,
-                 n_prediction_features,
                  output_columns,
                  scorer,
-                 fit_on_all,
                  raise_on_exception=True):
 
         self._estimator = estimator
         self.preprocess = preprocess
         self._indexer = indexer
-        self.name = name
         self.attr = attr
-        self.partitions = partitions
-        self.n_prediction_features = n_prediction_features
         self.output_columns = output_columns
         self._scorer = scorer
-        self.fit_on_all = fit_on_all
         self.raise_on_exception = raise_on_exception
+
+        self._name = name
+        self._partitions = getattr(indexer, 'n_partitions', 1)
+        self._fit_on_all = indexer.__class__.__name__.lower() != 'blendindex'
 
         self._fitted_estimators = None   # All fitted estimators
         self._fitted_learner = None      # Estimators for predict
         self._scores = None              # Scores during cv fit
         self.__fitted__ = False          # Status flag
 
-    def gen_trans(self, X, P):
+    def __call__(self, job, *args, **kwargs):
+        """Caller for producing jobs"""
+        job = 'gen_%s' % job
+
+        if not hasattr(self, job):
+            raise AttributeError("Job [%s] not accepted." % job)
+
+        return getattr(self, job)(*args, **kwargs)
+
+    def gen_transform(self, X, P):
         """Generator for regenerating training predictions"""
         return self._gen_pred(X, P, self.fitted_estimators)
 
-    def gen_pred(self, X, P):
+    def gen_predict(self, X, P):
         """Generator for predicting test set"""
         return self._gen_pred(X, P, self.fitted_learner)
 
@@ -137,10 +145,10 @@ class Learner(object):
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
         index = [0, 0]
-        if self.fit_on_all:
+        if self._fit_on_all:
             # Let index[1] == 0 for all full fits
             # Hence fold_index = 0 -> final base learner
-            if self.partitions == 1:
+            if self._partitions == 1:
                 yield SubLearner(learner=self,
                                  estimator=self.estimator,
                                  in_index=None,
@@ -157,7 +165,7 @@ class Learner(object):
                                      out_index=None,
                                      in_array=X,
                                      targets=y,
-                                     out_array=P,
+                                     out_array=None,
                                      index=index)
                     index[0] = index[0] + 1
 
@@ -166,10 +174,10 @@ class Learner(object):
             for i, (train_index, test_index) in enumerate(
                     self.indexer.generate()):
                 # Note that we bump index[1] by 1 to have index[1] start at 1
-                if self.partitions == 1:
+                if self._partitions == 1:
                     index = (0, i + 1)
                 else:
-                    index = (i // self.partitions, i % self.partitions + 1)
+                    index = (i // self._partitions, i % self._partitions + 1)
 
                 yield SubLearner(learner=self,
                                  estimator=self.estimator,
@@ -194,7 +202,7 @@ class Learner(object):
         """Load fitted estimator from cache"""
         files = [os.path.join(path, f)
                  for f in os.listdir(path)
-                 if f.startswith(self.name)]
+                 if f.startswith(self._name)]
 
         learners, estimators, scores = list(), list(), list()
         for f in sorted(files):
@@ -204,9 +212,10 @@ class Learner(object):
             else:
                 estimators.append(o)
 
-            if o.score is not None:
-                scores.append(o.name, o.score)
-                del o.score
+                if o.score is not None:
+                    scores.append((o.name, o.score))
+
+            del o.score
 
         self._fitted_learner = learners
         self._fitted_estimators = estimators
@@ -239,6 +248,20 @@ class Learner(object):
     def estimator(self, estimator):
         """Replace blueprint estimator"""
         self._estimator = estimator
+
+    @property
+    def raw_scores(self):
+        """CV scores during prediction"""
+        if not self.__fitted__:
+            raise NotFittedError("Learner instance not fitted.")
+        return self._scores
+
+    @property
+    def cv_scores(self):
+        """CV scores during prediction"""
+        if not self.__fitted__:
+            raise NotFittedError("Learner instance not fitted.")
+        return build_scores(self._scores, self._partitions)
 
     @property
     def scorer(self):
@@ -283,12 +306,13 @@ class SubLearner(object):
         self.in_array = in_array
         self.targets = targets
         self.out_array = out_array
-        self.name = learner.name
         self.scorer = learner.scorer
         self.raise_on_exception = learner.raise_on_exception
         self.score_ = None
         self.output_columns = learner.output_columns[index[0]]
         self.index = tuple(index)
+
+        self.name = learner._name
         self.name_index = '__'.join(
             [self.name, *tuple((str(i) for i in index))])
 
@@ -297,6 +321,13 @@ class SubLearner(object):
                 [self.preprocess, *tuple((str(i) for i in index))])
         else:
             self.processing_index = ''
+
+    def __call__(self, job, path):
+        """Launch job"""
+        if not hasattr(self, job):
+            raise NotImplementedError(
+                "SubLearner does not implement [%s]' % job")
+        return getattr(self, job)(path)
 
     def fit(self, path):
         """Fit sub-learner"""
@@ -372,7 +403,7 @@ class SubLearner(object):
                 self.name_index, self.name)
 
 
-class Transformer(object):
+class Transformer(BaseEstimator):
     """Preprocessing handler.
 
     """
@@ -380,19 +411,25 @@ class Transformer(object):
                  pipeline,
                  indexer,
                  name,
-                 partitions,
-                 fit_on_all,
                  raise_on_exception):
         self._pipeline = pipeline
         self._indexer = indexer
-        self.name = name
-        self.partitions = partitions
-        self.fit_on_all = fit_on_all
         self.raise_on_exception = raise_on_exception
 
+        self._partitions = getattr(indexer, 'n_partitions', 1)
+        self._fit_on_all = indexer.__class__.__name__.lower() != 'blendindex'
+
+        self._name = name
         self._learner_pipeline = None
         self._estimator_pipeline = None
         self.__fitted__ = False
+
+    def __call__(self, job, *args, **kwargs):
+        """Caller for producing jobs"""
+        job = 'gen_%s' % job
+        if not hasattr(self, job):
+            raise AttributeError("Job [%s] not accepted." % job)
+        return getattr(self, job)(*args, **kwargs)
 
     @property
     def fitted_pipelines(self):
@@ -413,7 +450,7 @@ class Transformer(object):
         """Load fitted pipelines from cache"""
         files = list()
         for f in os.listdir(path):
-            if f.startswith(self.name):
+            if f.startswith(self._name):
                 files.append(os.path.join(path, f))
 
         learner_pipelines, estimator_pipelines = list(), list()
@@ -472,11 +509,11 @@ class Transformer(object):
         """Update pipeline blueprint"""
         self._pipeline = pipeline
 
-    def gen_pred(self, path):
+    def gen_predict(self, path):
         """Dump learner pipeline to cache."""
         self.dump(path, self.learner_pipeline)
 
-    def gen_trans(self, path):
+    def gen_transform(self, path):
         """Dump learner pipeline to cache."""
         self.dump(path, self.estimator_pipeline)
 
@@ -493,10 +530,10 @@ class Transformer(object):
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
         index = [0, 0]
-        if self.fit_on_all:
+        if self._fit_on_all:
             # Let index[1] == 0 for all full fits
             # Hence fold_index = 0 -> final base learner
-            if self.partitions == 1:
+            if self._partitions == 1:
                 yield SubTransformer(transformer=self,
                                      pipeline=self.pipeline,
                                      in_index=None,
@@ -518,10 +555,10 @@ class Transformer(object):
             for i, (train_index, _) in enumerate(
                     self.indexer.generate()):
                 # Note that we bump index[1] by 1 to have index[1] start at 1
-                if self.partitions == 1:
+                if self._partitions == 1:
                     index = (0, i + 1)
                 else:
-                    index = (i // self.partitions, i % self.partitions + 1)
+                    index = (i // self._partitions, i % self._partitions + 1)
 
                 yield SubTransformer(transformer=self,
                                      pipeline=self.pipeline,
@@ -549,9 +586,17 @@ class SubTransformer(object):
         self.in_array = in_array
         self.targets = targets
         self.index = index
-        self.name = transformer.name
+
+        self.name = transformer._name
         self.name_index = '__'.join(
             [self.name, *tuple((str(i) for i in index))])
+
+    def __call__(self, job, path):
+        """Launch job"""
+        if not hasattr(self, job):
+            raise NotImplementedError(
+                "SubTransformer does not implement [%s]' % job")
+        return getattr(self, job)(path)
 
     def fit(self, path):
         """Fit transformers"""

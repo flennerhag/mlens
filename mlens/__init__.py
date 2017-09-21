@@ -11,7 +11,7 @@ learning.
 import mlens.config
 from mlens.config import clear_cache
 
-__version__ = "0.1.7.dev0"
+__version__ = "0.2.0.dev0"
 
 __all__ = ['base',
            'utils',

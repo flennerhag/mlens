@@ -97,7 +97,7 @@ def assemble_table(data, padding=2, decimals=2):
 
     # Header
     out = " " * (max_case_len + max_est_len + max_part_len + db_ * padding)
-    for col in sorted(cols):
+    for col in cols:
         adj = max_col_len[col] - len(col) + padding
         out += " " * adj + col
     out += "\n"
@@ -134,7 +134,7 @@ def assemble_table(data, padding=2, decimals=2):
                     k = tuple(k)
 
                 # Table contents
-                for col in sorted(cols):
+                for col in cols:
                     item = data[col][k]
                     if not item:
                         continue

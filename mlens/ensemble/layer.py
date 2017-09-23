@@ -16,7 +16,7 @@ from __future__ import division, print_function
 import numpy as np
 
 from .. import config
-from ..metrics import build_scores
+from ..metrics import Data
 from ..parallel import Learner, Transformer
 from ..externals.sklearn.base import BaseEstimator
 from ..externals.joblib import delayed
@@ -224,9 +224,9 @@ class Layer(BaseEstimator):
     def collect(self, path):
         """Collect cache estimators"""
         for transformer in self.transformers:
-            transformer.fitted_pipelines = path
+            transformer.cfitted_pipelinesollect(path)
         for learner in self.learners:
-            learner.fitted_estimators = path
+            learner.collect(path)
 
     @property
     def classes_(self):
@@ -253,20 +253,22 @@ class Layer(BaseEstimator):
     def _set_learners(self, estimators, preprocessing):
         """Set learners and preprocessing pipelines in layer"""
         assert_correct_format(estimators, preprocessing)
-        self._estimators = check_instances(estimators, flatten_sort=True)
-        self._preprocessing = check_instances(preprocessing)  # Don't flatten
+        self._estimators, flattened_estimators = check_instances(
+            estimators, include_flattened=True)
+
+        self._preprocessing = check_instances(preprocessing)
         self._preprocess = self._preprocessing is not None
 
         self._learners = [
             Learner(estimator=est,
-                    preprocess=learner_name.split('__')[0],
+                    preprocess=preprocess_name,
                     indexer=self.indexer,
                     name=learner_name,
                     attr=self._predict_attr,
                     output_columns=None,
                     scorer=self.scorer,
                     raise_on_exception=self.raise_on_exception)
-            for learner_name, est in self._estimators
+            for preprocess_name, learner_name, est in flattened_estimators
         ]
 
         self._transformers = [
@@ -277,8 +279,7 @@ class Layer(BaseEstimator):
             for prep_name, transformers in sorted(self._preprocessing.items())
         ]
 
-        self._store_layer_data(
-            check_instances(estimators, flatten_sort=False), preprocessing)
+        self._store_layer_data(self._estimators, self._preprocessing)
 
     @property
     def learners(self):
@@ -312,8 +313,8 @@ class Layer(BaseEstimator):
         if self.scorer is not None:
             scores = list()
             for learner in self.learners:
-                scores.extend(learner.raw_scores)
-            return build_scores(scores, self._partitions)
+                scores.extend(learner.raw_data)
+            return Data(scores, self._partitions)
 
     def set_output_columns(self, y=None):
         """Set output columns for learners"""

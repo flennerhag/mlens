@@ -7,6 +7,7 @@ ML-Ensemble
 
 Base learner classes
 """
+# pylint: disable=protected-access
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-instance-attributes
@@ -16,14 +17,22 @@ from __future__ import print_function, division
 import os
 from copy import deepcopy
 
-from ..metrics import build_scores
-from ..utils import pickle_save, pickle_load, load
+from ..metrics import Data
+from ..utils import (pickle_save,
+                     pickle_load,
+                     load,
+                     safe_print,
+                     print_time)
 from ..utils.exceptions import NotFittedError
 from ..externals.sklearn.base import clone, BaseEstimator
 from ._base_functions import (_slice_array,
                               _transform,
                               _assign_predictions,
                               _score_predictions)
+try:
+    from time import perf_counter as time
+except ImportError:
+    from time import time
 
 
 class IndexedEstimator(object):
@@ -33,15 +42,15 @@ class IndexedEstimator(object):
 
     """
     __slots__ = ['_estimator', 'name', 'index',
-                 'in_index', 'out_index', 'score']
+                 'in_index', 'out_index', 'data']
 
-    def __init__(self, estimator, name, index, in_index, out_index, score):
+    def __init__(self, estimator, name, index, in_index, out_index, data):
         self._estimator = estimator
         self.name = name
         self.index = index
         self.in_index = in_index
         self.out_index = out_index
-        self.score = score
+        self.data = data
 
     @property
     def estimator(self):
@@ -64,9 +73,8 @@ class Learner(BaseEstimator):
     estimator : obj
         estimator to construct learner from
 
-    preprocess : str, None
-        Preprocessing pipeline. String if fetching from cache,
-        None if no preprocessing.
+    input :
+        object to collect input from.
 
     indexer : obj, None
         indexer to use. Set to None for no subset calls.
@@ -90,25 +98,30 @@ class Learner(BaseEstimator):
                  indexer,
                  name,
                  attr,
-                 output_columns,
                  scorer,
+                 output_columns,
+                 verbose=False,
                  raise_on_exception=True):
 
         self._estimator = estimator
         self.preprocess = preprocess
         self._indexer = indexer
-        self.attr = attr
         self.output_columns = output_columns
+        self.attr = attr
         self._scorer = scorer
         self.raise_on_exception = raise_on_exception
+        self.verbose = verbose
 
+        if preprocess:
+            name = '%s__%s' % (preprocess, name)
         self._name = name
         self._partitions = getattr(indexer, 'n_partitions', 1)
         self._fit_on_all = indexer.__class__.__name__.lower() != 'blendindex'
 
         self._fitted_estimators = None   # All fitted estimators
         self._fitted_learner = None      # Estimators for predict
-        self._scores = None              # Scores during cv fit
+        self._data = None              # Scores during cv fit
+        self._state = None               # Output state
         self.__fitted__ = False          # Status flag
 
     def __call__(self, job, *args, **kwargs):
@@ -116,13 +129,13 @@ class Learner(BaseEstimator):
         job = 'gen_%s' % job
 
         if not hasattr(self, job):
-            raise AttributeError("Job [%s] not accepted." % job)
+            raise AttributeError("Job %s not accepted." % job)
 
         return getattr(self, job)(*args, **kwargs)
 
     def gen_transform(self, X, P):
         """Generator for regenerating training predictions"""
-        return self._gen_pred(X, P, self.fitted_estimators)
+        return self._gen_pred(X, P, self.fitted_sublearners)
 
     def gen_predict(self, X, P):
         """Generator for predicting test set"""
@@ -140,7 +153,7 @@ class Learner(BaseEstimator):
                              out_array=P,
                              index=estimator.index)
 
-    def gen_fit(self, X, y, P):
+    def gen_fit(self, X, y, P=None):
         """Generator for fitting learner on given data"""
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
@@ -189,7 +202,7 @@ class Learner(BaseEstimator):
                                  index=index)
 
     @property
-    def fitted_estimators(self):
+    def fitted_sublearners(self):
         """Generator of fitted estimators of base learner"""
         if not self.__fitted__:
             raise NotFittedError("Learner instance not fitted.")
@@ -197,14 +210,13 @@ class Learner(BaseEstimator):
         for estimator in self._fitted_estimators:
             yield deepcopy(estimator)
 
-    @fitted_estimators.setter
-    def fitted_estimators(self, path):
+    def collect(self, path):
         """Load fitted estimator from cache"""
         files = [os.path.join(path, f)
                  for f in os.listdir(path)
                  if f.startswith(self._name)]
 
-        learners, estimators, scores = list(), list(), list()
+        learners, estimators, data = list(), list(), list()
         for f in sorted(files):
             o = pickle_load(f)
             if o.index[1] == 0:
@@ -212,22 +224,21 @@ class Learner(BaseEstimator):
             else:
                 estimators.append(o)
 
-                if o.score is not None:
-                    scores.append((o.name, o.score))
+            if o.data is not None:
+                data.append((o.name, o.data))
 
-            del o.score
+            del o.data
 
         self._fitted_learner = learners
         self._fitted_estimators = estimators
-        self._scores = scores
+        self._data = data
         self.__fitted__ = True
 
-    @fitted_estimators.deleter
-    def fitted_estimators(self):
+    def clear(self):
         """Clear load"""
         self._fitted_estimators = None
         self._fitted_learner = None
-        self._scores = None
+        self._data = None
         self.__fitted__ = False
 
     @property
@@ -250,18 +261,18 @@ class Learner(BaseEstimator):
         self._estimator = estimator
 
     @property
-    def raw_scores(self):
+    def raw_data(self):
         """CV scores during prediction"""
         if not self.__fitted__:
             raise NotFittedError("Learner instance not fitted.")
-        return self._scores
+        return self._data
 
     @property
-    def cv_scores(self):
+    def data(self):
         """CV scores during prediction"""
         if not self.__fitted__:
             raise NotFittedError("Learner instance not fitted.")
-        return build_scores(self._scores, self._partitions)
+        return Data(self._data, self._partitions)
 
     @property
     def scorer(self):
@@ -299,18 +310,24 @@ class SubLearner(object):
                  out_array,
                  index):
         self.estimator = estimator
-        self.attr = learner.attr
-        self.preprocess = learner.preprocess
         self.in_index = in_index
         self.out_index = out_index
         self.in_array = in_array
         self.targets = targets
         self.out_array = out_array
+        self.score_ = None
+        self.index = tuple(index)
+
+        self.attr = learner.attr
+        self.preprocess = learner.preprocess
         self.scorer = learner.scorer
         self.raise_on_exception = learner.raise_on_exception
-        self.score_ = None
+        self.verbose = learner.verbose
         self.output_columns = learner.output_columns[index[0]]
-        self.index = tuple(index)
+
+        self.score_ = None
+        self.fit_time_ = None
+        self.pred_time_ = None
 
         self.name = learner._name
         self.name_index = '__'.join(
@@ -331,6 +348,7 @@ class SubLearner(object):
 
     def fit(self, path):
         """Fit sub-learner"""
+        t0 = time()
         transformers = self._load_preprocess(path)
         self._fit(transformers)
 
@@ -338,19 +356,29 @@ class SubLearner(object):
             self._predict(transformers, self.scorer is not None)
 
         f = os.path.join(path, self.name_index)
-        o = IndexedEstimator(self.estimator,
-                             self.name_index,
-                             self.index,
-                             self.in_index,
-                             self.out_index,
-                             self.score_)
+        o = IndexedEstimator(estimator=self.estimator,
+                             name=self.name_index,
+                             index=self.index,
+                             in_index=self.in_index,
+                             out_index=self.out_index,
+                             data=self.data)
         pickle_save(o, f)
+
+        if self.verbose:
+            print_time(t0, "%s done" % self.name_index, end='')
 
     def predict(self, path):
         """Predict with sublearner"""
+        t0 = time()
         transformers = self._load_preprocess(path)
 
         self._predict(transformers, False)
+        if self.verbose:
+            print_time(t0, "%s done" % self.name_index, end='')
+
+    def transform(self, path):
+        """Predict with sublearner"""
+        return self.predict(path)
 
     def _fit(self, transformers):
         """Sub-routine to fit sub-learner"""
@@ -359,11 +387,13 @@ class SubLearner(object):
                                     self.in_index)
 
         # Transform input (triggers copying)
+        t0 = time()
         for _, tr in transformers:
             xtemp, ytemp = _transform(tr, xtemp, ytemp)
 
         # Fit estimator
         self.estimator.fit(xtemp, ytemp)
+        self.fit_time_ = time() - t0
 
     def _load_preprocess(self, path):
         """Load preprocessing pipeline"""
@@ -383,11 +413,12 @@ class SubLearner(object):
         xtemp, ytemp = _slice_array(self.in_array,
                                     self.targets,
                                     self.out_index)
-
+        t0 = time()
         for _, tr in transformers:
             xtemp = tr.transform(xtemp)
 
         predictions = getattr(self.estimator, self.attr)(xtemp)
+        self.pred_time_ = time() - t0
 
         # Assign predictions to matrix
         _assign_predictions(self.out_array,
@@ -402,6 +433,14 @@ class SubLearner(object):
                 ytemp, predictions, self.scorer,
                 self.name_index, self.name)
 
+    @property
+    def data(self):
+        """fit data"""
+        out = {'ft': self.fit_time_,
+               'pt': self.pred_time_,
+               'score': self.score_}
+        return out
+
 
 class Transformer(BaseEstimator):
     """Preprocessing handler.
@@ -411,9 +450,11 @@ class Transformer(BaseEstimator):
                  pipeline,
                  indexer,
                  name,
-                 raise_on_exception):
+                 verbose=False,
+                 raise_on_exception=True):
         self._pipeline = pipeline
         self._indexer = indexer
+        self.verbose = verbose
         self.raise_on_exception = raise_on_exception
 
         self._partitions = getattr(indexer, 'n_partitions', 1)
@@ -423,6 +464,7 @@ class Transformer(BaseEstimator):
         self._learner_pipeline = None
         self._estimator_pipeline = None
         self.__fitted__ = False
+        self._data = None
 
     def __call__(self, job, *args, **kwargs):
         """Caller for producing jobs"""
@@ -438,22 +480,21 @@ class Transformer(BaseEstimator):
             raise NotFittedError("Transformer instance not fitted.")
         pipes = list()
         ls = self.learner_pipeline
-        es = self.estimator_pipeline
+        es = self.sublearner_pipeline
         if ls is not None:
             pipes.extend(ls)
         if es is not None:
             pipes.extend(es)
         return pipes
 
-    @fitted_pipelines.setter
-    def fitted_pipelines(self, path):
+    def collect(self, path):
         """Load fitted pipelines from cache"""
         files = list()
         for f in os.listdir(path):
             if f.startswith(self._name):
                 files.append(os.path.join(path, f))
 
-        learner_pipelines, estimator_pipelines = list(), list()
+        learner_pipelines, estimator_pipelines, data = list(), list(), list()
         for f in sorted(files):
             o = pickle_load(f)
             if o.index[1] == 0:
@@ -461,16 +502,20 @@ class Transformer(BaseEstimator):
             else:
                 estimator_pipelines.append(o)
 
+            if o.data is not None:
+                data.append(o.data)
+
         self._learner_pipeline = learner_pipelines
         self._estimator_pipeline = estimator_pipelines
+        self._data = data
         self.__fitted__ = True
 
-    @fitted_pipelines.deleter
-    def fitted_pipelines(self):
+    def clear(self):
         """Clear load"""
         self._estimator_pipeline = None
         self._learner_pipeline = None
         self.__fitted__ = False
+        self._data = None
 
     @property
     def learner_pipeline(self):
@@ -481,12 +526,26 @@ class Transformer(BaseEstimator):
         return [deepcopy(pipe) for pipe in self._learner_pipeline]
 
     @property
-    def estimator_pipeline(self):
+    def sublearner_pipeline(self):
         """Copy of fitted pipeline for sub-learners"""
         if not self.__fitted__:
             raise NotFittedError("Transformer instance not fitted.")
 
         return [deepcopy(pipe) for pipe in self._estimator_pipeline]
+
+    @property
+    def raw_data(self):
+        """CV scores during prediction"""
+        if not self.__fitted__:
+            raise NotFittedError("Learner instance not fitted.")
+        return self._data
+
+    @property
+    def data(self):
+        """CV scores during prediction"""
+        if not self.__fitted__:
+            raise NotFittedError("Learner instance not fitted.")
+        return Data(self._data, self._partitions)
 
     @property
     def indexer(self):
@@ -515,15 +574,16 @@ class Transformer(BaseEstimator):
 
     def gen_transform(self, path):
         """Dump learner pipeline to cache."""
-        self.dump(path, self.estimator_pipeline)
+        self.dump(path, self.sublearner_pipeline)
 
-    @staticmethod
-    def dump(path, pipeline):
+    def dump(self, path, pipeline):
         """Dump pipelines to cache"""
         if pipeline is not None:
             for pipe in pipeline:
                 f = os.path.join(path, pipe.name)
                 pickle_save(pipe, f)
+                if self.verbose:
+                    safe_print("%s cached" % pipe.name, end='')
 
     def gen_fit(self, X, y):
         """Generator for fitting pipeline on given data"""
@@ -587,6 +647,9 @@ class SubTransformer(object):
         self.targets = targets
         self.index = index
 
+        self.transform_time_ = None
+
+        self.verbose = transformer.verbose
         self.name = transformer._name
         self.name_index = '__'.join(
             [self.name, *tuple((str(i) for i in index))])
@@ -600,11 +663,13 @@ class SubTransformer(object):
 
     def fit(self, path):
         """Fit transformers"""
+        t0 = time()
         n = len(self.pipeline)
         xtemp, ytemp = _slice_array(self.in_array,
                                     self.targets,
                                     self.in_index)
 
+        t0_f = time()
         fitted_transformers = list()
         for tr_name, tr in self.pipeline:
             tr.fit(xtemp, ytemp)
@@ -613,11 +678,20 @@ class SubTransformer(object):
             if n > 1:
                 xtemp, ytemp = _transform(tr, xtemp, ytemp)
 
+        self.transform_time_ = time() - t0_f
+
         f = os.path.join(path, self.name_index)
         o = IndexedEstimator(estimator=fitted_transformers,
                              name=self.name_index,
                              index=self.index,
                              in_index=None,
                              out_index=None,
-                             score=None)
+                             data=self.data)
         pickle_save(o, f)
+        if self.verbose:
+            print_time(t0, "%s done" % self.name_index, end='')
+
+    @property
+    def data(self):
+        """fit data"""
+        return {'ft': self.transform_time_}

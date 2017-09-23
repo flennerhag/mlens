@@ -8,55 +8,8 @@ Scoring functions.
 """
 
 from __future__ import division
-import warnings
-
-from ..utils.exceptions import MetricWarning
 
 import numpy as np
-
-try:
-    from collections import OrderedDict as _dict
-except ImportError:
-    _dict = dict
-
-
-def build_scores(score_list, partitions):
-    """Build a score dictionary out of a list of scores"""
-    scores = {'mean': _dict(),
-              'std': _dict()
-              }
-    tmp = _dict()
-
-    # Collect scores per preprocessing case and estimator(s)
-    for name, score in score_list:
-        splitted = name.split('__')
-
-        if partitions == 1:
-            key = tuple(splitted[:-2])
-        else:
-            key = tuple(splitted[:-1])
-
-        try:
-            tmp[key]
-        except KeyError:
-            tmp[key] = list()
-            scores['mean'][key] = list()
-            scores['std'][key] = list()
-
-        tmp[key].append(score)
-
-        # Aggregate to get cross-validated mean scores
-        for k, v in tmp.items():
-            if not v:
-                continue
-            try:
-                scores['mean'][k] = np.mean(v)
-                scores['std'][k] = np.std(v)
-            except Exception as exc:
-                warnings.warn(
-                    "Aggregating scores for %s failed. Raw scores:\n%r\n"
-                    "Details: %r" % (k, v, exc), MetricWarning)
-    return scores
 
 
 def rmse(y, p):

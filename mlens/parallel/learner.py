@@ -436,9 +436,10 @@ class SubLearner(object):
     @property
     def data(self):
         """fit data"""
-        out = {'ft': self.fit_time_,
+        out = {'score': self.score_,
+               'ft': self.fit_time_,
                'pt': self.pred_time_,
-               'score': self.score_}
+               }
         return out
 
 

@@ -31,7 +31,6 @@ from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
                                 ParallelProcessingWarning)
 
-JOBS = ['predict', 'fit', 'transform', 'evaluate']
 ENGINES = list()
 
 
@@ -79,15 +78,6 @@ def _load_mmap(f):
         return np.load(f, mmap_mode='r')
 
 
-def _check_job(job):
-    """Check that a valid job is initialized."""
-    if job not in JOBS:
-        raise NotImplementedError('The job %s is not valid input '
-                                  'for the ParallelProcessing job '
-                                  'manager. Accepted jobs: %r.'
-                                  % (job, list(JOBS)))
-
-
 ###############################################################################
 class Job(object):
 
@@ -101,7 +91,6 @@ class Job(object):
     __slots__ = ['y', 'predict_in', 'predict_out', 'dir', 'job', 'tmp']
 
     def __init__(self, job):
-        _check_job(job)
         self.job = job
         self.y = None
         self.predict_in = None
@@ -153,7 +142,7 @@ class Job(object):
         learn_feed = {'X': self.predict_in,
                       'P': self.predict_out}
 
-        if self.job == 'fit':
+        if self.job in ['fit', 'evaluate']:
             trans_feed['y'] = self.y
             learn_feed['y'] = self.y
 
@@ -421,7 +410,7 @@ class ParallelEvaluation(BaseProcessor):
     def __init__(self, caller):
         super(ParallelEvaluation, self).__init__(caller)
 
-    def process(self, attr, X, y, path=None):
+    def _process(self, attr, X, y, path=None):
         """Fit all layers in the attached :class:`Sequential`."""
         self._initialize(job='evaluate', X=X, y=y, path=path)
         check_initialized(self)
@@ -440,3 +429,21 @@ class ParallelEvaluation(BaseProcessor):
                              self.job.predict_in,
                              self.job.y,
                              self.job.dir)
+
+    def process(self, case, X, y, path=None):
+        """Fit estimators"""
+        self._initialize(job='fit', X=X, y=y, path=path)
+        check_initialized(self)
+
+        # Use context manager to ensure same parallel job during entire process
+        with Parallel(n_jobs=self.caller.n_jobs,
+                      temp_folder=self.job.dir,
+                      max_nbytes=None,
+                      mmap_mode='w+',
+                      verbose=self.caller.verbose,
+                      backend=self.caller.backend) as parallel:
+
+            self.caller.indexer.fit(
+                self.job.predict_in, self.job.y, self.job.job)
+
+            self.caller(parallel, self.job.args, case)

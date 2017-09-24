@@ -82,6 +82,7 @@ def assign_predictions(pred, p, tei, col, n):
 
 
 def score_predictions(y, p, scorer, name, inst_name):
+    """Try-Except wrapper around Learner scoring"""
     s = None
     if scorer is not None:
         try:

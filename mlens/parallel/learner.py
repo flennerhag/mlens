@@ -15,6 +15,7 @@ from __future__ import print_function, division
 
 import os
 from copy import deepcopy
+import warnings
 
 from ._base_functions import (slice_array,
                               transform,
@@ -26,7 +27,7 @@ from ..utils import (pickle_save,
                      load,
                      safe_print,
                      print_time)
-from ..utils.exceptions import NotFittedError
+from ..utils.exceptions import NotFittedError, FitFailedWarning
 from ..externals.sklearn.base import clone, BaseEstimator
 try:
     from time import perf_counter as time
@@ -212,7 +213,7 @@ class Learner(_BaseEstimator):
         self.verbose = verbose
 
         if preprocess:
-            name = '%s__%s' % (preprocess, name)
+            self.name = '%s__%s' % (preprocess, name)
 
         self._sublearners_ = None        # Fitted sub-learners
         self._learner_ = None            # Fitted learners
@@ -399,13 +400,14 @@ class SubLearner(object):
         """Launch job"""
         if not hasattr(self, job):
             raise NotImplementedError(
-                "SubLearner does not implement [%s]' % job")
+                "SubLearner does not implement [%s]" % job)
         return getattr(self, job)(path)
 
     def fit(self, path):
         """Fit sub-learner"""
         t0 = time()
         transformers = self._load_preprocess(path)
+
         self._fit(transformers)
 
         if self.out_array is not None:
@@ -749,6 +751,7 @@ class EvalLearner(Learner):
                  name,
                  attr,
                  scorer,
+                 error_score=None,
                  verbose=False,
                  raise_on_exception=False):
         super(EvalLearner, self).__init__(
@@ -761,6 +764,7 @@ class EvalLearner(Learner):
             output_columns={0: 0},
             verbose=verbose,
             raise_on_exception=raise_on_exception)
+        self.error_score = error_score
 
     def gen_fit(self, X, y, P=None):
         """Generator for fitting learner on given data"""
@@ -811,7 +815,7 @@ class EvalSubLearner(SubLearner):
                                              out_array=None,
                                              targets=targets,
                                              index=index)
-
+        self.error_score = learner.error_score
         self.train_score_ = None
         self.test_score_ = None
         self.train_pred_time_ = None
@@ -853,16 +857,24 @@ class EvalSubLearner(SubLearner):
         xtemp, ytemp = slice_array(self.in_array,
                                    self.targets,
                                    index)
-        t0 = time()
         for _, tr in transformers:
             xtemp = tr.transform(xtemp)
 
-        predictions = getattr(self.estimator, self.attr)(xtemp)
+        t0 = time()
+
+        if self.error_score is not None:
+            try:
+                scores = self.scorer(self.estimator, xtemp, ytemp)
+            except Exception as exc:
+                warnings.warn(
+                    "Scoring failed. Setting error score %r."
+                    "Details:\n%r" % (self.error_score, exc),
+                    FitFailedWarning)
+                scores = self.error_score
+        else:
+            scores = self.scorer(self.estimator, xtemp, ytemp)
         pred_time = time() - t0
 
-        scores = score_predictions(
-            ytemp, predictions, self.scorer,
-            self.name_index, self.name)
         return scores, pred_time
 
     @property
@@ -872,6 +884,6 @@ class EvalSubLearner(SubLearner):
                'train_score': self.train_score_,
                'fit_time': self.fit_time_,
                'test_pred_time': self.test_pred_time_,
-               'train_pred_time_': self.train_pred_time_
+               'train_pred_time_': self.train_pred_time_,
                }
         return out

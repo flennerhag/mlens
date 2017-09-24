@@ -19,16 +19,21 @@
 #
 import os
 import sys
-from mlens import __version__
+import glob
+import shutil
 import subprocess
+from mlens import __version__
 import sphinx_rtd_theme
-
-
-# Ensure numpydoc exists
-subprocess.run(['pip', 'install', 'numpydoc'])
+import sphinx_gallery
 
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.append(sys.path[-1] + '/mlens')
+
+from custom_directives import IncludeDirective, GalleryItemDirective, CustomGalleryItemDirective
+
+# Ensure numpydoc exists
+subprocess.run(['pip', 'install', 'numpydoc'])
+subprocess.run(['pip', 'install', 'sphinx-gallery'])
 
 
 # -- General configuration ------------------------------------------------
@@ -49,7 +54,29 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
               'sphinx.ext.napoleon',
               'sphinx.ext.intersphinx',
+              'sphinx_gallery.gen_gallery'
               ]
+
+# Sphinx-Gallery
+sphinx_gallery_conf = {'examples_dirs': ['examples_source'],
+                       'gallery_dirs': ['examples'],
+                       'filename_pattern': 'tutorial.py',
+                       'backreferences_dir': False,
+                       'download_section_examples': False,
+                       }
+
+for i in range(len(sphinx_gallery_conf['examples_dirs'])):
+    gallery_dir = sphinx_gallery_conf['gallery_dirs'][i]
+    source_dir = sphinx_gallery_conf['examples_dirs'][i]
+    # Create gallery dirs if it doesn't exist
+    try:
+        os.mkdir(gallery_dir)
+    except OSError:
+        pass
+
+    # Copy rst files from source dir to gallery dir
+    for f in glob.glob(os.path.join(source_dir, '*.rst')):
+        shutil.copy(f, gallery_dir)
 
 # Intersphinx options
 intersphinx_mapping = {'http://scikit-learn.org/stable/': None,
@@ -63,8 +90,7 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = ['.rst', '.md']
 
 # The master toctree document.
 master_doc = 'index'
@@ -94,7 +120,8 @@ language = None
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-
+exclude_patterns += sphinx_gallery_conf['examples_dirs']
+exclude_patterns += ['*/index.rst']
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
@@ -106,14 +133,25 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinx_rtd_theme"
+html_theme = 'sphinx_rtd_theme'
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#
-# html_theme_options = {}
+html_theme_options = {
+        'collapse_navigation': False,
+        'display_version': True,
+        'logo_only': True,
+        'prev_next_buttons_location': False
+}
+
+html_logo = '_static/img/logo.png'
+
+html_context = {'css_files':
+                ['https://fonts.googleapis.com/css?family=Lato',
+                 '_static/css/mlens-theme.css',
+                 '_static/css/sphinx-glr.css']}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -173,9 +211,16 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'mlens', 'mlens Documentation',
-     author, 'mlens', 'One line description of project.',
+     author, 'mlens', 'Ensemble Learning',
      'Miscellaneous'),
 ]
 
 
-
+def setup(app):
+    # Custom CSS
+    app.add_stylesheet('css/pytorch_theme.css')
+    app.add_stylesheet('https://fonts.googleapis.com/css?family=Lato')
+    # Custom directives
+    app.add_directive('includenodoc', IncludeDirective)
+    app.add_directive('galleryitem', GalleryItemDirective)
+    app.add_directive('customgalleryitem', CustomGalleryItemDirective)

@@ -1,18 +1,27 @@
 .. Home page
 
-ML-Ensemble
-===========
+:github_url: https://github.com/flennerhag/mlens
 
-**A Python library for memory efficient parallelized ensemble learning**.
 
-ML-Ensemble is a library for building `Scikit-learn`_ compatible ensemble
-estimator. By leveraging API elements from deep learning libraries like Keras_
-for building ensembles, it is straightforward to build deep ensembles
-with complex interactions.
+.. figure:: img/logo.png
+   :align: center
 
-ML-Ensemble is open for contributions at all levels.If you would like to get involved, reach out to the project's Github_ repository. We are currently in beta testing, so please report any bugs or issues by creating an issue_. If you are interested in
-contributing to development, see :ref:`dev` for a quick introduction to
-ensemble implementation, or check out the issue tracker.
+
+ML-Ensemble a Python library for memory efficient parallelized ensemble learning. In particular, ML-Ensemble is a `Scikit-learn`_ compatible library for building deep ensemble networks in just a few lines of code. In a nutshell::
+
+  ensemble = SuperLearner().add(estimators)
+  ensemble.fit(xtrain, ytrain).predict(xtest)
+
+To get a quick feel for ML-Ensemble, you can :ref:`get started <getting-started>` here. The :ref:`advanced tutorials <tutorials>` section highlights advanced features, and if you want full control, head over to the :ref:`mechanics walkthrough <learner_tutorial>`. 
+
+ML-Ensemble is easily installed via ``pip``. For further details see :ref:`install`. 
+
+.. code-block:: shell 
+
+  pip install -U mlens 
+
+ML-Ensemble is open for contributions at all levels. If you would like to get involved, reach out to the project's Github_ repository. 
+
 
 Core Features
 -------------
@@ -126,11 +135,21 @@ ensemble output. Output is summarized for easy comparison of performance. ::
 .. toctree::
    :hidden:
    :maxdepth: 2
-   :caption: User Guides
+   :caption: High-level API 
 
    getting_started
    ensemble_tutorial
    ensembles
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Mechanics 
+
+   examples/learner_tutorial
+   examples/layer_tutorial
+   examples/parallel_tutorial
+   examples/sequential_tutorial
 
 .. toctree::
    :hidden:

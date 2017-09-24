@@ -77,7 +77,7 @@ You may want to study the source code directly.
 Indexers
 ^^^^^^^^
 
-.. currentmodule:: mlens.base
+.. currentmodule:: mlens.index
 
 .. autosummary::
 
@@ -99,12 +99,8 @@ Estimation routines
 
     ParallelProcessing
     ParallelEvaluation
-    Stacker
-    Blender
-    SubStacker
-    SingleRun
-    Evaluation
-    BaseEstimator
-
+    Layer
+    Learner
+    Transformer
 
 .. _Scikit-learn: http://scikit-learn.org/stable/

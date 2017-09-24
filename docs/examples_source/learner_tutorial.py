@@ -265,7 +265,7 @@ print("Cache: %r" % os.listdir(path.name))
 print("Data:\n%s" % learner.data)
 
 ############################################################################
-# The data is stored as a custom designed ``dict`` that prints in tabular
+# The data is stored as a ``dict`` that prints in tabular
 # format for readability. You can however also pass the ``data`` attribute
 # to a :class:`pandas.DataFrame` if you wish.
 

@@ -22,11 +22,11 @@ import numpy as np
 import warnings
 from ..externals.joblib import Parallel, dump, load
 
-from ..parallel.manager import  Job
+from ..parallel.manager import Job
 from .exceptions import NotFittedError
 from ..externals.sklearn.base import BaseEstimator, TransformerMixin, clone
 from ..externals.sklearn.validation import check_X_y, check_array
-from ..base import INDEXERS
+from ..index import INDEXERS
 from ..ensemble.base import Layer, Sequential
 from ..parallel.manager import ENGINES
 

@@ -10,7 +10,7 @@ try:
 except ImportError:
     from mlens.externals.fixes import redirect as redirect_stdout
 
-from mlens.ensemble.base import Layer, LayerContainer
+from mlens.ensemble.base import Layer, Sequential
 from mlens.utils.dummy import OLS, LogisticRegression, Scale, InitMixin
 from mlens.utils.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \
     ECM, ECM_PROBA
@@ -210,7 +210,7 @@ def test_get_layers():
             lc = LayerGenerator().get_layer_container(cls, p, True)
 
             assert isinstance(layer, Layer)
-            assert isinstance(lc, LayerContainer)
+            assert isinstance(lc, Sequential)
 
 
 def test_ground_truth():

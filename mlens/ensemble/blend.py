@@ -10,7 +10,7 @@ Blend Ensemble class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import BlendIndex, FullIndex
+from ..index import BlendIndex, FullIndex
 
 
 class BlendEnsemble(BaseEnsemble):

@@ -19,7 +19,7 @@ layer = LayerGenerator().get_layer('stack', False, False)
 
 
 def test_clone():
-    """[Ensemble | LayerContainer] Test cloning."""
+    """[Ensemble | Sequential] Test cloning."""
     cloned = clone(lc)
 
     params = lc.get_params(deep=False)
@@ -33,7 +33,7 @@ def test_clone():
 
 
 def test_set_params():
-    """[Ensemble | LayerContainer] Test set_params on estimators."""
+    """[Ensemble | Sequential] Test set_params on estimators."""
     lc.set_params(**{'layer-1__ols-3__offset': 4})
     assert lc.layers['layer-1'].estimators[-1][1].offset == 4
 

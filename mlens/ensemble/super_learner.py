@@ -10,7 +10,7 @@ Super Learner class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import FoldIndex, FullIndex
+from ..index import FoldIndex, FullIndex
 
 
 class SuperLearner(BaseEnsemble):

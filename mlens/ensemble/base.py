@@ -17,11 +17,11 @@ from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 import warnings
 
-from .layer import Layer
 from .. import config
-from ..parallel import ParallelProcessing
+from ..parallel import Layer, ParallelProcessing
 from ..externals.sklearn.base import BaseEstimator
 from ..utils import (check_ensemble_build,
+                     check_layers,
                      check_inputs,
                      print_time,
                      safe_print)
@@ -51,8 +51,7 @@ def print_job(lc, start_message):
                    file=pout, flush=True)
 
         if lc.verbose >= 10:
-            safe_print(
-"""[INFO] n_jobs = %i
+            safe_print("""[INFO] n_jobs = %i
 [INFO] backend = %r
 [INFO] start_method = %r
 [INFO] cache = %r
@@ -116,14 +115,15 @@ class Sequential(BaseEstimator):
         self.verbose = verbose
 
         # Set up layer
-        self.scores = None
+        self.data = None
         self._init_layers(layers)
         self._has_meta_layer = False
 
     def __call__(self, *layers):
         """Add layers to instance"""
+        check_layers(layers)
         for lyr in layers:
-            if lyr._name in self.layer_names:
+            if lyr.name in self.layer_names:
                 raise ValueError("Layer name exists in stack. "
                                  "Rename layers before attempting to push.")
 
@@ -137,10 +137,15 @@ class Sequential(BaseEstimator):
 
             self.n_layers += 1
 
-            self.layer_names.append(lyr._name)
-            self.layers[lyr._name] = lyr
-            self.summary[lyr._name] = self._get_layer_data(lyr._name)
-            return self
+            self.layer_names.append(lyr.name)
+            self.layers[lyr.name] = lyr
+            self.summary[lyr.name] = self._get_layer_data(lyr.name)
+        return self
+
+    def __iter__(self):
+        """Generator for layers"""
+        for layer in self.layers.values():
+            yield layer
 
     def add(self,
             estimators,
@@ -237,7 +242,7 @@ class Sequential(BaseEstimator):
         # Add layer to stack
         return self(lyr)
 
-    def fit(self, X=None, y=None, return_preds=None, **process_kwargs):
+    def fit(self, X=None, y=None, **kwargs):
         r"""Fit instance by calling ``predict_proba`` in the first layer.
 
         Similar to ``fit``, but will call the ``predict_proba`` method on
@@ -253,11 +258,8 @@ class Sequential(BaseEstimator):
         y : array-like of shape = [n_samples, ]
             training labels.
 
-        return_preds : bool
-            whether to return final prediction array
-
-        **process_kwargs : optional
-            optional arguments to initialize processor with.
+        **kwargs : optional
+            optional arguments to processor
 
         Returns
         -----------
@@ -275,23 +277,14 @@ class Sequential(BaseEstimator):
         """
         pout, t0 = print_job(self, "Fitting")
 
-        # Initialize cache
-        processor = ParallelProcessing(self)
-        processor.initialize('fit', X, y, **process_kwargs)
+        with ParallelProcessing(self) \
+                as manager:
+            out = manager.process('fit', X, y, **kwargs)
 
-        # Fit ensemble
-        try:
-            processor.process()
+        self._post_process()
 
-            if self.verbose:
-                print_time(t0, "Fit complete", file=pout, flush=True)
-
-            # Generate output
-            out = self._post_process(processor, return_preds)
-
-        finally:
-            # Always terminate processor
-            processor.terminate()
+        if self.verbose:
+            print_time(t0, "Fit complete", file=pout, flush=True)
 
         return out
 
@@ -373,34 +366,21 @@ class Sequential(BaseEstimator):
             or new predictions on X using base learners fitted on all training
             data.
         """
-        # Initialize cache
-        processor = ParallelProcessing(self)
-        processor.initialize(job, X, *args, **kwargs)
-
-        # Predict with ensemble
-        try:
-            processor.process()
-            preds = processor.get_preds()
-
-        finally:
-            # Always terminate job manager unless user explicitly initialized
-            processor.terminate()
+        return_preds = kwargs.pop('return_preds', True)
+        with ParallelProcessing(self) as manager:
+            preds = manager.process(
+                job, X, *args, return_preds=return_preds, **kwargs)
 
         return preds
 
-    def _post_process(self, processor, return_preds):
+    def _post_process(self):
         """Aggregate output from processing layers and _collect final preds."""
         out = dict()
-        for layer_name, layer in self.layers.items():
-            layer_scores = getattr(layer, 'scores', None)
-            if layer_scores is not None:
-                out.update(layer_scores)
-
-        if out:
-            self.scores = out
-
-        if return_preds:
-            return processor.get_preds()
+        for _, layer in self.layers.items():
+            layer_data = getattr(layer, 'data', None)
+            if layer_data is not None:
+                out.update(layer_data)
+        self.data = out
 
     def _init_layers(self, layers):
         """Return a clean ordered dictionary or copy the passed dictionary."""
@@ -436,18 +416,15 @@ class Sequential(BaseEstimator):
         params : dict
             mapping of parameter names mapped to their values.
         """
+        out = super(Sequential, self).get_params(deep=deep)
+
         if not deep:
-            return super(Sequential, self).get_params()
+            return out
 
-        out = {}
         for layer_name, layer in self.layers.items():
-            # Add each layer
             out[layer_name] = layer
-
             for key, val in layer.get_params(deep=True).items():
-                # Add the parameters (instances) of each layer
-                out["%s__%s" % (layer_name, key)] = val
-
+                out[key] = val
         return out
 
 
@@ -481,6 +458,7 @@ class BaseEnsemble(BaseEstimator):
         self.verbose = verbose
         self.n_jobs = n_jobs
         self.layers = layers
+        self.data_ = None
         self.array_check = array_check
         self.backend = backend if backend is not None else config.BACKEND
 
@@ -572,7 +550,7 @@ class BaseEnsemble(BaseEstimator):
 
         X, y = check_inputs(X, y, self.array_check)
 
-        self.scores_ = self.layers.fit(X, y)
+        self.data_ = self.layers.fit(X, y)
 
         return self
 

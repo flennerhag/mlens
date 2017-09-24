@@ -10,7 +10,7 @@ Subsemble class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import FullIndex, SubsetIndex, ClusteredSubsetIndex
+from ..index import FullIndex, SubsetIndex, ClusteredSubsetIndex
 from ..utils import kwarg_parser
 
 

@@ -10,7 +10,7 @@ Sequential Ensemble class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import INDEXERS
+from ..index import INDEXERS
 from ..utils import kwarg_parser
 
 

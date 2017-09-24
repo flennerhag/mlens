@@ -4,24 +4,16 @@
 :copyright: 2017
 :licence: MIT
 """
-
-from .stack import Stacker
-from .blend import Blender
-from .subset import SubStacker
-from .single_run import SingleRun
+from .layer import Layer
 from .evaluation import Evaluation
-from .estimation import BaseEstimator
-from .learner import Learner, Transformer
+from .learner import Learner, EvalLearner, Transformer
 from .manager import ParallelProcessing, ParallelEvaluation
 
 __all__ = ['ParallelProcessing',
            'ParallelEvaluation',
-           'Stacker',
-           'Blender',
-           'SubStacker',
-           'SingleRun',
            'Evaluation',
-           'BaseEstimator',
+           'Layer',
            'Learner',
+           'EvalLearner',
            'Transformer',
            ]

@@ -1,5 +1,5 @@
-mlens.utils.validation module
-=============================
+mlens\.utils\.validation module
+===============================
 
 .. automodule:: mlens.utils.validation
     :members:

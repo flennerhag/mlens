@@ -1,5 +1,5 @@
-mlens.visualization.var_analysis module
-=======================================
+mlens\.visualization\.var\_analysis module
+==========================================
 
 .. automodule:: mlens.visualization.var_analysis
     :members:

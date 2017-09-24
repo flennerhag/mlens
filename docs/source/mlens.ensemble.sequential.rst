@@ -1,5 +1,5 @@
-mlens.ensemble.sequential module
-================================
+mlens\.ensemble\.sequential module
+==================================
 
 .. automodule:: mlens.ensemble.sequential
     :members:

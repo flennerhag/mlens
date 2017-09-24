@@ -1,5 +1,5 @@
-mlens.preprocessing package
-===========================
+mlens\.preprocessing package
+============================
 
 Submodules
 ----------

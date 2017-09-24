@@ -1,5 +1,5 @@
-mlens.parallel.evaluation module
-================================
+mlens\.parallel\.evaluation module
+==================================
 
 .. automodule:: mlens.parallel.evaluation
     :members:

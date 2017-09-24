@@ -1,5 +1,5 @@
-mlens.metrics package
-=====================
+mlens\.metrics package
+======================
 
 Submodules
 ----------
@@ -7,6 +7,7 @@ Submodules
 .. toctree::
 
    mlens.metrics.metrics
+   mlens.metrics.utils
 
 Module contents
 ---------------

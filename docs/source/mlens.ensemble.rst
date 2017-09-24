@@ -1,5 +1,5 @@
-mlens.ensemble package
-======================
+mlens\.ensemble package
+=======================
 
 Submodules
 ----------

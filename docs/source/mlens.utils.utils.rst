@@ -1,5 +1,5 @@
-mlens.utils.utils module
-========================
+mlens\.utils\.utils module
+==========================
 
 .. automodule:: mlens.utils.utils
     :members:

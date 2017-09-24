@@ -1,5 +1,5 @@
-mlens.visualization package
-===========================
+mlens\.visualization package
+============================
 
 Submodules
 ----------

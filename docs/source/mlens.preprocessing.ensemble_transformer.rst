@@ -1,5 +1,5 @@
-mlens.preprocessing.ensemble_transformer module
-===============================================
+mlens\.preprocessing\.ensemble\_transformer module
+==================================================
 
 .. automodule:: mlens.preprocessing.ensemble_transformer
     :members:

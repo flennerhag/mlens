@@ -1,5 +1,5 @@
-mlens.metrics.metrics module
-============================
+mlens\.metrics\.metrics module
+==============================
 
 .. automodule:: mlens.metrics.metrics
     :members:

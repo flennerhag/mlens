@@ -1,5 +1,5 @@
-mlens.ensemble.base module
-==========================
+mlens\.ensemble\.base module
+============================
 
 .. automodule:: mlens.ensemble.base
     :members:

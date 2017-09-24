@@ -1,5 +1,5 @@
-mlens.utils.dummy module
-========================
+mlens\.utils\.dummy module
+==========================
 
 .. automodule:: mlens.utils.dummy
     :members:

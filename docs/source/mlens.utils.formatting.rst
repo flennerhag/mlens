@@ -1,5 +1,5 @@
-mlens.utils.formatting module
-=============================
+mlens\.utils\.formatting module
+===============================
 
 .. automodule:: mlens.utils.formatting
     :members:

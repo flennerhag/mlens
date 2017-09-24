@@ -1,5 +1,5 @@
-mlens.visualization.correlations module
-=======================================
+mlens\.visualization\.correlations module
+=========================================
 
 .. automodule:: mlens.visualization.correlations
     :members:

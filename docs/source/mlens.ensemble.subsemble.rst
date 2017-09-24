@@ -1,5 +1,5 @@
-mlens.ensemble.subsemble module
-===============================
+mlens\.ensemble\.subsemble module
+=================================
 
 .. automodule:: mlens.ensemble.subsemble
     :members:

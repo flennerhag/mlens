@@ -1,18 +1,15 @@
-mlens.parallel package
-======================
+mlens\.parallel package
+=======================
 
 Submodules
 ----------
 
 .. toctree::
 
-   mlens.parallel.blend
-   mlens.parallel.estimation
    mlens.parallel.evaluation
+   mlens.parallel.layer
+   mlens.parallel.learner
    mlens.parallel.manager
-   mlens.parallel.single_run
-   mlens.parallel.stack
-   mlens.parallel.subset
 
 Module contents
 ---------------

@@ -1,5 +1,5 @@
-mlens.utils.exceptions module
-=============================
+mlens\.utils\.exceptions module
+===============================
 
 .. automodule:: mlens.utils.exceptions
     :members:

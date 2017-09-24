@@ -1,5 +1,5 @@
-mlens.parallel.manager module
-=============================
+mlens\.parallel\.manager module
+===============================
 
 .. automodule:: mlens.parallel.manager
     :members:

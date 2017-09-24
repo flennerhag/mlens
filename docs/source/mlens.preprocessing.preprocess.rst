@@ -1,5 +1,5 @@
-mlens.preprocessing.preprocess module
-=====================================
+mlens\.preprocessing\.preprocess module
+=======================================
 
 .. automodule:: mlens.preprocessing.preprocess
     :members:

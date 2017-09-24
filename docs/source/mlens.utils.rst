@@ -1,5 +1,5 @@
-mlens.utils package
-===================
+mlens\.utils package
+====================
 
 Submodules
 ----------
@@ -10,6 +10,7 @@ Submodules
    mlens.utils.dummy
    mlens.utils.exceptions
    mlens.utils.formatting
+   mlens.utils.id_train
    mlens.utils.utils
    mlens.utils.validation
 

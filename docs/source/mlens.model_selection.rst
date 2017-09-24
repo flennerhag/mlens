@@ -1,5 +1,5 @@
-mlens.model_selection package
-=============================
+mlens\.model\_selection package
+===============================
 
 Submodules
 ----------

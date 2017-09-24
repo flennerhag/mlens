@@ -1,5 +1,5 @@
-mlens.ensemble.super_learner module
-===================================
+mlens\.ensemble\.super\_learner module
+======================================
 
 .. automodule:: mlens.ensemble.super_learner
     :members:

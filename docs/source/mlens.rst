@@ -6,14 +6,21 @@ Subpackages
 
 .. toctree::
 
-    mlens.base
     mlens.ensemble
+    mlens.index
     mlens.metrics
     mlens.model_selection
     mlens.parallel
     mlens.preprocessing
     mlens.utils
     mlens.visualization
+
+Submodules
+----------
+
+.. toctree::
+
+   mlens.config
 
 Module contents
 ---------------

@@ -1,5 +1,5 @@
-mlens.ensemble.blend module
-===========================
+mlens\.ensemble\.blend module
+=============================
 
 .. automodule:: mlens.ensemble.blend
     :members:

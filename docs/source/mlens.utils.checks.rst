@@ -1,5 +1,5 @@
-mlens.utils.checks module
-=========================
+mlens\.utils\.checks module
+===========================
 
 .. automodule:: mlens.utils.checks
     :members:

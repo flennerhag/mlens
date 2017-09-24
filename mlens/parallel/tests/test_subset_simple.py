@@ -4,7 +4,7 @@ from mlens.base import SubsetIndex
 
 from mlens.parallel.subset import _expand_instance_list, _get_col_idx
 
-from mlens.ensemble.base import LayerContainer
+from mlens.ensemble.base import Sequential
 
 x = np.arange(24).reshape((12, 2))
 y = x[:, 0] * x[:, 1]
@@ -45,12 +45,12 @@ F, P = ground_truth()
 
 def test_subset_fit_predict_transform():
     """[Parallel | Subset | No Prep]: second test of fit, predict transform."""
-    lc = LayerContainer().add(estimators=estimators,
-                              cls='subset',
-                              proba=False,
-                              indexer=indexer,
-                              preprocessing=None,
-                              dtype=np.float64)
+    lc = Sequential().add(estimators=estimators,
+                          cls='subset',
+                          proba=False,
+                          indexer=indexer,
+                          preprocessing=None,
+                          dtype=np.float64)
 
     f = lc.fit(x, y, return_preds=True)[-1]
     p = lc.predict(x)

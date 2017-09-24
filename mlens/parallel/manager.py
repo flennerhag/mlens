@@ -6,12 +6,20 @@
 
 Parallel processing job managers.
 """
+# pylint: disable=too-few-public-methods
+# pylint: disable=too-many-arguments
+# pylint: disable=useless-super-delegation
+
+from __future__ import with_statement
+
 import gc
 import os
 import shutil
 import subprocess
 import tempfile
 import warnings
+
+from abc import ABCMeta, abstractmethod
 
 import numpy as np
 from scipy.sparse import issparse, hstack
@@ -28,7 +36,7 @@ ENGINES = list()
 
 
 ###############################################################################
-def dump_array(array, name, dir):
+def dump_array(array, name, path):
     """Dump array for memmapping."""
     # First check if the array is on file
     if isinstance(array, str):
@@ -42,7 +50,7 @@ def dump_array(array, name, dir):
         f = array
     else:
         # Dump ndarray on disk
-        f = os.path.join(dir, '%s.mmap' % name)
+        f = os.path.join(path, '%s.mmap' % name)
         if os.path.exists(f):
             os.unlink(f)
         dump(array, f)
@@ -163,27 +171,34 @@ class BaseProcessor(object):
 
     Base class for parallel processing engines.
     """
+
+    __meta_class__ = ABCMeta
+
     __slots__ = ['caller', '__initialized__', '__threading__', 'job']
 
+    @abstractmethod
     def __init__(self, caller):
         self.job = None
         self.caller = caller
         self.__initialized__ = 0
         self.__threading__ = self.caller.backend == 'threading'
 
-    def initialize(self, job, X, y=None, dir=None):
-        """Create a job instance for estimation."""
-        self.job = Job(job)
+    def __enter__(self):
+        return self
 
-        if dir is None:
-            dir = config.TMPDIR
+    def _initialize(self, job, X, y=None, path=None):
+        """Create a job instance for estimation."""
+        job = Job(job)
+
+        if path is None:
+            path = config.TMPDIR
         try:
-            self.job.tmp = \
-                tempfile.TemporaryDirectory(prefix=config.PREFIX, dir=dir)
-            self.job.dir = self.job.tmp.name
+            job.tmp = tempfile.TemporaryDirectory(
+                prefix=config.PREFIX, dir=path)
+            job.dir = job.tmp.name
         except AttributeError:
             # Fails on python 2
-            self.job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=dir)
+            job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=path)
 
         # --- Prepare inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -197,52 +212,56 @@ class BaseProcessor(object):
                 if isinstance(arr, str):
                     arr = _load(arr)
             else:
-                f = dump_array(arr, name, self.job.dir)
+                f = dump_array(arr, name, job.dir)
 
             # Store data for processing
-            if name is 'y' and y is not None:
-                self.job.y = arr if self.__threading__ else _load_mmap(f)
+            if name == 'y' and arr is not None:
+                job.y = arr if self.__threading__ else _load_mmap(f)
             elif name == 'X':
-                self.job.predict_in = arr \
+                job.predict_in = arr \
                     if self.__threading__ else _load_mmap(f)
 
+        self.job = job
         self.__initialized__ = 1
         gc.collect()
+        return self
 
-    def terminate(self):
-        """Remove temporary folder and all cache data."""
-        # Delete all contents from cache
-        try:
-            self.job.tmp.cleanup()
-
-        except (AttributeError, OSError):
-            # Fall back on shutil for python 2, can also fail on windows
+    def __exit__(self, *args):
+        """Ensure cache cleanup"""
+        if getattr(self, 'job', None) is not None:
+            # Delete all contents from cache
             try:
-                shutil.rmtree(self.job.dir)
-            except OSError:
-                # Can fail on windows, need to use the shell
+                self.job.tmp.cleanup()
+
+            except (AttributeError, OSError):
+                # Fall back on shutil for python 2, can also fail on windows
                 try:
-                    subprocess.Popen('rmdir /S /Q %s' % self.job.dir,
-                                     shell=True, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
+                    shutil.rmtree(self.job.dir)
                 except OSError:
-                    warnings.warn("Failed to delete cache at %s."
-                                  "If created with default settings, will be "
-                                  "removed on reboot. For immediate "
-                                  "removal, manual removal is required." %
-                                  self.job.dir, ParallelProcessingWarning)
+                    # Can fail on windows, need to use the shell
+                    try:
+                        subprocess.Popen('rmdir /S /Q %s' % self.job.dir,
+                                         shell=True, stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+                    except OSError:
+                        warnings.warn(
+                            "Failed to delete cache at %s."
+                            "If created with default settings, will be "
+                            "removed on reboot. For immediate "
+                            "removal, manual removal is required." %
+                            self.job.dir, ParallelProcessingWarning)
 
-        finally:
-            # Always release process memory
-            del self.job
-            gc.collect()
+            finally:
+                # Always release process memory
+                del self.job
+                gc.collect()
 
-            if gc.garbage:
-                warnings.warn("Clearing process memory failed, "
-                              "uncollected:\n%r." % gc.garbage,
-                              ParallelProcessingWarning)
+                if gc.garbage:
+                    warnings.warn("Clearing process memory failed, "
+                                  "uncollected:\n%r." % gc.garbage,
+                                  ParallelProcessingWarning)
 
-            self.__initialized__ = 0
+                self.__initialized__ = 0
 
 
 class ParallelProcessing(BaseProcessor):
@@ -253,14 +272,16 @@ class ParallelProcessing(BaseProcessor):
 
     Parameters
     ----------
-    layers : :class:`mlens.ensemble.base.Sequential`
-        The ``LayerContainer`` that instantiated the processor.
+    caller :  obj
+        the caller of the job. Either a Layer or a meta layer class
+        such as Sequential.
     """
     def __init__(self, caller):
         super(ParallelProcessing, self).__init__(caller)
 
-    def process(self):
+    def process(self, job, X, y, path=None, return_preds=False):
         """Fit all layers in the attached :class:`Sequential`."""
+        self._initialize(job=job, X=X, y=y, path=path)
         check_initialized(self)
 
         # Process each layer sequentially with the same worker pool
@@ -271,21 +292,24 @@ class ParallelProcessing(BaseProcessor):
                       verbose=self.caller.verbose,
                       backend=self.caller.backend) as parallel:
 
-            for name, lyr in self.caller.layers.items():
+            for lyr in self.caller:
                 # Shuffle inputs during training if required
                 if self.job.job == 'fit':
                     self.job.shuffle(lyr.shuffle, lyr.random_state)
 
                 # Process layer
-                self._partial_process(name, lyr, parallel)
+                self._partial_process(lyr, parallel)
 
                 # Update input array with output array
                 self.job.update()
 
-    def _partial_process(self, name, layer, parallel):
+        if return_preds:
+            return self.get_preds()
+
+    def _partial_process(self, layer, parallel):
         """Generate prediction matrix for a given :class:`layer`."""
         layer.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
-        self._gen_prediction_array(name, layer, self.__threading__)
+        self._gen_prediction_array(layer, self.__threading__)
 
         # Run estimation to populate prediction matrix
         layer.set_output_columns(self.job.y)
@@ -313,13 +337,13 @@ class ParallelProcessing(BaseProcessor):
                                            p_out[:, lyr.n_feature_prop:]]
                                           ).tolil()
 
-    def _gen_prediction_array(self, name, lyr, threading):
+    def _gen_prediction_array(self, lyr, threading):
         """Generate prediction array either in-memory or persist to disk."""
         shape = self._get_lyr_sample_size(lyr)
         if threading:
             self.job.predict_out = np.empty(shape, dtype=lyr.dtype)
         else:
-            f = os.path.join(self.job.dir, '%s.mmap' % name)
+            f = os.path.join(self.job.dir, '%s.mmap' % lyr.name)
             try:
                 self.job.predict_out = np.memmap(filename=f,
                                                  dtype=lyr.dtype,
@@ -330,7 +354,7 @@ class ParallelProcessing(BaseProcessor):
                               "%i, %i), size %i MBs, for %s.\n Details:\n%r" %
                               (shape[0], shape[1],
                                8 * shape[0] * shape[1] / (1024 ** 2),
-                               name, exc))
+                               lyr.name, exc))
 
     def _get_lyr_sample_size(self, lyr):
         """Decide what sample size to create P with based on the job type."""
@@ -372,12 +396,15 @@ class ParallelProcessing(BaseProcessor):
                                           "cannot retrieve final prediction "
                                           "array from cache.")
         if dtype is None:
-            dtype = self.caller.layers[self.caller.layer_names[-1]].dtype
+            try:
+                # Sequential
+                dtype = self.caller.layers[self.caller.layer_names[-1]].dtype
+            except AttributeError:
+                dtype = self.caller.dtype
 
         if issparse(self.job.predict_out):
             return self.job.predict_out
-        else:
-            return np.asarray(self.job.predict_out, dtype=dtype, order=order)
+        return np.asarray(self.job.predict_out, dtype=dtype, order=order)
 
 
 ###############################################################################
@@ -394,8 +421,9 @@ class ParallelEvaluation(BaseProcessor):
     def __init__(self, caller):
         super(ParallelEvaluation, self).__init__(caller)
 
-    def process(self, attr):
+    def process(self, attr, X, y, path=None):
         """Fit all layers in the attached :class:`Sequential`."""
+        self._initialize(job='evaluate', X=X, y=y, path=path)
         check_initialized(self)
 
         # Use context manager to ensure same parallel job during entire process
@@ -406,7 +434,7 @@ class ParallelEvaluation(BaseProcessor):
                       verbose=self.caller.verbose,
                       backend=self.caller.backend) as parallel:
 
-            f = ENGINES['evaluation'](self.caller)
+            f = self.caller.__engine__(self.caller)
 
             getattr(f, attr)(parallel,
                              self.job.predict_in,

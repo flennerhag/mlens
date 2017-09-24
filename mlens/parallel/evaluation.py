@@ -10,9 +10,9 @@ Cross-validation jobs for an :class:`Evaluator` instance.
 import os
 import warnings
 
-from ._base_functions import fit_trans, _slice_array, _transform
+from ._base_functions import slice_array, transform
 from ..externals.joblib import delayed
-from ..utils import pickle_load
+from ..utils import pickle_load, pickle_save
 from ..utils.exceptions import FitFailedWarning
 from ..externals.sklearn.base import clone
 
@@ -21,6 +21,26 @@ try:
     from time import perf_counter as time
 except ImportError:
     from time import time
+
+
+def fit_trans(dir, case, inst, x, y, idx):
+    """Fit transformers and write to cache."""
+    x, y = slice_array(x, y, idx)
+
+    out = []
+    for tr_name, tr in inst:
+        # Fit transformer
+        tr.fit(x, y)
+
+        # If more than one step, transform input for next step.
+        if len(inst) > 1:
+            x, y = transform(tr, x, y)
+
+        out.append((tr_name, tr))
+
+    # Write transformer list to cache
+    f = os.path.join(dir, '%s__t' % case)
+    pickle_save(out, f)
 
 
 class Evaluation(object):
@@ -118,8 +138,7 @@ def _name(case, est_name):
     """Get correct param_dict name."""
     if case is not None:
         return case.split('__')[0], est_name.split('__')[0]
-    else:
-        return est_name.split('__')[0]
+    return est_name.split('__')[0]
 
 
 def fit_score(case, tr_list, est_name, est, params, x, y, idx, scorer,
@@ -135,7 +154,7 @@ def fit_score(case, tr_list, est_name, est, params, x, y, idx, scorer,
         # Otherwise, we issue a warning and set an error score.
         try:
             return _fit_score(case, tr_list, est_name, est, params, x, y, idx,
-                              scorer, error_score)
+                             scorer, error_score)
         except Exception as exception:
 
             warnings.warn("Cross validation failed. Setting error score {}"
@@ -150,10 +169,10 @@ def _fit_score(case, tr_list, est_name, est, params, x, y, idx, scorer,
     est = clone(est).set_params(**params[1])
 
     # Prepare training set
-    xtrain, ytrain = _slice_array(x, y, idx[0])
+    xtrain, ytrain = slice_array(x, y, idx[0])
 
     for tr_name, tr in tr_list:
-        xtrain, ytrain = _transform(tr, xtrain, ytrain)
+        xtrain, ytrain = transform(tr, xtrain, ytrain)
 
     # We might have to rebase the training labels since a BlendEnsemble would
     # make xtrain. Since Blend is sequential, we can discard the first 'n'
@@ -167,7 +186,7 @@ def _fit_score(case, tr_list, est_name, est, params, x, y, idx, scorer,
     fit_time = time() - t0
 
     # Prepare test set
-    xtest, ytest = _slice_array(x, y, idx[1])
+    xtest, ytest = slice_array(x, y, idx[1])
 
     for tr_name, tr in tr_list:
         xtest = tr.transform(xtest)

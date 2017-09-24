@@ -3,7 +3,7 @@ Test specific functionality of the parallel manager module.
 """
 import numpy as np
 from scipy.sparse import csr_matrix
-from mlens.ensemble.base import LayerContainer
+from mlens.ensemble.base import Sequential
 from mlens.externals.sklearn.validation import check_random_state
 from mlens.utils.dummy import OLS
 
@@ -40,23 +40,23 @@ second_prop.append(second_prop[-1] + 1)
 second_prop.append(second_prop[-1] + 1)
 n_second_prop = len(second_prop)
 
-ens1 = LayerContainer()
+ens1 = Sequential()
 ens1.add([OLS(0), OLS(1)], 'stack', propagate_features=first_prop)
 
-ens2 = LayerContainer()
+ens2 = Sequential()
 ens2.add([OLS(0), OLS(1)], 'stack', propagate_features=first_prop)
 ens2.add([OLS(2), OLS(3)], 'stack', propagate_features=second_prop)
 
-ens3 = LayerContainer()
+ens3 = Sequential()
 ens3.add([OLSSparse(0), OLSSparse(1)], 'stack', propagate_features=first_prop)
 ens3.add([OLSSparse(2), OLSSparse(3)], 'stack', propagate_features=second_prop)
 
-ens4 = LayerContainer()
+ens4 = Sequential()
 ens4.add([OLS(), OLS(1), OLS(2)], 'stack', shuffle=True, random_state=SEED)
 ens4.add([OLS(), OLS(1), OLS(2)], 'stack', shuffle=True, random_state=SEED)
 ens4.add([OLS(), OLS(1), OLS(2)], 'stack', shuffle=True, random_state=SEED)
 
-ens5 = LayerContainer()
+ens5 = Sequential()
 ens5.add([OLS(), OLS(1), OLS(2)], 'stack')
 
 

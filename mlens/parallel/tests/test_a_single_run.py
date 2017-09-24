@@ -5,16 +5,16 @@
 import numpy as np
 
 from mlens.utils.dummy import ECM, Data
-from mlens.ensemble.base import LayerContainer
+from mlens.ensemble.base import Sequential
 from mlens.externals.sklearn.base import clone
 
 
 X, y = Data('stack', False, False).get_data((6, 2), 2)
 
-lc1 = LayerContainer()
+lc1 = Sequential()
 lc1.add(ECM, 'full', meta=True, dtype=np.float64)
 
-lc2 = LayerContainer()
+lc2 = Sequential()
 lc2.add(ECM, 'full', meta=False, dtype=np.float64)
 
 

@@ -15,8 +15,9 @@ import sys
 import numpy as np
 
 from .. import config
-from ..base import FoldIndex
+from ..index import FoldIndex
 from ..parallel import ParallelEvaluation
+from ..parallel.evaluation import Evaluation
 from ..utils import (print_time,
                      safe_print,
                      check_instances,
@@ -130,6 +131,8 @@ class Evaluator(object):
         and parameters.
     """
 
+    __engine__ = Evaluation
+
     def __init__(self,
                  scorer,
                  cv=2,
@@ -154,22 +157,11 @@ class Evaluator(object):
         self.verbose = verbose
         self.evaluator = None
         self.preprocessing = None
+        self.__indexer_fitted__ = False
 
         _check_scorer(scorer)
         self.scorer = scorer
         self.scores_ = None
-
-    def initialize(self, X, y):
-        """Set up :class:`ParallelEvaluation` job manager."""
-        self.indexer.fit(X, y)
-        self.evaluator = ParallelEvaluation(self)
-        self.evaluator.initialize('evaluate', X, y)
-
-    def terminate(self):
-        """Terminate evaluation job."""
-        self.evaluator.terminate()
-        self.evaluator = None
-        gc.collect()
 
     def fit(self, X, y, estimators, param_dicts, n_iter=2, preprocessing=None):
         """Fit the Evaluator to given data, estimators and preprocessing.
@@ -254,6 +246,9 @@ class Evaluator(object):
         self : instance
             class instance with stored estimator evaluation results.
         """
+        X, y = check_inputs(X, y, self.array_check)
+        self.indexer.fit(X, y)
+        self.__indexer_fitted__ = True
         if preprocessing is not None:
             self.preprocess(X, y, preprocessing)
         return self.evaluate(X, y, estimators, param_dicts, n_iter)
@@ -285,10 +280,12 @@ class Evaluator(object):
             class instance with stored estimator evaluation results.
 
         """
+        X, y = check_inputs(X, y, self.array_check)
         if preprocessing is None:
             raise ValueError("No preprocessing specified.")
 
-        X, y = check_inputs(X, y, self.array_check)
+        if not self.__indexer_fitted__:
+            self.indexer.fit(X, y)
 
         self.preprocessing = check_instances(preprocessing)
 
@@ -297,13 +294,8 @@ class Evaluator(object):
             t0 = time()
             self._print_prep_start(t0, printout)
 
-        self.initialize(X, y)
-
-        try:
-            self.evaluator.process('preprocess')
-        finally:
-            # Always terminate cache
-            self.terminate()
+        with ParallelEvaluation(self) as manager:
+            manager.process('preprocess', X, y)
 
         if self.verbose > 0:
             print_time(t0, 'Preprocessing done', file=printout)
@@ -381,7 +373,9 @@ class Evaluator(object):
         self : instance
             class instance with stored estimator evaluation results.
         """
-        X, y = check_inputs(X, y, check_level=self.array_check)
+        X, y = check_inputs(X, y, self.array_check)
+        if not self.__indexer_fitted__:
+            self.indexer.fit(X, y)
 
         # First check if list of estimators should be expanded to very case
         estimators, param_dicts = self._format(estimators, param_dicts)
@@ -395,19 +389,9 @@ class Evaluator(object):
             t0 = time()
             self._print_eval_start(printout)
 
-        self.initialize(X, y)
-
-        # Run evaluation
-        try:
-            self.evaluator.process('evaluate')
-
+        with ParallelEvaluation(self) as manager:
+            manager.process('evaluate', X, y)
             self._collect()
-
-        finally:
-            # Always terminate job
-            self.evaluator.terminate()
-            del self.evaluator
-            gc.collect()
 
         if self.verbose > 0:
             print_time(t0, 'Evaluation done', file=printout)
@@ -432,7 +416,6 @@ class Evaluator(object):
                     # Check that naming is of the (case, est) form
 
                     if key[0] not in preprocessing:
-
                         msg = ("param_dict poorly formatted. Valid keys are "
                                "'(case_name, est_name)' or 'est_name'."
                                " Failed on key entry {}. \nAll keys: "

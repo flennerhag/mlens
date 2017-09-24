@@ -1,3 +1,8 @@
+<div align="center">
+<img src="docs/img/logo.png" width="50%"><br><br>
+</div>
+-------------------------------------------------------------------------------
+
 ![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)
 ![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)
 ![Python 2.7](https://img.shields.io/badge/python-2.7-blue.svg)
@@ -9,18 +14,18 @@
 [![Documentation Status](http://readthedocs.org/projects/mlens/badge/?version=latest)](http://mlens.readthedocs.io/en/latest/?badge=latest)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-# ML- Ensemble
-
 **A Python library for memory efficient
 parallelized ensemble learning**.
 
 ML-Ensemble combines the Scikit-learn estimator API with a neural-network style
-API to allow straight-forward multi-layer ensemble network architectures that
-can be used as any Scikit-learn estimator.
+API to allow straight-forward multi-layer ensemble network architectures.
 
 The core principle of ML-Ensemble is to maximize parallel processing at minimum
-memory consumption. ML-Ensemble uses memory mapping to remain memory neutral
-during parallel estimation. For full documentation, see [here](http://mlens.readthedocs.io/en/latest/).
+memory consumption. ML-Ensemble is thread safe and can fall back on memory mapped 
+multiprocessing to keep memory consumption at a minimum.
+For tutorials and full documentation, visit the project
+ [website](http://mlens.readthedocs.io/en/latest/).
+
 
 ## Core Features
 
@@ -30,7 +35,9 @@ allowing different fitting procedures, differentiated preprocessing
 for subsets of estimators and input feature propagation. It is straightforward 
 to build deep ensembles with complex network structures.
 
-![Network](docs/img/network.png)
+<div align="center">
+<img src="docs/img/network.png" height="60%">
+</div>
 
 
 ### Transparent Architecture API

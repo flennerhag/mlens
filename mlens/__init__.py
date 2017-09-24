@@ -13,13 +13,13 @@ from mlens.config import clear_cache
 
 __version__ = "0.2.0.dev0"
 
-__all__ = ['base',
+__all__ = ['index',
            'utils',
            'metrics',
            'parallel',
            'ensemble',
-           'externals',
            'visualization',
            'preprocessing',
            'model_selection',
-          ]
+           'externals',
+           ]

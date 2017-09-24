@@ -17,13 +17,22 @@ except ImportError:
     _dict = dict
 
 
+def _get_string(obj, dec):
+    """Stringify object"""
+    try:
+        return str(np.round(obj, dec))
+    except TypeError:
+        return obj.__str__()
+
+
 class Data(_dict):
 
     """Wrapper class around dict to get pretty prints
     """
-    def __init__(self, data_list, partitions):
-        out = assemble_data(data_list, partitions)
-        super(Data, self).__init__(out)
+    def __init__(self, data, partitions=None):
+        if isinstance(data, list):
+            data = assemble_data(data, partitions)
+        super(Data, self).__init__(data)
 
     def __repr__(self):
         return assemble_table(self)
@@ -54,7 +63,7 @@ def assemble_table(data, padding=2, decimals=2):
             if not v:
                 continue
 
-            v_ = len(str(np.round(v, decimals)))
+            v_ = len(_get_string(v, decimals))
             if v_ > max_col_len[key]:
                 max_col_len[key] = v_
 
@@ -136,9 +145,9 @@ def assemble_table(data, padding=2, decimals=2):
                 # Table contents
                 for col in cols:
                     item = data[col][k]
-                    if not item:
+                    if not item or item == 0:
                         continue
-                    item_ = str(np.round(item, decimals))
+                    item_ = _get_string(item, decimals)
                     adj = max_col_len[col] - len(item_) + padding
                     out += " " * adj + item_
                 out += "\n"
@@ -192,12 +201,10 @@ def assemble_data(data_list, partitions):
             try:
                 # Purge None values from the main learner
                 # I.e. no prediction time during fit call
-                v = [i for i in v if i]
+                v = [i for i in v if i is not None]
                 if v:
                     data['%s-m' % k][name] = np.mean(v)
                     data['%s-s' % k][name] = np.std(v)
-#                    data.pop('%s-m' % k)
-#                    data.pop('%s-s' % k)
             except Exception as exc:
                 warnings.warn(
                     "Aggregating data for %s failed. Raw data:\n%r\n"
@@ -208,7 +215,7 @@ def assemble_data(data_list, partitions):
     for key, data_dict in data.items():
         empty = True
         for val in data_dict.values():
-            if val:
+            if val or val == 0:
                 empty = False
         if empty:
             discard.append(key)

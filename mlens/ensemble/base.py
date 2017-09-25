@@ -14,7 +14,6 @@ Base classes for ensemble layer management.
 from __future__ import division, print_function
 
 from abc import ABCMeta, abstractmethod
-from collections import OrderedDict
 import warnings
 
 from .. import config
@@ -106,6 +105,7 @@ class Sequential(BaseEstimator):
                  n_jobs=-1,
                  backend=None,
                  raise_on_exception=False,
+                 dtype=None,
                  verbose=False):
 
         # True params
@@ -116,6 +116,7 @@ class Sequential(BaseEstimator):
 
         # Set up layer
         self.data = None
+        self.dtype = dtype if dtype else config.DTYPE
         self._init_layers(layers)
         self._has_meta_layer = False
 
@@ -123,7 +124,7 @@ class Sequential(BaseEstimator):
         """Add layers to instance"""
         check_layers(layers)
         for lyr in layers:
-            if lyr.name in self.layer_names:
+            if lyr.name in [lyr.name for lyr in self.layers]:
                 raise ValueError("Layer name exists in stack. "
                                  "Rename layers before attempting to push.")
 
@@ -136,15 +137,13 @@ class Sequential(BaseEstimator):
                     self._has_meta_layer = True
 
             self.n_layers += 1
-
-            self.layer_names.append(lyr.name)
-            self.layers[lyr.name] = lyr
-            self.summary[lyr.name] = self._get_layer_data(lyr.name)
+            self.layers.append(lyr)
+            self._get_layer_data(lyr)
         return self
 
     def __iter__(self):
         """Generator for layers"""
-        for layer in self.layers.values():
+        for layer in self.layers:
             yield layer
 
     def add(self,
@@ -376,7 +375,7 @@ class Sequential(BaseEstimator):
     def _post_process(self):
         """Aggregate output from processing layers and _collect final preds."""
         out = dict()
-        for _, layer in self.layers.items():
+        for layer in self.layers:
             layer_data = getattr(layer, 'data', None)
             if layer_data is not None:
                 out.update(layer_data)
@@ -385,22 +384,19 @@ class Sequential(BaseEstimator):
     def _init_layers(self, layers):
         """Return a clean ordered dictionary or copy the passed dictionary."""
         if layers is None:
-            layers = OrderedDict()
-            layers.clear()
+            layers = list()
 
         self.layers = layers
-        self.layer_names = list()
         self.n_layers = len(self.layers)
 
         self.summary = dict()
-        for name in self.layers:
-            self.summary[name] = self._get_layer_data(name)
-            self.layer_names.append(name)
+        for layer in self.layers:
+            self._get_layer_data(layer)
 
-    def _get_layer_data(self, name,
+    def _get_layer_data(self, layer,
                         attr=('cls', 'n_prep', 'n_pred', 'n_est', 'cases')):
         """Utility for storing aggregate data about an added layer."""
-        return {k: getattr(self.layers[name], k, None) for k in attr}
+        self.summary[layer.name] = {k: getattr(layer, k, None) for k in attr}
 
     def get_params(self, deep=True):
         """Get parameters for this estimator.
@@ -421,10 +417,10 @@ class Sequential(BaseEstimator):
         if not deep:
             return out
 
-        for layer_name, layer in self.layers.items():
-            out[layer_name] = layer
+        for layer in self.layers:
+            out[layer.name] = layer
             for key, val in layer.get_params(deep=True).items():
-                out[key] = val
+                out['%s__%s__' % (layer.name, key)] = val
         return out
 
 
@@ -457,16 +453,30 @@ class BaseEnsemble(BaseEstimator):
         self.raise_on_exception = raise_on_exception
         self.verbose = verbose
         self.n_jobs = n_jobs
-        self.layers = layers
         self.data_ = None
         self.array_check = array_check
         self.backend = backend if backend is not None else config.BACKEND
+        self.layers = self._init_sequential(layers)
+
+    def _init_sequential(self, layers):
+        """Initialize sequential backend"""
+        if layers is None:
+            return Sequential(
+                n_jobs=self.n_jobs,
+                backend=self.backend,
+                raise_on_exception=self.raise_on_exception,
+                verbose=self.verbose)
+
+        if not layers.__cls__.__name__ == 'sequential':
+            raise ValueError(
+                "Passed layer is not an instance of Sequential")
+        return layers
 
     def set_verbosity(self, verbose):
         """Adjust the level of verbosity."""
         self.verbose = verbose
         self.layers.verbose = verbose
-        for layer in self.layers.layers.values():
+        for layer in self.layers.layers:
             layer.verbose = verbose
 
     def _add(self,
@@ -511,7 +521,6 @@ class BaseEnsemble(BaseEstimator):
                                  "None or layer parameter 'Proba' to False.")
 
         self.layers.add(estimators=estimators,
-                        cls=cls,
                         meta=meta,
                         indexer=indexer,
                         preprocessing=preprocessing,
@@ -522,9 +531,9 @@ class BaseEnsemble(BaseEstimator):
                         **kwargs)
 
         # Set the layer as an attribute of the ensemble
-        lyr = list(self.layers.layers)[-1]
-        attr = lyr.replace('-', '_').replace(' ', '').strip()
-        setattr(self, attr, self.layers.layers[lyr])
+        lyr = self.layers.layers[-1]
+        attr = lyr.name.replace('-', '_').replace(' ', '').strip()
+        setattr(self, attr, lyr)
 
         return self
 

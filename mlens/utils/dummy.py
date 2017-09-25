@@ -371,22 +371,18 @@ class LayerGenerator(object):
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
             return Layer(estimators=ests,
-                         cls=kls,
                          proba=proba,
                          indexer=indexer,
                          dtype=np.float,
-                         partitions=1 if kls != 'subset' else
-                         indexer.n_partitions,
-                         preprocessing=PREPROCESSING)
+                         preprocessing=PREPROCESSING,
+                         name=kls)
         else:
             ests = ECM_PROBA if proba else ECM
             return Layer(estimators=ests,
-                         cls=kls,
                          proba=proba,
                          indexer=indexer,
                          dtype=np.float,
-                         partitions=1 if kls != 'subset' else
-                         indexer.n_partitions)
+                         name=kls)
 
     def get_layer_container(self, kls, proba, preprocessing, *args, **kwargs):
         """Generate a layer container instance.
@@ -407,7 +403,6 @@ class LayerGenerator(object):
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
             return Sequential().add(estimators=ests,
-                                    cls=kls,
                                     proba=proba,
                                     indexer=indexer,
                                     preprocessing=PREPROCESSING,
@@ -416,7 +411,6 @@ class LayerGenerator(object):
         else:
             ests = ECM_PROBA if proba else ECM
             return Sequential().add(estimators=ests,
-                                    cls=kls,
                                     proba=proba,
                                     indexer=indexer,
                                     dtype=np.float64,

@@ -16,7 +16,7 @@ from __future__ import print_function, division
 import os
 from copy import deepcopy
 import warnings
-
+from abc import ABCMeta, abstractmethod
 from ._base_functions import (slice_array,
                               transform,
                               assign_predictions,
@@ -73,25 +73,78 @@ class _BaseEstimator(BaseEstimator):
     Adapts Scikit-learn's base estimator class.
     """
 
+    __meta_class__ = ABCMeta
+
     def __init__(self, indexer, name):
         self.name = name
         self.__fitted__ = False
         self._data_ = None
         self._times_ = None
+        self._learner_ = None
+        self._sublearners_ = None
+
         self._set_indexer(indexer)
 
-    def get_params(self, deep=True):
-        """Get learner parameters"""
-        out = dict()
-        for par_name in self._get_param_names():
-            par = getattr(self, '_%s' % par_name, None)
-            if not par:
-                par = getattr(self, par_name, None)
-            if deep and hasattr(par, 'get_params'):
-                for key, value in par.get_params(deep=True).items():
-                    out['%s_%s__%s' % (self.name, par_name, key)] = value
-            out['%s_%s' % (self.name, par_name)] = par
-        return out
+    def __call__(self, job, *args, **kwargs):
+        """Caller for producing jobs"""
+        job = 'gen_%s' % job
+        if not hasattr(self, job):
+            raise AttributeError("Job [%s] not accepted." % job)
+        return getattr(self, job)(*args, **kwargs)
+
+    @abstractmethod
+    def _gen_pred(self, X, P, generator):
+        """Method for generating predict or transform jobs"""
+        return
+
+    @abstractmethod
+    def gen_fit(self, X, y, P=None):
+        """Method for generating fit jobs"""
+        return
+
+    def gen_transform(self, X=None, P=None):
+        """Generator for regenerating training predictions"""
+        return self._gen_pred(X, P, self.sublearners_)
+
+    def gen_predict(self, X=None, P=None):
+        """Generator for predicting test set"""
+        return self._gen_pred(X, P, self.learner_)
+
+    def collect(self, path):
+        """Load fitted estimator from cache"""
+        (learner_files,
+         learner_data,
+         sublearner_files,
+         sublearner_data) = self._collect(path)
+
+        self._learner_ = learner_files
+        self._sublearners_ = sublearner_files
+        self._data_ = sublearner_data
+        self._times_ = learner_data
+        self.__fitted__ = True
+
+    def clear(self):
+        """Clear load"""
+        self._sublearners_ = None
+        self._learner_ = None
+        self._data_ = None
+        self.__fitted__ = False
+
+    @property
+    def learner_(self):
+        """Generator for learner fitted on full data"""
+        # pylint: disable=not-an-iterable
+        out = self._return_attr('_learner_')
+        for estimator in out:
+            yield deepcopy(estimator)
+
+    @property
+    def sublearners_(self):
+        """Generator for learner fitted on folds"""
+        # pylint: disable=not-an-iterable
+        out = self._return_attr('_sublearners_')
+        for estimator in out:
+            yield deepcopy(estimator)
 
     def _set_indexer(self, indexer):
         """Set indexer and auxiliary attributes"""
@@ -131,9 +184,21 @@ class _BaseEstimator(BaseEstimator):
 
     def _return_attr(self, attr):
         if not self.__fitted__:
-
             raise NotFittedError("Instance not fitted.")
         return getattr(self, attr)
+
+    def get_params(self, deep=True):
+        """Get learner parameters"""
+        out = dict()
+        for par_name in self._get_param_names():
+            par = getattr(self, '_%s' % par_name, None)
+            if not par:
+                par = getattr(self, par_name, None)
+            if deep and hasattr(par, 'get_params'):
+                for key, value in par.get_params(deep=True).items():
+                    out['%s__%s' % (par_name, key)] = value
+            out[par_name] = par
+        return out
 
     @property
     def raw_data(self):
@@ -218,26 +283,9 @@ class Learner(_BaseEstimator):
         self._sublearners_ = None        # Fitted sub-learners
         self._learner_ = None            # Fitted learners
 
-    def __call__(self, job, *args, **kwargs):
-        """Caller for producing jobs"""
-        job = 'gen_%s' % job
-
-        if not hasattr(self, job):
-            raise AttributeError("Job %s not accepted." % job)
-
-        return getattr(self, job)(*args, **kwargs)
-
-    def gen_transform(self, X, P):
-        """Generator for regenerating training predictions"""
-        return self._gen_pred(X, P, self.sublearners_)
-
-    def gen_predict(self, X, P):
-        """Generator for predicting test set"""
-        return self._gen_pred(X, P, self.learner_)
-
-    def _gen_pred(self, X, P, estimators):
+    def _gen_pred(self, X, P, generator):
         """Generator for predicting with fitted learner"""
-        for estimator in estimators:
+        for estimator in generator:
             yield SubLearner(learner=self,
                              estimator=estimator.estimator,
                              in_index=estimator.in_index,
@@ -294,42 +342,6 @@ class Learner(_BaseEstimator):
                                  targets=y,
                                  out_array=P,
                                  index=index)
-
-    def collect(self, path):
-        """Load fitted estimator from cache"""
-        (learner_files,
-         learner_data,
-         sublearner_files,
-         sublearner_data) = self._collect(path)
-
-        self._learner_ = learner_files
-        self._sublearners_ = sublearner_files
-        self._data_ = sublearner_data
-        self._times_ = learner_data
-        self.__fitted__ = True
-
-    def clear(self):
-        """Clear load"""
-        self._sublearners_ = None
-        self._learner_ = None
-        self._data_ = None
-        self.__fitted__ = False
-
-    @property
-    def learner_(self):
-        """Generator for learner fitted on full data"""
-        # pylint: disable=not-an-iterable
-        out = self._return_attr('_learner_')
-        for estimator in out:
-            yield deepcopy(estimator)
-
-    @property
-    def sublearners_(self):
-        """Generator for learner fitted on folds"""
-        # pylint: disable=not-an-iterable
-        out = self._return_attr('_sublearners_')
-        for estimator in out:
-            yield deepcopy(estimator)
 
     @property
     def estimator(self):
@@ -516,65 +528,6 @@ class Transformer(_BaseEstimator):
         self.verbose = verbose
         self.raise_on_exception = raise_on_exception
 
-        self._learner_pipeline_ = None
-        self._sublearner_pipeline_ = None
-
-    def __call__(self, job, *args, **kwargs):
-        """Caller for producing jobs"""
-        job = 'gen_%s' % job
-        if not hasattr(self, job):
-            raise AttributeError("Job [%s] not accepted." % job)
-        return getattr(self, job)(*args, **kwargs)
-
-    @property
-    def fitted_pipelines(self):
-        """Copy of fitted pipelines"""
-        if not self.__fitted__:
-            raise NotFittedError("Transformer instance not fitted.")
-        pipes = list()
-        ls = self.learner_pipeline_
-        es = self.sublearner_pipeline_
-        if ls is not None:
-            pipes.extend(ls)
-        if es is not None:
-            pipes.extend(es)
-        return pipes
-
-    def collect(self, path):
-        """Load fitted pipelines from cache"""
-        (learner_pipeline_files,
-         learner_pipeline_data,
-         sublearner_pipeline_files,
-         sublearner_pipeline_data) = self._collect(path)
-
-        self._learner_pipeline_ = learner_pipeline_files
-        self._times_ = learner_pipeline_data
-        self._sublearner_pipeline_ = sublearner_pipeline_files
-        self._data_ = sublearner_pipeline_data
-        self.__fitted__ = True
-
-    def clear(self):
-        """Clear load"""
-        self._sublearner_pipeline_ = None
-        self._learner_pipeline_ = None
-        self.__fitted__ = False
-        self._data_ = None
-        self._times_ = None
-
-    @property
-    def learner_pipeline_(self):
-        """Copy of fitted pipeline for base learner"""
-        # pylint: disable=not-an-iterable
-        out = self._return_attr('_learner_pipeline_')
-        return [deepcopy(pipe) for pipe in out]
-
-    @property
-    def sublearner_pipeline_(self):
-        """Copy of fitted pipeline for sub-learners"""
-        # pylint: disable=not-an-iterable
-        out = self._return_attr('_sublearner_pipeline_')
-        return [deepcopy(pipe) for pipe in out]
-
     @property
     def pipeline(self):
         """Blueprint pipeline"""
@@ -586,24 +539,12 @@ class Transformer(_BaseEstimator):
         """Update pipeline blueprint"""
         self._pipeline = pipeline
 
-    def gen_predict(self, path):
-        """Dump learner pipeline to cache."""
-        self.dump(path, self.learner_pipeline_)
+    def _gen_pred(self, X, P, generator):
+        """Generator for Cache object"""
+        for obj in generator:
+            yield Cache(obj, self.verbose)
 
-    def gen_transform(self, path):
-        """Dump learner pipeline to cache."""
-        self.dump(path, self.sublearner_pipeline_)
-
-    def dump(self, path, pipeline):
-        """Dump pipelines to cache"""
-        if pipeline is not None:
-            for pipe in pipeline:
-                f = os.path.join(path, pipe.name)
-                pickle_save(pipe, f)
-                if self.verbose:
-                    safe_print("%s cached" % pipe.name, end='')
-
-    def gen_fit(self, X, y):
+    def gen_fit(self, X, y, P=None):
         """Generator for fitting pipeline on given data"""
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
@@ -655,12 +596,32 @@ class Transformer(_BaseEstimator):
             if k.startswith('pipeline'):
                 # Need to get params of transformers
                 for tr_name, tr in val:
-                    out['%s__%s__%s' % (self.name, k, tr_name)] = tr
+                    out['%s__%s' % (k, tr_name)] = tr
                     for n, v in tr.get_params(deep=True).items():
-                        out['%s__%s__%s__%s' % (self.name, k, tr_name, n)] = v
-            k = '%s__%s' % (self.name, k)
+                        out['%s__%s__%s' % (k, tr_name, n)] = v
             out[k] = val
         return out
+
+
+class Cache(object):
+
+    """Cache IndexedEstimator"""
+
+    def __init__(self, obj, verbose):
+        self.obj = obj
+        self.name = obj.name
+        self.verbose = verbose
+
+    def predict(self, path):
+        """Cache transformer for predict"""
+        f = os.path.join(path, self.name)
+        pickle_save(self.obj, f)
+        if self.verbose:
+            safe_print("%s cached" % self.name, end='')
+
+    def transform(self, path):
+        """Cache transformer for transform"""
+        self.predict(path)
 
 
 class SubTransformer(object):
@@ -695,6 +656,17 @@ class SubTransformer(object):
             raise NotImplementedError(
                 "SubTransformer does not implement [%s]' % job")
         return getattr(self, job)(path)
+
+    @staticmethod
+    def predict(path=None):
+        """Dump transformers for prediction"""
+        # pylint: disable=unused-argument
+        raise ValueError("SubTransformer only implements a fit method. "
+                         "Use the Cache class for predict and transform.")
+
+    def transform(self, path=None):
+        """Dump transformers for prediction"""
+        self.predict(path)
 
     def fit(self, path):
         """Fit transformers"""
@@ -865,7 +837,7 @@ class EvalSubLearner(SubLearner):
         if self.error_score is not None:
             try:
                 scores = self.scorer(self.estimator, xtemp, ytemp)
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-except
                 warnings.warn(
                     "Scoring failed. Setting error score %r."
                     "Details:\n%r" % (self.error_score, exc),

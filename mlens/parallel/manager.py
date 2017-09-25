@@ -268,7 +268,7 @@ class ParallelProcessing(BaseProcessor):
     def __init__(self, caller):
         super(ParallelProcessing, self).__init__(caller)
 
-    def process(self, job, X, y, path=None, return_preds=False):
+    def process(self, job, X, y=None, path=None, return_preds=False):
         """Fit all layers in the attached :class:`Sequential`."""
         self._initialize(job=job, X=X, y=y, path=path)
         check_initialized(self)

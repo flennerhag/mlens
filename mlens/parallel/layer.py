@@ -7,6 +7,7 @@
 Layer module.
 """
 # pylint: disable=too-many-arguments
+# pylint: disable=too-many-locals
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=len-as-condition
 
@@ -66,9 +67,6 @@ class Layer(BaseEstimator):
 
         The lists for each dictionary entry can be any of ``option_1``,
         ``option_2`` and ``option_3``.
-
-    cls : str
-        type of layers. Should be the name of an accepted estimator class.
 
     meta : bool (default = False)
         flag for whether given layer is the final meta layer
@@ -156,19 +154,20 @@ class Layer(BaseEstimator):
     def __init__(self,
                  estimators,
                  indexer,
+                 name,
                  preprocessing=None,
                  meta=False,
                  proba=False,
                  propagate_features=None,
                  scorer=None,
                  raise_on_exception=False,
-                 name=None,
                  shuffle=False,
                  random_state=None,
                  dtype=None,
                  n_jobs=-1,
                  backend=None,
                  verbose=False):
+        self.name = name
         self.meta = meta
         self.shuffle = shuffle
         self.verbose = verbose
@@ -189,7 +188,7 @@ class Layer(BaseEstimator):
         self.n_est = None
         self.cases = None
         self.n_feature_prop = None
-        self.name = name if name else 'layer'
+        self.cls = indexer.__class__.__name__.lower()[:-5]
         self.dtype = dtype if dtype is not None else config.DTYPE
         self.backend = backend if backend is not None else config.BACKEND
         self._partitions = getattr(self.indexer, 'n_partitions', 1)
@@ -261,6 +260,8 @@ class Layer(BaseEstimator):
             estimators, include_flattened=True)
 
         self._preprocessing = check_instances(preprocessing)
+        if isinstance(self._preprocessing, list):
+            self._preprocessing = {'': self._preprocessing}
         self._preprocess = self._preprocessing is not None
 
         self._learners = [
@@ -402,14 +403,17 @@ class Layer(BaseEstimator):
                 par = getattr(self, par_name, None)
             if deep and hasattr(par, 'get_params'):
                 for key, value in par.get_params(deep=True).items():
-                    out['%s_%s_%s' % (self.name, par_name, key)] = value
-            out['%s_%s' % (self.name, par_name)] = par
+                    out['%s__%s' % (par_name, key)] = value
+            out[par_name] = par
+        if not deep:
+            return out
 
         for step in [self.transformers, self.learners]:
             for obj in step:
+                obj_name = obj.name
                 for key, value in obj.get_params(deep=deep).items():
                     if hasattr(value, 'get_params'):
                         for k, v in obj.get_params(deep=deep).items():
-                            out["%s_%s" % (self.name, k)] = v
-                    out["%s_%s" % (self.name, key)] = value
+                            out["%s__%s" % (obj_name, k)] = v
+                    out["%s__%s" % (obj_name, key)] = value
         return out

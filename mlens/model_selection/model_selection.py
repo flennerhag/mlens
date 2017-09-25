@@ -7,15 +7,17 @@
 Class for parallel tuning a set of estimators that share a common
 preprocessing pipeline.
 """
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-arguments
 
 from __future__ import division
 
+import warnings
 import numpy as np
 
 from .. import config
 from ..index import FoldIndex
 from ..parallel import ParallelEvaluation
-from ..parallel.evaluation import Evaluation
 from ..parallel.learner import EvalLearner, Transformer
 from ..metrics import Data, assemble_data
 from ..utils import (print_time,
@@ -35,9 +37,6 @@ try:
     from collections import OrderedDict as _dict
 except ImportError:
     _dict = dict
-
-from operator import itemgetter
-import warnings
 
 
 def parse_key(key):
@@ -149,8 +148,6 @@ class Evaluator(object):
         and parameters.
     """
 
-    __engine__ = Evaluation
-
     def __init__(self,
                  scorer,
                  cv=2,
@@ -199,10 +196,11 @@ class Evaluator(object):
             safe_print('Launching job', file=printout)
             t0 = time()
 
-        if 'preprocess' in case:
+        if ('preprocess' in case) or (self._transformers):
+            # Second test is for already fitted pipes - need to be cached
             if self.verbose >= 2:
                 printout = "stderr" if self.verbose < 50 else "stdout"
-                safe_print('Fitting preprocess pipelines', file=printout)
+                safe_print('Preparing preprocess pipelines', file=printout)
                 t1 = time()
 
             parallel(delayed(subtransformer)(job, path)
@@ -210,17 +208,13 @@ class Evaluator(object):
                      for subtransformer
                      in transformer(job, **args['transformer']))
 
-            self.collect(args['dir'], 'transformers')
+            if 'preprocess' in case:
+                self.collect(args['dir'], 'transformers')
 
             if self.verbose >= 2:
                 print_time(t1, 'Done', file=printout)
 
         if 'evaluate' in case:
-            if not 'preprocess' in case and self._transformers:
-                # Need to dump transformers in to cache
-                for transformer in self._transformers:
-                    transformer.gen_transform(path)
-
             if self.verbose >= 2:
                 printout = "stderr" if self.verbose < 50 else "stdout"
                 safe_print('Evaluating estimators', file=printout)

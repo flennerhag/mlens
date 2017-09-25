@@ -39,9 +39,10 @@ def test_params():
     evl = Evaluator(mape_scorer)
 
     np.testing.assert_raises(ValueError,
-                             evl.fit, X, y, [OLS()],
-                             {('bad', 'ols'):
-                                  {'offset': randint(1, 10)}},
+                             evl.fit, X, y,
+                             estimators=[OLS()],
+                             param_dicts={('bad', 'ols'):
+                                          {'offset': randint(1, 10)}},
                              preprocessing={'prep': [Scale()]})
 
 
@@ -51,8 +52,9 @@ def test_raises():
     evl = Evaluator(bad_scorer)
 
     np.testing.assert_raises(ValueError,
-                             evl.fit, X, y, [OLS()],
-                             {'ols': {'offset': randint(1, 10)}},
+                             evl.fit, X, y,
+                             estimators=[OLS()],
+                             param_dicts={'ols': {'offset': randint(1, 10)}},
                              n_iter=1)
 
 
@@ -62,11 +64,12 @@ def test_passes():
     evl = Evaluator(bad_scorer, error_score=0, n_jobs=1)
 
     evl = np.testing.assert_warns(FitFailedWarning,
-                                  evl.fit, X, y, [OLS()],
-                                  {'ols': {'offset': randint(1, 10)}},
+                                  evl.fit, X, y,
+                                  estimators=[OLS()],
+                                  param_dicts={'ols':
+                                               {'offset': randint(1, 10)}},
                                   n_iter=1)
-
-    assert evl.summary['test_score_mean']['ols'] == 0
+    assert evl.results['test_score-m']['ols'] == 0
 
 
 def test_no_prep():
@@ -81,37 +84,9 @@ def test_no_prep():
                 n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean']['ols'],
+            evl.results['test_score-m']['ols'],
             -24.903229451043195)
-
-    assert evl.summary['params']['ols']['offset'] == 4
-
-
-def test_w_prep():
-    """[Model Selection] Test run with preprocessing, double step."""
-    evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100)
-
-    # Preprocessing
-    with open(os.devnull, 'w') as f, redirect_stderr(f):
-
-        evl.preprocess(X, y, {'pr': [Scale()], 'no': []})
-
-        # Fitting
-        evl.evaluate(X, y,
-                     estimators=[OLS()],
-                     param_dicts={'ols': {'offset': randint(1, 10)}},
-                     n_iter=3)
-
-    np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')],
-            -24.903229451043195)
-
-    np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')],
-            -26.510708862278072, 1)
-
-    assert evl.summary['params'][('no', 'ols')]['offset'] == 4
-    assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
+    assert evl.results['params']['ols']['offset'] == 4
 
 
 def test_w_prep_fit():
@@ -128,15 +103,15 @@ def test_w_prep_fit():
                 n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')],
+            evl.results['test_score-m'][('no', 'ols')],
             -24.903229451043195)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')],
+            evl.results['test_score-m'][('pr', 'ols')],
             -26.510708862278072, 1)
 
-    assert evl.summary['params'][('no', 'ols')]['offset'] == 4
-    assert evl.summary['params'][('pr', 'ols')]['offset'] == 4
+    assert evl.results['params'][('no', 'ols')]['offset'] == 4
+    assert evl.results['params'][('pr', 'ols')]['offset'] == 4
 
 
 def test_w_prep_set_params():
@@ -154,15 +129,14 @@ def test_w_prep_set_params():
                 estimators={'pr': [OLS()], 'no': [OLS()]},
                 param_dicts=params,
                 preprocessing={'pr': [Scale()], 'no': []},
-                n_iter=3)
+                n_iter=10)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('no', 'ols')],
+            evl.results['test_score-m'][('no', 'ols')],
             -18.684229451043198)
 
     np.testing.assert_approx_equal(
-            evl.summary['test_score_mean'][('pr', 'ols')],
+            evl.results['test_score-m'][('pr', 'ols')],
             -7.2594502123869491, 1)
-
-    assert evl.summary['params'][('no', 'ols')]['offset'] == 3
-    assert evl.summary['params'][('pr', 'ols')]['offset'] == 1
+    assert evl.results['params'][('no', 'ols')]['offset'] == 3
+    assert evl.results['params'][('pr', 'ols')]['offset'] == 1

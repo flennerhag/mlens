@@ -10,7 +10,7 @@ preprocessing pipeline.
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
 
-from __future__ import division
+from __future__ import division, with_statement
 
 import warnings
 import numpy as np

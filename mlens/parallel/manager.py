@@ -144,6 +144,8 @@ class Job(object):
             self._n_dir += 1
 
         path = os.path.join(self.dir, ".mlens_subdir_%s" % name)
+        if os.path.exists(path):
+            raise OSError("Subdirectory exist. Clear estimation cache.")
         os.mkdir(path)
         return path
 

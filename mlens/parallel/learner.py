@@ -202,11 +202,9 @@ class _BaseEstimator(BaseEstimator):
             if o.index[1] == 0:
                 learner_files.append(o)
                 learner_data.append((o.name, o.data))
-                del o.data
             else:
                 sublearner_files.append(o)
                 sublearner_data.append((o.name, o.data))
-                del o.data
 
         if self.__only_sub__:
             # Full learners are the same as the sub-learners

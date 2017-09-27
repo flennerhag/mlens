@@ -36,6 +36,10 @@ class BlendEnsemble(BaseEnsemble):
     :class:`BlendEnsemble` can be a poor choice as information is lost at
     each stage of fitting.
 
+    .. note :: All parameters can be overriden in the :attr:`add` method unless
+        otherwise specified. Notably, the ``backend`` and ``n_jobs`` cannot
+        be altered in the :attr:`add` method.
+
     See Also
     --------
     :class:`SuperLearner`, :class:`Subsemble`
@@ -44,23 +48,26 @@ class BlendEnsemble(BaseEnsemble):
     ----------
     test_size : int, float (default = 0.5)
         the size of the test set for each layer. This parameter can be
-        overridden in the ``add`` method if different test sizes is desired
+        overridden in the :attr:`add` method if different test sizes is desired
         for each layer. If a ``float`` is specified, it is presumed to be the
         fraction of the available data to be used for training, and so
         ``0. < test_size < 1.``.
 
     shuffle : bool (default = False)
-        whether to shuffle data before before processing each layer.
-        For greater control, specify ``shuffle`` when adding the layer.
+        whether to shuffle data before before processing each layer. This
+        parameter can be overridden in the :attr:`add` method if different test
+        sizes is desired for each layer.
 
     random_state : int (default = None)
-        random seed if shuffling inputs.
+        random seed for shuffling inputs. Note that the seed here is used to
+        generate a unique seed for each layer. Can be overridden in the
+        :attr:`add` method.
 
     scorer : object (default = None)
         scoring function. If a function is provided, base estimators will be
         scored on the prediction made. The scorer should be a function that
         accepts an array of true values and an array of predictions:
-        ``score = f(y_true, y_pred)``.
+        ``score = f(y_true, y_pred)``. Can be overridden in the :attr:`add` method.
 
     raise_on_exception : bool (default = True)
         whether to issue warnings on soft exceptions or raise error.
@@ -96,19 +103,14 @@ class BlendEnsemble(BaseEnsemble):
         For verbosity in the layers themselves, use ``fit_params``.
 
     n_jobs : int (default = -1)
-        number of CPU cores to use for fitting and prediction.
+        Degree of parallel processing. Set to -1 for maximum parallelism and
+        1 for sequential processing. Cannot be overriden in the :attr:`add` method.
 
     backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
         documentation. To set global backend, set ``mlens.config.BACKEND``.
-
-    Attributes
-    ----------
-    scores\_ : dict
-        if ``scorer`` was passed to instance, ``scores_`` contains dictionary
-        with cross-validated scores assembled during ``fit`` call. The fold
-        structure used for scoring is determined by ``folds``.
+        Cannot be overriden in the :attr:`add` method.
 
     Examples
     --------
@@ -130,7 +132,7 @@ class BlendEnsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    7.656098...
+    7.3337...
 
 
     Instantiate ensembles with different preprocessing pipelines through dicts.
@@ -157,7 +159,7 @@ class BlendEnsemble(BaseEnsemble):
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
     >>> rmse(y, preds)
-    7.9814242...
+    8.249013
     """
 
     def __init__(self,
@@ -196,7 +198,7 @@ class BlendEnsemble(BaseEnsemble):
         """
         return self.add(estimators=estimator, meta=True, **kwargs)
 
-    def add(self, estimators, preprocessing=None, test_size=None,
+    def add(self, estimators, preprocessing=None,
             proba=False, meta=False, propagate_features=None, **kwargs):
         """Add layer to ensemble.
 
@@ -254,10 +256,6 @@ class BlendEnsemble(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-        test_size : int or float, optional
-            Use if a different test set size is desired for layer than what the
-            ensemble was instantiated with.
-
         proba : bool (default = False)
             Whether to call ``predict_proba`` on base learners.
 
@@ -282,19 +280,19 @@ class BlendEnsemble(BaseEnsemble):
             ensemble instance with layer instantiated.
         """
         if meta:
-            cls = 'full'
             idx = FullIndex()
         else:
-            c = test_size if test_size is not None else self.test_size
-            cls = 'blend'
+            c = kwargs.pop('test_size', self.test_size)
             idx = BlendIndex(c, raise_on_exception=self.raise_on_exception)
+
+        verbose = kwargs.pop('verbose', self.verbose)
 
         return self._add(
                 estimators=estimators,
-                meta=meta,
-                indexer=idx,
                 preprocessing=preprocessing,
+                indexer=idx,
+                meta=meta,
                 proba=proba,
-                verbose=self.verbose,
                 propagate_features=propagate_features,
+                verbose=verbose,
                 **kwargs)

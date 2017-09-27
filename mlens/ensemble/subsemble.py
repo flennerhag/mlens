@@ -69,7 +69,7 @@ class Subsemble(BaseEnsemble):
 
     This implementation allows very general partition estimators. The user
     must ensure that the partition estimator behaves as desired. To alter
-    the expected behavior, see the ``kwd`` parameter under the ``add`` method
+    the expected behavior, see the ``kwd`` parameter under the :attr:`add` method
     and the :class:`mlens.base.ClusteredSubsetIndex`. Also see
     the `advanced tutorials <http://mlens.readthedocs.io/en/latest/ensemble_tutorial.html#advanced-subsemble-techniques>`_
     for example use cases.
@@ -84,6 +84,10 @@ class Subsemble(BaseEnsemble):
     See Also
     --------
     :class:`BlendEnsemble`, :class:`SuperLearner`
+
+    .. note :: All parameters can be overriden in the :attr:`add` method unless
+        otherwise specified. Notably, the ``backend`` and ``n_jobs`` cannot
+        be altered in the :attr:`add` method.
 
     Parameters
     ----------
@@ -103,18 +107,21 @@ class Subsemble(BaseEnsemble):
         predictions will be used for partitioning). The number of partitions
         by the estimator must correspond to the ``partitions`` argument.
         Specific estimators can be added to each layer by passing the
-        estimator during the call to the ensemble's ``add`` method.
+        estimator during the call to the ensemble's :attr:`add` method.
 
     folds : int (default = 2)
         number of folds to use during fitting. Note: this parameter can be
         specified on a layer-specific basis in the :attr:`add` method.
 
     shuffle : bool (default = False)
-        whether to shuffle data before before processing each layer.
-        For greater control, specify ``shuffle`` when adding the layer.
+        whether to shuffle data before before processing each layer. This
+        parameter can be overridden in the :attr:`add` method if different test
+        sizes is desired for each layer.
 
     random_state : int (default = None)
-        random seed if shuffling inputs.
+        random seed for shuffling inputs. Note that the seed here is used to
+        generate a unique seed for each layer. Can be overridden in the
+        :attr:`add` method.
 
     scorer : object (default = None)
         scoring function. If a function is provided, base estimators will be
@@ -159,7 +166,7 @@ class Subsemble(BaseEnsemble):
     n_jobs : int (default = -1)
         Degree of concurrency in estimation. Set to -1 to maximize
         paralellization, while 1 runs on a single process (or thread
-        equivalent).
+        equivalent). Cannot be overriden in the :attr:`add` method.
 
         .. note::
 
@@ -175,13 +182,7 @@ class Subsemble(BaseEnsemble):
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
         documentation. To set global backend, set ``mlens.config.BACKEND``.
-
-    Attributes
-    ----------
-    scores\_ : dict
-        if ``scorer`` was passed to instance, ``scores_`` contains dictionary
-        with cross-validated scores assembled during ``fit`` call. The fold
-        structure used for scoring is determined by ``folds``.
+        Cannot be overriden in the :attr:`add` method.
 
     Examples
     --------

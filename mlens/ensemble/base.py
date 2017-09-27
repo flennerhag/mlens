@@ -19,11 +19,13 @@ import warnings
 from .. import config
 from ..parallel import Layer, ParallelProcessing
 from ..externals.sklearn.base import BaseEstimator
+from ..externals.sklearn.validation import check_random_state
 from ..utils import (check_ensemble_build,
                      check_layers,
                      check_inputs,
                      print_time,
                      safe_print)
+from ..utils.exceptions import LayerSpecificationWarning
 from ..metrics import Data
 try:
     # Try get performance counter
@@ -31,6 +33,16 @@ try:
 except ImportError:
     # Fall back on wall clock
     from time import time
+
+
+def check_kwargs(kwargs, forbidden):
+    for f in forbidden:
+        s = kwargs.pop(f, None)
+        if s is not None:
+            warnings.warn(
+                "Layer-specific parameter '%s' contradicts"
+                "ensemble-wide settings. Ignoring." % f,
+                LayerSpecificationWarning)
 
 
 def print_job(lc, start_message):
@@ -149,7 +161,6 @@ class Sequential(BaseEstimator):
     def add(self,
             estimators,
             indexer,
-            meta=False,
             preprocessing=None,
             **kwargs):
         """Method for adding a layer.
@@ -222,20 +233,26 @@ class Sequential(BaseEstimator):
             if ``in_place = True``, returns ``self`` with the layer
             instantiated.
         """
-        # Check verbosity
-        if kwargs is None:
-            kwargs = {'verbose': self.verbose}
-        elif 'verbose' not in kwargs:
-            kwargs['verbose'] = self.verbose
+        # over-ride Sequential arguments if layer-specific args are found
+        verbose = kwargs.pop('verbose', self.verbose)
+        raise_ = kwargs.pop('raise_on_exception', self.raise_on_exception)
+        dtype = kwargs.pop('dtype', self.dtype)
+
+        # Arguments that cannot be very between layers in a given fit -
+        # use Sequential params
+        check_kwargs(kwargs, ['backend', 'n_jobs'])
 
         # Instantiate layer
         name = "layer-%i" % (self.n_layers + 1)  # Start count at 1
         lyr = Layer(estimators=estimators,
-                    meta=meta,
                     indexer=indexer,
-                    preprocessing=preprocessing,
-                    raise_on_exception=self.raise_on_exception,
                     name=name,
+                    preprocessing=preprocessing,
+                    dtype=dtype,
+                    verbose=verbose,
+                    raise_on_exception=raise_,
+                    backend=self.backend,
+                    n_jobs=self.n_jobs,
                     **kwargs)
 
         # Add layer to stack
@@ -332,16 +349,12 @@ class Sequential(BaseEstimator):
         X_pred : array-like of shape = [n_test_samples, n_fitted_estimators]
             predictions from ``fit`` call to final layer.
         """
-        if self.verbose:
-            pout = "stdout" if self.verbose >= 3 else "stderr"
-            safe_print("Transforming layers (%d)" % self.n_layers,
-                       file=pout, flush=True, end="\n\n")
-            t0 = time()
+        pout, t0 = print_job(self, "Transforming")
 
         out = self._predict(X, 'transform', *args, **kwargs)
 
         if self.verbose:
-            print_time(t0, "Transform complete", file=pout, flush=True)
+            print_time(t0, "Transformation complete", file=pout, flush=True)
 
         return out
 
@@ -458,6 +471,7 @@ class BaseEnsemble(BaseEstimator):
                  scorer=None,
                  raise_on_exception=True,
                  verbose=False,
+                 dtype=None,
                  n_jobs=-1,
                  layers=None,
                  array_check=2,
@@ -466,11 +480,13 @@ class BaseEnsemble(BaseEstimator):
         self.shuffle = shuffle
         self.random_state = random_state
         self.scorer = scorer
-        self.raise_on_exception = raise_on_exception
-        self._verbose = verbose
         self.n_jobs = n_jobs
-        self.array_check = array_check
         self.backend = backend if backend is not None else config.BACKEND
+        self.dtype = dtype if dtype else config.DTYPE
+        self.raise_on_exception = raise_on_exception
+        self.array_check = array_check
+        self._verbose = verbose
+
         self.layers = self._init_sequential(layers)
 
     def _init_sequential(self, layers):
@@ -480,14 +496,13 @@ class BaseEnsemble(BaseEstimator):
                 n_jobs=self.n_jobs,
                 backend=self.backend,
                 raise_on_exception=self.raise_on_exception,
+                dtype=self.dtype,
                 verbose=self.verbose)
 
         if not layers.__class__.__name__.lower() == 'sequential':
             raise ValueError(
                 "Passed layer is not an instance of Sequential")
         return layers
-
-
 
     @property
     def verbose(self):
@@ -519,25 +534,32 @@ class BaseEnsemble(BaseEstimator):
         self :
             instance with instantiated layer attached.
         """
+        if estimators.__class__.__name__.lower() == 'layer':
+            self.layers(estimators)
+
         # Check if a Layer Container instance is initialized
         if getattr(self, 'layers', None) is None:
             self.layers = Sequential(
                 n_jobs=self.n_jobs,
                 raise_on_exception=self.raise_on_exception,
                 backend=self.backend,
+                dtype=self.dtype,
                 verbose=self.verbose)
 
-        # Add layer to Layer Container
+        # Add layer to Sequential
+
+        # Over-ride Ensemble defaults with layer-specific params
         verbose = kwargs.pop('verbose', self.verbose)
         scorer = kwargs.pop('scorer', self.scorer)
         shuffle = kwargs.pop('shuffle', self.shuffle)
-        random_state = kwargs.pop('random_state', self.random_state)
 
-        if 'proba' in kwargs:
-            if kwargs['proba'] and scorer is not None:
-                raise ValueError("Cannot score probability-based predictions."
-                                 "Set ensemble attribute 'scorer' to "
-                                 "None or layer parameter 'Proba' to False.")
+        # Set seed if asked
+        random_state = kwargs.pop('random_state', self.random_state)
+        if random_state:
+            random_state = check_random_state(random_state).randint(0, 10000)
+
+        # Check against protected params
+        check_kwargs(kwargs, ['backend', 'n_jobs'])
 
         self.layers.add(estimators=estimators,
                         meta=meta,
@@ -573,7 +595,7 @@ class BaseEnsemble(BaseEstimator):
             class instance with fitted estimators.
         """
         if not check_ensemble_build(self):
-            # No layers instantiated. Return vacuous fit.
+            # No layers instantiated, but raise_on_exception is False
             return self
 
         X, y = check_inputs(X, y, self.array_check)

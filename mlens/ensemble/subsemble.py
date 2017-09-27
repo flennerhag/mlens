@@ -228,7 +228,7 @@ class Subsemble(BaseEnsemble):
                  raise_on_exception=True,
                  array_check=2,
                  verbose=False,
-                 n_jobs=-1,
+                 n_jobs=-2,
                  backend=None,
                  layers=None):
         super(Subsemble, self).__init__(

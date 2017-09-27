@@ -5,7 +5,6 @@
 import numpy as np
 from mlens.testing.dummy import OLS, ECM
 from mlens.testing import Data
-from mlens.index import SubsetIndex
 
 from mlens.ensemble import Subsemble, SuperLearner
 
@@ -28,8 +27,7 @@ def test_subset_fit():
     ens.fit(X, y)
 
     pred = ens.predict(X)
-
-#    np.testing.assert_array_equal(pred, g)
+    np.testing.assert_array_equal(pred, g)
 
 
 def test_subset_equiv():
@@ -45,5 +43,3 @@ def test_subset_equiv():
     P = sl.fit(X, y).predict(X)
 
     np.testing.assert_array_equal(P, F)
-
-test_subset_fit()

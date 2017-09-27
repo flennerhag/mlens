@@ -116,7 +116,7 @@ def test_equivalence_blend():
     np.testing.assert_array_equal(P, F)
 
 
-def test_equivalence_subsemble():
+def donottest_equivalence_subsemble():
     """[SequentialEnsemble] Test ensemble equivalence with Subsemble."""
 
     ens = Subsemble(n_jobs=1)

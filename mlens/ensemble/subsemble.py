@@ -9,9 +9,13 @@ Subsemble class. Fully integrable with Scikit-learn.
 
 from __future__ import division
 
+from .. import config
 from .base import BaseEnsemble
 from ..index import FullIndex, SubsetIndex, ClusteredSubsetIndex
 from ..utils import kwarg_parser
+
+
+DEFAULT_N_JOBS = -1 if int(config._PY_VERSION) >= 3.6 else -2
 
 
 class Subsemble(BaseEnsemble):
@@ -156,7 +160,16 @@ class Subsemble(BaseEnsemble):
         For verbosity in the layers themselves, use ``fit_params``.
 
     n_jobs : int (default = -1)
-        number of CPU cores to use for fitting and prediction.
+        Degree of concurrency in estimation. Set to -1 to maximize
+        paralellization, while 1 runs on a single process (or thread
+        equivalent).
+
+        .. note::
+
+            The Subsemble run a high degree of concurrency and
+            can overwhelm OpenBLAS. On older python versions this
+            can cause silent stalls. To prevent such behavior,
+            ``n_jobs`` on Python version lower than 3.6 is ``-2``.
 
     backend : str or object (default = 'threading')
         backend infrastructure to use during call to

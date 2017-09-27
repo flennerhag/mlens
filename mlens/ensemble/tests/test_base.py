@@ -7,11 +7,11 @@ import numpy as np
 from mlens.externals.sklearn.base import clone
 from mlens.testing.dummy import Data, EstimatorContainer
 
-LEN = 6
-WIDTH = 2
+LEN = 12
+WIDTH = 4
 MOD = 2
 
-data = Data('stack', False, True, n_splits=5)
+data = Data('stack', False, True, n_splits=3)
 X, y = data.get_data((LEN, WIDTH), MOD)
 
 lg = EstimatorContainer()

@@ -15,9 +15,6 @@ from ..index import FullIndex, SubsetIndex, ClusteredSubsetIndex
 from ..utils import kwarg_parser
 
 
-DEFAULT_N_JOBS = -1 if int(config._PY_VERSION) >= 3.6 else -2
-
-
 class Subsemble(BaseEnsemble):
 
     r"""Subsemble class.
@@ -166,10 +163,13 @@ class Subsemble(BaseEnsemble):
 
         .. note::
 
-            The Subsemble run a high degree of concurrency and
-            can overwhelm OpenBLAS. On older python versions this
-            can cause silent stalls. To prevent such behavior,
-            ``n_jobs`` on Python version lower than 3.6 is ``-2``.
+            A high degree of partitioning can incur a thread overload that can
+            in certain cases overwhelm OpenBLAS. If any of your estimators
+            rely on OpenBLAS and you experience crashed, set
+            ``n_jobs`` to a lower (i.e. -2). In these cases, this will actually
+            not impact performance since the issues stems from having too many
+            threads active, so lowering the count avoids the bottleneck.
+            Reference: https://github.com/xianyi/OpenBLAS/issues/889
 
     backend : str or object (default = 'threading')
         backend infrastructure to use during call to
@@ -241,7 +241,7 @@ class Subsemble(BaseEnsemble):
                  raise_on_exception=True,
                  array_check=2,
                  verbose=False,
-                 n_jobs=-2,
+                 n_jobs=-1,
                  backend=None,
                  layers=None):
         super(Subsemble, self).__init__(
@@ -407,8 +407,7 @@ class Subsemble(BaseEnsemble):
 
             indexer = idx(*args, **kwargs_idx)
 
-        return self._add(cls=cls,
-                         meta=meta,
+        return self._add(meta=meta,
                          estimators=estimators,
                          preprocessing=preprocessing,
                          indexer=indexer,

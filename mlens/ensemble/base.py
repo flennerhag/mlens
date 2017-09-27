@@ -124,7 +124,7 @@ class Sequential(BaseEstimator):
         """Add layers to instance"""
         check_layers(layers)
         for lyr in layers:
-            if lyr.name in [lyr.name for lyr in self.layers]:
+            if lyr.name in [lr.name for lr in self.layers]:
                 raise ValueError("Layer name exists in stack. "
                                  "Rename layers before attempting to push.")
 
@@ -501,7 +501,6 @@ class BaseEnsemble(BaseEstimator):
 
     def _add(self,
              estimators,
-             cls,
              meta,
              indexer,
              preprocessing=None,

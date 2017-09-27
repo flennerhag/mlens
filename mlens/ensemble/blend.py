@@ -291,11 +291,10 @@ class BlendEnsemble(BaseEnsemble):
 
         return self._add(
                 estimators=estimators,
-                cls=cls,
                 meta=meta,
-                preprocessing=preprocessing,
                 indexer=idx,
+                preprocessing=preprocessing,
                 proba=proba,
                 verbose=self.verbose,
-                propagate_features=propagate_features ,
+                propagate_features=propagate_features,
                 **kwargs)

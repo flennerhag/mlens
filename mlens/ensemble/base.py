@@ -11,7 +11,7 @@ Base classes for ensemble layer management.
 # pylint: disable=too-many-instance-attributes
 
 
-from __future__ import division, print_function
+from __future__ import division, print_function, with_statement
 
 from abc import ABCMeta, abstractmethod
 import warnings

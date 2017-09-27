@@ -25,13 +25,21 @@ def _get_string(obj, dec):
         return obj.__str__()
 
 
+def _get_partitions(obj):
+    """Check if any entry has partitions"""
+    for name, _ in obj:
+        if int(name.split('__')[-2]) > 0:
+            return True
+    return False
+
+
 class Data(_dict):
 
     """Wrapper class around dict to get pretty prints
     """
-    def __init__(self, data, partitions=None):
+    def __init__(self, data=None):
         if isinstance(data, list):
-            data = assemble_data(data, partitions)
+            data = assemble_data(data)
         super(Data, self).__init__(data)
 
     def __repr__(self):
@@ -145,7 +153,8 @@ def assemble_table(data, padding=2, decimals=2):
                 # Table contents
                 for col in cols:
                     item = data[col][k]
-                    if not item or item == 0:
+                    if not item and item != 0:
+                        out += " " * (max_col_len[col] + padding)
                         continue
                     item_ = _get_string(item, decimals)
                     adj = max_col_len[col] - len(item_) + padding
@@ -155,20 +164,25 @@ def assemble_table(data, padding=2, decimals=2):
     return out
 
 
-def assemble_data(data_list, partitions):
+def assemble_data(data_list):
     """Build a data dictionary out of a list of datum"""
     data = _dict()
     tmp = _dict()
 
+    partitions = _get_partitions(data_list)
+
     # Collect scores per preprocessing case and estimator(s)
     for name, data_dict in data_list:
+        if not data_dict:
+            continue
+
         # Names are either est__i__j or case__est__i__j
         splitted = name.split('__')
 
-        if partitions == 1:
-            name = tuple(splitted[:-2])
-        else:
+        if partitions:
             name = tuple(splitted[:-1])
+        else:
+            name = tuple(splitted[:-2])
 
         if len(name) == 1:
             name = name[0]

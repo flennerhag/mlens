@@ -10,15 +10,16 @@ from mlens.externals.sklearn.base import clone
 from mlens.utils.checks import check_ensemble_build, assert_valid_estimator, \
     check_is_fitted, assert_correct_format, check_initialized
 
-from mlens.utils.dummy import LayerGenerator, OLS, Scale
+from mlens.utils.dummy import OLS, Scale
+from mlens.testing import EstimatorContainer
 from mlens.utils.exceptions import LayerSpecificationError, \
     LayerSpecificationWarning, NotFittedError, ParallelProcessingError, \
     ParallelProcessingWarning
 
-lg = LayerGenerator()
+lg = EstimatorContainer()
 
 LAYER = lg.get_layer('stack', False, True)
-LAYER_CONTAINER = lg.get_layer_container('stack', False, True)
+LAYER_CONTAINER = lg.get_sequential('stack', False, True)
 
 
 class Tmp(object):

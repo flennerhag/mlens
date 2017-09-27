@@ -9,65 +9,85 @@ from mlens.ensemble import (SequentialEnsemble,
                             BlendEnsemble,
                             Subsemble)
 
-from mlens.utils.dummy import (Data,
-                               PREPROCESSING,
-                               ESTIMATORS,
-                               ECM,
-                               LayerGenerator)
+from mlens.ensemble.base import Sequential
+from mlens.testing.dummy import (Data,
+                                 PREPROCESSING,
+                                 ESTIMATORS,
+                                 ECM,
+                                 EstimatorContainer)
 
+from mlens.externals.sklearn.base import clone
 
 FOLDS = 3
 LEN = 24
 WIDTH = 2
 MOD = 2
 
-data = Data('stack', False, True, FOLDS)
+data = Data('seq', 'stack', False, True, FOLDS)
 X, y = data.get_data((LEN, WIDTH), MOD)
 
 
-lc_s = LayerGenerator().get_layer_container('stack', False, True)
-lc_b = LayerGenerator().get_layer_container('blend', False, False)
-lc_u = LayerGenerator().get_layer_container('subset', False, False)
+lc_s = EstimatorContainer().get_layer('stack', False, True)
+lc_b = EstimatorContainer().get_layer('blend', False, False)
+lc_u = EstimatorContainer().get_layer('subset', False, False)
+
+seq = Sequential()(clone(lc_s), clone(lc_b), clone(lc_u))
+lc_s = Sequential(lc_s)
+lc_b = Sequential(lc_b)
+lc_u = Sequential(lc_u)
+
+
+def test_fit_seq():
+    """[Sequential] Test multilayer fitting."""
+    S = lc_s.fit(X, y, return_preds=True)
+    B = lc_b.fit(S, y, return_preds=True)
+    r = y.shape[0] - B.shape[0]
+    U = lc_u.fit(B, y[r:], return_preds=True)
+
+    out = seq.fit(X, y, return_preds=True)
+    np.testing.assert_array_equal(U, out)
+
+
+def test_predict_seq():
+    """[Sequential] Test multilayer prediction."""
+    S = lc_s.predict(X, y)
+    B = lc_b.predict(S, y)
+    U = lc_u.predict(B, y)
+    out = seq.predict(X)
+    np.testing.assert_array_equal(U, out)
 
 
 def test_fit():
-    """[Sequential] Test multilayer fitting."""
-
-    S = lc_s.fit(X, y, -1)[-1]
-    B = lc_b.fit(S, y, -1)[-1]
-
+    """[SequentialEnsemble] Test multilayer fitting."""
+    S = lc_s.fit(X, y, return_preds=True)
+    B = lc_b.fit(S, y, return_preds=True)
     r = y.shape[0] - B.shape[0]
-    U = lc_u.fit(B, y[r:], -1)[-1]
+    U = lc_u.fit(B, y[r:], return_preds=True)
 
     ens = SequentialEnsemble()
     ens.add('stack', ESTIMATORS, PREPROCESSING, dtype=np.float64)
     ens.add('blend', ECM, dtype=np.float64)
     ens.add('subset', ECM, dtype=np.float64)
 
-    out = ens.layers.fit(X, y, return_preds=True)[-1]
-
+    out = ens.layers.fit(X, y, return_preds=True)
     np.testing.assert_array_equal(U, out)
 
 
 def test_predict():
-    """[Sequential] Test multilayer prediction."""
-
+    """[SequentialEnsemble] Test multilayer prediction."""
     S = lc_s.predict(X, y)
     B = lc_b.predict(S, y)
     U = lc_u.predict(B, y)
-
     ens = SequentialEnsemble()
     ens.add('stack', ESTIMATORS, PREPROCESSING, dtype=np.float64)
     ens.add('blend', ECM, dtype=np.float64)
     ens.add('subset', ECM, dtype=np.float64)
-
     out = ens.fit(X, y).predict(X)
-
     np.testing.assert_array_equal(U, out)
 
 
 def test_equivalence_super_learner():
-    """[Sequential] Test ensemble equivalence with SuperLearner."""
+    """[SequentialEnsemble] Test ensemble equivalence with SuperLearner."""
 
     ens = SuperLearner()
     seq = SequentialEnsemble()
@@ -82,7 +102,7 @@ def test_equivalence_super_learner():
 
 
 def test_equivalence_blend():
-    """[Sequential] Test ensemble equivalence with BlendEnsemble."""
+    """[SequentialEnsemble] Test ensemble equivalence with BlendEnsemble."""
 
     ens = BlendEnsemble()
     seq = SequentialEnsemble()
@@ -97,7 +117,7 @@ def test_equivalence_blend():
 
 
 def test_equivalence_subsemble():
-    """[Sequential] Test ensemble equivalence with Subsemble."""
+    """[SequentialEnsemble] Test ensemble equivalence with Subsemble."""
 
     ens = Subsemble()
     seq = SequentialEnsemble()

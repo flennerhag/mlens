@@ -246,7 +246,7 @@ class Evaluator(object):
         data = list()
         for learner in self._learners:
             data.extend(learner.raw_data)
-        return assemble_data(data, 1)
+        return assemble_data(data)
 
     def fit(self, X, y,
             estimators=None,

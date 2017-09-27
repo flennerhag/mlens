@@ -22,7 +22,7 @@ from seaborn import set_palette
 
 def run():
     """Run profiling."""
-    lc = LayerGenerator().get_layer_container('stack', False, False)
+    lc = LayerGenerator().get_sequential('stack', False, False)
 
     cm = CMLog(verbose=False)
     cm.monitor()

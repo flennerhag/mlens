@@ -5,17 +5,18 @@ Test base functionality.
 
 import numpy as np
 from mlens.externals.sklearn.base import clone
-from mlens.utils.dummy import Data, LayerGenerator
+from mlens.testing.dummy import Data, EstimatorContainer
 
 LEN = 6
 WIDTH = 2
 MOD = 2
 
-data = Data('stack', False, True, n_splits=5)
+data = Data('seq', 'stack', False, True, n_splits=5)
 X, y = data.get_data((LEN, WIDTH), MOD)
 
-lc = LayerGenerator().get_layer_container('stack', False, False)
-layer = LayerGenerator().get_layer('stack', False, False)
+lg = EstimatorContainer()
+lc = lg.get_sequential('stack', False, False)
+layer = lg.get_layer('stack', False, False)
 
 
 def test_clone():
@@ -34,11 +35,11 @@ def test_clone():
 
 def test_set_params():
     """[Ensemble | Sequential] Test set_params on estimators."""
-    lc.set_params(**{'layer-1__ols-3__offset': 4})
-    assert lc.layers['layer-1'].estimators[-1][1].offset == 4
+    lc.set_params(**{'layer-1__ols-3__estimator__offset': 4})
+    assert lc.layers[0].estimators[-1][1].offset == 4
 
 
 def test_set_params_layer():
     """[Ensemble | Layer] Test set_params on estimators."""
-    layer.set_params(**{'ols-3__offset': 4})
+    layer.set_params(**{'ols-3__estimator__offset': 4})
     assert layer.estimators[-1][1].offset == 4

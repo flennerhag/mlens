@@ -10,13 +10,14 @@ import subprocess
 import numpy as np
 
 from mlens import config
-from mlens.base import (IdTrain,
-                        FoldIndex,
-                        BlendIndex,
-                        SubsetIndex,
-                        ClusteredSubsetIndex,
-                        FullIndex)
-from mlens.base.indexer import _partition, _prune_train
+from mlens.utils import IdTrain
+from mlens.index import (FoldIndex,
+                         BlendIndex,
+                         SubsetIndex,
+                         ClusteredSubsetIndex,
+                         FullIndex)
+
+from mlens.index.indexer import _partition, _prune_train
 try:
     from contextlib import redirect_stderr
 except ImportError:

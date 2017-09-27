@@ -4,11 +4,9 @@ Test ensemble transformer.
 """
 
 import numpy as np
-from mlens.utils.dummy import Data, PREPROCESSING
-from mlens.utils.dummy import ESTIMATORS, ESTIMATORS_PROBA,ECM, ECM_PROBA
-
-from mlens.preprocessing import EnsembleTransformer
-
+from mlens.testing.dummy import Data, PREPROCESSING
+from mlens.testing.dummy import ESTIMATORS, ESTIMATORS_PROBA,ECM, ECM_PROBA
+from mlens.ensemble import SequentialEnsemble
 
 FOLDS = 3
 LEN = 12
@@ -31,12 +29,12 @@ def run(cls, proba, preprocessing, **kwargs):
     ests = ESTS[(proba, preprocessing)]
     prep = PREPROCESSING if preprocessing else None
 
-    data = Data(cls, proba, preprocessing, **kwargs)
+    data = Data('sc', cls, proba, preprocessing, **kwargs)
 
     X, y = data.get_data((LEN, WIDTH), MOD)
     (F, wf), _ = data.ground_truth(X, y, p)
 
-    ens = EnsembleTransformer()
+    ens = SequentialEnsemble()
     ens.add(cls, ests, prep, proba=proba, dtype=np.float64, **kwargs)
     ens.fit(X, y)
 

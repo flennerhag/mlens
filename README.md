@@ -24,7 +24,7 @@ The core principle of ML-Ensemble is to maximize parallel processing at minimum
 memory consumption. ML-Ensemble is thread safe and can fall back on memory mapped 
 multiprocessing to keep memory consumption at a minimum.
 For tutorials and full documentation, visit the project
- [website](http://mlens.readthedocs.io/en/latest/).
+ [website](http://www.ml-ensemble.com/).
 
 
 ## Core Features

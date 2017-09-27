@@ -88,7 +88,8 @@ class Job(object):
     :class:`ParallelProcessing`, :class:`ParallelEvaluation`
     """
 
-    __slots__ = ['y', 'predict_in', 'predict_out', 'dir', 'job', 'tmp']
+    __slots__ = ['y', 'predict_in', 'predict_out', 'dir', 'job', 'tmp',
+                 '_n_dir']
 
     def __init__(self, job):
         self.job = job
@@ -97,6 +98,7 @@ class Job(object):
         self.predict_out = None
         self.tmp = None
         self.dir = None
+        self._n_dir = 0
 
     def update(self):
         """Shift output array to input array.
@@ -135,6 +137,16 @@ class Job(object):
             self.predict_in = self.predict_in[idx]
             self.y = self.y[idx]
 
+    def subdir(self, name=None):
+        """Create new subdirectory in dir"""
+        if not name:
+            name = str(self._n_dir)
+            self._n_dir += 1
+
+        path = os.path.join(self.dir, ".mlens_subdir_%s" % name)
+        os.mkdir(path)
+        return path
+
     @property
     def args(self):
         """Produce args dict"""
@@ -148,8 +160,9 @@ class Job(object):
 
         out = {'transformer': trans_feed,
                'learner': learn_feed,
-               'dir': self.dir,
+               'dir': self.subdir(),
                'job': self.job}
+
         return out
 
 

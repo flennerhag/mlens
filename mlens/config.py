@@ -26,6 +26,7 @@ TMPDIR = os.environ.get('MLENS_TMPDIR', tempfile.gettempdir())
 PREFIX = os.environ.get('MLENS_PREFIX', ".mlens_tmp_cache_")
 BACKEND = os.environ.get('MLENS_BACKEND', 'threading')
 START_METHOD = os.environ.get('MLENS_START_METHOD', '')
+VERBOSE = os.environ.get('MLENS_VERBOSE', 'Y')
 
 IVALS = os.environ.get('MLENS_IVALS', '0.01_120').split('_')
 IVALS = (float(IVALS[0]), float(IVALS[1]))
@@ -158,6 +159,8 @@ def clear_cache(tmp):
 
 def print_settings():
     """Print package settings on system."""
+    if VERBOSE != 'Y':
+        return
     if BACKEND == 'threading':
         msg = "[MLENS] backend: %s"
         arg = BACKEND,

@@ -24,6 +24,7 @@ from ..utils import (check_ensemble_build,
                      check_inputs,
                      print_time,
                      safe_print)
+from ..metrics import Data
 try:
     # Try get performance counter
     from time import perf_counter as time
@@ -112,10 +113,9 @@ class Sequential(BaseEstimator):
         self.n_jobs = n_jobs
         self.backend = backend if backend is not None else config.BACKEND
         self.raise_on_exception = raise_on_exception
-        self.verbose = verbose
+        self._verbose = verbose
 
         # Set up layer
-        self.data = None
         self.dtype = dtype if dtype else config.DTYPE
         self._init_layers(layers)
         self._has_meta_layer = False
@@ -280,8 +280,6 @@ class Sequential(BaseEstimator):
                 as manager:
             out = manager.process('fit', X, y, **kwargs)
 
-        self._post_process()
-
         if self.verbose:
             print_time(t0, "Fit complete", file=pout, flush=True)
 
@@ -372,19 +370,12 @@ class Sequential(BaseEstimator):
 
         return preds
 
-    def _post_process(self):
-        """Aggregate output from processing layers and _collect final preds."""
-        out = dict()
-        for layer in self.layers:
-            layer_data = getattr(layer, 'data', None)
-            if layer_data is not None:
-                out.update(layer_data)
-        self.data = out
-
     def _init_layers(self, layers):
         """Return a clean ordered dictionary or copy the passed dictionary."""
         if layers is None:
             layers = list()
+        elif layers.__class__.__name__.lower() == 'layer':
+            layers = [layers]
 
         self.layers = layers
         self.n_layers = len(self.layers)
@@ -423,6 +414,31 @@ class Sequential(BaseEstimator):
                 out['%s__%s' % (layer.name, key)] = val
         return out
 
+    @property
+    def verbose(self):
+        """Adjust the level of verbosity."""
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose):
+        self._verbose = verbose
+        for layer in self.layers:
+            layer.verbose = verbose
+
+    @property
+    def data(self):
+        """Ensemble data"""
+        out = list()
+        for layer in self.layers:
+            d = layer.raw_data
+            if not d:
+                continue
+            out.extend([('%s / %s' % (layer.name, k), v) for k, v in d])
+        # TODO: get the assemble_table to
+        # (a) allow for variable number of partition entries
+        # (b) split on ' / ' for out layer column
+        return Data(out)
+
 
 ###############################################################################
 class BaseEnsemble(BaseEstimator):
@@ -451,9 +467,8 @@ class BaseEnsemble(BaseEstimator):
         self.random_state = random_state
         self.scorer = scorer
         self.raise_on_exception = raise_on_exception
-        self.verbose = verbose
+        self._verbose = verbose
         self.n_jobs = n_jobs
-        self.data_ = None
         self.array_check = array_check
         self.backend = backend if backend is not None else config.BACKEND
         self.layers = self._init_sequential(layers)
@@ -472,12 +487,17 @@ class BaseEnsemble(BaseEstimator):
                 "Passed layer is not an instance of Sequential")
         return layers
 
-    def set_verbosity(self, verbose):
+
+
+    @property
+    def verbose(self):
         """Adjust the level of verbosity."""
-        self.verbose = verbose
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose):
+        self._verbose = verbose
         self.layers.verbose = verbose
-        for layer in self.layers.layers:
-            layer.verbose = verbose
 
     def _add(self,
              estimators,
@@ -559,9 +579,33 @@ class BaseEnsemble(BaseEstimator):
 
         X, y = check_inputs(X, y, self.array_check)
 
-        self.data_ = self.layers.fit(X, y)
+        self.layers.fit(X, y)
 
         return self
+
+    def transform(self, X):
+        """Transform with fitted ensemble.
+
+        Replicates cross-validated prediction process from training.
+
+        Parameters
+        ----------
+        X : array-like, shape=[n_samples, n_features]
+            input matrix to be used for prediction.
+
+        Returns
+        -------
+        y_pred : array-like, shape=[n_samples, n_features]
+            predictions for provided input array.
+        """
+        if not check_ensemble_build(self):
+            # No layers instantiated, but raise_on_exception is False
+            return
+
+        X, _ = check_inputs(X, check_level=self.array_check)
+
+        y = self.layers.transform(X)
+        return y
 
     def predict(self, X):
         """Predict with fitted ensemble.
@@ -612,3 +656,8 @@ class BaseEnsemble(BaseEstimator):
             raise ValueError("Cannot use 'predict_proba' if final layer"
                              "does not have 'proba=True'.")
         return self.predict(X)
+
+    @property
+    def data(self):
+        """Ensemble data"""
+        return self.layers.data

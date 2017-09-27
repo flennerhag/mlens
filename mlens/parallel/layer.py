@@ -171,7 +171,6 @@ class Layer(BaseEstimator):
         self.name = name
         self.meta = meta
         self.shuffle = shuffle
-        self.verbose = verbose
         self.indexer = indexer
         self.scorer = scorer
         self.n_jobs = n_jobs
@@ -180,6 +179,7 @@ class Layer(BaseEstimator):
         self.raise_on_exception = raise_on_exception
 
         # Careful with these
+        self._verbose = verbose
         self._proba = proba
         self._predict_attr = 'predict' if not proba else 'predict_proba'
 
@@ -232,28 +232,6 @@ class Layer(BaseEstimator):
         for learner in self.learners:
             learner.collect(path)
 
-    @property
-    def classes_(self):
-        """Prediction classes during proba"""
-        return self._classes
-
-    @classes_.setter
-    def classes_(self, y):
-        """Set classes given input y"""
-        if self.proba:
-            self._classes = np.unique(y).shape[0]
-
-    @property
-    def proba(self):
-        """Predict proba state"""
-        return self._proba
-
-    @proba.setter
-    def proba(self, proba):
-        """Update proba state"""
-        self._proba = proba
-        self._predict_attr = 'predict' if not proba else 'predict_proba'
-
     def _set_learners(self, estimators, preprocessing):
         """Set learners and preprocessing pipelines in layer"""
         assert_correct_format(estimators, preprocessing)
@@ -287,51 +265,6 @@ class Layer(BaseEstimator):
         ]
 
         self._store_layer_data(self._estimators, self._preprocessing)
-
-    @property
-    def estimators(self):
-        """Return copy of estimators"""
-        return clone_instances(self._estimators)
-
-    @estimators.setter
-    def estimators(self, estimators, preprocessing=None):
-        """Update learners in layer"""
-        if preprocessing is None:
-            preprocessing = self._preprocessing
-        self._set_learners(estimators, preprocessing)
-
-    @property
-    def preprocessing(self):
-        """Return copy of preprocessing"""
-        return clone_instances(self._preprocessing)
-
-    @preprocessing.setter
-    def preprocessing(self, preprocessing, estimators=None):
-        """Update learners in layer"""
-        if estimators is None:
-            estimators = self._estimators
-        self._set_learners(estimators, preprocessing)
-
-    @property
-    def learners(self):
-        """Generator for learners in layer"""
-        for learner in self._learners:
-            yield learner
-
-    @property
-    def transformers(self):
-        """Generator for learners in layer"""
-        for transformer in self._transformers:
-            yield transformer
-
-    @property
-    def scores(self):
-        """Cross validated scores"""
-        if self.scorer is not None:
-            scores = list()
-            for learner in self.learners:
-                scores.extend(learner.raw_data)
-            return Data(scores, self._partitions)
 
     def set_output_columns(self, y=None):
         """Set output columns for learners"""
@@ -432,3 +365,94 @@ class Layer(BaseEstimator):
                     out["%s__%s" % (obj_name, key)] = value
                 out[obj_name] = obj
         return out
+
+    @property
+    def verbose(self):
+        """Verbosity"""
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose):
+        """Set verbosity"""
+        if self._preprocess:
+            for tr in self._transformers:
+                tr.verbose = verbose
+        for lr in self._learners:
+            lr.verbose = verbose
+
+    @property
+    def estimators(self):
+        """Return copy of estimators"""
+        return clone_instances(self._estimators)
+
+    @estimators.setter
+    def estimators(self, estimators, preprocessing=None):
+        """Update learners in layer"""
+        if preprocessing is None:
+            preprocessing = self._preprocessing
+        self._set_learners(estimators, preprocessing)
+
+    @property
+    def preprocessing(self):
+        """Return copy of preprocessing"""
+        return clone_instances(self._preprocessing)
+
+    @preprocessing.setter
+    def preprocessing(self, preprocessing, estimators=None):
+        """Update learners in layer"""
+        if estimators is None:
+            estimators = self._estimators
+        self._set_learners(estimators, preprocessing)
+
+    @property
+    def learners(self):
+        """Generator for learners in layer"""
+        for learner in self._learners:
+            yield learner
+
+    @property
+    def transformers(self):
+        """Generator for learners in layer"""
+        for transformer in self._transformers:
+            yield transformer
+
+    @property
+    def data(self):
+        """Cross validated scores"""
+        return Data(self.raw_data)
+
+    @property
+    def raw_data(self):
+        """Cross validated scores"""
+        data = list()
+
+# TODO: Fix table printing
+#        if self._preprocess:
+#            for transformer in self.transformers:
+#                data.extend(transformer.raw_data)
+
+        for learner in self.learners:
+            data.extend(learner.raw_data)
+        return data
+
+    @property
+    def classes_(self):
+        """Prediction classes during proba"""
+        return self._classes
+
+    @classes_.setter
+    def classes_(self, y):
+        """Set classes given input y"""
+        if self.proba:
+            self._classes = np.unique(y).shape[0]
+
+    @property
+    def proba(self):
+        """Predict proba state"""
+        return self._proba
+
+    @proba.setter
+    def proba(self, proba):
+        """Update proba state"""
+        self._proba = proba
+        self._predict_attr = 'predict' if not proba else 'predict_proba'

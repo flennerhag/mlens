@@ -165,9 +165,8 @@ class _BaseEstimator(BaseEstimator):
         """Set indexer and auxiliary attributes"""
         self._indexer = indexer
         self._partitions = getattr(indexer, 'n_partitions', 1)
-        self.__fit_all__ = indexer.__class__.__name__.lower() not in ONLY_SUB
-        self.__fit_sub__ = indexer.__class__.__name__.lower() not in ONLY_ALL
-        self.__predict_all__ = indexer.__class__.__name__.lower() in ONLY_ALL
+        self.__only_all__ = indexer.__class__.__name__.lower() in ONLY_ALL
+        self.__only_sub__ = indexer.__class__.__name__.lower() in ONLY_SUB
 
     def _collect(self, path):
         """Collect files from cache"""
@@ -190,10 +189,10 @@ class _BaseEstimator(BaseEstimator):
                 sublearner_data.append((o.name, o.data))
                 del o.data
 
-        if not self.__fit_all__:
+        if self.__only_sub__:
             # Full learners are the same as the sub-learners
             learner_files, learner_data = _replace(sublearner_files)
-        if not self.__fit_sub__:
+        if self.__only_all__:
             # Sub learners are the same as the sub-learners
             sublearner_files, sublearner_data = _replace(learner_files)
 
@@ -228,13 +227,13 @@ class _BaseEstimator(BaseEstimator):
     def data(self):
         """CV scores during prediction"""
         out = self._return_attr('_data_')
-        return Data(out, self._partitions)
+        return Data(out)
 
     @property
     def times(self):
         """CV scores during prediction"""
         out = self._return_attr('_times_')
-        return Data(out, self._partitions)
+        return Data(out)
 
     @property
     def indexer(self):
@@ -319,8 +318,8 @@ class Learner(_BaseEstimator):
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
         index = [0, 0]
-        if self.__fit_all__:
-            out = P if self.__predict_all__ else None
+        if not self.__only_sub__:
+            out = P if self.__only_all__ else None
             # Let index[1] == 0 for all full fits
             # Hence fold_index = 0 -> final base learner
             if self._partitions == 1:
@@ -344,7 +343,7 @@ class Learner(_BaseEstimator):
                                      index=index)
                     index[0] = index[0] + 1
 
-        if self.__fit_sub__:
+        if not self.__only_all__:
             # Fit sub-learners on cv folds
             for i, (train_index, test_index) in enumerate(
                     self.indexer.generate()):
@@ -352,7 +351,8 @@ class Learner(_BaseEstimator):
                 if self._partitions == 1:
                     index = (0, i + 1)
                 else:
-                    index = (i // self._partitions, i % self._partitions + 1)
+                    splits = self.indexer.n_splits
+                    index = (i // splits, i % splits + 1)
 
                 yield SubLearner(learner=self,
                                  estimator=self.estimator,
@@ -569,7 +569,7 @@ class Transformer(_BaseEstimator):
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
         index = [0, 0]
-        if self.__fit_all__:
+        if not self.__only_sub__:
             # Let index[1] == 0 for all full fits
             # Hence fold_index = 0 -> final base learner
             if self._partitions == 1:
@@ -589,7 +589,7 @@ class Transformer(_BaseEstimator):
                                          index=index)
                     index[0] = index[0] + 1
 
-        if self.__fit_sub__:
+        if not self.__only_all__:
             # Fit sub-learners on cv folds
             for i, (train_index, _) in enumerate(
                     self.indexer.generate()):
@@ -597,7 +597,8 @@ class Transformer(_BaseEstimator):
                 if self._partitions == 1:
                     index = (0, i + 1)
                 else:
-                    index = (i // self._partitions, i % self._partitions + 1)
+                    splits = self.indexer.n_splits
+                    index = (i // splits, i % splits + 1)
 
                 yield SubTransformer(transformer=self,
                                      pipeline=self.pipeline,

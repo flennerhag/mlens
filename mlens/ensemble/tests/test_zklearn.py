@@ -1,7 +1,6 @@
 """
 Test Scikit-learn
 """
-import numpy as np
 from mlens.ensemble import SuperLearner, Subsemble, BlendEnsemble
 
 try:
@@ -9,7 +8,6 @@ try:
     from sklearn.neighbors import KNeighborsRegressor
     from sklearn.svm import SVR
     from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-    from sklearn.neural_network import MLPRegressor
 
     from sklearn.decomposition import PCA
     from sklearn.preprocessing import StandardScaler, PolynomialFeatures

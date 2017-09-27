@@ -5,9 +5,9 @@ Place holder for more rigorous tests.
 """
 import numpy as np
 from mlens.metrics import rmse
-from mlens.utils.exceptions import ParallelProcessingWarning
-from mlens.base import FoldIndex
-from mlens.utils.dummy import Data, OLS, PREPROCESSING, ESTIMATORS, ECM
+from mlens.utils.exceptions import MetricWarning
+from mlens.index import FoldIndex
+from mlens.testing.dummy import Data, OLS, PREPROCESSING, ESTIMATORS, ECM
 
 from mlens.ensemble import SuperLearner
 
@@ -44,12 +44,12 @@ LEN = 6
 WIDTH = 2
 MOD = 2
 
-data1 = Data('stack', False, True, FOLDS)
+data1 = Data('seq', 'stack', False, True, FOLDS)
 X1, y1 = data1.get_data((LEN, WIDTH), MOD)
 (F1, wf1), (P1, wp1) = data1.ground_truth(X1, y1, 1, False)
 G1 = OLS().fit(F1, y1).predict(P1)
 
-data2 = Data('stack', False, False, FOLDS)
+data2 = Data('seq', 'stack', False, False, FOLDS)
 X2, y2 = data1.get_data((LEN, WIDTH), MOD)
 (F2, wf2), (P2, wp2) = data2.ground_truth(X2, y2, 1, False)
 G2 = OLS().fit(F2, y2).predict(P2)
@@ -107,12 +107,12 @@ def test_run_wo_folds():
 
 def test_scores_fail():
     """[SuperLearner] test scoring exception handling."""
-    np.testing.assert_warns(ParallelProcessingWarning, ens_f.fit, X1, y1)
+    np.testing.assert_warns(MetricWarning, ens_f.fit, X1, y1)
 
 
 def test_score_agg_fail():
     """[SuperLearner] test score aggregation exception handling."""
-    np.testing.assert_warns(ParallelProcessingWarning, ens_n.fit, X1, y1)
+    np.testing.assert_warns(MetricWarning, ens_n.fit, X1, y1)
 
 
 def test_scores_w_folds():
@@ -125,7 +125,7 @@ def test_scores_w_folds():
     for _, tei in FoldIndex(FOLDS, X1).generate(as_array=True):
         col = 0
         for case in sorted(PREPROCESSING):
-            for est_name, _ in ESTIMATORS[case]:
+            for est_name, _ in sorted(ESTIMATORS[case]):
                 s = rmse(y1[tei], F1[tei][:, col])
                 scores['%s__%s' % (case, est_name)].append(s)
 
@@ -135,8 +135,8 @@ def test_scores_w_folds():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-
-        assert scores[k] == ens1.scores_['score_mean'][('layer-1', k)]
+        case, est = k.split('__')
+        assert scores[k] == ens1.data['score-m'][('layer-1 / %s' % case, est)]
 
 
 def test_scores_wo_folds():
@@ -145,7 +145,7 @@ def test_scores_wo_folds():
     scores = dict()
     for _, tei in FoldIndex(FOLDS, X2).generate(as_array=True):
         col = 0
-        for est_name, _ in ECM:
+        for est_name, _ in sorted(ECM):
             s = rmse(y2[tei], F2[tei][:, col])
 
             if not est_name in scores:
@@ -159,8 +159,7 @@ def test_scores_wo_folds():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-
-        assert scores[k] == ens2.scores_['score_mean'][('layer-1', k)]
+        assert scores[k] == ens2.data['score-m']['layer-1 / %s' % k]
 
 
 def test_scores_w_folds_in_script():
@@ -175,7 +174,7 @@ def test_scores_w_folds_in_script():
     for _, tei in FoldIndex(FOLDS, X1).generate(as_array=True):
         col = 0
         for case in sorted(PREPROCESSING):
-            for est_name, __ in ESTIMATORS[case]:
+            for est_name, __ in sorted(ESTIMATORS[case]):
                 s = in_script_func(y1[tei], F1[tei][:, col])
                 scores['%s__%s' % (case, est_name)].append(s)
 
@@ -185,8 +184,8 @@ def test_scores_w_folds_in_script():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-
-        assert scores[k] == ens1_b.scores_['score_mean'][('layer-1', k)]
+        case, est = k.split('__')
+        assert scores[k] == ens1_b.data['score-m'][('layer-1 / %s' % case, est)]
 
 
 def test_scores_wo_folds_in_script():
@@ -195,7 +194,7 @@ def test_scores_wo_folds_in_script():
     scores = dict()
     for _, tei in FoldIndex(FOLDS, X2).generate(as_array=True):
         col = 0
-        for est_name, __ in ECM:
+        for est_name, __ in sorted(ECM):
             s = in_script_func(y2[tei], F2[tei][:, col])
 
             if not est_name in scores:
@@ -209,8 +208,7 @@ def test_scores_wo_folds_in_script():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-
-        assert scores[k] == ens2_b.scores_['score_mean'][('layer-1', k)]
+        assert scores[k] == ens2_b.data['score-m']['layer-1 / %s' % k]
 
 
 if run_sklearn:
@@ -218,7 +216,6 @@ if run_sklearn:
     def test_scores_wo_folds_sklearn():
         """[SuperLearner] test scoring without folds on sklearn scorer."""
         if not run_sklearn:
-            # Fail safe
             return
 
         with open(os.devnull, 'w') as f, redirect_stdout(f):
@@ -228,7 +225,7 @@ if run_sklearn:
         scores = dict()
         for _, tei in FoldIndex(FOLDS, X2).generate(as_array=True):
             col = 0
-            for est_name, __ in ECM:
+            for est_name, __ in sorted(ECM):
                 s = mean_squared_error(y2[tei], F2[tei][:, col])
 
                 if est_name not in scores:
@@ -242,4 +239,4 @@ if run_sklearn:
             scores[k] = np.mean(scores[k])
 
         for k in scores:
-            assert scores[k] == ens3.scores_['score_mean'][('layer-1', k)]
+            assert scores[k] == ens3.data['score-m']['layer-1 / %s' % k]

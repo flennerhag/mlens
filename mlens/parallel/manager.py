@@ -293,7 +293,7 @@ class ParallelProcessing(BaseProcessor):
                 self.job.update()
 
         if return_preds:
-            return self.get_preds()
+            return self.get_preds(lyr.dtype)
 
     def _partial_process(self, layer, parallel):
         """Generate prediction matrix for a given :class:`layer`."""
@@ -385,11 +385,7 @@ class ParallelProcessing(BaseProcessor):
                                           "cannot retrieve final prediction "
                                           "array from cache.")
         if dtype is None:
-            try:
-                # Sequential
-                dtype = self.caller.layers[self.caller.layer_names[-1]].dtype
-            except AttributeError:
-                dtype = self.caller.dtype
+            dtype = self.caller.dtype
 
         if issparse(self.job.predict_out):
             return self.job.predict_out

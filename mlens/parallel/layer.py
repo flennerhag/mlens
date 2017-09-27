@@ -24,6 +24,7 @@ from ..externals.sklearn.base import BaseEstimator
 from ..externals.joblib import delayed
 from ..utils import (assert_correct_format,
                      check_instances,
+                     clone_instances,
                      print_time,
                      safe_print)
 try:
@@ -259,10 +260,10 @@ class Layer(BaseEstimator):
         self._estimators, flattened_estimators = check_instances(
             estimators, include_flattened=True)
 
-        self._preprocessing = check_instances(preprocessing)
-        if isinstance(self._preprocessing, list):
-            self._preprocessing = {'': self._preprocessing}
+        self._preprocessing = _preprocessing = check_instances(preprocessing)
         self._preprocess = self._preprocessing is not None
+        if isinstance(self._preprocessing, list):
+            _preprocessing = {'preprocess': self._preprocessing}
 
         self._learners = [
             Learner(estimator=est,
@@ -282,10 +283,34 @@ class Layer(BaseEstimator):
                         indexer=self.indexer,
                         raise_on_exception=self.raise_on_exception)
             for preprocess_name, transformers
-            in sorted(self._preprocessing.items())
+            in sorted(_preprocessing.items())
         ]
 
         self._store_layer_data(self._estimators, self._preprocessing)
+
+    @property
+    def estimators(self):
+        """Return copy of estimators"""
+        return clone_instances(self._estimators)
+
+    @estimators.setter
+    def estimators(self, estimators, preprocessing=None):
+        """Update learners in layer"""
+        if preprocessing is None:
+            preprocessing = self._preprocessing
+        self._set_learners(estimators, preprocessing)
+
+    @property
+    def preprocessing(self):
+        """Return copy of preprocessing"""
+        return clone_instances(self._preprocessing)
+
+    @preprocessing.setter
+    def preprocessing(self, preprocessing, estimators=None):
+        """Update learners in layer"""
+        if estimators is None:
+            estimators = self._estimators
+        self._set_learners(estimators, preprocessing)
 
     @property
     def learners(self):
@@ -293,25 +318,11 @@ class Layer(BaseEstimator):
         for learner in self._learners:
             yield learner
 
-    @learners.setter
-    def learners(self, estimators, preprocessing=None):
-        """Update learners in layer"""
-        if preprocessing is None:
-            preprocessing = self._preprocessing
-        self._set_learners(estimators, preprocessing)
-
     @property
     def transformers(self):
         """Generator for learners in layer"""
         for transformer in self._transformers:
             yield transformer
-
-    @transformers.setter
-    def transformers(self, preprocessing, estimators=None):
-        """Update learners in layer"""
-        if estimators is None:
-            estimators = self._estimators
-        self._set_learners(estimators, preprocessing)
 
     @property
     def scores(self):
@@ -335,7 +346,9 @@ class Layer(BaseEstimator):
 
         col_index = 0
         col_map = list()
-        for lr in self.learners:
+        sorted_learners = {lr.name:
+                           lr for lr in self.learners}
+        for _, lr in sorted(sorted_learners.items()):
             col_dict = dict()
 
             for partition_index in range(self._partitions):
@@ -405,6 +418,7 @@ class Layer(BaseEstimator):
                 for key, value in par.get_params(deep=True).items():
                     out['%s__%s' % (par_name, key)] = value
             out[par_name] = par
+
         if not deep:
             return out
 
@@ -416,4 +430,5 @@ class Layer(BaseEstimator):
                         for k, v in obj.get_params(deep=deep).items():
                             out["%s__%s" % (obj_name, k)] = v
                     out["%s__%s" % (obj_name, key)] = value
+                out[obj_name] = obj
         return out

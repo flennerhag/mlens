@@ -229,7 +229,7 @@ class Sequential(BaseEstimator):
             kwargs['verbose'] = self.verbose
 
         # Instantiate layer
-        name = "layer-%i" % self.n_layers
+        name = "layer-%i" % (self.n_layers + 1)  # Start count at 1
         lyr = Layer(estimators=estimators,
                     meta=meta,
                     indexer=indexer,
@@ -420,7 +420,7 @@ class Sequential(BaseEstimator):
         for layer in self.layers:
             out[layer.name] = layer
             for key, val in layer.get_params(deep=True).items():
-                out['%s__%s__' % (layer.name, key)] = val
+                out['%s__%s' % (layer.name, key)] = val
         return out
 
 
@@ -467,7 +467,7 @@ class BaseEnsemble(BaseEstimator):
                 raise_on_exception=self.raise_on_exception,
                 verbose=self.verbose)
 
-        if not layers.__cls__.__name__ == 'sequential':
+        if not layers.__class__.__name__.lower() == 'sequential':
             raise ValueError(
                 "Passed layer is not an instance of Sequential")
         return layers
@@ -607,9 +607,7 @@ class BaseEnsemble(BaseEstimator):
         y_pred : array-like, shape=[n_samples, n_classes]
             predicted class membership probabilities for provided input array.
         """
-        meta_name = list(self.layers.layers)[-1]
-        lyr = self.layers.layers[meta_name]
-
+        lyr = self.layers.layers[-1]
         if not getattr(lyr, 'proba', False):
             raise ValueError("Cannot use 'predict_proba' if final layer"
                              "does not have 'proba=True'.")

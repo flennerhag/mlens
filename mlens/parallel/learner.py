@@ -35,8 +35,23 @@ except ImportError:
     from time import time
 
 
-# Non-partition indexers that don't require fitting the full dataset
-SUBFITS = ['blendindex']
+# Types of indexers that require fits only on subsets or only on the full data
+ONLY_SUB = []
+ONLY_ALL = ['fullindex', 'nonetype']
+
+
+def _replace(source_files):
+    """Utility function to replace empty files list"""
+    replace_files = [deepcopy(o) for o in source_files]
+    for o in replace_files:
+        o.name = o.name[:-1] + '0'
+        o.index = (o.index[0], 0)
+        o.out_index = None
+        o.in_index = None
+
+    # Set a vacuous data list
+    replace_data = [(o.name, None) for o in replace_files]
+    return replace_files, replace_data
 
 
 class IndexedEstimator(object):
@@ -150,7 +165,9 @@ class _BaseEstimator(BaseEstimator):
         """Set indexer and auxiliary attributes"""
         self._indexer = indexer
         self._partitions = getattr(indexer, 'n_partitions', 1)
-        self._fit_on_all = indexer.__class__.__name__ not in SUBFITS
+        self.__fit_all__ = indexer.__class__.__name__.lower() not in ONLY_SUB
+        self.__fit_sub__ = indexer.__class__.__name__.lower() not in ONLY_ALL
+        self.__predict_all__ = indexer.__class__.__name__.lower() in ONLY_ALL
 
     def _collect(self, path):
         """Collect files from cache"""
@@ -173,10 +190,12 @@ class _BaseEstimator(BaseEstimator):
                 sublearner_data.append((o.name, o.data))
                 del o.data
 
-        if not self._fit_on_all:
+        if not self.__fit_all__:
             # Full learners are the same as the sub-learners
-            learner_files = sublearner_files
-            learner_data = sublearner_data
+            learner_files, learner_data = _replace(sublearner_files)
+        if not self.__fit_sub__:
+            # Sub learners are the same as the sub-learners
+            sublearner_files, sublearner_data = _replace(learner_files)
 
         self.__fitted__ = True
 
@@ -300,7 +319,8 @@ class Learner(_BaseEstimator):
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
         index = [0, 0]
-        if self._fit_on_all:
+        if self.__fit_all__:
+            out = P if self.__predict_all__ else None
             # Let index[1] == 0 for all full fits
             # Hence fold_index = 0 -> final base learner
             if self._partitions == 1:
@@ -310,7 +330,7 @@ class Learner(_BaseEstimator):
                                  out_index=None,
                                  in_array=X,
                                  targets=y,
-                                 out_array=None,
+                                 out_array=out,
                                  index=index)
             else:
                 for partition_index in self.indexer.partition():
@@ -320,11 +340,11 @@ class Learner(_BaseEstimator):
                                      out_index=None,
                                      in_array=X,
                                      targets=y,
-                                     out_array=None,
+                                     out_array=out,
                                      index=index)
                     index[0] = index[0] + 1
 
-        if self.indexer is not None:
+        if self.__fit_sub__:
             # Fit sub-learners on cv folds
             for i, (train_index, test_index) in enumerate(
                     self.indexer.generate()):
@@ -549,7 +569,7 @@ class Transformer(_BaseEstimator):
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
         index = [0, 0]
-        if self._fit_on_all:
+        if self.__fit_all__:
             # Let index[1] == 0 for all full fits
             # Hence fold_index = 0 -> final base learner
             if self._partitions == 1:
@@ -569,7 +589,7 @@ class Transformer(_BaseEstimator):
                                          index=index)
                     index[0] = index[0] + 1
 
-        if self.indexer is not None:
+        if self.__fit_sub__:
             # Fit sub-learners on cv folds
             for i, (train_index, _) in enumerate(
                     self.indexer.generate()):
@@ -611,6 +631,13 @@ class Cache(object):
         self.obj = obj
         self.name = obj.name
         self.verbose = verbose
+
+    def __call__(self, job, path):
+        """Launch job"""
+        if not hasattr(self, job):
+            raise NotImplementedError(
+                "Cache does not implement [%s]' % job")
+        return getattr(self, job)(path)
 
     def predict(self, path):
         """Cache transformer for predict"""

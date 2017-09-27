@@ -344,7 +344,7 @@ class Layer(BaseEstimator):
             multiplier = 1
         n_prediction_features = self.n_pred * multiplier
 
-        col_index = 0
+        col_index = self.n_feature_prop
         col_map = list()
         sorted_learners = {lr.name:
                            lr for lr in self.learners}
@@ -358,7 +358,7 @@ class Layer(BaseEstimator):
 
             col_map.append([lr, col_dict])
 
-        if col_index != n_prediction_features:
+        if col_index != n_prediction_features + self.n_feature_prop:
             # Note that since col_index is incremented at the end,
             # the largest index_value we have col_index - 1
             raise ValueError(
@@ -375,9 +375,9 @@ class Layer(BaseEstimator):
         """Utility for storing aggregate attributes about the layer."""
         # Store feature propagation data
         if self.propagate_features:
-            if not isinstance(self.propagate_features, list):
-                raise ValueError("propagate features expected list, got %s" %
-                                 self.propagate_features.__class__)
+            if not isinstance(self.propagate_features, (list, range)):
+                raise ValueError("propagate features expected list or range,"
+                                 "got %s" % self.propagate_features.__class__)
             self.n_feature_prop = len(self.propagate_features)
         else:
             self.n_feature_prop = 0

@@ -305,7 +305,7 @@ class ParallelProcessing(BaseProcessor):
         layer(parallel, self.job.args)
 
         # Propagate features from input to output
-        if layer.propagate_features is not None:
+        if layer.n_feature_prop:
             self._propagate_features(layer)
 
     def _propagate_features(self, lyr):

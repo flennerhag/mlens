@@ -29,7 +29,7 @@ def run(cls, proba, preprocessing, **kwargs):
     ests = ESTS[(proba, preprocessing)]
     prep = PREPROCESSING if preprocessing else None
 
-    data = Data('sc', cls, proba, preprocessing, **kwargs)
+    data = Data(cls, proba, preprocessing, **kwargs)
 
     X, y = data.get_data((LEN, WIDTH), MOD)
     (F, wf), _ = data.ground_truth(X, y, p)

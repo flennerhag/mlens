@@ -19,7 +19,7 @@ except ImportError:
 np.random.seed(100)
 
 # Stack is nonsense here - we just need proba to be false
-X, y = Data('lr', 'stack', False, False).get_data((100, 2), 20)
+X, y = Data('stack', False, False).get_data((100, 2), 20)
 
 
 def failed_score(p, y):

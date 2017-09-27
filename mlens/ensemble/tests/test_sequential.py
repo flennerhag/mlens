@@ -23,7 +23,7 @@ LEN = 24
 WIDTH = 2
 MOD = 2
 
-data = Data('seq', 'stack', False, True, FOLDS)
+data = Data('stack', False, True, FOLDS)
 X, y = data.get_data((LEN, WIDTH), MOD)
 
 

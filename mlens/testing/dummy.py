@@ -238,8 +238,8 @@ class Data(object):
 
     """Class for getting data."""
 
-    def __init__(self, lr, cls, proba, preprocessing, *args, **kwargs):
-        self.lr = lr == 'learner'
+    def __init__(self, cls, proba, preprocessing, is_learner=False, *args, **kwargs):
+        self.lr = is_learner
         self.proba = proba
         self.preprocessing = preprocessing
         self.cls = cls
@@ -490,11 +490,11 @@ def _get_path():
     return path
 
 
-def get_learner(case, *args, shape=(12, 4), m=2):
+def get_learner(case, *args):
     """Generator function for test"""
-    data = Data('learner', *args)
+    data = Data(*args, is_learner=True)
     p = getattr(data.indexer, 'n_partitions', 1)
-    X, y = data.get_data(shape=shape, m=m)
+    X, y = data.get_data((12, 4), 2)
     (F, wf), (H, wh) = data.ground_truth(X, y, p)
     data.indexer.fit(X)
 
@@ -545,7 +545,7 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
 
 def get_layer(case, backend, *args, shape=(12, 4), m=2, feature_prop=None):
     """Generator function for test"""
-    data = Data('layer', *args)
+    data = Data(*args)
     p = getattr(data.indexer, 'n_partitions', 1)
     X, y = data.get_data(shape=shape, m=m)
     (F, wf), (H, wh) = data.ground_truth(X, y, p, feature_prop=feature_prop)

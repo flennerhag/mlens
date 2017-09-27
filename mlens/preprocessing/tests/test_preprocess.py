@@ -7,7 +7,7 @@ import numpy as np
 from mlens.preprocessing import Subset, Shift
 from mlens.testing.dummy import Data
 
-X, _ = Data('prep', 'stack', False, False).get_data((10, 4), 2)
+X, _ = Data('stack', False, False).get_data((10, 4), 2)
 
 sub = Subset([0, 1])
 

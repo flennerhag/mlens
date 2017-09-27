@@ -420,11 +420,11 @@ class SubLearner(object):
 
         self.name = learner.name
         self.name_index = '__'.join(
-            [self.name, *tuple((str(i) for i in index))])
+            [self.name] + [str(i) for i in index])
 
         if self.preprocess is not None:
             self.preprocess_index = '__'.join(
-                [self.preprocess, *tuple((str(i) for i in index))])
+                [self.preprocess] + [str(i) for i in index])
         else:
             self.processing_index = ''
 
@@ -676,7 +676,7 @@ class SubTransformer(object):
         self.verbose = transformer.verbose
         self.name = transformer.name
         self.name_index = '__'.join(
-            [self.name, *tuple((str(i) for i in index))])
+            [self.name] + [str(i) for i in index])
 
     def __call__(self, job, path):
         """Launch job"""

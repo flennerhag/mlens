@@ -183,5 +183,6 @@ def check_instances(instances, include_flattened=False):
         vps = [('%s__%s' % (case, est_name), est)
                for case, instance_list in out.items()
                for est_name, est in instance_list]
-        flattened = [(*name.split('__'), est) for name, est in sorted(vps)]
+        flattened = [(name.split('__')[0], name.split('__')[1], est)
+                     for name, est in sorted(vps)]
     return out, flattened

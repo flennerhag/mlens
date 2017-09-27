@@ -9,7 +9,7 @@ from mlens.index import SubsetIndex
 
 from mlens.ensemble import Subsemble, SuperLearner
 
-data = Data('layer', 'subset', False, False, n_partitions=2, n_splits=3)
+data = Data('subset', False, False, n_partitions=2, n_splits=3)
 X, y = data.get_data((30, 4), 3)
 data.indexer.fit(X)
 (F, wf), (P, wp) = data.ground_truth(X, y, data.indexer.n_partitions)

@@ -11,7 +11,7 @@ LEN = 6
 WIDTH = 2
 MOD = 2
 
-data = Data('seq', 'stack', False, True, n_splits=5)
+data = Data('stack', False, True, n_splits=5)
 X, y = data.get_data((LEN, WIDTH), MOD)
 
 lg = EstimatorContainer()

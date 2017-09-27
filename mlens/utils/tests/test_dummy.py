@@ -244,10 +244,10 @@ def test_ground_truth():
                     [-2.        ,  8.28571429],
                     [ 3.14285714,  3.14285714]])
 
-    t, z = Data('', 'stack', False, True).get_data((6, 2), 2)
+    t, z = Data('stack', False, True).get_data((6, 2), 2)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        (F, wf), (P, wp) = Data('', 'stack', False, True, 3).ground_truth(t, z)
+        (F, wf), (P, wp) = Data('stack', False, True, n_splits=3).ground_truth(t, z)
 
     np.testing.assert_array_almost_equal(F, gf)
     np.testing.assert_array_almost_equal(wf, gwf)

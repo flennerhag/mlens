@@ -1,7 +1,7 @@
 <div align="center">
 <img src="docs/img/logo.png" width="50%"><br><br>
 </div>
--------------------------------------------------------------------------------
+<hr>
 
 ![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)
 ![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)
@@ -36,7 +36,7 @@ for subsets of estimators and input feature propagation. It is straightforward
 to build deep ensembles with complex network structures.
 
 <div align="center">
-<img src="docs/img/network.png" height="60%">
+<img src="docs/img/network.png" width="60%"><br><br>
 </div>
 
 

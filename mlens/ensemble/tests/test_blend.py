@@ -13,7 +13,7 @@ LEN = 6
 WIDTH = 2
 MOD = 2
 
-data = Data('seq', 'blend', False, True)
+data = Data('blend', False, True)
 X, y = data.get_data((LEN, WIDTH), MOD)
 
 (F, wf), (P, wp) = data.ground_truth(X, y, 1, False)

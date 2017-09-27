@@ -177,11 +177,11 @@ def check_instances(instances, include_flattened=False):
 
     # Flattened version
     if isinstance(out, list):
-        flattened = [(None, name, est) for name, est in out]
+        flattened = [(None, name, est) for name, est in sorted(out)]
     else:
         # Compress dictionary and sort on case_est keys
         vps = [('%s__%s' % (case, est_name), est)
                for case, instance_list in out.items()
                for est_name, est in instance_list]
-        flattened = [(*name.split('__'), est) for name, est in vps]
+        flattened = [(*name.split('__'), est) for name, est in sorted(vps)]
     return out, flattened

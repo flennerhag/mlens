@@ -7,7 +7,8 @@ import numpy as np
 from mlens.model_selection import Evaluator
 from mlens.metrics import mape, make_scorer
 from mlens.utils.exceptions import FitFailedWarning
-from mlens.utils.dummy import Data, OLS, Scale
+from mlens.utils.dummy import OLS, Scale
+from mlens.testing import Data
 from scipy.stats import randint
 
 try:
@@ -18,7 +19,7 @@ except ImportError:
 np.random.seed(100)
 
 # Stack is nonsense here - we just need proba to be false
-X, y = Data('stack', False, False).get_data((100, 2), 20)
+X, y = Data('lr', 'stack', False, False).get_data((100, 2), 20)
 
 
 def failed_score(p, y):

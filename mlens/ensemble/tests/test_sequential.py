@@ -119,8 +119,8 @@ def test_equivalence_blend():
 def test_equivalence_subsemble():
     """[SequentialEnsemble] Test ensemble equivalence with Subsemble."""
 
-    ens = Subsemble()
-    seq = SequentialEnsemble()
+    ens = Subsemble(n_jobs=1)
+    seq = SequentialEnsemble(n_jobs=1)
 
     ens.add(ECM, dtype=np.float64)
     seq.add('subset', ECM, dtype=np.float64)

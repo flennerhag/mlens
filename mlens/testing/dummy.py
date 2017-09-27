@@ -543,21 +543,24 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
         np.testing.assert_array_equal(w, wf)
 
 
-def get_layer(case, backend, *args, shape=(12, 4), m=2, feature_prop=None):
+def get_layer(job, backend, case, proba, preprocess, feature_prop=None):
     """Generator function for test"""
-    data = Data(*args)
+    data = Data(case, proba, preprocess)
     p = getattr(data.indexer, 'n_partitions', 1)
-    X, y = data.get_data(shape=shape, m=m)
+    X, y = data.get_data(shape=(12, 4), m=2)
     (F, wf), (H, wh) = data.ground_truth(X, y, p, feature_prop=feature_prop)
     data.indexer.fit(X)
 
     prop = range(feature_prop) if feature_prop else None
-    layer = EstimatorContainer().get_layer(
-        *args, backend=backend, propagate_features=prop)
+    layer = EstimatorContainer().get_layer(kls=case,
+                                           proba=proba,
+                                           preprocessing=preprocess,
+                                           backend=backend,
+                                           propagate_features=prop)
 
     return {'fit': ('fit', layer, X, y, F, wf),
             'predict': ('predict', layer, X, y, H, wh),
-            'transform': ('transform', layer, X, y, F, wf)}[case]
+            'transform': ('transform', layer, X, y, F, wf)}[job]
 
 
 def run_layer(job, layer, X, y, F, wf=None):

@@ -6,6 +6,7 @@
 
 Classes for partitioning training data.
 """
+from __future__ import division
 
 from abc import abstractmethod
 from numbers import Integral

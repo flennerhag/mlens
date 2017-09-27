@@ -7,7 +7,7 @@
 Helpers to generate test cases
 """
 
-from __future__ import division, print_function
+from __future__ import division, print_function, with_statement
 
 import os
 import shutil

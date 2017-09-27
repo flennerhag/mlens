@@ -10,7 +10,7 @@ Parallel processing job managers.
 # pylint: disable=too-many-arguments
 # pylint: disable=useless-super-delegation
 
-from __future__ import with_statement
+from __future__ import with_statement, division
 
 import gc
 import os

@@ -1,6 +1,7 @@
 """
 Functions for base computations
 """
+from __future__ import division
 
 import os
 import warnings

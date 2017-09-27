@@ -6,6 +6,7 @@
 
 Utility functions for constructing metrics
 """
+from __future__ import division
 
 import warnings
 import numpy as np

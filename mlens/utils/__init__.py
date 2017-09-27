@@ -12,7 +12,8 @@ from .utils import (pickle_save,
                     print_time,
                     safe_print,
                     CMLog,
-                    kwarg_parser)
+                    kwarg_parser,
+                    clone_instances)
 
 from .formatting import check_instances
 from .validation import check_inputs
@@ -34,5 +35,6 @@ __all__ = ['IdTrain',
            'print_time',
            'safe_print',
            'CMLog',
-           'kwarg_parser'
+           'kwarg_parser',
+           'clone_instances'
            ]

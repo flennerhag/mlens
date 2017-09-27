@@ -16,6 +16,7 @@ from numpy import array
 
 from ..config import IVALS
 from .exceptions import ParallelProcessingError, ParallelProcessingWarning
+from ..externals.sklearn.base import clone
 
 try:
     import psutil
@@ -89,6 +90,18 @@ def load(file, raise_on_exception, enforce_filetype=True):
 
 
 ###############################################################################
+def clone_instances(params):
+    """clone parameters"""
+    if isinstance(params, dict):
+        out = dict()
+        for case, inst in params.items():
+            out[case] = [(n, clone(e)) for n, e in inst]
+    else:
+        out = [(n, clone(e)) for n, e in params]
+
+    return out
+
+
 def kwarg_parser(func, kwargs):
     """Utility function for parsing keyword arguments"""
     func_kwargs = dict()

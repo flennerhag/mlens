@@ -61,7 +61,7 @@ def load(file, raise_on_exception, enforce_filetype=True):
     s, lim = IVALS
     if enforce_filetype:
         file = pickable(file)
-
+    return pickle_load(file)
     try:
         return pickle_load(file)
     except (OSError, IOError) as exc:

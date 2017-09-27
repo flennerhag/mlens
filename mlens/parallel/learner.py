@@ -80,6 +80,25 @@ class IndexedEstimator(object):
     def estimator(self, estimator):
         self._estimator = estimator
 
+    # XXX: Need to define __getstate__ and __setstate__ for py27
+    def __getstate__(self):
+        """Return pickable object"""
+        return (self._estimator,
+                self.name,
+                self.index,
+                self.in_index,
+                self.out_index,
+                self.data)
+
+    def __setstate__(self, state):
+        """Load tuple into instance"""
+        (self._estimator,
+         self.name,
+         self.index,
+         self.in_index,
+         self.out_index,
+         self.data) = state
+
 
 class _BaseEstimator(BaseEstimator):
 

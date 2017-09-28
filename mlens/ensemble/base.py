@@ -446,7 +446,7 @@ class Sequential(BaseEstimator):
             d = layer.raw_data
             if not d:
                 continue
-            out.extend([('%s / %s' % (layer.name, k), v) for k, v in d])
+            out.extend([('%s  %s' % (layer.name, k), v) for k, v in d])
         # TODO: get the assemble_table to
         # (a) allow for variable number of partition entries
         # (b) split on ' / ' for out layer column

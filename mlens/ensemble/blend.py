@@ -36,13 +36,14 @@ class BlendEnsemble(BaseEnsemble):
     :class:`BlendEnsemble` can be a poor choice as information is lost at
     each stage of fitting.
 
-    .. note :: All parameters can be overriden in the :attr:`add` method unless
-        otherwise specified. Notably, the ``backend`` and ``n_jobs`` cannot
-        be altered in the :attr:`add` method.
-
     See Also
     --------
     :class:`SuperLearner`, :class:`Subsemble`
+
+
+    .. note :: All parameters can be overriden in the :attr:`add` method unless
+        otherwise specified. Notably, the ``backend`` and ``n_jobs`` cannot
+        be altered in the :attr:`add` method.
 
     Parameters
     ----------

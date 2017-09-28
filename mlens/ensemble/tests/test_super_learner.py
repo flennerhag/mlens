@@ -136,7 +136,7 @@ def test_scores_w_folds():
 
     for k in scores:
         case, est = k.split('__')
-        assert scores[k] == ens1.data['score-m'][('layer-1 / %s' % case, est)]
+        assert scores[k] == ens1.data['score-m'][('layer-1  %s' % case, est)]
 
 
 def test_scores_wo_folds():
@@ -159,7 +159,7 @@ def test_scores_wo_folds():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-        assert scores[k] == ens2.data['score-m']['layer-1 / %s' % k]
+        assert scores[k] == ens2.data['score-m']['layer-1  %s' % k]
 
 
 def test_scores_w_folds_in_script():
@@ -185,7 +185,7 @@ def test_scores_w_folds_in_script():
 
     for k in scores:
         case, est = k.split('__')
-        assert scores[k] == ens1_b.data['score-m'][('layer-1 / %s' % case, est)]
+        assert scores[k] == ens1_b.data['score-m'][('layer-1  %s' % case, est)]
 
 
 def test_scores_wo_folds_in_script():
@@ -208,7 +208,7 @@ def test_scores_wo_folds_in_script():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-        assert scores[k] == ens2_b.data['score-m']['layer-1 / %s' % k]
+        assert scores[k] == ens2_b.data['score-m']['layer-1  %s' % k]
 
 
 if run_sklearn:
@@ -239,4 +239,4 @@ if run_sklearn:
             scores[k] = np.mean(scores[k])
 
         for k in scores:
-            assert scores[k] == ens3.data['score-m']['layer-1 / %s' % k]
+            assert scores[k] == ens3.data['score-m']['layer-1  %s' % k]

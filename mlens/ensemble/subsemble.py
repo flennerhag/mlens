@@ -85,6 +85,7 @@ class Subsemble(BaseEnsemble):
     --------
     :class:`BlendEnsemble`, :class:`SuperLearner`
 
+
     .. note :: All parameters can be overriden in the :attr:`add` method unless
         otherwise specified. Notably, the ``backend`` and ``n_jobs`` cannot
         be altered in the :attr:`add` method.

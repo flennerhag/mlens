@@ -1,6 +1,5 @@
 .. Some stuff on getting started
 
-.. _getting-started:
 
 Getting started
 ===============

@@ -137,7 +137,7 @@ ensemble output. Output is summarized for easy comparison of performance. ::
    :maxdepth: 2
    :caption: High-level API 
 
-   pages/getting_started
+   examples/start_tutorial
    pages/ensemble_tutorial
    pages/ensembles
 

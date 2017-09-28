@@ -47,7 +47,7 @@ learner = Learner(estimator=OLS(),         # Declare estimator
                   verbose=True)
 
 ######################################################################
-# .. currentmodule: mlens.base
+# .. currentmodule: mlens.index
 #
 # The ``name`` gives the learner a cache reference. When the learner is
 # constructed by the high-level API , the name is guaranteed to be unique, when

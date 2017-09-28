@@ -1,5 +1,5 @@
 <div align="center">
-<img src="docs/img/logo.png" width="50%"><br><br>
+<img src="docs/source/_static/img/logo.png" width="50%"><br><br>
 </div>
 <hr>
 
@@ -36,7 +36,7 @@ for subsets of estimators and input feature propagation. It is straightforward
 to build deep ensembles with complex network structures.
 
 <div align="center">
-<img src="docs/img/network.png" width="60%"><br><br>
+<img src="docs/source/_static/img/network.png" width="60%"><br><br>
 </div>
 
 

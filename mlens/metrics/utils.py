@@ -134,17 +134,17 @@ def assemble_table(data, padding=2, decimals=2):
                     # First row entry
                     k = [c] + k
                     adj = max_case_len - len(c) + padding
-                    out += " " * adj + c
+                    out += c + " " * adj
 
                 # Always est entry
                 adj = max_est_len - len(e) + padding
-                out += " " * adj + e
+                out += e + " " * adj
 
                 if p:
                     # Partition entry
                     k.append(p)
                     adj = max_part_len - len(p) + padding
-                    out += " " * adj + p
+                    out += p + " " * adj
 
                 if len(k) == 1:
                     k = e

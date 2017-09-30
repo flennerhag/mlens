@@ -26,12 +26,19 @@ MOD = 2
 data = Data('stack', False, True, FOLDS)
 X, y = data.get_data((LEN, WIDTH), MOD)
 
+est = EstimatorContainer()
+lc_s = est.get_layer('stack', False, True)
+lc_b = est.get_layer('blend', False, False)
+lc_u = est.get_layer('subset', False, False)
 
-lc_s = EstimatorContainer().get_layer('stack', False, True)
-lc_b = EstimatorContainer().get_layer('blend', False, False)
-lc_u = EstimatorContainer().get_layer('subset', False, False)
+a = clone(lc_s)
+a.name += '-1'
+b = clone(lc_b)
+b.name += '-2'
+c = clone(lc_u)
+c.name += '-3'
+seq = Sequential()(a, b, c)
 
-seq = Sequential()(clone(lc_s), clone(lc_b), clone(lc_u))
 lc_s = Sequential(lc_s)
 lc_b = Sequential(lc_b)
 lc_u = Sequential(lc_u)
@@ -50,9 +57,9 @@ def test_fit_seq():
 
 def test_predict_seq():
     """[Sequential] Test multilayer prediction."""
-    S = lc_s.predict(X, y)
-    B = lc_b.predict(S, y)
-    U = lc_u.predict(B, y)
+    S = lc_s.predict(X)
+    B = lc_b.predict(S)
+    U = lc_u.predict(B)
     out = seq.predict(X)
     np.testing.assert_array_equal(U, out)
 
@@ -69,15 +76,15 @@ def test_fit():
     ens.add('blend', ECM, dtype=np.float64)
     ens.add('subset', ECM, dtype=np.float64)
 
-    out = ens.layers.fit(X, y, return_preds=True)
+    out = ens.fit(X, y, return_preds=True)
     np.testing.assert_array_equal(U, out)
 
 
 def test_predict():
     """[SequentialEnsemble] Test multilayer prediction."""
-    S = lc_s.predict(X, y)
-    B = lc_b.predict(S, y)
-    U = lc_u.predict(B, y)
+    S = lc_s.predict(X)
+    B = lc_b.predict(S)
+    U = lc_u.predict(B)
     ens = SequentialEnsemble()
     ens.add('stack', ESTIMATORS, PREPROCESSING, dtype=np.float64)
     ens.add('blend', ECM, dtype=np.float64)

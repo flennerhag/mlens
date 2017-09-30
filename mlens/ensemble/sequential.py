@@ -236,7 +236,6 @@ class SequentialEnsemble(BaseEnsemble):
         indexer = indexer(**kwargs_idx)
 
         return self._add(estimators=estimators,
-                         meta=meta,
                          indexer=indexer,
                          preprocessing=preprocessing,
                          verbose=self.verbose,

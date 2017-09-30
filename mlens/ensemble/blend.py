@@ -292,7 +292,6 @@ class BlendEnsemble(BaseEnsemble):
                 estimators=estimators,
                 preprocessing=preprocessing,
                 indexer=idx,
-                meta=meta,
                 proba=proba,
                 propagate_features=propagate_features,
                 verbose=verbose,

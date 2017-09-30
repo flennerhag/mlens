@@ -36,6 +36,7 @@ except ImportError:
 
 
 def check_kwargs(kwargs, forbidden):
+    """Pop unwanted arguments and issue warning"""
     for f in forbidden:
         s = kwargs.pop(f, None)
         if s is not None:
@@ -56,22 +57,20 @@ def print_job(lc, start_message):
     start_message : str
         Initial message.
     """
-    pout = "stdout" if lc.verbose >= 50 else "stderr"
-
+    f = "stdout" if lc.verbose < 10 else "stderr"
     if lc.verbose:
-        safe_print("%s %d layers" % (start_message, lc.n_layers),
-                   file=pout, flush=True)
-
-        if lc.verbose >= 10:
+        safe_print("\n%s %d layers" % (start_message, lc.n_layers),
+                   file=f, flush=True)
+        if lc.verbose >= 5:
             safe_print("""[INFO] n_jobs = %i
 [INFO] backend = %r
 [INFO] start_method = %r
 [INFO] cache = %r
 """ % (lc.n_jobs, lc.backend, config.START_METHOD, config.TMPDIR),
-                       file=pout, flush=True)
+                       file=f, flush=True)
 
     t0 = time()
-    return pout, t0
+    return f, t0
 
 
 ###############################################################################
@@ -87,13 +86,12 @@ class Sequential(BaseEstimator):
 
     Parameters
     ----------
-    layers : OrderedDict, None (default = None)
-        An ordered dictionary of Layer instances. To initiate a new
-        ``Sequential`` instance, set ``layers = None``.
+    layers : list, optional (default = None)
+        list of layers to instantiate with.
 
     n_jobs : int (default = -1)
-        Number of CPUs to use. Set ``n_jobs = -1`` for all available CPUs, and
-        ``n_jobs = -2`` for all available CPUs except one, e.tc..
+        Degree of concurrency. Set ``n_jobs = -1`` for maximal parallelism and
+        ``n_jobs=1`` for sequential processing.
 
     backend : str, (default="threading")
         the joblib backend to use (i.e. "multiprocessing" or "threading").
@@ -108,9 +106,9 @@ class Sequential(BaseEstimator):
             - ``verbose = 1`` messages at start and finish
               (same as ``verbose = True``)
             - ``verbose = 2`` messages for each layer
+            - etc
 
-        If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
-        For verbosity in the layers themselves, use ``fit_params``.
+        If ``verbose >= 10`` prints to ``sys.stderr``, else ``sys.stdout``.
     """
 
     def __init__(self,
@@ -130,27 +128,28 @@ class Sequential(BaseEstimator):
         # Set up layer
         self.dtype = dtype if dtype else config.DTYPE
         self._init_layers(layers)
-        self._has_meta_layer = False
 
     def __call__(self, *layers):
-        """Add layers to instance"""
+        """Add layers to instance
+
+        Parameters
+        ----------
+        *layers : iterable
+            list of layers to add to sequential
+        """
         check_layers(layers)
         for lyr in layers:
             if lyr.name in [lr.name for lr in self.layers]:
                 raise ValueError("Layer name exists in stack. "
                                  "Rename layers before attempting to push.")
 
-            if lyr.meta:
-                if self._has_meta_layer:
-                    warnings.warn("Ensemble already has meta layer, "
-                                  "adding a second meta layer can "
-                                  "result in unexpected behavior.")
-                else:
-                    self._has_meta_layer = True
-
             self.n_layers += 1
             self.layers.append(lyr)
             self._get_layer_data(lyr)
+
+            attr = lyr.name.replace('-', '_').replace(' ', '').strip()
+            setattr(self, attr, lyr)
+
         return self
 
     def __iter__(self):
@@ -158,11 +157,217 @@ class Sequential(BaseEstimator):
         for layer in self.layers:
             yield layer
 
-    def add(self,
-            estimators,
-            indexer,
-            preprocessing=None,
-            **kwargs):
+    def fit(self, X, y=None, **kwargs):
+        r"""Fit instance.
+
+        Iterative fits each layer in the stack on the output of
+        the subsequent layer. First layer is fitted on input data.
+
+        Parameters
+        -----------
+        X : array-like of shape = [n_samples, n_features]
+            input matrix to be used for fitting and predicting.
+
+        y : array-like of shape = [n_samples, ]
+            training labels.
+
+        **kwargs : optional
+            optional arguments to processor
+       """
+        f, t0 = print_job(self, "Fitting")
+
+        with ParallelProcessing(self) \
+                as manager:
+            out = manager.process('fit', X, y, **kwargs)
+
+        if self.verbose:
+            print_time(t0, "{:<35}".format("Fit complete"), file=f, flush=True)
+
+        if out is None:
+            return self
+        return out
+
+    def predict(self, X, **kwargs):
+        r"""Predict.
+
+        Parameters
+        -----------
+        X : array-like of shape = [n_samples, n_features]
+            input matrix to be used for prediction.
+
+        **kwargs : optional
+            optional keyword arguments.
+
+        Returns
+        -------
+        X_pred : array-like of shape = [n_samples, n_fitted_estimators]
+            predictions from final layer.
+        """
+        f, t0 = print_job(self, "Predicting")
+
+        out = self._predict(X, 'predict', **kwargs)
+
+        if self.verbose:
+            print_time(t0, "{:<35}".format("Predict complete"),
+                       file=f, flush=True)
+        return out
+
+    def transform(self, X, **kwargs):
+        """Predict using sub-learners as is done during the ``fit`` call.
+
+        Parameters
+        -----------
+        X : array-like of shape = [n_samples, n_features]
+            input matrix to be used for prediction.
+
+        *args : optional
+            optional arguments.
+
+        **kwargs : optional
+            optional keyword arguments.
+
+        Returns
+        -------
+        X_pred : array-like of shape = [n_test_samples, n_fitted_estimators]
+            predictions from ``fit`` call to final layer.
+        """
+        f, t0 = print_job(self, "Transforming")
+
+        out = self._predict(X, 'transform', **kwargs)
+
+        if self.verbose:
+            print_time(t0, "{:<35}".format("Transform complete"),
+                       file=f, flush=True)
+
+        return out
+
+    def _predict(self, X, job, **kwargs):
+        r"""Generic for processing a predict job through all layers.
+
+        Parameters
+        -----------
+        X : array-like of shape = [n_samples, n_features]
+            input matrix to be used for prediction.
+
+        job : str
+            type of prediction. Should be 'predict' or 'transform'.
+
+        Returns
+        -------
+        X_pred : array-like
+            predictions from final layer. Either predictions from ``fit`` call
+            or new predictions on X using base learners fitted on all training
+            data.
+        """
+        return_preds = kwargs.pop('return_preds', True)
+        with ParallelProcessing(self) as manager:
+            preds = manager.process(
+                job, X, return_preds=return_preds, **kwargs)
+
+        return preds
+
+    def _init_layers(self, layers):
+        """Initialize layers"""
+        if layers is None:
+            layers = list()
+        elif layers.__class__.__name__.lower() == 'layer':
+            layers = [layers]
+
+        self.layers = layers
+        self.n_layers = len(self.layers)
+
+        self.summary = dict()
+        for layer in self.layers:
+            self._get_layer_data(layer)
+
+    def _get_layer_data(self, layer,
+                        attr=('cls', 'n_prep', 'n_pred', 'n_est', 'cases')):
+        """Utility for storing aggregate data about an added layer."""
+        self.summary[layer.name] = {k: getattr(layer, k, None) for k in attr}
+
+    def get_params(self, deep=True):
+        """Get parameters for this estimator.
+
+        Parameters
+        ----------
+        deep : boolean, optional
+            whether to return nested parameters.
+        """
+        out = super(Sequential, self).get_params(deep=deep)
+
+        if not deep:
+            return out
+
+        for layer in self.layers:
+            out[layer.name] = layer
+            for key, val in layer.get_params(deep=True).items():
+                out['%s__%s' % (layer.name, key)] = val
+        return out
+
+    @property
+    def verbose(self):
+        """Adjust the level of verbosity."""
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose):
+        self._verbose = verbose
+        for layer in self.layers:
+            layer.verbose = verbose
+
+    @property
+    def data(self):
+        """Ensemble data"""
+        out = list()
+        for layer in self.layers:
+            d = layer.raw_data
+            if not d:
+                continue
+            out.extend([('%s  %s' % (layer.name, k), v) for k, v in d])
+        return Data(out)
+
+
+###############################################################################
+class BaseEnsemble(Sequential):
+
+    """BaseEnsemble class.
+
+    Core ensemble class methods used to add ensemble layers and manipulate
+    parameters.
+    """
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def __init__(self,
+                 shuffle=False,
+                 random_state=None,
+                 scorer=None,
+                 raise_on_exception=True,
+                 verbose=False,
+                 dtype=None,
+                 n_jobs=-1,
+                 layers=None,
+                 array_check=2,
+                 backend=None
+                 ):
+        super(BaseEnsemble, self).__init__(
+            layers=layers,
+            n_jobs=n_jobs,
+            backend=backend,
+            raise_on_exception=raise_on_exception,
+            dtype=dtype,
+            verbose=verbose)
+        self.shuffle = shuffle
+        self.random_state = random_state
+        self.scorer = scorer
+        self.array_check = array_check
+
+    def _add(self,
+             estimators,
+             indexer,
+             preprocessing=None,
+             **kwargs):
         """Method for adding a layer.
 
         Parameters
@@ -190,9 +395,6 @@ class Sequential(BaseEstimator):
 
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
-
-        meta : bool
-            flag for if added layer is a meta layer
 
         indexer : instance or None (default = None)
             Indexer instance to use. Defaults to the layer class
@@ -233,14 +435,24 @@ class Sequential(BaseEstimator):
             if ``in_place = True``, returns ``self`` with the layer
             instantiated.
         """
-        # over-ride Sequential arguments if layer-specific args are found
+        if estimators.__class__.__name__.lower() == 'layer':
+            return self(estimators)
+
+        # Override Sequential arguments if layer-specific args are found
         verbose = kwargs.pop('verbose', self.verbose)
         raise_ = kwargs.pop('raise_on_exception', self.raise_on_exception)
         dtype = kwargs.pop('dtype', self.dtype)
+        scorer = kwargs.pop('scorer', self.scorer)
 
         # Arguments that cannot be very between layers in a given fit -
         # use Sequential params
         check_kwargs(kwargs, ['backend', 'n_jobs'])
+
+        # Check shuffle
+        shuffle = kwargs.pop('shuffle', self.shuffle)
+        random_state = kwargs.pop('random_state', self.random_state)
+        if random_state:
+            random_state = check_random_state(random_state).randint(0, 10000)
 
         # Instantiate layer
         name = "layer-%i" % (self.n_layers + 1)  # Start count at 1
@@ -249,336 +461,17 @@ class Sequential(BaseEstimator):
                     name=name,
                     preprocessing=preprocessing,
                     dtype=dtype,
-                    verbose=verbose,
+                    scorer=scorer,
+                    shuffle=shuffle,
+                    random_state=random_state,
+                    verbose=max(verbose - 1, 0),
                     raise_on_exception=raise_,
-                    backend=self.backend,
-                    n_jobs=self.n_jobs,
                     **kwargs)
 
         # Add layer to stack
         return self(lyr)
 
-    def fit(self, X=None, y=None, **kwargs):
-        r"""Fit instance by calling ``predict_proba`` in the first layer.
-
-        Similar to ``fit``, but will call the ``predict_proba`` method on
-        estimators. Thus, each the ``n_test_samples * n_labels``
-        prediction matrix of each estimator will be stacked and used as input
-        in the subsequent layer.
-
-        Parameters
-        -----------
-        X : array-like of shape = [n_samples, n_features]
-            input matrix to be used for fitting and predicting.
-
-        y : array-like of shape = [n_samples, ]
-            training labels.
-
-        **kwargs : optional
-            optional arguments to processor
-
-        Returns
-        -----------
-        out : dict
-            dictionary of output data (possibly empty) generated
-            through fitting. Keys correspond to layer names and values to
-            the output generated by calling the layer's ``fit_function``. ::
-
-                out = {'layer-i-estimator-j': some_data,
-                       ...
-                       'layer-s-estimator-q': some_data}
-
-        X : array-like, optional
-            predictions from final layer's ``fit_proba`` call.
-        """
-        pout, t0 = print_job(self, "Fitting")
-
-        with ParallelProcessing(self) \
-                as manager:
-            out = manager.process('fit', X, y, **kwargs)
-
-        if self.verbose:
-            print_time(t0, "Fit complete", file=pout, flush=True)
-
-        return out
-
-    def predict(self, X=None, *args, **kwargs):
-        r"""Generic method for predicting through all layers in the container.
-
-        Parameters
-        -----------
-        X : array-like of shape = [n_samples, n_features]
-            input matrix to be used for prediction.
-
-        *args : optional
-            optional arguments.
-
-        **kwargs : optional
-            optional keyword arguments.
-
-        Returns
-        -------
-        X_pred : array-like of shape = [n_samples, n_fitted_estimators]
-            predictions from final layer.
-        """
-        pout, t0 = print_job(self, "Predicting with")
-
-        out = self._predict(X, 'predict', *args, **kwargs)
-
-        if self.verbose:
-            print_time(t0, "Prediction complete", file=pout, flush=True)
-
-        return out
-
-    def transform(self, X=None, *args, **kwargs):
-        """Generic method for reproducing predictions of the ``fit`` call.
-
-        Parameters
-        -----------
-        X : array-like of shape = [n_samples, n_features]
-            input matrix to be used for prediction.
-
-        *args : optional
-            optional arguments.
-
-        **kwargs : optional
-            optional keyword arguments.
-
-        Returns
-        -------
-        X_pred : array-like of shape = [n_test_samples, n_fitted_estimators]
-            predictions from ``fit`` call to final layer.
-        """
-        pout, t0 = print_job(self, "Transforming")
-
-        out = self._predict(X, 'transform', *args, **kwargs)
-
-        if self.verbose:
-            print_time(t0, "Transformation complete", file=pout, flush=True)
-
-        return out
-
-    def _predict(self, X, job, *args, **kwargs):
-        r"""Generic for processing a predict job through all layers.
-
-        Parameters
-        -----------
-        X : array-like of shape = [n_samples, n_features]
-            input matrix to be used for prediction.
-
-        job : str
-            type of prediction. Should be 'predict' or 'transform'.
-
-        Returns
-        -------
-        X_pred : array-like
-            predictions from final layer. Either predictions from ``fit`` call
-            or new predictions on X using base learners fitted on all training
-            data.
-        """
-        return_preds = kwargs.pop('return_preds', True)
-        with ParallelProcessing(self) as manager:
-            preds = manager.process(
-                job, X, *args, return_preds=return_preds, **kwargs)
-
-        return preds
-
-    def _init_layers(self, layers):
-        """Return a clean ordered dictionary or copy the passed dictionary."""
-        if layers is None:
-            layers = list()
-        elif layers.__class__.__name__.lower() == 'layer':
-            layers = [layers]
-
-        self.layers = layers
-        self.n_layers = len(self.layers)
-
-        self.summary = dict()
-        for layer in self.layers:
-            self._get_layer_data(layer)
-
-    def _get_layer_data(self, layer,
-                        attr=('cls', 'n_prep', 'n_pred', 'n_est', 'cases')):
-        """Utility for storing aggregate data about an added layer."""
-        self.summary[layer.name] = {k: getattr(layer, k, None) for k in attr}
-
-    def get_params(self, deep=True):
-        """Get parameters for this estimator.
-
-        Parameters
-        ----------
-        deep : boolean, optional
-            If True, will return the layers separately as individual
-            parameters. If False, will return the collapsed dictionary.
-
-        Returns
-        -----------
-        params : dict
-            mapping of parameter names mapped to their values.
-        """
-        out = super(Sequential, self).get_params(deep=deep)
-
-        if not deep:
-            return out
-
-        for layer in self.layers:
-            out[layer.name] = layer
-            for key, val in layer.get_params(deep=True).items():
-                out['%s__%s' % (layer.name, key)] = val
-        return out
-
-    @property
-    def verbose(self):
-        """Adjust the level of verbosity."""
-        return self._verbose
-
-    @verbose.setter
-    def verbose(self, verbose):
-        self._verbose = verbose
-        for layer in self.layers:
-            layer.verbose = verbose
-
-    @property
-    def data(self):
-        """Ensemble data"""
-        out = list()
-        for layer in self.layers:
-            d = layer.raw_data
-            if not d:
-                continue
-            out.extend([('%s  %s' % (layer.name, k), v) for k, v in d])
-        # TODO: get the assemble_table to
-        # (a) allow for variable number of partition entries
-        # (b) split on ' / ' for out layer column
-        return Data(out)
-
-
-###############################################################################
-class BaseEnsemble(BaseEstimator):
-
-    """BaseEnsemble class.
-
-    Core ensemble class methods used to add ensemble layers and manipulate
-    parameters.
-    """
-
-    __metaclass__ = ABCMeta
-
-    @abstractmethod
-    def __init__(self,
-                 shuffle=False,
-                 random_state=None,
-                 scorer=None,
-                 raise_on_exception=True,
-                 verbose=False,
-                 dtype=None,
-                 n_jobs=-1,
-                 layers=None,
-                 array_check=2,
-                 backend=None
-                 ):
-        self.shuffle = shuffle
-        self.random_state = random_state
-        self.scorer = scorer
-        self.n_jobs = n_jobs
-        self.backend = backend if backend is not None else config.BACKEND
-        self.dtype = dtype if dtype else config.DTYPE
-        self.raise_on_exception = raise_on_exception
-        self.array_check = array_check
-        self._verbose = verbose
-
-        self.layers = self._init_sequential(layers)
-
-    def _init_sequential(self, layers):
-        """Initialize sequential backend"""
-        if layers is None:
-            return Sequential(
-                n_jobs=self.n_jobs,
-                backend=self.backend,
-                raise_on_exception=self.raise_on_exception,
-                dtype=self.dtype,
-                verbose=self.verbose)
-
-        if not layers.__class__.__name__.lower() == 'sequential':
-            raise ValueError(
-                "Passed layer is not an instance of Sequential")
-        return layers
-
-    @property
-    def verbose(self):
-        """Adjust the level of verbosity."""
-        return self._verbose
-
-    @verbose.setter
-    def verbose(self, verbose):
-        self._verbose = verbose
-        self.layers.verbose = verbose
-
-    def _add(self,
-             estimators,
-             meta,
-             indexer,
-             preprocessing=None,
-             **kwargs):
-        """Auxiliary method to be called by ``add``.
-
-        Checks if the ensemble's :class:`Sequential` is instantiated and
-        if not, creates one.
-
-        See Also
-        --------
-        :class:`Sequential`
-
-        Returns
-        -------
-        self :
-            instance with instantiated layer attached.
-        """
-        if estimators.__class__.__name__.lower() == 'layer':
-            self.layers(estimators)
-
-        # Check if a Layer Container instance is initialized
-        if getattr(self, 'layers', None) is None:
-            self.layers = Sequential(
-                n_jobs=self.n_jobs,
-                raise_on_exception=self.raise_on_exception,
-                backend=self.backend,
-                dtype=self.dtype,
-                verbose=self.verbose)
-
-        # Add layer to Sequential
-
-        # Over-ride Ensemble defaults with layer-specific params
-        verbose = kwargs.pop('verbose', self.verbose)
-        scorer = kwargs.pop('scorer', self.scorer)
-        shuffle = kwargs.pop('shuffle', self.shuffle)
-
-        # Set seed if asked
-        random_state = kwargs.pop('random_state', self.random_state)
-        if random_state:
-            random_state = check_random_state(random_state).randint(0, 10000)
-
-        # Check against protected params
-        check_kwargs(kwargs, ['backend', 'n_jobs'])
-
-        self.layers.add(estimators=estimators,
-                        meta=meta,
-                        indexer=indexer,
-                        preprocessing=preprocessing,
-                        scorer=scorer,
-                        shuffle=shuffle,
-                        random_state=random_state,
-                        verbose=verbose,
-                        **kwargs)
-
-        # Set the layer as an attribute of the ensemble
-        lyr = self.layers.layers[-1]
-        attr = lyr.name.replace('-', '_').replace(' ', '').strip()
-        setattr(self, attr, lyr)
-
-        return self
-
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, **kwargs):
         """Fit ensemble.
 
         Parameters
@@ -600,11 +493,9 @@ class BaseEnsemble(BaseEstimator):
 
         X, y = check_inputs(X, y, self.array_check)
 
-        self.layers.fit(X, y)
+        return super(BaseEnsemble, self).fit(X, y, **kwargs)
 
-        return self
-
-    def transform(self, X):
+    def transform(self, X, **kwargs):
         """Transform with fitted ensemble.
 
         Replicates cross-validated prediction process from training.
@@ -622,13 +513,10 @@ class BaseEnsemble(BaseEstimator):
         if not check_ensemble_build(self):
             # No layers instantiated, but raise_on_exception is False
             return
-
         X, _ = check_inputs(X, check_level=self.array_check)
+        return super(BaseEnsemble, self).transform(X, **kwargs)
 
-        y = self.layers.transform(X)
-        return y
-
-    def predict(self, X):
+    def predict(self, X, **kwargs):
         """Predict with fitted ensemble.
 
         Parameters
@@ -644,18 +532,16 @@ class BaseEnsemble(BaseEstimator):
         if not check_ensemble_build(self):
             # No layers instantiated, but raise_on_exception is False
             return
-
         X, _ = check_inputs(X, check_level=self.array_check)
+        y = super(BaseEnsemble, self).predict(X, **kwargs)
 
-        y = self.layers.predict(X)
         if y.shape[1] == 1:
             # The meta estimator is treated as a layer and thus a prediction
             # matrix with shape [n_samples, 1] is created. Ravel before return
             y = y.ravel()
-
         return y
 
-    def predict_proba(self, X):
+    def predict_proba(self, X, **kwargs):
         """Predict class probabilities with fitted ensemble.
 
         Compatibility method for Scikit-learn. This method checks that the
@@ -676,9 +562,4 @@ class BaseEnsemble(BaseEstimator):
         if not getattr(lyr, 'proba', False):
             raise ValueError("Cannot use 'predict_proba' if final layer"
                              "does not have 'proba=True'.")
-        return self.predict(X)
-
-    @property
-    def data(self):
-        """Ensemble data"""
-        return self.layers.data
+        return self.predict(X, **kwargs)

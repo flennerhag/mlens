@@ -325,7 +325,6 @@ class SuperLearner(BaseEnsemble):
 
         return self._add(
                 estimators=estimators,
-                meta=meta,
                 indexer=idx,
                 preprocessing=preprocessing,
                 proba=proba,

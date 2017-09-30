@@ -166,7 +166,7 @@ class _BaseEstimator(BaseEstimator):
     def _set_indexer(self, indexer):
         """Set indexer and auxiliary attributes"""
         self._indexer = indexer
-        self._partitions = getattr(indexer, 'n_partitions', 1)
+        self._partitions = indexer.partitions
         self.__only_all__ = indexer.__class__.__name__.lower() in ONLY_ALL
         self.__only_sub__ = indexer.__class__.__name__.lower() in ONLY_SUB
 
@@ -403,7 +403,7 @@ class Learner(_BaseEstimator):
                 if self._partitions == 1:
                     index = (0, i + 1)
                 else:
-                    splits = self.indexer.n_splits
+                    splits = self.indexer.folds
                     index = (i // splits, i % splits + 1)
 
                 yield SubLearner(learner=self,
@@ -667,7 +667,7 @@ class Transformer(_BaseEstimator):
                 if self._partitions == 1:
                     index = (0, i + 1)
                 else:
-                    splits = self.indexer.n_splits
+                    splits = self.indexer.folds
                     index = (i // splits, i % splits + 1)
                 yield SubTransformer(transformer=self,
                                      pipeline=self.pipeline,

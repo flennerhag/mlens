@@ -105,10 +105,10 @@ class SequentialEnsemble(BaseEnsemble):
     >>> ensemble = SequentialEnsemble()
     >>>
     >>> # Add a subsemble with 5 partitions as first layer
-    >>> ensemble.add('subset', [SVR(), Lasso()], n_partitions=10, n_splits=10)
+    >>> ensemble.add('subsemble', [SVR(), Lasso()], partitions=10, folds=10)
     >>>
     >>> # Add a super learner as second layer
-    >>> ensemble.add('stack', [SVR(), Lasso()], n_splits=20)
+    >>> ensemble.add('stack', [SVR(), Lasso()], folds=20)
     >>>
     >>> # Specify a meta estimator
     >>> ensemble.add_meta(SVR())
@@ -162,7 +162,7 @@ class SequentialEnsemble(BaseEnsemble):
             layer class. Accepted types are:
 
                 * 'blend' : blend ensemble
-                * 'subset' : subsemble
+                * 'subsemble' : subsemble
                 * 'stack' : super learner
 
         estimators: dict of lists or list or instance
@@ -229,6 +229,9 @@ class SequentialEnsemble(BaseEnsemble):
         if cls not in INDEXERS:
             raise NotImplementedError("Layer class not implemented. Select "
                                       "one of %r." % sorted(INDEXERS))
+
+        if cls == 'subsemble' and 'partition_estimator' in kwargs:
+            cls = 'clusteredsubsemble'
 
         # instantiate the indexer
         indexer = INDEXERS[cls]

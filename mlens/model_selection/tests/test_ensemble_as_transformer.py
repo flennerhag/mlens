@@ -21,8 +21,8 @@ ESTS = {(False, False): ECM,
 
 def run(cls, proba, preprocessing, **kwargs):
     """Function for executing specified test."""
-    if cls == 'subset':
-        p = kwargs['n_partitions']
+    if cls == 'subsemble':
+        p = kwargs['partitions']
     else:
         p = 1
 
@@ -45,22 +45,22 @@ def run(cls, proba, preprocessing, **kwargs):
 
 def test_stack_run():
     """[EnsembleTransformer | Stack | Prep] retrieves fit predictions."""
-    run('stack', False, True, n_splits=3)
+    run('stack', False, True, folds=3)
 
 
 def test_stack_run_no_prep():
     """[EnsembleTransformer | Stack | No Prep] retrieves fit predictions."""
-    run('stack', False, False, n_splits=3)
+    run('stack', False, False, folds=3)
 
 
 def test_stack_run_proba():
     """[EnsembleTransformer | Stack | Prep] retrieves fit predictions."""
-    run('stack', True, True, n_splits=3)
+    run('stack', True, True, folds=3)
 
 
 def test_stack_run_no_prep_proba():
     """[EnsembleTransformer | Stack | No Prep] retrieves fit predictions."""
-    run('stack', True, False, n_splits=3)
+    run('stack', True, False, folds=3)
 
 
 def test_blend_run():
@@ -85,19 +85,19 @@ def test_blend_run_no_prep_proba():
 
 def test_subset_run():
     """[EnsembleTransformer | Subset | Prep] retrieves fit predictions."""
-    run('subset', False, True, n_partitions=2, n_splits=2)
+    run('subsemble', False, True, partitions=2, folds=2)
 
 
 def test_subset_run_no_prep():
     """[EnsembleTransformer | Subset | No Prep] retrieves fit predictions."""
-    run('subset', False, False, n_partitions=2, n_splits=2)
+    run('subsemble', False, False, partitions=2, folds=2)
 
 
 def test_subset_run_proba():
     """[EnsembleTransformer | Subset | Prep] retrieves fit predictions."""
-    run('subset', True, True, n_partitions=2, n_splits=2)
+    run('subsemble', True, True, partitions=2, folds=2)
 
 
 def test_subset_run_no_prep_proba():
     """[EnsembleTransformer | Subset | No Prep] retrieves fit predictions."""
-    run('subset', True, False, n_partitions=2, n_splits=2)
+    run('subsemble', True, False, partitions=2, folds=2)

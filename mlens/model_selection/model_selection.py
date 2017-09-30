@@ -504,14 +504,14 @@ class Evaluator(object):
                     best[k][case_est] = val[key]
                 best['params'][case_est] = self.params[case_est][int(draw)]
 
-        self.results = Data(best)
+        self.results = Data(best, decimals=3)
 
     def _print_prep_start(self, t0, f):
         """Print preprocessing start and return timer."""
         msg = 'Preprocessing %i preprocessing pipelines over %i CV folds'
 
         p = len(getattr(self, 'preprocessing', [1]))
-        c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
+        c = self.cv if isinstance(self.cv, int) else self.cv.folds
         safe_print(msg % (p, c), file=f)
         return t0
 

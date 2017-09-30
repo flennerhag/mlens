@@ -23,7 +23,7 @@ class Subsemble(BaseEnsemble):
     the full data to fit a layer, and within each subset K-fold estimation
     to map a training set :math:`(X, y)` into a prediction set :math:`(Z, y)`,
     where :math:`Z` is a matrix of prediction from each estimator on each
-    subset (thus of shape ``[n_samples, (n_partitions * n_estimators)]``).
+    subset (thus of shape ``[n_samples, (partitions * n_estimators)]``).
     :math:`Z` is constructed using K-Fold splits of each partition of `X` to
     ensure :math:`Z` reflects test errors within each partition. A final
     user-specified meta learner is fitted to the final ensemble layer's
@@ -392,7 +392,7 @@ class Subsemble(BaseEnsemble):
             indexer = FullIndex()
         else:
             # Parse arguments for the indexer
-            cls = 'subset'
+            cls = 'subsemble'
 
             p = partitions if partitions is not None else self.partitions
             e = partition_estimator if partition_estimator is not None \

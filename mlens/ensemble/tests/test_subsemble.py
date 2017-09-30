@@ -8,10 +8,10 @@ from mlens.testing import Data
 
 from mlens.ensemble import Subsemble, SuperLearner
 
-data = Data('subset', False, False, n_partitions=2, n_splits=3)
+data = Data('subsemble', False, False, partitions=2, folds=3)
 X, y = data.get_data((30, 4), 3)
 data.indexer.fit(X)
-(F, wf), (P, wp) = data.ground_truth(X, y, data.indexer.n_partitions)
+(F, wf), (P, wp) = data.ground_truth(X, y, data.indexer.partitions)
 
 
 def test_subset_fit():

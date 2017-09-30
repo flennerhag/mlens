@@ -11,7 +11,7 @@ LEN = 12
 WIDTH = 4
 MOD = 2
 
-data = Data('stack', False, True, n_splits=3)
+data = Data('stack', False, True, folds=3)
 X, y = data.get_data((LEN, WIDTH), MOD)
 
 lg = EstimatorContainer()

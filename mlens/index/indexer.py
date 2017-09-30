@@ -71,13 +71,13 @@ def _partition(n, p):
 
     Return sample sizes of 2 partitions given a total of 4 samples
 
-    >>> from mlens.base.indexer import _partition
+    >>> from mlens.index.indexer import _partition
     >>> _partition(4, 2)
     array([2, 2])
 
     Return sample sizes of 3 partitions given a total of 8 samples
 
-    >>> from mlens.base.indexer import _partition
+    >>> from mlens.index.indexer import _partition
     >>> _partition(8, 3)
     array([3, 3, 2])
     """
@@ -100,7 +100,7 @@ def _make_tuple(arr):
     Examples
     --------
     >>> import numpy as np
-    >>> from mlens.base.indexer import _make_tuple
+    >>> from mlens.index.indexer import _make_tuple
     >>> _make_tuple(np.array([0, 1, 2, 5, 6, 8, 9, 10]))
     [(0, 3), (5, 7), (8, 11)]
     """
@@ -167,14 +167,14 @@ class BaseIndex(BaseEstimator):
             a generator of ``train_index, test_index``.
         """
         n_samples = getattr(self, 'n_samples')
-        n_splits = getattr(self, 'n_splits')
+        folds = getattr(self, 'folds')
 
-        if n_splits == 1:
+        if folds == 1:
             # Return the full index as both training and test set
             yield ((0, n_samples),), (0, n_samples)
         else:
             # Get the length of the test sets
-            tei_len = _partition(n_samples, n_splits)
+            tei_len = _partition(n_samples, folds)
 
             last = 0
             for size in tei_len:
@@ -264,13 +264,13 @@ class BaseIndex(BaseEstimator):
         --------
         Single slice (convex slicing)
 
-        >>> from mlens.base.indexer import BaseIndex
+        >>> from mlens.indexer import BaseIndex
         >>> BaseIndex._build_range((0, 6))
         array([0, 1, 2, 3, 4, 5])
 
         Several slices (non-convex slicing)
 
-        >>> from mlens.base.indexer import BaseIndex
+        >>> from mlens.indexer import BaseIndex
         >>> BaseIndex._build_range([(0, 2), (4, 6)])
         array([0, 1, 4, 5])
         """
@@ -334,7 +334,7 @@ class BlendIndex(BaseIndex):
     Selecting an absolute test size, with train size as the remainder
 
     >>> import numpy as np
-    >>> from mlens.base.indexer import BlendIndex
+    >>> from mlens.index import BlendIndex
     >>> X = np.arange(8)
     >>> idx = BlendIndex(3, rebase=True)
     >>> print('Test size: 3')
@@ -350,7 +350,7 @@ class BlendIndex(BaseIndex):
     Selecting a test and train size less than the total
 
     >>> import numpy as np
-    >>> from mlens.base.indexer import BlendIndex
+    >>> from mlens.index import BlendIndex
     >>> X = np.arange(8)
     >>> idx = BlendIndex(3, 4, X)
     >>> print('Test size: 3')
@@ -368,7 +368,7 @@ class BlendIndex(BaseIndex):
     Selecting a percentage of observations as test and train set
 
     >>> import numpy as np
-    >>> from mlens.base.indexer import BlendIndex
+    >>> from mlens.index import BlendIndex
     >>> X = np.arange(8)
     >>> idx = BlendIndex(0.25, 0.45, X)
     >>> print('Test size: 25% * 8 = 2')
@@ -386,7 +386,7 @@ class BlendIndex(BaseIndex):
     Rebasing the test set to be 0-indexed
 
     >>> import numpy as np
-    >>> from mlens.base.indexer import BlendIndex
+    >>> from mlens.index import BlendIndex
     >>> X = np.arange(8)
     >>> idx = BlendIndex(3, rebase=True)
     >>> print('Test size: 3')
@@ -403,7 +403,7 @@ class BlendIndex(BaseIndex):
                  train_size=None,
                  X=None,
                  raise_on_exception=True):
-
+        self.partitions = 1
         self.test_size = test_size
         self.train_size = train_size
         self.raise_on_exception = raise_on_exception
@@ -500,7 +500,7 @@ class FoldIndex(BaseIndex):
     Creating arrays of folds and checking overlap
 
     >>> import numpy as np
-    >>> from mlens.base.indexer import FoldIndex
+    >>> from mlens.indexer import FoldIndex
     >>> X = np.arange(10)
     >>> print("Data set: %r" % X)
     >>> print()
@@ -535,10 +535,10 @@ class FoldIndex(BaseIndex):
 
     No overlap between train set and test set.
 
-    Passing ``n_splits = 1`` without raising exception.
+    Passing ``folds = 1`` without raising exception.
 
     >>> import numpy as np
-    >>> from mlens.base.indexer import FoldIndex
+    >>> from mlens.indexer import FoldIndex
     >>> X = np.arange(3)
     >>> print("Data set: %r" % X)
     >>> print()
@@ -547,20 +547,20 @@ class FoldIndex(BaseIndex):
     >>>
     >>> for train, test in idx.generate(as_array=True):
     ...     print('TRAIN IDX: %10r | TEST IDX: %10r' % (train, test))
-    /../mlens/base/indexer.py:167: UserWarning: 'n_splits' is 1, will return
+    /../mlens/base/indexer.py:167: UserWarning: 'folds' is 1, will return
     full index as both training set and test set.
-    warnings.warn("'n_splits' is 1, will return full index as "
+    warnings.warn("'folds' is 1, will return full index as "
 
     Data set: array([0, 1, 2])
     TRAIN IDX: array([0, 1, 2]) | TEST IDX: array([0, 1, 2])
     """
 
     def __init__(self,
-                 n_splits=2,
+                 folds=2,
                  X=None,
                  raise_on_exception=True):
-
-        self.n_splits = n_splits
+        self.partitions = 1
+        self.folds = folds
         self.raise_on_exception = raise_on_exception
 
         if X is not None:
@@ -584,7 +584,7 @@ class FoldIndex(BaseIndex):
             indexer with stores sample size data.
         """
         n = X.shape[0]
-        _check_full_index(n, self.n_splits, self.raise_on_exception)
+        _check_full_index(n, self.folds, self.raise_on_exception)
 
         self.n_test_samples = self.n_samples = n
 
@@ -628,13 +628,13 @@ class SubsetIndex(BaseIndex):
 
     Parameters
     ----------
-    n_partitions : int, list (default = 2)
-        Number of partitions to split data in. If ``n_partitions=1``,
+    partitions : int, list (default = 2)
+        Number of partitions to split data in. If ``partitions=1``,
         :class:`SubsetIndex` reduces to standard K-Fold.
 
-    n_splits : int (default = 2)
-        Number of splits to create in each partition. ``n_splits`` can
-        not be 1 if ``n_partition > 1``. Note that if ``n_splits = 1``,
+    folds : int (default = 2)
+        Number of splits to create in each partition. ``folds`` can
+        not be 1 if ``n_partition > 1``. Note that if ``folds = 1``,
         both the train and test set will index the full data.
 
     X : array-like of shape [n_samples,] , optional
@@ -650,7 +650,7 @@ class SubsetIndex(BaseIndex):
     Examples
     --------
     >>> import numpy as np
-    >>> from mlens.base import SubsetIndex
+    >>> from mlens.index import SubsetIndex
     >>> X = np.arange(10)
     >>> idx = SubsetIndex(3, X=X)
     >>>
@@ -687,13 +687,12 @@ class SubsetIndex(BaseIndex):
     """
 
     def __init__(self,
-                 n_partitions=2,
-                 n_splits=2,
+                 partitions=2,
+                 folds=2,
                  X=None,
                  raise_on_exception=True):
-
-        self.n_partitions = n_partitions
-        self.n_splits = n_splits
+        self.partitions = partitions
+        self.folds = folds
         self.raise_on_exception = raise_on_exception
 
         if X is not None:
@@ -717,7 +716,7 @@ class SubsetIndex(BaseIndex):
             indexer with stores sample size data.
         """
         n = X.shape[0]
-        _check_subsample_index(n, self.n_partitions, self.n_splits,
+        _check_subsample_index(n, self.partitions, self.folds,
                                self.raise_on_exception)
 
         self.n_samples = self.n_test_samples = n
@@ -753,7 +752,7 @@ class SubsetIndex(BaseIndex):
                 self.fit(X)
 
         # Return the partition indices.
-        parts = _partition(self.n_samples, self.n_partitions)
+        parts = _partition(self.n_samples, self.partitions)
         last = 0
         for size in parts:
             idx = last, last + size
@@ -773,18 +772,18 @@ class SubsetIndex(BaseIndex):
         set indices are thus the union of fold ``i`` indices across all ``J``
         partitions.
         """
-        n_partitions = self.n_partitions
+        partitions = self.partitions
         n_samples = self.n_samples
-        n_splits = self.n_splits
+        folds = self.folds
 
         # --- Create global test set folds ---
         # In each partition, the test set spans all partitions
         # Hence we must run through all partitions once first to
         # register
-        # the global test set fold for each split of the n_splits
+        # the global test set fold for each split of the folds
 
         # Partition sizes
-        p_len = _partition(n_samples, n_partitions)
+        p_len = _partition(n_samples, partitions)
 
         # Since the splitting is sequential and deterministic,
         # we build a
@@ -792,12 +791,12 @@ class SubsetIndex(BaseIndex):
         # test index will be a tuple of indexes of test folds from each
         # partition. By concatenating these slices, the full test fold
         # is constructed.
-        tei = [[] for _ in range(n_splits)]
+        tei = [[] for _ in range(folds)]
         p_last = 0
         for p_size in p_len:
             p_start, p_stop = p_last, p_last + p_size
 
-            t_len = _partition(p_stop - p_start, n_splits)
+            t_len = _partition(p_stop - p_start, folds)
 
             # Append the partition's test fold indices to the
             # global directory for that fold number.
@@ -823,21 +822,21 @@ class SubsetIndex(BaseIndex):
         test indices of that fold across partitions. See Examples for
         further details.
         """
-        n_partitions = self.n_partitions
+        partitions = self.partitions
         n_samples = self.n_samples
-        n_splits = self.n_splits
+        folds = self.folds
 
         T = self._build_test_sets()
 
         # For each partition, for each fold, get the global test fold
         # from T and index the partition samples not in T as train set
-        p_len = _partition(n_samples, n_partitions)
+        p_len = _partition(n_samples, partitions)
 
         p_last = 0
         for p_size in p_len:
             p_start, p_stop = p_last, p_last + p_size
 
-            t_len = _partition(p_stop - p_start, n_splits)
+            t_len = _partition(p_stop - p_start, folds)
 
             t_last = p_start
             for i, t_size in enumerate(t_len):
@@ -896,15 +895,15 @@ class ClusteredSubsetIndex(BaseIndex):
 
     Parameters
     ----------
-    estimator : instance
+    partition_estimator : instance
         Estimator to use for clustering.
 
-    n_partitions : int
+    partitions : int
         Number of partitions the estimator will create.
 
-    n_splits : int (default = 2)
-        Number of folds to create in each partition. ``n_splits`` can
-        not be 1 if ``n_partition > 1``. Note that if ``n_splits = 1``,
+    folds : int (default = 2)
+        Number of folds to create in each partition. ``folds`` can
+        not be 1 if ``n_partition > 1``. Note that if ``folds = 1``,
         both the train and test set will index the full data.
 
     fit_estimator : bool (default = True)
@@ -927,7 +926,7 @@ class ClusteredSubsetIndex(BaseIndex):
     --------
     >>> import numpy as np
     >>> from sklearn.cluster import KMeans
-    >>> from mlens.base.indexer import ClusteredSubsetIndex
+    >>> from mlens.index import ClusteredSubsetIndex
     >>>
     >>> km = KMeans(3, random_state=0)
     >>> X = np.arange(12).reshape(-1, 1); np.random.shuffle(X)
@@ -936,7 +935,7 @@ class ClusteredSubsetIndex(BaseIndex):
     >>> s = ClusteredSubsetIndex(km)
     >>> s.fit(X)
     >>>
-    >>> P = s.estimator.predict(X)
+    >>> P = s.partition_estimator.predict(X)
     >>> print("cluster labels: {}".format(P))
     >>>
     >>> for j, i in enumerate(s.partition(as_array=True)):
@@ -958,22 +957,21 @@ class ClusteredSubsetIndex(BaseIndex):
     """
 
     def __init__(self,
-                 estimator,
-                 n_partitions=2,
-                 n_splits=2,
+                 partition_estimator,
+                 partitions=2,
+                 folds=2,
                  X=None,
                  y=None,
                  fit_estimator=True,
                  attr='predict',
                  partition_on='X',
                  raise_on_exception=True):
-
-        self.estimator = estimator
+        self.partition_estimator = partition_estimator
         self.fit_estimator = fit_estimator
         self.attr = attr
         self.partition_on = partition_on
-        self.n_partitions = n_partitions
-        self.n_splits = n_splits
+        self.partitions = partitions
+        self.folds = folds
         self.raise_on_exception = raise_on_exception
 
         self._clusters_ = None
@@ -1008,10 +1006,10 @@ class ClusteredSubsetIndex(BaseIndex):
             # Only generate new clusters if fitting an ensemble
             if self.fit_estimator:
                 try:
-                    self.estimator.fit(X, y)
+                    self.partition_estimator.fit(X, y)
                 except TypeError:
                     # Safeguard against estimators that do not accept y.
-                    self.estimator.fit(X)
+                    self.partition_estimator.fit(X)
 
             # Indexers are assumed to need fitting once, so we need to
             # generate cluster predictions during the fit call. To minimize
@@ -1068,7 +1066,7 @@ class ClusteredSubsetIndex(BaseIndex):
         """
         n_samples = X.shape[0]
 
-        f = getattr(self.estimator, self.attr)
+        f = getattr(self.partition_estimator, self.attr)
         if self.partition_on == 'X':
             cluster_ids = f(X)
         elif self.partition_on == 'y':
@@ -1077,7 +1075,7 @@ class ClusteredSubsetIndex(BaseIndex):
             cluster_ids = f(X, y)
 
         clusters = np.unique(cluster_ids)
-        self.n_partitions = len(clusters)
+        self.partitions = len(clusters)
 
         # Condense the cluster index array into a list of tuples
         out = list()  # list of cluster indexes
@@ -1100,12 +1098,12 @@ class ClusteredSubsetIndex(BaseIndex):
         test indices of that fold across partitions.
         """
         n_samples = self.n_samples
-        n_splits = self.n_splits
+        folds = self.folds
 
         I = np.arange(n_samples)
         for partition in self._partition_generator(as_array=True):
 
-            t_len = _partition(partition.shape[0], n_splits)
+            t_len = _partition(partition.shape[0], folds)
 
             t_last = 0
             for i, t_size in enumerate(t_len):
@@ -1131,14 +1129,13 @@ class FullIndex(BaseIndex):
     FullIndex is a compatibility class to be used with meta layers. It stores
     the sample size to be predicted for use with the
     :class:`ParallelProcessing` job manager, and yields a ``None, None``
-    index when `generate` is called. However, it is preferable to build code
-    that avoids call the ``generate`` method when the indexer is known to be
-    an instance of FullIndex for transparency and maintainability.
+    index when `generate` is called.
     """
 
     def __init__(self, X=None):
         if X is not None:
             self.fit(X)
+        self.partitions = 1
 
     def fit(self, X, y=None, job=None):
         """Store dimensionality data about X."""
@@ -1151,23 +1148,23 @@ class FullIndex(BaseIndex):
 
 
 ###############################################################################
-def _check_full_index(n_samples, n_splits, raise_on_exception):
+def _check_full_index(n_samples, folds, raise_on_exception):
     """Check that folds can be constructed from passed arguments."""
-    if not isinstance(n_splits, Integral):
-        raise ValueError("'n_splits' must be an integer. "
-                         "type(%s) was passed." % type(n_splits))
+    if not isinstance(folds, Integral):
+        raise ValueError("'folds' must be an integer. "
+                         "type(%s) was passed." % type(folds))
 
-    if n_splits <= 1:
+    if folds <= 1:
         if raise_on_exception:
             raise ValueError("Need at least 2 folds to partition data. "
-                             "Got %i." % n_splits)
+                             "Got %i." % folds)
         else:
-            if n_splits == 1:
-                warnings.warn("'n_splits' is 1, will return full index as "
+            if folds == 1:
+                warnings.warn("'folds' is 1, will return full index as "
                               "both training set and test set.")
-    if n_splits > n_samples:
+    if folds > n_samples:
         raise ValueError("Number of splits %i is greater than the number "
-                         "of samples: %i." % (n_splits, n_samples))
+                         "of samples: %i." % (folds, n_samples))
 
 
 def _check_partial_index(n_samples, test_size, train_size, n_test, n_train):
@@ -1194,29 +1191,29 @@ def _check_partial_index(n_samples, test_size, train_size, n_test, n_train):
         raise ValueError("Sample size < 2: nothing to create subset from.")
 
 
-def _check_subsample_index(n_samples, n_partitions, n_splits, raise_):
+def _check_subsample_index(n_samples, partitions, folds, raise_):
     """Check input validity of the SubsampleIndexer."""
-    if not isinstance(n_partitions, Integral):
-        raise ValueError("'n_partitions' must be an integer. "
-                         "type(%s) was passed." % type(n_partitions))
+    if not isinstance(partitions, Integral):
+        raise ValueError("'partitions' must be an integer. "
+                         "type(%s) was passed." % type(partitions))
 
-    if not n_partitions > 0:
-        raise ValueError("'n_partitions' must be a positive integer. "
-                         "{} was passed.".format(n_partitions))
+    if not partitions > 0:
+        raise ValueError("'partitions' must be a positive integer. "
+                         "{} was passed.".format(partitions))
 
-    if not isinstance(n_splits, Integral):
-        raise ValueError("'n_splits' must be an integer. "
-                         "type(%s) was passed." % type(n_splits))
+    if not isinstance(folds, Integral):
+        raise ValueError("'folds' must be an integer. "
+                         "type(%s) was passed." % type(folds))
 
-    if n_splits == 1:
-        if raise_ or n_partitions > 1:
+    if folds == 1:
+        if raise_ or partitions > 1:
             raise ValueError("Need at least 2 folds for splitting partitions. "
-                             "Got %i." % n_splits)
+                             "Got %i." % folds)
         else:
-            if n_partitions == 1 and n_splits == 1:
-                warnings.warn("'n_splits' is 1, will return full index as "
+            if partitions == 1 and folds == 1:
+                warnings.warn("'folds' is 1, will return full index as "
                               "both training set and test set.")
-    s = n_partitions * n_splits
+    s = partitions * folds
     if s > n_samples:
         raise ValueError("Number of total splits %i is greater than the "
                          "number of samples: %i." % (s, n_samples))

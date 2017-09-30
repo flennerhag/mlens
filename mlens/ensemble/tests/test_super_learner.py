@@ -44,12 +44,12 @@ LEN = 6
 WIDTH = 2
 MOD = 2
 
-data1 = Data('stack', False, True, n_splits=FOLDS)
+data1 = Data('stack', False, True, folds=FOLDS)
 X1, y1 = data1.get_data((LEN, WIDTH), MOD)
 (F1, wf1), (P1, wp1) = data1.ground_truth(X1, y1, 1, False)
 G1 = OLS().fit(F1, y1).predict(P1)
 
-data2 = Data('stack', False, False, n_splits=FOLDS)
+data2 = Data('stack', False, False, folds=FOLDS)
 X2, y2 = data1.get_data((LEN, WIDTH), MOD)
 (F2, wf2), (P2, wp2) = data2.ground_truth(X2, y2, 1, False)
 G2 = OLS().fit(F2, y2).predict(P2)

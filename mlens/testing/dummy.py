@@ -126,12 +126,12 @@ class EstimatorContainer(object):
         if not proba:
             attr = 'predict'
             est = OLS()
-            n = getattr(indexer, 'n_partitions', 1)
+            n = getattr(indexer, 'partitions', 1)
             output_columns = {i: i for i in range(n)}
         else:
             attr = 'predict_proba'
             est = LogisticRegression()
-            n = getattr(indexer, 'n_partitions', 1)
+            n = getattr(indexer, 'partitions', 1)
             output_columns = dict()
             c = 0
             for i in range(n):
@@ -336,8 +336,8 @@ class Data(object):
 
         self.classes_ = labels
         self.n_pred = n_ests
-        if self.cls == 'subset':
-            self.n_pred *= self.indexer.n_partitions
+        if self.cls == 'subsemble':
+            self.n_pred *= self.indexer.partitions
 
         return ests, prep, n_ests, attr, labels
 
@@ -366,7 +366,7 @@ class Data(object):
             for i, (tri, tei) in enumerate(self.indexer.generate(X, True)):
 
                 if subsets > 1:
-                    i = i // self.indexer.n_splits
+                    i = i // self.indexer.folds
                 else:
                     i = 0
 
@@ -480,7 +480,7 @@ def _get_path():
 def get_learner(case, *args):
     """Generator function for test"""
     data = Data(*args, is_learner=True)
-    p = getattr(data.indexer, 'n_partitions', 1)
+    p = getattr(data.indexer, 'partitions', 1)
     X, y = data.get_data((12, 4), 2)
     (F, wf), (H, wh) = data.ground_truth(X, y, p)
     data.indexer.fit(X)
@@ -533,7 +533,7 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
 def get_layer(job, backend, case, proba, preprocess, feature_prop=None):
     """Generator function for test"""
     data = Data(case, proba, preprocess)
-    p = getattr(data.indexer, 'n_partitions', 1)
+    p = getattr(data.indexer, 'partitions', 1)
     X, y = data.get_data(shape=(12, 4), m=2)
     (F, wf), (H, wh) = data.ground_truth(X, y, p, feature_prop=feature_prop)
     data.indexer.fit(X)

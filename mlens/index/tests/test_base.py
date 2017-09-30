@@ -350,13 +350,13 @@ def test_clustered_subset_separation():
 
 
 def test_subset_warns_on_wo_raise_():
-    """[Base] SubsetIndex: check raises on n_part = 1, n_splits = 1."""
+    """[Base] SubsetIndex: check raises on n_part = 1, folds = 1."""
     with np.testing.assert_warns(UserWarning):
         SubsetIndex(1, 1, raise_on_exception=False, X=X)
 
 
 def test_subset_raises_on_w_raise_():
-    """[Base] SubsetIndex: check raises on n_part = 1, n_splits = 1."""
+    """[Base] SubsetIndex: check raises on n_part = 1, folds = 1."""
     with np.testing.assert_raises(ValueError):
         SubsetIndex(1, 1, X=X)
 
@@ -370,7 +370,7 @@ def test_subset_raises_on_float():
         SubsetIndex(2, 0.5, X=X)
 
 
-def test_subset_raises_on_partitions_and_one_split():
+def test_subset_raises_opartitions_and_one_split():
     """[Base] SubsetIndex: check raises error on single split of partitions."""
     with np.testing.assert_raises(ValueError):
         SubsetIndex(2, 1, X=X)

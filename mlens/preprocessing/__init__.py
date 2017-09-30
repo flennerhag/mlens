@@ -7,4 +7,4 @@
 
 from .preprocess import Subset, Shift
 
-__all__ = ['Subset', 'Shift']
+__all__ = ['subsemble', 'Shift']

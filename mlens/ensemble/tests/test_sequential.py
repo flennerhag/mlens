@@ -29,7 +29,7 @@ X, y = data.get_data((LEN, WIDTH), MOD)
 est = EstimatorContainer()
 lc_s = est.get_layer('stack', False, True)
 lc_b = est.get_layer('blend', False, False)
-lc_u = est.get_layer('subset', False, False)
+lc_u = est.get_layer('subsemble', False, False)
 
 a = clone(lc_s)
 a.name += '-1'
@@ -50,7 +50,6 @@ def test_fit_seq():
     B = lc_b.fit(S, y, return_preds=True)
     r = y.shape[0] - B.shape[0]
     U = lc_u.fit(B, y[r:], return_preds=True)
-
     out = seq.fit(X, y, return_preds=True)
     np.testing.assert_array_equal(U, out)
 
@@ -74,7 +73,7 @@ def test_fit():
     ens = SequentialEnsemble()
     ens.add('stack', ESTIMATORS, PREPROCESSING, dtype=np.float64)
     ens.add('blend', ECM, dtype=np.float64)
-    ens.add('subset', ECM, dtype=np.float64)
+    ens.add('subsemble', ECM, dtype=np.float64)
 
     out = ens.fit(X, y, return_preds=True)
     np.testing.assert_array_equal(U, out)
@@ -88,7 +87,7 @@ def test_predict():
     ens = SequentialEnsemble()
     ens.add('stack', ESTIMATORS, PREPROCESSING, dtype=np.float64)
     ens.add('blend', ECM, dtype=np.float64)
-    ens.add('subset', ECM, dtype=np.float64)
+    ens.add('subsemble', ECM, dtype=np.float64)
     out = ens.fit(X, y).predict(X)
     np.testing.assert_array_equal(U, out)
 
@@ -130,9 +129,11 @@ def test_equivalence_subsemble():
     seq = SequentialEnsemble(n_jobs=1)
 
     ens.add(ECM, dtype=np.float64)
-    seq.add('subset', ECM, dtype=np.float64)
+    seq.add('subsemble', ECM, dtype=np.float64)
 
     F = ens.fit(X, y).predict(X)
     P = seq.fit(X, y).predict(X)
 
     np.testing.assert_array_equal(P, F)
+
+test_fit_seq()

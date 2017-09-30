@@ -205,7 +205,7 @@ def test_estimator_lists():
 def test_get_layers():
     """[Utils] testing: test dummy estimator and preprocessing formatting."""
     for p in [False, True]:
-        for cls in ['stack', 'blend', 'subset']:
+        for cls in ['stack', 'blend', 'subsemble']:
             layer = EstimatorContainer().get_layer(cls, p, True)
             lc = EstimatorContainer().get_sequential(cls, p, True)
 
@@ -247,7 +247,7 @@ def test_ground_truth():
     t, z = Data('stack', False, True).get_data((6, 2), 2)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        (F, wf), (P, wp) = Data('stack', False, True, n_splits=3).ground_truth(t, z)
+        (F, wf), (P, wp) = Data('stack', False, True, folds=3).ground_truth(t, z)
 
     np.testing.assert_array_almost_equal(F, gf)
     np.testing.assert_array_almost_equal(wf, gwf)

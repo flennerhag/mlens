@@ -185,7 +185,7 @@ class Layer(BaseEstimator):
         self.cls = indexer.__class__.__name__.lower()[:-5]
         self.dtype = dtype if dtype is not None else config.DTYPE
         self.backend = backend if backend is not None else config.BACKEND
-        self._partitions = getattr(self.indexer, 'n_partitions', 1)
+        self._partitions = getattr(self.indexer, 'partitions', 1)
         self._set_learners(estimators, preprocessing)
 
     def __iter__(self):
@@ -354,14 +354,13 @@ class Layer(BaseEstimator):
         # Store layer estimator data
         if isinstance(ests, list):
             # No preprocessing cases. Check if there is one uniform pipeline.
-            self.n_prep = 0 if prep is None or len(prep) == 0 else 1
-            self.n_pred = len(ests)
-            self.n_est = len(ests)
+            n_pred = len(ests)
+            n_prep = 0 if not prep else 1
             self.cases = [None]
         else:
             # Get the number of predictions by moving through each
             # case and count estimators.
-            self.n_prep = len(prep)
+            n_prep = len(prep)
             self.cases = sorted(prep)
 
             n_pred = 0
@@ -370,11 +369,9 @@ class Layer(BaseEstimator):
                 setattr(self, '%s_n_est' % case, n_est)
                 n_pred += n_est
 
-            self.n_pred = self.n_est = n_pred
-
-        if 'subset' in self.indexer.__class__.__name__.lower():
-            self.n_pred *= self.indexer.n_partitions
-            self.n_prep *= self.indexer.n_partitions
+        self.n_est = n_pred
+        self.n_pred = n_pred * self.indexer.partitions
+        self.n_prep = n_prep * self.indexer.partitions
 
     def get_params(self, deep=True):
         """Get learner parameters

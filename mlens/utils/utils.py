@@ -89,16 +89,11 @@ def load(file, raise_on_exception, enforce_filetype=True):
 
 
 ###############################################################################
-def clone_instances(params):
+def clone_attribute(iterable, attribute):
     """clone parameters"""
-    if isinstance(params, dict):
-        out = dict()
-        for case, inst in params.items():
-            out[case] = [(n, clone(e)) for n, e in inst]
-    else:
-        out = [(n, clone(e)) for n, e in params]
-
-    return out
+    return [(j.name, j.estimator)
+            for i in iterable
+            for j in getattr(i, attribute)]
 
 
 def kwarg_parser(func, kwargs):
@@ -137,7 +132,7 @@ def print_time(t0, message='', **kwargs):
     m, s = divmod(_time() - t0, 60)
     h, m = divmod(m, 60)
 
-    safe_print(message + '%02d:%02d:%02d\n' % (h, m, s), **kwargs)
+    safe_print(message + '%02d:%02d:%02d' % (h, m, s), **kwargs)
 
 
 class CMLog(object):

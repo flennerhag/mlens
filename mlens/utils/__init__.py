@@ -13,7 +13,7 @@ from .utils import (pickle_save,
                     safe_print,
                     CMLog,
                     kwarg_parser,
-                    clone_instances)
+                    clone_attribute)
 
 from .formatting import check_instances
 from .validation import check_inputs

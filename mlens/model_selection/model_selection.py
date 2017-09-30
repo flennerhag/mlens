@@ -192,15 +192,14 @@ class Evaluator(object):
         path = args['dir']
 
         if self.verbose:
-            printout = "stderr" if self.verbose < 50 else "stdout"
-            safe_print('Launching job', file=printout)
+            f = "stdout" if self.verbose < 10 else "stderr"
+            safe_print('Launching job', file=f)
             t0 = time()
 
         if ('preprocess' in case) or (self._transformers):
             # Second test is for already fitted pipes - need to be cached
             if self.verbose >= 2:
-                printout = "stderr" if self.verbose < 50 else "stdout"
-                safe_print('Preparing preprocess pipelines', file=printout)
+                safe_print('Preparing preprocess pipelines', file=f)
                 t1 = time()
 
             parallel(delayed(subtransformer)(job, path)
@@ -212,12 +211,11 @@ class Evaluator(object):
                 self.collect(args['dir'], 'transformers')
 
             if self.verbose >= 2:
-                print_time(t1, 'Done', file=printout)
+                print_time(t1, 'Done', file=f)
 
         if 'evaluate' in case:
             if self.verbose >= 2:
-                printout = "stderr" if self.verbose < 50 else "stdout"
-                safe_print('Evaluating estimators', file=printout)
+                safe_print('Evaluating estimators', file=f)
                 t1 = time()
 
             parallel(delayed(sublearner)(job, path)
@@ -226,10 +224,10 @@ class Evaluator(object):
 
             self.collect(args['dir'], 'estimators')
             if self.verbose >= 2:
-                print_time(t1, 'Done', file=printout)
+                print_time(t1, 'Done', file=f)
 
         if self.verbose:
-            print_time(t0, 'Done', file=printout)
+            print_time(t0, 'Done', file=f)
 
     def collect(self, path, case):
         """Collect cache estimators"""
@@ -508,16 +506,16 @@ class Evaluator(object):
 
         self.results = Data(best)
 
-    def _print_prep_start(self, t0, printout):
+    def _print_prep_start(self, t0, f):
         """Print preprocessing start and return timer."""
         msg = 'Preprocessing %i preprocessing pipelines over %i CV folds'
 
         p = len(getattr(self, 'preprocessing', [1]))
         c = self.cv if isinstance(self.cv, int) else self.cv.n_splits
-        safe_print(msg % (p, c), file=printout)
+        safe_print(msg % (p, c), file=f)
         return t0
 
-    def _print_eval_start(self, printout):
+    def _print_eval_start(self, f):
         """Print initiation message and return timer."""
         preprocessing = getattr(self, 'preprocessing', None)
 
@@ -527,7 +525,7 @@ class Evaluator(object):
                    'CV folds, totalling %i fits')
 
             e, c, tot = self._get_count(preprocessing)
-            safe_print(msg % (e, self.n_iter, c, tot), file=printout)
+            safe_print(msg % (e, self.n_iter, c, tot), file=f)
         else:
 
             msg = ('Evaluating %i models for %i parameter draws over %i' +
@@ -535,7 +533,7 @@ class Evaluator(object):
                    'totalling %i fits')
 
             e, p, c, tot = self._get_count(preprocessing)
-            safe_print(msg % (e, self.n_iter, p, c, tot), file=printout)
+            safe_print(msg % (e, self.n_iter, p, c, tot), file=f)
 
     def _get_count(self, preprocessing):
         """Utility for counting number of fits to make."""

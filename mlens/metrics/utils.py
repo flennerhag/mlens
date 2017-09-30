@@ -21,7 +21,7 @@ except ImportError:
 def _get_string(obj, dec):
     """Stringify object"""
     try:
-        return str(np.round(obj, dec))
+        return '{0:.{dec}f}'.format(obj, dec=dec)
     except TypeError:
         return obj.__str__()
 
@@ -38,13 +38,15 @@ class Data(_dict):
 
     """Wrapper class around dict to get pretty prints
     """
-    def __init__(self, data=None):
+    def __init__(self, data=None, padding=2, decimals=2):
         if isinstance(data, list):
             data = assemble_data(data)
         super(Data, self).__init__(data)
+        self.__padding__ = padding
+        self.__decimals__ = decimals
 
     def __repr__(self):
-        return assemble_table(self)
+        return assemble_table(self, self.__padding__, self.__decimals__)
 
 
 def assemble_table(data, padding=2, decimals=2):
@@ -67,6 +69,7 @@ def assemble_table(data, padding=2, decimals=2):
         cols.append(key)
         max_col_len[key] = len(key)
 
+        # TODO: generalize this to variable length keys
         for k, v in val.items():
             # Update longest column entry for column 'key'
             if not v:
@@ -113,6 +116,7 @@ def assemble_table(data, padding=2, decimals=2):
             if p not in parts:
                 parts.append(p)
 
+    # TODO: refactor this using the '{}'.format() API
     # Header
     out = " " * (max_case_len + max_est_len + max_part_len + db_ * padding)
     for col in cols:

@@ -80,7 +80,6 @@ class IndexedEstimator(object):
     def estimator(self, estimator):
         self._estimator = estimator
 
-    # XXX: Need to define __getstate__ and __setstate__ for py27
     def __getstate__(self):
         """Return pickable object"""
         return (self._estimator,
@@ -164,22 +163,6 @@ class _BaseEstimator(BaseEstimator):
         self._data_ = None
         self.__fitted__ = False
 
-    @property
-    def learner_(self):
-        """Generator for learner fitted on full data"""
-        # pylint: disable=not-an-iterable
-        out = self._return_attr('_learner_')
-        for estimator in out:
-            yield deepcopy(estimator)
-
-    @property
-    def sublearners_(self):
-        """Generator for learner fitted on folds"""
-        # pylint: disable=not-an-iterable
-        out = self._return_attr('_sublearners_')
-        for estimator in out:
-            yield deepcopy(estimator)
-
     def _set_indexer(self, indexer):
         """Set indexer and auxiliary attributes"""
         self._indexer = indexer
@@ -189,6 +172,8 @@ class _BaseEstimator(BaseEstimator):
 
     def _collect(self, path):
         """Collect files from cache"""
+        self.clear()
+
         files = [os.path.join(path, f)
                  for f in os.listdir(path)
                  if f.startswith(self.name)]
@@ -223,12 +208,18 @@ class _BaseEstimator(BaseEstimator):
         return getattr(self, attr)
 
     def get_params(self, deep=True):
-        """Get learner parameters"""
+        """Get learner parameters
+
+        Parameters
+        ----------
+        deep : bool (default = True)
+            whether to return nested parameters
+        """
         out = dict()
         for par_name in self._get_param_names():
             par = getattr(self, '_%s' % par_name, None)
-            if not par:
-                par = getattr(self, par_name, None)
+            if par is None:
+                getattr(self, par_name, None)
             if deep and hasattr(par, 'get_params'):
                 for key, value in par.get_params(deep=True).items():
                     out['%s__%s' % (par_name, key)] = value
@@ -236,25 +227,41 @@ class _BaseEstimator(BaseEstimator):
         return out
 
     @property
+    def learner_(self):
+        """Generator for learner fitted on full data"""
+        # pylint: disable=not-an-iterable
+        out = self._return_attr('_learner_')
+        for estimator in out:
+            yield deepcopy(estimator)
+
+    @property
+    def sublearners_(self):
+        """Generator for learner fitted on folds"""
+        # pylint: disable=not-an-iterable
+        out = self._return_attr('_sublearners_')
+        for estimator in out:
+            yield deepcopy(estimator)
+
+    @property
     def raw_data(self):
-        """CV scores during prediction"""
+        """List of data collected from each sub-learner during fiting."""
         return self._return_attr('_data_')
 
     @property
     def data(self):
-        """CV scores during prediction"""
+        """Dictionary with aggregated data from fitting sub-learners."""
         out = self._return_attr('_data_')
         return Data(out)
 
     @property
     def times(self):
-        """CV scores during prediction"""
+        """Fit and predict times for the final learners"""
         out = self._return_attr('_times_')
         return Data(out)
 
     @property
     def indexer(self):
-        """Blueprint indexer"""
+        """Copy of indexer"""
         return deepcopy(self._indexer)
 
     @indexer.setter
@@ -265,32 +272,44 @@ class _BaseEstimator(BaseEstimator):
 
 class Learner(_BaseEstimator):
 
-    """Base Learner
+    """Learner
 
     Wrapper for base learners.
 
     Parameters
-    ----------
+    __________
     estimator : obj
         estimator to construct learner from
 
-    input :
-        object to collect input from.
+    preprocess : str
+        preprocess cache refernce
 
     indexer : obj, None
-        indexer to use. Set to None for no subset calls.
+        indexer to use for generating fits.
+        Set to ``None`` to fit only on all data.
 
     name : str
-        name of learner.
+        name of learner. If ``preprocess`` is not ``None``,
+        the name will be prepended to ``preprocess__name``.
 
     attr : str (default='predict')
         predict attribute, typically one of 'predict' and 'predict_proba'
 
-    cols : int
-        number of prediction features produced by ``attr``.
+    scorer : func
+        function to use for scoring predictions during cross-validated
+        fitting.
 
-    exclude : list, optional
-        list of columns indexes to exclude from the prediction array.
+    output_columns : dict
+        mapping of prediction feature columns from learner to columns in
+        output array. Normally, this map is ``{0: x}``, but if the ``indexer``
+        creates partitions, each partition needs to be mapped:
+        ``{0: x, 1: x + 1}``.
+
+    verbose : bool, int (default = False)
+        whether to report completed fits.
+
+    raise_on_exception : bool (default=True)
+        whether to warn on non-fatal exceptions or raise an error.
     """
 
     def __init__(self,
@@ -304,13 +323,15 @@ class Learner(_BaseEstimator):
                  verbose=False,
                  raise_on_exception=True):
         super(Learner, self).__init__(indexer, name)
-        self._estimator = estimator
         self.preprocess = preprocess
         self.output_columns = output_columns
         self.attr = attr
-        self._scorer = scorer
         self.raise_on_exception = raise_on_exception
         self.verbose = verbose
+
+        # We protect these to avoid corrupting a fitted learner
+        self._estimator = estimator
+        self._scorer = scorer
 
         if preprocess:
             self.name = '%s__%s' % (preprocess, name)
@@ -319,7 +340,20 @@ class Learner(_BaseEstimator):
         self._learner_ = None            # Fitted learners
 
     def _gen_pred(self, X, P, generator):
-        """Generator for predicting with fitted learner"""
+        """Generator for predicting with fitted learner
+
+        Parameters
+        ----------
+        X : array
+            input array
+
+        P : array
+            output array to populate. Must be writeable.
+
+        generator : iterable
+            iterator of learners of sub-learners to predict with.
+            One of ``self.learner_`` and ``self.sublearners_``.
+        """
         for estimator in generator:
             yield SubLearner(learner=self,
                              estimator=estimator.estimator,
@@ -331,34 +365,35 @@ class Learner(_BaseEstimator):
                              index=estimator.index)
 
     def gen_fit(self, X, y, P=None):
-        """Generator for fitting learner on given data"""
+        """Generator for fitting learner on given data
+
+         Parameters
+        ----------
+        X : array
+            input array
+
+        y : array
+            training targets
+
+        P : array
+            output array to populate. Must be writeable.
+        """
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
         index = [0, 0]
         if not self.__only_sub__:
             out = P if self.__only_all__ else None
-            # Let index[1] == 0 for all full fits
-            # Hence fold_index = 0 -> final base learner
-            if self._partitions == 1:
+            for partition_index in self.indexer.partition():
+                # This yields None, None for default indexers
                 yield SubLearner(learner=self,
                                  estimator=self.estimator,
-                                 in_index=None,
+                                 in_index=partition_index,
                                  out_index=None,
                                  in_array=X,
                                  targets=y,
                                  out_array=out,
                                  index=index)
-            else:
-                for partition_index in self.indexer.partition():
-                    yield SubLearner(learner=self,
-                                     estimator=self.estimator,
-                                     in_index=partition_index,
-                                     out_index=None,
-                                     in_array=X,
-                                     targets=y,
-                                     out_array=out,
-                                     index=index)
-                    index[0] = index[0] + 1
+                index[0] = index[0] + 1
 
         if not self.__only_all__:
             # Fit sub-learners on cv folds
@@ -382,7 +417,7 @@ class Learner(_BaseEstimator):
 
     @property
     def estimator(self):
-        """Blueprint of estimator"""
+        """Copy of estimator"""
         return clone(self._estimator)
 
     @estimator.setter
@@ -392,7 +427,7 @@ class Learner(_BaseEstimator):
 
     @property
     def scorer(self):
-        """Blueprint scorer"""
+        """Copy of scorer"""
         return deepcopy(self._scorer)
 
     @scorer.setter
@@ -472,7 +507,9 @@ class SubLearner(object):
         pickle_save(o, f)
 
         if self.verbose:
-            print_time(t0, "%s done" % self.name_index, end='')
+            msg = "{:<30} {}".format(self.name_index, "done")
+            f = "stdout" if self.verbose < 10 - 3 else "stderr"
+            print_time(t0, msg, file=f)
 
     def predict(self, path):
         """Predict with sublearner"""
@@ -481,7 +518,9 @@ class SubLearner(object):
 
         self._predict(transformers, False)
         if self.verbose:
-            print_time(t0, "%s done" % self.name_index, end='')
+            msg = "{:<30} {}".format(self.name_index, "done")
+            f = "stdout" if self.verbose < 10 - 3 else "stderr"
+            print_time(t0, msg, file=f)
 
     def transform(self, path):
         """Predict with sublearner"""
@@ -551,9 +590,31 @@ class SubLearner(object):
 
 
 class Transformer(_BaseEstimator):
+
     """Preprocessing handler.
 
+    Wrapper for transformation pipeline.
+
+    Parameters
+    __________
+    pipeline : obj
+        transformation pipeline to construct learner from
+
+    indexer : obj, None
+        indexer to use for generating fits.
+        Set to ``None`` to fit only on all data.
+
+    name : str
+        name of learner. If ``preprocess`` is not ``None``,
+        the name will be prepended to ``preprocess__name``.
+
+    verbose : bool, int (default = False)
+        whether to report completed fits.
+
+    raise_on_exception : bool (default=True)
+        whether to warn on non-fatal exceptions or raise an error.
     """
+
     def __init__(self,
                  pipeline,
                  indexer,
@@ -589,22 +650,14 @@ class Transformer(_BaseEstimator):
         if not self.__only_sub__:
             # Let index[1] == 0 for all full fits
             # Hence fold_index = 0 -> final base learner
-            if self._partitions == 1:
+            for partition_index in self.indexer.partition():
                 yield SubTransformer(transformer=self,
                                      pipeline=self.pipeline,
-                                     in_index=None,
+                                     in_index=partition_index,
                                      in_array=X,
                                      targets=y,
                                      index=index)
-            else:
-                for partition_index in self.indexer.partition():
-                    yield SubTransformer(transformer=self,
-                                         pipeline=self.pipeline,
-                                         in_index=partition_index,
-                                         in_array=X,
-                                         targets=y,
-                                         index=index)
-                    index[0] = index[0] + 1
+                index[0] = index[0] + 1
 
         if not self.__only_all__:
             # Fit sub-learners on cv folds
@@ -616,7 +669,6 @@ class Transformer(_BaseEstimator):
                 else:
                     splits = self.indexer.n_splits
                     index = (i // splits, i % splits + 1)
-
                 yield SubTransformer(transformer=self,
                                      pipeline=self.pipeline,
                                      in_index=train_index,
@@ -624,26 +676,11 @@ class Transformer(_BaseEstimator):
                                      targets=y,
                                      index=index)
 
-    def get_params(self, deep=True):
-        """Get transformer parameters"""
-        params = super(Transformer, self).get_params(deep=deep)
-        out = dict()
-        for k, val in params.items():
-            par = k.split('__')[0]
-            val = getattr(self, '_%s' % par, val)
-            if k.startswith('pipeline'):
-                # Need to get params of transformers
-                for tr_name, tr in val:
-                    out['%s__%s' % (k, tr_name)] = tr
-                    for n, v in tr.get_params(deep=True).items():
-                        out['%s__%s__%s' % (k, tr_name, n)] = v
-            out[k] = val
-        return out
-
 
 class Cache(object):
 
-    """Cache IndexedEstimator"""
+    """Cache wrapper for IndexedEstimator
+    """
 
     def __init__(self, obj, verbose):
         self.obj = obj
@@ -651,7 +688,7 @@ class Cache(object):
         self.verbose = verbose
 
     def __call__(self, job, path):
-        """Launch job"""
+        """Cache estimator to path"""
         if not hasattr(self, job):
             raise NotImplementedError(
                 "Cache does not implement [%s]' % job")
@@ -662,7 +699,9 @@ class Cache(object):
         f = os.path.join(path, self.name)
         pickle_save(self.obj, f)
         if self.verbose:
-            safe_print("%s cached" % self.name, end='')
+            msg = "{:<30} {}".format(self.name, "cached")
+            f = "stdout" if self.verbose < 10 - 3 else "stderr"
+            safe_print(msg, file=f)
 
     def transform(self, path):
         """Cache transformer for transform"""
@@ -672,7 +711,6 @@ class Cache(object):
 class SubTransformer(object):
 
     """Sub-routine for fitting a pipeline
-
     """
 
     def __init__(self,
@@ -741,7 +779,9 @@ class SubTransformer(object):
                              data=self.data)
         pickle_save(o, f)
         if self.verbose:
-            print_time(t0, "%s done" % self.name_index, end='')
+            f = "stdout" if self.verbose < 10 else "stderr"
+            msg = "{:<30} {}".format(self.name_index, "done")
+            print_time(t0, msg, file=f)
 
     @property
     def data(self):
@@ -757,9 +797,36 @@ class EvalLearner(Learner):
     scoring of an estimator.
 
     Parameters
-    ----------
-    estimators : ob
-        estimator to fit.
+    __________
+    estimator : obj
+        estimator to construct learner from
+
+    preprocess : str
+        preprocess cache refernce
+
+    indexer : obj, None
+        indexer to use for generating fits.
+        Set to ``None`` to fit only on all data.
+
+    name : str
+        name of learner. If ``preprocess`` is not ``None``,
+        the name will be prepended to ``preprocess__name``.
+
+    attr : str (default='predict')
+        predict attribute, typically one of 'predict' and 'predict_proba'
+
+    scorer : func
+        function to use for scoring predictions during cross-validated
+        fitting.
+
+    error_score : int, float, None (default = None)
+        score to set if cross-validation fails. Set to ``None`` to raise error.
+
+    verbose : bool, int (default = False)
+        whether to report completed fits.
+
+    raise_on_exception : bool (default=True)
+        whether to warn on non-fatal exceptions or raise an error.
     """
     def __init__(self,
                  estimator,
@@ -812,8 +879,7 @@ class EvalSubLearner(SubLearner):
 
     """EvalSubLearner
 
-    Sublearner for evaluation.
-
+    sub-routine for cross-validated evaluation.
     """
     def __init__(self,
                  learner,
@@ -857,7 +923,9 @@ class EvalSubLearner(SubLearner):
         pickle_save(o, f)
 
         if self.verbose:
-            print_time(t0, "%s done" % self.name_index, end='')
+            f = "stdout" if self.verbose else "stderr"
+            msg = "{:<30} {}".format(self.name_index, "done")
+            print_time(t0, msg, file=f)
 
     def _predict(self, transformers, score_preds=None):
         """Sub-routine to with sublearner"""
@@ -900,7 +968,7 @@ class EvalSubLearner(SubLearner):
         out = {'test_score': self.test_score_,
                'train_score': self.train_score_,
                'fit_time': self.fit_time_,
-               'test_pred_time': self.test_pred_time_,
-               'train_pred_time_': self.train_pred_time_,
+               'pred_time': self.train_pred_time_,
+#              'test_pred_time': self.train_pred_time_,
                }
         return out

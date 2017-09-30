@@ -31,8 +31,6 @@ from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
                                 ParallelProcessingWarning)
 
-ENGINES = list()
-
 
 ###############################################################################
 def dump_array(array, name, path):
@@ -283,7 +281,12 @@ class ParallelProcessing(BaseProcessor):
     def __init__(self, caller):
         super(ParallelProcessing, self).__init__(caller)
 
-    def process(self, job, X, y=None, path=None, return_preds=False):
+    def process(self,
+                job,
+                X,
+                y=None,
+                path=None,
+                return_preds=False):
         """Fit all layers in the attached :class:`Sequential`."""
         self._initialize(job=job, X=X, y=y, path=path)
         check_initialized(self)
@@ -293,7 +296,7 @@ class ParallelProcessing(BaseProcessor):
                       temp_folder=self.job.dir,
                       max_nbytes=None,
                       mmap_mode='w+',
-                      verbose=self.caller.verbose,
+                      verbose=max(self.caller.verbose - 4, 0),
                       backend=self.caller.backend) as parallel:
 
             for lyr in self.caller:

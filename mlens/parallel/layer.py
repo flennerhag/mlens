@@ -24,7 +24,7 @@ from ..externals.sklearn.base import BaseEstimator
 from ..externals.joblib import delayed
 from ..utils import (assert_correct_format,
                      check_instances,
-                     clone_instances,
+                     clone_attribute,
                      print_time,
                      safe_print)
 try:
@@ -45,7 +45,7 @@ class Layer(BaseEstimator):
 
     Parameters
     ----------
-    estimators: dict of lists or list
+    estimators: dict, list
         estimators constituting the layer. If ``preprocessing`` is
         ``None`` or ``list``, ``estimators`` should be a ``list``.
         The list can either contain estimator instances,
@@ -69,15 +69,12 @@ class Layer(BaseEstimator):
         The lists for each dictionary entry can be any of ``option_1``,
         ``option_2`` and ``option_3``.
 
-    meta : bool (default = False)
-        flag for whether given layer is the final meta layer
-
-    indexer : instance, optional
+    indexer : instance
         Indexer instance to use. Defaults to the layer class indexer
         instantiated with default settings. Required arguments depend on the
-        indexer. See :mod:`mlens.base` for details.
+        indexer. See :mod:`mlens.index` for details.
 
-    preprocessing: dict of lists or list, optional (default = None)
+    preprocessing: dict, list, optional
         preprocessing pipelines for given layer. If
         the same preprocessing applies to all estimators, ``preprocessing``
         should be a list of transformer instances. The list can contain the
@@ -89,7 +86,9 @@ class Layer(BaseEstimator):
                         ("trans-2", transformer_2)]
             option_3 = [transformer_1, ("trans-2", transformer_2)]
 
-        If different preprocessing pipelines are desired, a dictionary
+        In this case, a ``pr`` preprocessing case will be created for
+        both the preprocessing pipeline and the estimators. If different
+        preprocessing pipelines are desired, a dictionary
         that maps preprocessing pipelines must be passed. The names of the
         preprocessing dictionary must correspond to the names of the
         estimator dictionary. ::
@@ -107,10 +106,7 @@ class Layer(BaseEstimator):
         whether to call `predict_proba` on the estimators in the layer when
         predicting.
 
-    partitions : int (default = 1)
-        Number of subset-specific fits to generate from the learner library.
-
-    propagate_features : list, optional
+    propagate_features : list, range, optional
         Features to propagate from the input array to the output array.
         Carries input features to the output of the layer, useful for
         propagating original data through several stacked layers. Propagated
@@ -127,29 +123,28 @@ class Layer(BaseEstimator):
             - ``verbose = 1`` messages at start and finish \
               (same as ``verbose = True``)
 
-            - ``verbose = 2`` messages for each layer
+            - ``verbose = 2`` messages for preprocessing and estimators
 
-        If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
-        For verbosity in the layers themselves, use ``fit_params``.
+            - ``verbose = 3`` messages for completed job
+
+        If ``verbose >= 10`` prints to ``sys.stderr``, else ``sys.stdout``.
 
     shuffle : bool (default = False)
         Whether to shuffle data before fitting layer.
 
-    random_state : int, optional
+    random_state : obj, int, optional
         Random seed number to use for shuffling inputs
 
     dtype : numpy dtype class, default = :class:`numpy.float32`
         dtype format of prediction array.
 
-    Attributes
-    ----------
-    estimators\_ : OrderedDict, list
-        container for fitted estimators, possibly mapped to preprocessing
-        cases and / or folds.
+    backend : str, optional
+        backend to use when fitting layer. One of
+        ``['multiprocessing', 'threading', 'sequential']``
 
-    preprocessing\_ : OrderedDict, list
-        container for fitted preprocessing pipelines, possibly mapped to
-        preprocessing cases and / or folds.
+    n_jobs : int (default = -1)
+        degree of concurrency. Set to ``-1`` for maximum parallellism and
+        ``1`` for sequential processing.
     """
 
     def __init__(self,
@@ -157,7 +152,6 @@ class Layer(BaseEstimator):
                  indexer,
                  name,
                  preprocessing=None,
-                 meta=False,
                  proba=False,
                  propagate_features=None,
                  scorer=None,
@@ -169,7 +163,6 @@ class Layer(BaseEstimator):
                  backend=None,
                  verbose=False):
         self.name = name
-        self.meta = meta
         self.shuffle = shuffle
         self.indexer = indexer
         self.scorer = scorer
@@ -200,30 +193,68 @@ class Layer(BaseEstimator):
         yield self
 
     def __call__(self, parallel, args):
-        """Process layer"""
+        """Process layer
+
+        Parameters
+        ----------
+        parallel : obj
+            a ``mlens.externals.joblib.parallel.Parallel`` instance.
+
+        args : dict
+            dictionary with arguments. Expected to contain
+
+            - ``job`` (str): one of ``fit``, ``predict`` or ``transform``
+
+            - ``dir`` (str): path to cache
+
+            - ``transformer`` (dict): kwargs for fitting transformers
+
+            - ``learner`` (dict): kwargs for fitting learner(s)
+        """
         job = args['job']
         path = args['dir']
 
-        if self.verbose >= 2:
-            printout = "stderr" if self.verbose < 50 else "stdout"
-            safe_print('Processing %s' % self.name, file=printout)
+        if self.verbose:
+            msg = "{:<30}"
+            f = "stdout" if self.verbose < 10 else "stderr"
+            e1 = ' ' if self.verbose <= 1 else "\n"
+            e2 = ' ' if self.verbose <= 2 else "\n"
+            safe_print(msg.format('Processing %s' % self.name),
+                       file=f, end=e1)
             t0 = time()
 
         if self._preprocess:
+            if self.verbose >= 2:
+                safe_print(msg.format('Preprocess pipelines ...'),
+                           file=f, end=e2)
+                t1 = time()
+
             parallel(delayed(subtransformer)(job, path)
                      for transformer in self.transformers
                      for subtransformer
                      in transformer(job, **args['transformer']))
 
+            if self.verbose >= 2:
+                print_time(t1, 'done', file=f)
+
+        if self.verbose >= 2:
+            safe_print(msg.format('Learners ...'), file=f, end=e2)
+            t1 = time()
+
         parallel(delayed(sublearner)(job, path)
                  for learner in self.learners
                  for sublearner in learner(job, **args['learner']))
 
+        if self.verbose >= 2:
+            print_time(t1, 'done', file=f)
+
         if args['job'] == 'fit':
             self.collect(args['dir'])
 
-        if self.verbose >= 2:
-            print_time(t0, '%s Done' % self.name, file=printout)
+        if self.verbose:
+            msg = "done" if self.verbose == 1 \
+                else (msg + " {}").format(self.name, "done")
+            print_time(t0, msg, file=f)
 
     def collect(self, path):
         """Collect cache estimators"""
@@ -234,15 +265,18 @@ class Layer(BaseEstimator):
 
     def _set_learners(self, estimators, preprocessing):
         """Set learners and preprocessing pipelines in layer"""
+        # TODO: Refactor the formatting into a single function
         assert_correct_format(estimators, preprocessing)
-        self._estimators, flattened_estimators = check_instances(
+        self._estimators, _flattened_estimators = check_instances(
             estimators, include_flattened=True)
-
         self._preprocessing = _preprocessing = check_instances(preprocessing)
-        self._preprocess = self._preprocessing is not None
+        self._preprocess = len(self._preprocessing) != 0
+        # XXX: This is a little bit of a hack, force create a case
         if isinstance(self._preprocessing, list):
-            _preprocessing = {'preprocess': self._preprocessing}
-
+            _preprocessing = {'pr': self._preprocessing}
+            if self._preprocess:
+                _flattened_estimators = [('pr', n, k)
+                                         for _, n, k in _flattened_estimators]
         self._learners = [
             Learner(estimator=est,
                     preprocess=preprocess_name,
@@ -251,14 +285,16 @@ class Layer(BaseEstimator):
                     attr=self._predict_attr,
                     output_columns=None,
                     scorer=self.scorer,
+                    verbose=max(self.verbose - 2, 0),
                     raise_on_exception=self.raise_on_exception)
-            for preprocess_name, learner_name, est in flattened_estimators
+            for preprocess_name, learner_name, est in _flattened_estimators
         ]
 
         self._transformers = [
             Transformer(pipeline=transformers,
                         name=preprocess_name,
                         indexer=self.indexer,
+                        verbose=max(self.verbose - 2, 0),
                         raise_on_exception=self.raise_on_exception)
             for preprocess_name, transformers
             in sorted(_preprocessing.items())
@@ -341,11 +377,17 @@ class Layer(BaseEstimator):
             self.n_prep *= self.indexer.n_partitions
 
     def get_params(self, deep=True):
-        """Get learner parameters"""
+        """Get learner parameters
+
+        Parameters
+        ----------
+        deep : bool
+            whether to return nested parameters
+        """
         out = dict()
         for par_name in self._get_param_names():
             par = getattr(self, '_%s' % par_name, None)
-            if not par:
+            if par is None:
                 par = getattr(self, par_name, None)
             if deep and hasattr(par, 'get_params'):
                 for key, value in par.get_params(deep=True).items():
@@ -381,9 +423,14 @@ class Layer(BaseEstimator):
             lr.verbose = verbose
 
     @property
+    def estimators_(self):
+        """Return copy of estimators"""
+        return clone_attribute(self.learners, 'learner_')
+
+    @property
     def estimators(self):
         """Return copy of estimators"""
-        return clone_instances(self._estimators)
+        return self._estimators
 
     @estimators.setter
     def estimators(self, estimators, preprocessing=None):
@@ -393,9 +440,14 @@ class Layer(BaseEstimator):
         self._set_learners(estimators, preprocessing)
 
     @property
+    def preprocessing_(self):
+        """Return copy of preprocessing"""
+        return clone_attribute(self.transformers, 'learner_')
+
+    @property
     def preprocessing(self):
         """Return copy of preprocessing"""
-        return clone_instances(self._preprocessing)
+        return self._preprocessing
 
     @preprocessing.setter
     def preprocessing(self, preprocessing, estimators=None):

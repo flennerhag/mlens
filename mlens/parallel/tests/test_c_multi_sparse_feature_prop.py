@@ -4,7 +4,7 @@ Test specific functionality of the parallel manager module.
 import numpy as np
 from scipy.sparse import csr_matrix
 from mlens.index import FoldIndex
-from mlens.ensemble.base import Sequential
+from mlens.ensemble.base import BaseEnsemble
 from mlens.externals.sklearn.validation import check_random_state
 from mlens.utils.dummy import OLS
 
@@ -12,9 +12,9 @@ from mlens.utils.dummy import OLS
 SEED = 1324
 
 
-def _shuffled(X, y):
+def _shuffled(X, y, seed):
     """Shuffle inputs."""
-    r = check_random_state(SEED)
+    r = check_random_state(seed)
     idx = r.permutation(y.shape[0])
     return X[idx], y[idx]
 
@@ -41,24 +41,24 @@ second_prop.append(second_prop[-1] + 1)
 second_prop.append(second_prop[-1] + 1)
 n_second_prop = len(second_prop)
 
-ens1 = Sequential()
-ens1.add([OLS(0), OLS(1)], FoldIndex(), propagate_features=first_prop)
+ens1 = BaseEnsemble()
+ens1._add([OLS(0), OLS(1)], FoldIndex(), propagate_features=first_prop)
 
-ens2 = Sequential()
-ens2.add([OLS(0), OLS(1)], FoldIndex(), propagate_features=first_prop)
-ens2.add([OLS(2), OLS(3)], FoldIndex(), propagate_features=second_prop)
+ens2 = BaseEnsemble()
+ens2._add([OLS(0), OLS(1)], FoldIndex(), propagate_features=first_prop)
+ens2._add([OLS(2), OLS(3)], FoldIndex(), propagate_features=second_prop)
 
-ens3 = Sequential()
-ens3.add([OLSSparse(0), OLSSparse(1)], FoldIndex(), propagate_features=first_prop)
-ens3.add([OLSSparse(2), OLSSparse(3)], FoldIndex(), propagate_features=second_prop)
+ens3 = BaseEnsemble()
+ens3._add([OLSSparse(0), OLSSparse(1)], FoldIndex(), propagate_features=first_prop)
+ens3._add([OLSSparse(2), OLSSparse(3)], FoldIndex(), propagate_features=second_prop)
 
-ens4 = Sequential()
-ens4.add([OLS(), OLS(1), OLS(2)], FoldIndex(), shuffle=True, random_state=SEED)
-ens4.add([OLS(), OLS(1), OLS(2)], FoldIndex(), shuffle=True, random_state=SEED)
-ens4.add([OLS(), OLS(1), OLS(2)], FoldIndex(), shuffle=True, random_state=SEED)
+ens4 = BaseEnsemble()
+ens4._add([OLS(), OLS(1), OLS(2)], FoldIndex(), shuffle=True, random_state=SEED)
+ens4._add([OLS(), OLS(1), OLS(2)], FoldIndex(), shuffle=True, random_state=SEED)
+ens4._add([OLS(), OLS(1), OLS(2)], FoldIndex(), shuffle=True, random_state=SEED)
 
-ens5 = Sequential()
-ens5.add([OLS(), OLS(1), OLS(2)], FoldIndex())
+ens5 = BaseEnsemble()
+ens5._add([OLS(), OLS(1), OLS(2)], FoldIndex())
 
 
 def test_propagation_one():
@@ -98,7 +98,7 @@ def test_shuffle():
     """[Parallel] Test shuffle between layers."""
     h, s = X.copy(), y.copy()
     for i in range(3):
-        h, s = _shuffled(h, s)
+        h, s = _shuffled(h, s, ens4.layers[i].random_state)
         h = ens5.fit(h, s, return_preds=True)
 
     z = ens4.fit(X, y, return_preds=True)

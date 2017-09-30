@@ -85,6 +85,7 @@ def _partition(n, p):
     sizes[:n % p] += 1
     return sizes
 
+
 def _make_tuple(arr):
     """Make a list of index tuples from array
 
@@ -191,6 +192,17 @@ class BaseIndex(BaseEstimator):
 
                 yield tri, tei
                 last = tei_stop
+
+    # pylint: disable=unused-argument, no-self-use
+    def partition(self, X=None, as_array=False):
+        """Partition generator method.
+
+        Default behavior is to yield ``None``
+        for fitting on full data. Overridden in
+        :class:`SubsetIndex` and :class:`ClusteredSubsetIndex`
+        to produce partition indexes.
+        """
+        yield None
 
     def generate(self, X=None, as_array=False):
         r"""Front-end generator method.

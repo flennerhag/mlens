@@ -179,7 +179,7 @@ class EstimatorContainer(object):
                          indexer=indexer,
                          dtype=np.float,
                          preprocessing=PREPROCESSING,
-                         name=kls,
+                         name='layer',
                          **kwargs)
         else:
             ests = ECM_PROBA if proba else ECM
@@ -187,7 +187,7 @@ class EstimatorContainer(object):
                          proba=proba,
                          indexer=indexer,
                          dtype=np.float,
-                         name=kls,
+                         name='layer',
                          **kwargs)
 
     def get_sequential(self, kls, proba, preprocessing, *args, **kwargs):
@@ -204,23 +204,10 @@ class EstimatorContainer(object):
         preprocessing : bool
             layer with preprocessing cases
         """
-        indexer, kwargs = self.load_indexer(kls, args, kwargs)
-
-        if preprocessing:
-            ests = ESTIMATORS_PROBA if proba else ESTIMATORS
-            return Sequential().add(estimators=ests,
-                                    proba=proba,
-                                    indexer=indexer,
-                                    preprocessing=PREPROCESSING,
-                                    dtype=np.float64,
-                                    **kwargs)
-        else:
-            ests = ECM_PROBA if proba else ECM
-            return Sequential().add(estimators=ests,
-                                    proba=proba,
-                                    indexer=indexer,
-                                    dtype=np.float64,
-                                    **kwargs)
+        lyr = self.get_layer(kls, proba, preprocessing, *args, **kwargs)
+        lyr.name += '-1'
+        seq = Sequential()
+        return seq(lyr)
 
     @staticmethod
     def load_indexer(kls, args, kwargs):

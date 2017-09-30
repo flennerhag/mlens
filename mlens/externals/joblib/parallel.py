@@ -631,7 +631,7 @@ class Parallel(Logger):
         # learn to use logger better.
         if not self.verbose:
             return
-        if self.verbose < 50:
+        if self.verbose > 50:
             writer = sys.stderr.write
         else:
             writer = sys.stdout.write

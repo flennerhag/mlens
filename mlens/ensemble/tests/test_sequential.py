@@ -135,5 +135,3 @@ def test_equivalence_subsemble():
     P = seq.fit(X, y).predict(X)
 
     np.testing.assert_array_equal(P, F)
-
-test_fit_seq()

@@ -424,37 +424,18 @@ class ParallelEvaluation(BaseProcessor):
     def __init__(self, caller):
         super(ParallelEvaluation, self).__init__(caller)
 
-    def _process(self, attr, X, y, path=None):
-        """Fit all layers in the attached :class:`Sequential`."""
-        self._initialize(job='evaluate', X=X, y=y, path=path)
-        check_initialized(self)
-
-        # Use context manager to ensure same parallel job during entire process
-        with Parallel(n_jobs=self.caller.n_jobs,
-                      temp_folder=self.job.dir,
-                      max_nbytes=None,
-                      mmap_mode='w+',
-                      verbose=self.caller.verbose,
-                      backend=self.caller.backend) as parallel:
-
-            f = self.caller.__engine__(self.caller)
-
-            getattr(f, attr)(parallel,
-                             self.job.predict_in,
-                             self.job.y,
-                             self.job.dir)
-
     def process(self, case, X, y, path=None):
         """Fit estimators"""
         self._initialize(job='fit', X=X, y=y, path=path)
         check_initialized(self)
 
         # Use context manager to ensure same parallel job during entire process
+        v = max(self.caller.verbose - 2, 0) if self.caller.verbose < 15 else 0
         with Parallel(n_jobs=self.caller.n_jobs,
                       temp_folder=self.job.dir,
                       max_nbytes=None,
                       mmap_mode='w+',
-                      verbose=self.caller.verbose,
+                      verbose=v,
                       backend=self.caller.backend) as parallel:
 
             self.caller.indexer.fit(

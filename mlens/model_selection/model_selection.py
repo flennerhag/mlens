@@ -18,7 +18,7 @@ import numpy as np
 from .. import config
 from ..index import FoldIndex
 from ..parallel import ParallelEvaluation
-from ..parallel.learner import EvalLearner, Transformer
+from ..parallel.learner import EvalLearner, EvalTransformer
 from ..metrics import Data, assemble_data
 from ..utils import (print_time,
                      safe_print,
@@ -134,18 +134,23 @@ class Evaluator(object):
         number of CPU cores to use.
 
     verbose : bool or int (default = False)
-        level of printed messages.
+        level of printed messages. Levels:
+
+            #. ``verbose=1``: Message at start and end, with total time
+            #. ``verbose=2``: Message at each sub-job \
+              (preprocess and evaluation) as well as total job
+            #. ``verbose in [3, 14]``: Includes completed jobs messages with \
+              increasing frequency.
+            #. ``Verbose >= 15``: prints each job completed as \
+              [case]__[est]__[draw]__[fold]
+
+        If ``verbose>=20``, prints to ``sys.stderr``, else ``sys.stdout``.
 
     Attributes
     ----------
-    summary : dict
+    results : dict
         Summary output that shows data for best mean test scores, such as
         test and train scores, std, fit times, and params.
-
-    cv_results : dict
-        a nested ``dict`` of data from each fit. Includes mean and std of
-        test and  train scores and fit times, as well as param draw index
-        and parameters.
     """
 
     def __init__(self,
@@ -192,14 +197,14 @@ class Evaluator(object):
         path = args['dir']
 
         if self.verbose:
-            f = "stdout" if self.verbose < 10 else "stderr"
+            f = "stdout" if self.verbose < 20 else "stderr"
             safe_print('Launching job', file=f)
             t0 = time()
 
         if ('preprocess' in case) or (self._transformers):
             # Second test is for already fitted pipes - need to be cached
             if self.verbose >= 2:
-                safe_print('Preparing preprocess pipelines', file=f)
+                safe_print(self._print_prep_start(), file=f)
                 t1 = time()
 
             parallel(delayed(subtransformer)(job, path)
@@ -211,11 +216,11 @@ class Evaluator(object):
                 self.collect(args['dir'], 'transformers')
 
             if self.verbose >= 2:
-                print_time(t1, 'Done', file=f)
+                print_time(t1, '{:<13} done'.format('Preprocessing'), file=f)
 
         if 'evaluate' in case:
             if self.verbose >= 2:
-                safe_print('Evaluating estimators', file=f)
+                safe_print(self._print_eval_start(), file=f)
                 t1 = time()
 
             parallel(delayed(sublearner)(job, path)
@@ -224,10 +229,10 @@ class Evaluator(object):
 
             self.collect(args['dir'], 'estimators')
             if self.verbose >= 2:
-                print_time(t1, 'Done', file=f)
+                print_time(t1, '{:<13} done'.format('Evaluation'), file=f)
 
         if self.verbose:
-            print_time(t0, 'Done', file=f)
+            print_time(t0, '{:<13} done'.format('Job'), file=f)
 
     def collect(self, path, case):
         """Collect cache estimators"""
@@ -358,10 +363,11 @@ class Evaluator(object):
             self._preprocessing = check_instances(preprocessing)
 
             self._transformers = [
-                Transformer(pipeline=transformers,
-                            name=preprocess_name,
-                            indexer=self.indexer,
-                            raise_on_exception=True)
+                EvalTransformer(pipeline=transformers,
+                                name=preprocess_name,
+                                indexer=self.indexer,
+                                verbose=max(0, self.verbose - 14),
+                                raise_on_exception=True)
                 for preprocess_name, transformers
                 in sorted(self._preprocessing.items())
             ]
@@ -381,6 +387,7 @@ class Evaluator(object):
                             attr='predict',
                             scorer=self.scorer,
                             error_score=self.error_score,
+                            verbose=max(0, self.verbose - 14),
                             raise_on_exception=True)
                 for preprocess_name, learner_name, est in flattened_estimators
                 for i, params in enumerate(
@@ -506,18 +513,17 @@ class Evaluator(object):
 
         self.results = Data(best, decimals=3)
 
-    def _print_prep_start(self, t0, f):
+    def _print_prep_start(self):
         """Print preprocessing start and return timer."""
         msg = 'Preprocessing %i preprocessing pipelines over %i CV folds'
 
-        p = len(getattr(self, 'preprocessing', [1]))
+        p = len(getattr(self, '_preprocessing', [1]))
         c = self.cv if isinstance(self.cv, int) else self.cv.folds
-        safe_print(msg % (p, c), file=f)
-        return t0
+        return msg % (p, c)
 
-    def _print_eval_start(self, f):
+    def _print_eval_start(self):
         """Print initiation message and return timer."""
-        preprocessing = getattr(self, 'preprocessing', None)
+        preprocessing = getattr(self, '_preprocessing', None)
 
         if preprocessing is None:
 
@@ -525,7 +531,7 @@ class Evaluator(object):
                    'CV folds, totalling %i fits')
 
             e, c, tot = self._get_count(preprocessing)
-            safe_print(msg % (e, self.n_iter, c, tot), file=f)
+            return msg % (e, self.n_iter, c, tot)
         else:
 
             msg = ('Evaluating %i models for %i parameter draws over %i' +
@@ -533,7 +539,7 @@ class Evaluator(object):
                    'totalling %i fits')
 
             e, p, c, tot = self._get_count(preprocessing)
-            safe_print(msg % (e, self.n_iter, p, c, tot), file=f)
+            return msg % (e, self.n_iter, p, c, tot)
 
     def _get_count(self, preprocessing):
         """Utility for counting number of fits to make."""
@@ -558,5 +564,5 @@ class Evaluator(object):
                 for v in self._estimators.values():
                     e += len(v)
 
-            tot = e * c * self.n_iter
+            tot = e * self.n_iter * c
             return int(e), int(p), int(c), int(tot)

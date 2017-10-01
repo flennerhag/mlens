@@ -37,7 +37,7 @@ def test_check():
 
 def test_params():
     """[Model Selection] Test raises on bad params."""
-    evl = Evaluator(mape_scorer)
+    evl = Evaluator(mape_scorer, verbose=2)
 
     np.testing.assert_raises(ValueError,
                              evl.fit, X, y,
@@ -50,7 +50,7 @@ def test_params():
 def test_raises():
     """[Model Selection] Test raises on error."""
 
-    evl = Evaluator(bad_scorer)
+    evl = Evaluator(bad_scorer, verbose=1)
 
     np.testing.assert_raises(ValueError,
                              evl.fit, X, y,
@@ -62,7 +62,7 @@ def test_raises():
 def test_passes():
     """[Model Selection] Test sets error score on failed scoring."""
 
-    evl = Evaluator(bad_scorer, error_score=0, n_jobs=1)
+    evl = Evaluator(bad_scorer, error_score=0, n_jobs=1, verbose=15)
 
     evl = np.testing.assert_warns(FitFailedWarning,
                                   evl.fit, X, y,
@@ -75,8 +75,8 @@ def test_passes():
 
 def test_no_prep():
     """[Model Selection] Test run without preprocessing."""
-    evl = Evaluator(mape_scorer, verbose=True, cv=5, shuffle=False,
-                    random_state=100)
+    evl = Evaluator(mape_scorer, cv=5, shuffle=False,
+                    random_state=100, verbose=12)
 
     with open(os.devnull, 'w') as f, redirect_stderr(f):
         evl.fit(X, y,

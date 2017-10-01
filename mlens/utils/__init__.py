@@ -36,5 +36,5 @@ __all__ = ['IdTrain',
            'safe_print',
            'CMLog',
            'kwarg_parser',
-           'clone_instances'
+           'clone_attribute'
            ]

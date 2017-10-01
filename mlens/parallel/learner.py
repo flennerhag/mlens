@@ -367,7 +367,7 @@ class Learner(_BaseEstimator):
     def gen_fit(self, X, y, P=None):
         """Generator for fitting learner on given data
 
-         Parameters
+        Parameters
         ----------
         X : array
             input array

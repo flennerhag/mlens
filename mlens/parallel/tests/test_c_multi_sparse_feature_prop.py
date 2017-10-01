@@ -12,6 +12,12 @@ from mlens.utils.dummy import OLS
 SEED = 1324
 
 
+class TempClass(BaseEnsemble):
+
+    def __init__(self, *args, **kwargs):
+        super(TempClass, self).__init__(*args, **kwargs)
+
+
 def _shuffled(X, y, seed):
     """Shuffle inputs."""
     r = check_random_state(seed)
@@ -41,23 +47,23 @@ second_prop.append(second_prop[-1] + 1)
 second_prop.append(second_prop[-1] + 1)
 n_second_prop = len(second_prop)
 
-ens1 = BaseEnsemble()
+ens1 = TempClass()
 ens1._add([OLS(0), OLS(1)], FoldIndex(), propagate_features=first_prop)
 
-ens2 = BaseEnsemble()
+ens2 = TempClass()
 ens2._add([OLS(0), OLS(1)], FoldIndex(), propagate_features=first_prop)
 ens2._add([OLS(2), OLS(3)], FoldIndex(), propagate_features=second_prop)
 
-ens3 = BaseEnsemble()
+ens3 = TempClass()
 ens3._add([OLSSparse(0), OLSSparse(1)], FoldIndex(), propagate_features=first_prop)
 ens3._add([OLSSparse(2), OLSSparse(3)], FoldIndex(), propagate_features=second_prop)
 
-ens4 = BaseEnsemble()
+ens4 = TempClass()
 ens4._add([OLS(), OLS(1), OLS(2)], FoldIndex(), shuffle=True, random_state=SEED)
 ens4._add([OLS(), OLS(1), OLS(2)], FoldIndex(), shuffle=True, random_state=SEED)
 ens4._add([OLS(), OLS(1), OLS(2)], FoldIndex(), shuffle=True, random_state=SEED)
 
-ens5 = BaseEnsemble()
+ens5 = TempClass()
 ens5._add([OLS(), OLS(1), OLS(2)], FoldIndex())
 
 

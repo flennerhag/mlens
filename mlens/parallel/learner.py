@@ -677,6 +677,19 @@ class Transformer(_BaseEstimator):
                                      index=index)
 
 
+class EvalTransformer(Transformer):
+
+    """Evaluator version of the Transformer
+
+    Derived class from Transformer adapted to cross-validated grid-search.
+    See :class:`Transformer`for more details.
+    """
+    def __init__(self, *args, **kwargs):
+        super(EvalTransformer, self).__init__(*args, **kwargs)
+        self.__only_all__ = False
+        self.__only_sub__ = True
+
+
 class Cache(object):
 
     """Cache wrapper for IndexedEstimator
@@ -850,6 +863,10 @@ class EvalLearner(Learner):
             raise_on_exception=raise_on_exception)
         self.error_score = error_score
 
+        # For consistency, set fit flags
+        self.__only_sub__ = True
+        self.__only_all__ = False
+
     def gen_fit(self, X, y, P=None):
         """Generator for fitting learner on given data"""
         # We use an index to keep track of partition and fold
@@ -865,7 +882,6 @@ class EvalLearner(Learner):
                 index = (0, i + 1)
             else:
                 index = (0, i % self._partitions + 1)
-
             yield EvalSubLearner(learner=self,
                                  estimator=self.estimator,
                                  in_index=train_index,

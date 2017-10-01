@@ -14,4 +14,5 @@ __all__ = ['ParallelProcessing',
            'Learner',
            'EvalLearner',
            'Transformer',
+           'EvalTransformer'
            ]

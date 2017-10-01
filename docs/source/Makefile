@@ -5,7 +5,7 @@
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 SPHINXPROJ    = mlens
-SOURCEDIR     = source
+SOURCEDIR     = 
 BUILDDIR      = build
 
 
@@ -24,11 +24,17 @@ help:
 install:
 			pip install -U sphinx-gallery numpydoc matplotlib seaborn
 
+api:
+	rm -rf module
+	sphinx-apidoc -ef -o module ../../mlens/   ../../mlens/externals
 
 docs:
+			make api
 			make html
+			cp -r build/html/ ../
+			rm -r build
 			-rm -rf tutorials
-			-rm -rf source/tutorials
+			cp CNAME ../
 
 html-noplot:
 	$(SPHINXBUILD) -D plot_gallery=0 -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
@@ -37,5 +43,4 @@ html-noplot:
 
 clean-cache:
 	make clean
-	rm -rf tutorials
-	rm -rf source/tutorials
+	bash clean-html.sh

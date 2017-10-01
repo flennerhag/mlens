@@ -21,6 +21,10 @@ help:
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
+install:
+			pip install -U sphinx-gallery numpydoc matplotlib seaborn
+
+
 docs:
 			make html
 			-rm -rf tutorials

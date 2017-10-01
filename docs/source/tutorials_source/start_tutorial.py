@@ -50,8 +50,8 @@ y = data.target[idx]
 # Building an ensemble
 # ^^^^^^^^^^^^^^^^^^^^
 # Instantiating a fully specified ensemble is straightforward and requires
-# three steps: first create the instance, second add the intermediate layers, and
-# finally the meta estimator.
+# three steps: first create the instance, second add the intermediate layers,
+# and finally the meta estimator.
 from mlens.ensemble import SuperLearner
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -60,7 +60,7 @@ from sklearn.svm import SVC
 # --- Build ---
 # Passing a scoring function will create cv scores during fitting
 # the scorer should be a simple function accepting to vectors and returning a scalar
-ensemble = SuperLearner(scorer=accuracy_score, random_state=seed, verbose=1)
+ensemble = SuperLearner(scorer=accuracy_score, random_state=seed, verbose=2)
 
 # Build the first layer
 ensemble.add([RandomForestClassifier(random_state=seed), SVC()])
@@ -108,17 +108,17 @@ ensemble.add_meta(SVC())
 
 ##############################################################################
 # We now fit this ensemble in the same manner as before:
-
 ensemble.fit(X[:75], y[:75])
 preds = ensemble.predict(X[75:])
 print("Fit data:\n%r" % ensemble.data)
 
 ##############################################################################
 # .. _model-selection-guide:
+#
+# .. py:currentmodule:: mlens.model_selection
+#
 # Model selection guide
 # ---------------------
-#
-# .. currentmodule:: mlens.model_selection
 #
 # The work horse class is the :class:`Evaluator`, which allows you to
 # grid search several models in one go across several preprocessing pipelines.
@@ -126,8 +126,6 @@ print("Fit data:\n%r" % ensemble.data)
 # preprocessing pipelines on the same data repeatedly. Also, by fitting all
 # models over all parameter draws in one operation, parallelization is
 # maximized.
-#
-##############################################################################
 # The following example evaluates a `Naive Bayes`_ estimator and a
 # `K-Nearest-Neighbor`_ estimator under three different preprocessing scenarios:
 # no preprocessing, standard scaling, and subset selection.
@@ -136,12 +134,12 @@ print("Fit data:\n%r" % ensemble.data)
 #
 # The scoring function
 # ^^^^^^^^^^^^^^^^^^^^
+#
 # .. currentmodule:: mlens.metrics
 #
 # An important note is that the scoring function must be wrapped by
 # :func:`make_scorer`, to ensure all scoring functions behave similarly regardless
 # of whether they measure accuracy or errors. To wrap a function, simple do:
-
 from mlens.metrics import make_scorer
 accuracy_scorer = make_scorer(accuracy_score, greater_is_better=True)
 
@@ -188,7 +186,10 @@ evaluator.fit(X, y, ests, params, n_iter=10)
 ##############################################################################
 # The full history of the evaluation can be found in ``cv_results``. To compare
 # models with their best parameters, we can pass the ``results`` attribute to
-# a :obj:`pandas.DataFrame` or print it in tabular format as is:
+# a :obj:`pandas.DataFrame` or print it as a table. We use ``m`` to denote
+# mean values and ``s`` to denote standard deviation across folds for brevity.
+# Note that the timed prediction is for the training set, for comparability with
+# training time.
 
 print("Score comparison with best params founds:\n\n%r" % evaluator.results)
 
@@ -239,10 +240,10 @@ evaluator.fit(X, y, preprocessing=preprocess_cases)
 #
 # To evaluate the same set of estimators across all pipelines with the same
 # parameter distributions, there is no need to take any heed of the preprocessing
-# pipeline, just carry on as in the simple case::
+# pipeline, just carry on as in the simple case:
 
 evaluator.fit(X, y, ests, params, n_iter=10)
-print("Comparison across preprocessing pipelines:\n\n%r" % evaluator.results)
+print("\nComparison across preprocessing pipelines:\n\n%r" % evaluator.results)
 
 ##############################################################################
 # You can also map different estimators to different preprocessing folds, and
@@ -262,7 +263,7 @@ estimators = {'sc': ests_1,
               'sub': ests_1}
 
 evaluator.fit(X, y, estimators, params, n_iter=10)
-print("Comparison with different parameter dists:\\nn%r" % evaluator.results)
+print("\nComparison with different parameter dists:\n\n%r" % evaluator.results)
 
 ##############################################################################
 # .. _visualization-guide:
@@ -302,10 +303,10 @@ pca_plot(X, PCA(n_components=2), y=y)
 #
 # The :class:`pca_comp_plot` function
 # plots a matrix of PCA analyses, one for each combination of
-# ``n_components=2, 3`` and ``kernel='linear', 'rbf'``. ::
+# ``n_components=2, 3`` and ``kernel='linear', 'rbf'``.
 
 from mlens.visualization import pca_comp_plot
-pca_comp_plot (X, y)
+pca_comp_plot(X, y)
 plt.show()
 
 ##############################################################################
@@ -337,7 +338,7 @@ plt.show()
 
 from mlens.visualization import clustered_corrmap
 from sklearn.cluster import KMeans
-Z = DataFrame(X, columns=['f_%i' %i for i in range(1, 5)])
+Z = DataFrame(X, columns=['f_%i' % i for i in range(1, 5)])
 
 ##############################################################################
 # We duplicate all features, note that the heatmap orders features
@@ -356,7 +357,7 @@ plt.show()
 # the ``no_ticks`` parameter to ``True``, to avoid rendering an illegible
 # x-axis. Note that ``X`` must be a :class:`pandas.DataFrame`.
 from mlens.visualization import corr_X_y
-Z = DataFrame(X, columns=['feature_%i' %i for i in range(1, 5)])
+Z = DataFrame(X, columns=['feature_%i' % i for i in range(1, 5)])
 corr_X_y(Z, y, 2, no_ticks=False)
 plt.show()
 

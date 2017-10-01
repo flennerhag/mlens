@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 
-.. _sequential_tutorial:
+.. _learner_tutorial:
 
 
-.. currentmodule: mlens.parallel.learner
+.. currentmodule:: mlens.parallel.learner
 
-Sequential Mechanics
-====================
+Learner Mechanics
+=================
 
 ML-Ensemble is designed to provide an easy user interface. But it is also designed
 to be extremely flexible, all the wile providing maximum concurrency at minimal
@@ -33,10 +33,10 @@ track of which preprocessing pipeline to use (if any). You can think of a learne
 """
 from mlens.utils.dummy import OLS
 from mlens.parallel import Learner
-from mlens.base import FoldIndex
+from mlens.index import FoldIndex
 
 
-indexer = FoldIndex(n_splits=2)            # Define a training strategy
+indexer = FoldIndex(folds=2)            # Define a training strategy
 learner = Learner(estimator=OLS(),         # Declare estimator
                   preprocess=None,         # We'll get to this
                   indexer=indexer,         # Our above instance
@@ -47,7 +47,7 @@ learner = Learner(estimator=OLS(),         # Declare estimator
                   verbose=True)
 
 ######################################################################
-# .. currentmodule: mlens.base
+# .. currentmodule:: mlens.index
 #
 # The ``name`` gives the learner a cache reference. When the learner is
 # constructed by the high-level API , the name is guaranteed to be unique, when
@@ -57,7 +57,7 @@ learner = Learner(estimator=OLS(),         # Declare estimator
 # The output_columns can contain several entries if your indexer creates
 # partitions (see :class:`SubsetIndex` and :class:`ClusteredSubsetIndex`).
 #
-# .. currentmodule: mlens.parallel.learner
+# .. currentmodule:: mlens.parallel.learner
 #
 # The learner doesn't do any heavy lifting itself, it manages the creation
 # of auxiliary :class:`SubLearner` nodes for each fold during estimation.
@@ -130,7 +130,7 @@ for sub_learner in learner('transform', X, P):
 print("Params before:")
 print(learner.get_params())
 
-learner.set_params(ols_estimator__offset=1, ols_indexer__n_splits=3)
+learner.set_params(estimator__offset=1, indexer__folds=3)
 
 print("Params after:")
 print(learner.get_params())
@@ -155,9 +155,9 @@ print(learner.get_params())
 # partition. Note that by passing the output array to the sub-learner
 # during fitting, we get predictions immediately.
 
-from mlens.base import SubsetIndex
+from mlens.index import SubsetIndex
 
-indexer = SubsetIndex(n_partitions=2, n_splits=2, X=X)
+indexer = SubsetIndex(partitions=2, folds=2, X=X)
 learner = Learner(estimator=OLS(),
                   preprocess=None,
                   indexer=indexer,
@@ -184,7 +184,7 @@ learner.collect(path.name)
 # a scorer is passed scores the predictions as well. The learner aggregates
 # this data into a ``raw_data`` list, and a tabular ``data`` attribute:
 
-print("Data:\n %s" % learner.data)
+print("Data:\n%s" % learner.data)
 
 ############################################################################
 #
@@ -196,7 +196,7 @@ print("Data:\n %s" % learner.data)
 # to pass the object itself along, or we risk conflicts. Instead,
 # the learner is given a pointer to the caches preprocessing pipeline so that
 # it can load when needed. To facilitate preprocessing across several learners,
-# we need new type of node, the :class:``Transformer``. This class behaves
+# we need new type of node, the :class:`Transformer`. This class behaves
 # similarly to the learner, but differs in that it doesn't output any
 # predictions or transformations, but merely fits and caches the preprocessing
 # pipelines. The primary reason for this design is that the transformer would
@@ -265,30 +265,10 @@ print("Cache: %r" % os.listdir(path.name))
 print("Data:\n%s" % learner.data)
 
 ############################################################################
-# The data is stored as a custom designed ``dict`` that prints in tabular
+# The data is stored as a ``dict`` that prints in tabular
 # format for readability. You can however also pass the ``data`` attribute
 # to a :class:`pandas.DataFrame` if you wish.
 
 ############################################################################
-#
-# The Layer API
-# ^^^^^^^^^^^^^
-#
-# Let us consider how fitting tow learners.
-
-
-print("hey")
-
-############################################################################
-#
-# Parallel Processing
-# ^^^^^^^^^^^^^^^^^^^
-#
-# .. currentmodule: mlens.parallel
-#
-# Rather then fitting each sub-transformer and sub-learner sequentially, we
-# can exploit that they are independent of each other and fit them in
-# in parallel: that's the purpose of this package.
-#
-# The :class:`ParallelProcessing` class implements a context manager for
-#
+# Next we handle several learners by grouping them in a layer in the
+# :ref:`layer mechanics tutorial <layer_tutorial>`.

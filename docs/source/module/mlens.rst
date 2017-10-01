@@ -12,6 +12,7 @@ Subpackages
     mlens.model_selection
     mlens.parallel
     mlens.preprocessing
+    mlens.testing
     mlens.utils
     mlens.visualization
 

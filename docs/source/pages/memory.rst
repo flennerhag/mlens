@@ -83,7 +83,7 @@ serialization. The memory log of the ``cm`` reveals that peak memory usage is
 over some three times larger than the original array when 4 cpu's are in use.
 With such a memory profile, an ensemble would not be very scalable.
 
-.. image:: img/mem_profile_copy.png
+.. image:: ../_static/img/mem_profile_copy.png
    :align: center
 
 Memmapping allows us to overcome these issues for two reaons. First, it entirely
@@ -144,7 +144,7 @@ replace the original array with the memmap (as in this example),
 the memory required to hold the original file can be released and so there
 is *no* copy of the array kept in the process memory.
 
-.. image:: img/mem_profile_mmap.png
+.. image:: ../_static/img/mem_profile_mmap.png
    :align: center
 
 For further details on memmapping in parallel processing,
@@ -164,7 +164,7 @@ following profiling can be run from the package root with the below command::
 Note that the ensemble leveraged the full capacity of the CPU to fit the
 ensemble.
 
-.. image:: img/cpu_profile.png
+.. image:: ../_static/img/cpu_profile.png
    :align: center
 
 And while doing so, memory consumption remained neutral. Note here that becase
@@ -175,7 +175,7 @@ efficient, a user can specify a path to a csv file or stored numpy array or
 numpy memmap, in which case no memory will be committed to keeping the original
 data in memory. See the :ref:`memory-tutorial` tutorial for more information.
 
-.. image:: img/memory_profile.png
+.. image:: ../_static/img/memory_profile.png
    :align: center
 
 Memory performance benchmark
@@ -216,7 +216,7 @@ estimator. ::
 
    Using last profile data.
 
-.. image:: img/memory.png
+.. image:: ../_static/img/memory.png
 
 .. _gotchas:
 

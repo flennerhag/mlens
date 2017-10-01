@@ -137,19 +137,19 @@ ensemble output. Output is summarized for easy comparison of performance. ::
    :maxdepth: 2
    :caption: High-level API 
 
-   examples/start_tutorial
-   pages/ensemble_tutorial
+   tutorials/start_tutorial
+   tutorials/adv_tutorial
    pages/ensembles
 
 .. toctree::
    :hidden:
    :maxdepth: 2
-   :caption: Mechanics 
+   :caption: Low-level API 
 
-   examples/learner_tutorial
-   examples/layer_tutorial
-   examples/parallel_tutorial
-   examples/sequential_tutorial
+   tutorials/learner_tutorial
+   tutorials/layer_tutorial
+   tutorials/parallel_tutorial
+   tutorials/sequential_tutorial
 
 .. toctree::
    :hidden:
@@ -183,10 +183,9 @@ ensemble output. Output is summarized for easy comparison of performance. ::
    :maxdepth: 0
    :caption: Package index
 
-   module
+   module/modules
 
-..
-====
+----
 
 ML Ensemble is licenced under :ref:`MIT <license>` and is hosted on Github_.
 

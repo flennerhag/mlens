@@ -2,10 +2,10 @@
 
 .. currentmodule:: mlens.ensemble
 
-Ensemble classes
-================
+Ready-made ensemble classes
+===========================
 
-ML-Ensemble implements four types of ensembles:
+Currently, ML-Ensemble implements provides four ready-made ensembles classes:
 
     * :ref:`super-learner` (stacking)
 
@@ -21,6 +21,9 @@ is a generic ensemble class that allows the user to mix types between layers,
 for instance by setting the first layer to a Subsemble and the second layer
 to a Super Learner. Here, we will briefly introduce ensemble specific
 parameters and usage. For full documentation, see the :ref:`API` section.
+However, by accessing the :ref:`low-level API <low-level-api>` it is possible 
+to build virtually any type of ensemble. Further ready-made classes will be 
+introduced on demand. Feel free to raise a feature issue at Github_.
 
 .. _super-learner:
 
@@ -94,7 +97,7 @@ Subsemble
 the full data to fit a layer, and within each subset K-fold estimation
 to map a training set :math:`(X, y)` into a prediction set :math:`(Z, y)`,
 where :math:`Z` is a matrix of prediction from each estimator on each
-subset (thus of shape ``[n_samples, (n_partitions * n_estimators)]``).
+subset (thus of shape ``[n_samples, (partitions * n_estimators)]``).
 :math:`Z` is constructed using K-Fold splits of each partition of `X` to
 ensure :math:`Z` reflects test errors within each partition. A final
 user-specified meta learner is fitted to the final ensemble layer's
@@ -210,40 +213,42 @@ through an example::
     >>> ensemble = SequentialEnsemble(scorer=rmse)
     >>>
     >>> # Add a subsemble with 10 partitions and 10 folds as first layer
-    >>> ensemble.add('subset', [SVR(), Lasso()], n_partitions=10, n_splits=10)
+    >>> ensemble.add('subsemble', [SVR(), Lasso()], partitions=10, folds=10)
     >>>
     >>> # Add a super learner with 20 folds as second layer
-    >>> ensemble.add('stack', [SVR(), Lasso()], n_splits=20)
+    >>> ensemble.add('stack', [SVR(), Lasso()], folds=20)
     >>>
     >>> # Specify a meta estimator
     >>> ensemble.add_meta(SVR())
     >>>
     >>> ensemble.fit(X, y)
     >>>
-    >>> DataFrame(ensemble.scores_)
-                       score_mean  score_std
-    layer-1 j0__lasso   11.792905   2.744788
-            j0__svr      9.615539   1.185780
-            j1__lasso    7.525038   1.235617
-            j1__svr      9.164761   0.896510
-            j2__lasso    7.239405   1.821464
-            j2__svr      9.965071   1.357993
-            j3__lasso    9.590788   1.723333
-            j3__svr     11.892205   0.880309
-            j4__lasso   12.435838   3.475319
-            j4__svr      9.368308   0.769086
-            j5__lasso   17.357559   2.645452
-            j5__svr     11.921103   1.217075
-            j6__lasso    8.889963   1.811024
-            j6__svr      9.226893   1.030218
-            j7__lasso   12.720208   3.521461
-            j7__svr     12.751075   1.760458
-            j8__lasso   12.178918   1.229540
-            j8__svr     12.878269   1.667963
-            j9__lasso    7.269251   1.815074
-            j9__svr      9.563657   1.214829
-    layer-2 lasso        5.660264   2.435897
-            svr          8.343091   4.097081
+    >>> ensemble.data
+                             score-m  score-s  ft-m  ft-s  pt-m  pt-s
+        layer-1  lasso  0      11.79     2.74  0.00  0.00  0.00  0.00
+        layer-1  lasso  1       7.53     1.24  0.00  0.00  0.00  0.00
+        layer-1  lasso  2       7.24     1.82  0.00  0.00  0.00  0.00
+        layer-1  lasso  3       9.59     1.72  0.01  0.00  0.00  0.00
+        layer-1  lasso  4      12.44     3.48  0.00  0.00  0.00  0.00
+        layer-1  lasso  5      17.36     2.65  0.00  0.00  0.00  0.00
+        layer-1  lasso  6       8.89     1.81  0.00  0.00  0.00  0.00
+        layer-1  lasso  7      12.72     3.52  0.00  0.00  0.00  0.00
+        layer-1  lasso  8      12.18     1.23  0.00  0.00  0.00  0.00
+        layer-1  lasso  9       7.27     1.82  0.00  0.00  0.00  0.00
+        layer-1  svr    0       9.62     1.19  0.00  0.00  0.00  0.00
+        layer-1  svr    1       9.16     0.90  0.00  0.00  0.00  0.00
+        layer-1  svr    2       9.97     1.36  0.00  0.00  0.00  0.00
+        layer-1  svr    3      11.89     0.88  0.00  0.00  0.00  0.00
+        layer-1  svr    4       9.37     0.77  0.00  0.00  0.00  0.00
+        layer-1  svr    5      11.92     1.22  0.00  0.00  0.00  0.00
+        layer-1  svr    6       9.23     1.03  0.00  0.00  0.00  0.00
+        layer-1  svr    7      12.75     1.76  0.00  0.00  0.00  0.00
+        layer-1  svr    8      12.88     1.67  0.00  0.00  0.00  0.00
+        layer-1  svr    9       9.56     1.21  0.00  0.00  0.00  0.00
+        layer-2  lasso  0       5.66     2.44  0.02  0.03  0.00  0.00
+        layer-2  svr    0       8.34     4.10  0.03  0.01  0.00  0.00
 
-Note how each of the two base learners specified got duplicated to each of the
-10 partitions, as denotes by the ``j[num]_`` prefix.
+Note how each of the two base learners specified are duplicated to each of the
+10 partitions.
+
+.. _Github: https://github.com/flennerhag/mlens/issues

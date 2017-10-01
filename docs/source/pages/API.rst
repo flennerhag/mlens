@@ -5,20 +5,10 @@
 API
 ====
 
-ML-Ensemble estimators behave identically to `Scikit-learn`_
-estimators, with one main difference: to properly instantiate an ensemble,
-at least on layer, and if applicable a meta estimator, must be added to the
-ensemble. Otherwise, there is no ensemble to estimate. The difference
-can be summarized as follows. ::
+The Front-end API collects documentation on ensemble classes, preprocessing transformers, model selection modules and visualization features. The Low-level API presents the core estimation and ensemble management classes. 
 
-   # sklearn API
-   estimator = Estimator()
-   estimator.fit(X, y)
-
-   # mlens API
-   ensemble = Ensemble().add(list_of_estimators).add_meta(estimator)
-   ensemble.fit(X, y)
-
+Front-end API
+-------------
 
 Ensemble estimators
 ^^^^^^^^^^^^^^^^^^^
@@ -48,7 +38,7 @@ Preprocessing
 
 .. autosummary::
 
-   EnsembleTransformer
+   Shift 
    Subset
 
 Visualization
@@ -66,11 +56,36 @@ Visualization
    exp_var_plot
 
 
-For developers
-==============
+.. _low-level-api:
 
-The following base classes are good starting points for building new ensembles.
-You may want to study the source code directly.
+Low-level API
+-------------
+
+.. _estimation-api:
+
+Parallel estimation API 
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. currentmodule:: mlens.parallel
+
+.. autosummary::
+
+   Learner
+   Transformer
+   ParallelProcessing
+   Layer
+
+
+Ensemble Base classes
+^^^^^^^^^^^^^^^^^^^^^
+
+.. currentmodule:: mlens.ensemble
+
+.. autosummary::
+
+   Sequential
+   BaseEnsemble
+
 
 .. _indexer-api:
 
@@ -81,26 +96,11 @@ Indexers
 
 .. autosummary::
 
-    IdTrain
     BlendIndex
     FoldIndex
-    SubsetIndex
     FullIndex
+    SubsetIndex
     ClusteredSubsetIndex
 
-.. _estimation-api:
-
-Estimation routines
-^^^^^^^^^^^^^^^^^^^
-
-.. currentmodule:: mlens.parallel
-
-.. autosummary::
-
-    ParallelProcessing
-    ParallelEvaluation
-    Layer
-    Learner
-    Transformer
 
 .. _Scikit-learn: http://scikit-learn.org/stable/

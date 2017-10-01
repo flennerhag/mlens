@@ -21,6 +21,11 @@ help:
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
+docs:
+			make html
+			-rm -rf tutorials
+			-rm -rf source/tutorials
+
 html-noplot:
 	$(SPHINXBUILD) -D plot_gallery=0 -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
@@ -28,5 +33,5 @@ html-noplot:
 
 clean-cache:
 	make clean
-	rm -rf $(BUILDDIR)/*
-	rm -rf examples/
+	rm -rf tutorials
+	rm -rf source/tutorials

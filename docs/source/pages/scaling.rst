@@ -28,7 +28,7 @@ SVR models consecutively, the multiprocessed ensembles need only the time
 equivalent to fit 2 consecutively. As the figure below shows, there are clear
 benefits to multi-processing.
 
-.. image:: img/scale_cpu.png
+.. image:: ../_static/img/scale_cpu.png
    :align: center
 
 
@@ -105,10 +105,10 @@ similar fit time. In fact, it can be made more time efficient if the number
 of partitions is increased. This can significantly impact optimal meta
 learner parameter settings and overall performance.
 
-.. image:: img/scale_ens_score.png
+.. image:: ../_static/img/scale_ens_score.png
    :align: center
 
-.. image:: img/scale_ens_time.png
+.. image:: ../_static/img/scale_ens_time.png
    :align: center
 
 To replicate the benchmark, in the ``mlens`` benchmark folder, execute::

@@ -1,17 +1,17 @@
-mlens\.preprocessing package
-============================
+mlens\.testing package
+======================
 
 Submodules
 ----------
 
 .. toctree::
 
-   mlens.preprocessing.preprocess
+   mlens.testing.dummy
 
 Module contents
 ---------------
 
-.. automodule:: mlens.preprocessing
+.. automodule:: mlens.testing
     :members:
     :undoc-members:
     :show-inheritance:

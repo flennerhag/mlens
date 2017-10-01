@@ -31,10 +31,6 @@ sys.path.append(sys.path[-1] + '/mlens')
 
 from custom_directives import IncludeDirective, GalleryItemDirective, CustomGalleryItemDirective
 
-# Ensure numpydoc exists
-subprocess.run(['pip', 'install', 'numpydoc'])
-subprocess.run(['pip', 'install', 'sphinx-gallery'])
-
 
 # -- General configuration ------------------------------------------------
 
@@ -58,25 +54,25 @@ extensions = ['sphinx.ext.autodoc',
               ]
 
 # Sphinx-Gallery
-sphinx_gallery_conf = {'examples_dirs': ['examples_source'],
-                       'gallery_dirs': ['examples'],
+sphinx_gallery_conf = {'examples_dirs': ['tutorials_source'],
+                       'gallery_dirs': ['tutorials'],
                        'filename_pattern': 'tutorial.py',
                        'backreferences_dir': False,
                        'download_section_examples': False,
                        }
 
-for i in range(len(sphinx_gallery_conf['examples_dirs'])):
-    gallery_dir = sphinx_gallery_conf['gallery_dirs'][i]
-    source_dir = sphinx_gallery_conf['examples_dirs'][i]
+# for i in range(len(sphinx_gallery_conf['examples_dirs'])):
+#    gallery_dir = sphinx_gallery_conf['gallery_dirs'][i]
+#    source_dir = sphinx_gallery_conf['examples_dirs'][i]
     # Create gallery dirs if it doesn't exist
-    try:
-        os.mkdir(gallery_dir)
-    except OSError:
-        pass
+#    try:
+#        os.mkdir(gallery_dir)
+#    except OSError:
+#        pass
 
-    # Copy rst files from source dir to gallery dir
-    for f in glob.glob(os.path.join(source_dir, '*.rst')):
-        shutil.copy(f, gallery_dir)
+# Copy rst files from source dir to gallery dir
+#    for f in glob.glob(os.path.join(source_dir, '*.rst')):
+#        shutil.copy(f, gallery_dir)
 
 # Intersphinx options
 intersphinx_mapping = {'http://scikit-learn.org/stable/': None,
@@ -122,6 +118,7 @@ language = None
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 exclude_patterns += sphinx_gallery_conf['examples_dirs']
 exclude_patterns += ['*/index.rst']
+
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 

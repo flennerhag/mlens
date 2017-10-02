@@ -85,13 +85,6 @@ class SequentialEnsemble(BaseEnsemble):
         documentation. To change global backend, set
         ``mlens.config.BACKEND``
 
-    Attributes
-    ----------
-    scores\_ : dict
-        if ``scorer`` was passed to instance, ``scores_`` contains dictionary
-        with cross-validated scores assembled during ``fit`` call. The fold
-        structure used for scoring is determined by ``folds``.
-
     Examples
     --------
     >>> from mlens.ensemble import SequentialEnsemble

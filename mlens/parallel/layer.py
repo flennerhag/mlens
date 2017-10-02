@@ -213,6 +213,7 @@ class Layer(BaseEstimator):
         """
         job = args['job']
         path = args['dir']
+        _threading = self.backend == 'threading'
 
         if self.verbose:
             msg = "{:<30}"
@@ -229,7 +230,7 @@ class Layer(BaseEstimator):
                            file=f, end=e2)
                 t1 = time()
 
-            parallel(delayed(subtransformer)(job, path)
+            parallel(delayed(subtransformer, not _threading)(job, path)
                      for transformer in self.transformers
                      for subtransformer
                      in transformer(job, **args['transformer']))
@@ -241,7 +242,7 @@ class Layer(BaseEstimator):
             safe_print(msg.format('Learners ...'), file=f, end=e2)
             t1 = time()
 
-        parallel(delayed(sublearner)(job, path)
+        parallel(delayed(sublearner, not _threading)(job, path)
                  for learner in self.learners
                  for sublearner in learner(job, **args['learner']))
 

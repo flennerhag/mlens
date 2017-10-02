@@ -38,7 +38,7 @@ def run(cls, proba, preprocessing, **kwargs):
     ens.add(cls, ests, prep, proba=proba, dtype=np.float64, **kwargs)
     ens.fit(X, y)
 
-    pred = ens.transform(X)
+    pred, _ = ens.transform(X, y)
 
     np.testing.assert_array_equal(F, pred)
 

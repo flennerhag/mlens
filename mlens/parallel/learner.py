@@ -561,7 +561,7 @@ class SubLearner(object):
                                    self.out_index)
         t0 = time()
         for _, tr in transformers:
-            xtemp = tr.transform(xtemp)
+            xtemp, ytemp = transform(tr, xtemp, ytemp)
 
         predictions = getattr(self.estimator, self.attr)(xtemp)
         self.pred_time_ = time() - t0
@@ -679,11 +679,12 @@ class Transformer(_BaseEstimator):
 
 class EvalTransformer(Transformer):
 
-    """Evaluator version of the Transformer
+    r"""Evaluator version of the Transformer.
 
-    Derived class from Transformer adapted to cross-validated grid-search.
-    See :class:`Transformer`for more details.
+    Derived class from Transformer adapted to cross\-validated grid-search.
+    See :class:`Transformer` for more details.
     """
+
     def __init__(self, *args, **kwargs):
         super(EvalTransformer, self).__init__(*args, **kwargs)
         self.__only_all__ = False
@@ -959,7 +960,7 @@ class EvalSubLearner(SubLearner):
                                    self.targets,
                                    index)
         for _, tr in transformers:
-            xtemp = tr.transform(xtemp)
+            xtemp, ytemp = transform(tr, xtemp, ytemp)
 
         t0 = time()
 

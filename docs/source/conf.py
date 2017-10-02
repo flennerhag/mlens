@@ -78,6 +78,8 @@ sphinx_gallery_conf = {'examples_dirs': ['tutorials_source'],
 intersphinx_mapping = {'http://scikit-learn.org/stable/': None,
                        'http://docs.scipy.org/doc/numpy/': None,
                        'http://matplotlib.org/': None,
+                       'https://pythonhosted.org/joblib/': None,
+                       'https://docs.python.org/3/': None,
                        'http://pandas.pydata.org/pandas-docs/stable/': None}
 
 # Add any paths that contain templates here, relative to this directory.
@@ -125,6 +127,9 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
+
+googleanalytics_id = 'UA-90122135-2'
+googleanalytics_enabled = True
 
 # -- Options for HTML output ----------------------------------------------
 

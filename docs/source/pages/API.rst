@@ -30,6 +30,7 @@ Model Selection
 .. autosummary::
 
    Evaluator
+   EnsembleTransformer
 
 Preprocessing
 ^^^^^^^^^^^^^

@@ -7,12 +7,12 @@
    :align: center
 
 
-ML-Ensemble a Python library for memory efficient parallelized ensemble learning. In particular, ML-Ensemble is a `Scikit-learn`_ compatible library for building deep ensemble networks in just a few lines of code. In a nutshell::
+ML-Ensemble a Python library for memory efficient parallelized ensemble learning. In particular, ML-Ensemble is a `Scikit-learn`_ compatible library for building deep ensemble networks in just a few lines of code. :: 
 
   ensemble = SuperLearner().add(estimators)
   ensemble.fit(xtrain, ytrain).predict(xtest)
 
-To get a quick feel for ML-Ensemble, you can :ref:`get started <getting-started>` here. The :ref:`advanced tutorials <tutorials>` section highlights advanced features, and if you want full control, head over to the :ref:`mechanics walkthrough <learner_tutorial>`. 
+:ref:`Get started <getting-started>` here, or head to the :ref:`advanced tutorials <tutorials>` for an in-depth tour of ML-Ensemble's high-level features. For the computational graph API, see :ref:`mechanics walkthroughs <learner_tutorial>`. 
 
 ML-Ensemble is easily installed via ``pip``. For further details see :ref:`install`. 
 
@@ -26,17 +26,12 @@ ML-Ensemble is open for contributions at all levels. If you would like to get in
 Core Features
 -------------
 
-Modular build of multi-layered ensembles
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. currentmodule:: mlens.parallel
 
-Ensembles are build as a feed-forward network, with a set of **layers** stacked
-on each other. Each layer is associated with a library of base learners, a mapping from
-preprocessing pipelines to subsets of base learners, and an estimation method.
-Layers are stacked sequentially with each layer taking the previous
-layer's output as input. You can propagate features through layers,
-differentiate preprocessing between subsets of base learners, vary the
-estimation method between layers and much more to build ensembles of almost
-any shape and form.
+A network approach to multi-layered ensembles
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Ensembles are built by constructing a graph of :class:`Learner` nodes that handles all computations associated with a specific estimator. Nodes are connected sequentially by a :class:`Layer` and processed at maximum prallelization by a purpose-built :class:`ParallelProcessing` manager. A high-level API provides ready-made ensemble classes that allows you to build highly optimized ensembles of almost any shape and form in just a few lines of code. Alternatively, a low-level API gives you full control of the ensemble network and the computational procedure to build virtually any type of ensemble. 
 
 .. figure:: _static/img/network.png
    :align: center
@@ -50,11 +45,12 @@ any shape and form.
    output. Base learner predictions :math:`p^{(i)}_j` are concatenated to
    propagated features :math:`X_{:, s}` to form the output matrix :math:`P`.
 
-Transparent Architecture API
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Easy to use high-level API
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Ensembles are built by adding layers to an instance object: layers in their
-turn are comprised of a list of estimators. No matter how complex the
+Ready-made classes allow ensembles to be built by simply calling the ``add``
+method with a set of estimators to group into a layer. Ensembles are 
+Scikit-learn compatible estimators–no matter how complex the
 ensemble, to train it call the ``fit`` method::
 
     ensemble = Subsemble()
@@ -75,27 +71,20 @@ ensemble, to train it call the ``fit`` method::
 
 Memory Efficient Parallelized Learning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Because base learners in an ensemble are independent of each other, ensembles
-benefit greatly from parallel processing. ML-Ensemble is designed to
-maximize parallelization at minimum memory footprint. By sharing
-memory, workers avoid transmitting and copying data between estimations.
-As such, ML-Ensemble typically require no more memory than sequential
+ML-Ensemble is designed to
+maximize parallelization at minimum memory footprint and is fully thread-safe.
+It can fall back on multiprocessing seamlessly and completely avoids 
+overheads stemming from data sharing. An ensemble will not require more memory 
+when estimated in parallel than what it consumes with sequential
 processing. For more details, see :ref:`memory`.
-
-Expect 95-97% of training time to be spent fitting the base estimators. Training
-time depends primarily on the number of base learners in the ensemble, the
-number of threads or cores available, and the size of the dataset. Speaking of size,
-ensembles that partition the data during training scale more efficiently than
-their base learners.
 
 Differentiated preprocessing pipelines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned, ML-Ensemble offers the possibility to specify for each layer a set
-of preprocessing pipelines to map to subsets (or all) of the layer's base learners.
-For instance, for one set of estimators, min-max-scaling might
-be desired, while for a different set of estimators standardization could be
-preferred. ::
+ML-Ensemble offers the possibility to specify a set
+of preprocessing pipelines that map to a specific group of estimators in a layer. 
+Implementing differentiated preprocessing is straightforward and simply requires
+a dictionary mapping between preprocessing cases and estimators::
 
       ensemble = SuperLearner()
 
@@ -110,15 +99,13 @@ preferred. ::
 Dedicated Diagnostics
 ^^^^^^^^^^^^^^^^^^^^^
 
-To efficiently building complex ensembles, it is necessary to compare and
-contrast a variety of base learner set up. ML-Ensemble is equipped with a
-model selection suite that lets you compare several models across any number of
-preprocessing pipelines, all in one go. Ensemble transformers can be used to
-"preprocess" the input data according to how the initial layers of the
-ensemble would predict, to run cross-validated model selection on the
-ensemble output. Output is summarized for easy comparison of performance. ::
+ML-Ensemble is equipped with a model selection suite that lets you compare 
+several models across any number of preprocessing pipelines in one go. 
+In fact, you can use an ensemble as a preprocessing input to tune higher levels
+of an ensemble. Output is directly summarized in table format for easy 
+comparison of performance. ::
 
-    >>> DataFrame(evaluator.summary)
+    >>> evaluator.results
                test_score_mean  test_score_std  train_score_mean  train_score_std  fit_time_mean  fit_time_std                                             params
     class rf          0.955357        0.060950          0.972535         0.008303       0.024585      0.014300                                   {'max_depth': 5}
           svc         0.961607        0.070818          0.972535         0.008303       0.000800      0.000233                               {'C': 7.67070164682}
@@ -144,7 +131,7 @@ ensemble output. Output is summarized for easy comparison of performance. ::
 .. toctree::
    :hidden:
    :maxdepth: 2
-   :caption: Low-level API 
+   :caption: Mechanics 
 
    tutorials/learner_tutorial
    tutorials/layer_tutorial

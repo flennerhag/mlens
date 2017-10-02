@@ -1,8 +1,8 @@
 """
 .. _ensemble-tutorial:
 
-Advanced High-level API Tutorials
-=================================
+Advanced features tutorial
+==========================
 
 The following tutorials highlight advanced functionality and provide in-depth
 material on ensemble APIs.
@@ -549,22 +549,28 @@ except OSError:
 #
 # .. py:currentmodule:: mlens.preprocessing
 #
-# The :class:`EnsembleTransformer` can be leveraged to treat the initial
-# layers of the ensemble as preprocessing. Thus, a copy of the transformer is
-# fitted once on each fold, and any model selection will use these pre-fits to
-# convert raw input to prediction matrices that corresponds to the output of the
-# specified ensemble.
+# You can either use the ensemble as-is as a preprocessing pipeline. But do note
+# that the ``transform`` method on an ensemble used the prediction strategy from
+# the ``fit`` call, so this will not be entirely consistent with the ensemble's
+# behavior on a test set.
+
+##############################################################################
+# Alternatively, to get an exact emulator of how the ensemble would behave, use
+# the dedicated :class:`EnsembleTransformer` class, which faithfully replicated
+# the ensemble's behavior on both training and test folds.
 #
 # .. py:currentmodule:: mlens.ensemble
 #
 # The transformer follows the same API as the :class:`SequentialEnsemble`, but
-# does not implement a meta estimator and has a transform method that recovers
-# the prediction matrix from the ``fit`` call. In the following example,
+# does not implement a meta estimator and the transform method will
+# determine whether the passed input data is the same as during training,
+# in which case it recovers the predictions from the ``fit`` call. In the following example,
 # we run model selection on the meta learner of a blend ensemble, and try
 # two configurations of the blend ensemble: learning from class predictions or
 # from probability distributions over classes.
 
-from mlens.model_selection import Evaluator
+from mlens.model_selection import Evaluator, EnsembleTransformer
+
 from mlens.metrics import make_scorer
 from scipy.stats import uniform, randint
 
@@ -573,8 +579,8 @@ from scipy.stats import uniform, randint
 base_learners = [RandomForestClassifier(random_state=seed),
                  SVC(probability=True)]
 
-proba_transformer = SuperLearner(random_state=seed).add(base_learners, proba=True)
-class_transformer = SuperLearner(random_state=seed).add(base_learners, proba=False)
+proba_transformer = EnsembleTransformer(random_state=seed).add('blend', base_learners, proba=True)
+class_transformer = EnsembleTransformer(random_state=seed).add('blend', base_learners, proba=False)
 
 # Set up a preprocessing mapping
 # Each pipeline in this map is fitted once on each fold before
@@ -599,7 +605,7 @@ params = {'svc': {'C': uniform(0, 10)},
 scorer = make_scorer(accuracy_score)
 evaluator = Evaluator(scorer=scorer, random_state=seed, cv=2)
 
-evaluator.fit(X, y, meta_learners, params, preprocessing=preprocessing, n_iter=5)
+evaluator.fit(X, y, meta_learners, params, preprocessing=preprocessing, n_iter=2)
 
 ##############################################################################
 # We can now compare the performance of the best fit for each candidate

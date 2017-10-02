@@ -6,16 +6,16 @@
 Install
 =======
 
-ML-Ensemble is available through PyPi. 
+ML-Ensemble is available through PyPi: 
 
 .. code-block:: bash
 
-    pip install mlens
+    pip install -U mlens
 
 Bleeding edge
 ^^^^^^^^^^^^^
 
-For bleeding edge install via Github_. You can optionally checkout pending pull requests
+For the bleeding edge version install via Github_. You can optionally checkout pending pull requests
 before running the install command.
 
 .. code-block:: bash

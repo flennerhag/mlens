@@ -6,7 +6,7 @@ Test ensemble transformer.
 import numpy as np
 from mlens.testing.dummy import Data, PREPROCESSING
 from mlens.testing.dummy import ESTIMATORS, ESTIMATORS_PROBA,ECM, ECM_PROBA
-from mlens.ensemble import SequentialEnsemble
+from mlens.model_selection import EnsembleTransformer
 
 FOLDS = 3
 LEN = 12
@@ -34,7 +34,7 @@ def run(cls, proba, preprocessing, **kwargs):
     X, y = data.get_data((LEN, WIDTH), MOD)
     (F, wf), _ = data.ground_truth(X, y, p)
 
-    ens = SequentialEnsemble()
+    ens = EnsembleTransformer()
     ens.add(cls, ests, prep, proba=proba, dtype=np.float64, **kwargs)
     ens.fit(X, y)
 

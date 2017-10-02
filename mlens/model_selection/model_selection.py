@@ -136,13 +136,13 @@ class Evaluator(object):
     verbose : bool or int (default = False)
         level of printed messages. Levels:
 
-            #. ``verbose=1``: Message at start and end, with total time
-            #. ``verbose=2``: Message at each sub-job \
-              (preprocess and evaluation) as well as total job
-            #. ``verbose in [3, 14]``: Includes completed jobs messages with \
-              increasing frequency.
+            #. ``verbose=1``: Message at start and end with total time
+            #. ``verbose=2``: Additional messages for each sub-job \
+               (preprocess and evaluation)
+            #. ``verbose in [3, 14]``: Additional messages with job \
+               completion status at increasing increasing frequency
             #. ``Verbose >= 15``: prints each job completed as \
-              [case]__[est]__[draw]__[fold]
+               [case]__[est]__[draw]__[fold]
 
         If ``verbose>=20``, prints to ``sys.stderr``, else ``sys.stdout``.
 
@@ -257,17 +257,12 @@ class Evaluator(object):
             param_dicts=None,
             n_iter=2,
             preprocessing=None):
-        """Fit the Evaluator to given data, estimators and preprocessing.
+        """Fit
 
-        Utility function that calls ``preprocess`` and ``evaluate``. The
-        following is equivalent::
-
-            # Explicitly calling preprocess and evaluate
-            evaluator.preprocess(X, y, preprocessing)
-            evaluator.evaluate(X, y, estimators, param_dicts, n_iter)
-
-            # Calling fit
-            evaluator.fit(X, y, estimators, param_dicts, n_iter, preprocessing)
+        Fit preprocessing if applicable and evaluate estimators if applicable.
+        The method automatically determines whether to only run preprocessing,
+        only evaluation (possibly on previously fitted preprocessing), or both.
+        Calling ``fit`` will overwrite previously stored data where applicable.
 
         Parameters
         ----------
@@ -277,7 +272,7 @@ class Evaluator(object):
         y : array-like, shape=[n_samples, ]
             training labels.
 
-        estimators : list or dict
+        estimators : list or dict, optional
             set of estimators to use. If no preprocessing is desired or if
             only on preprocessing pipeline should apply to all, pass a list of
             estimators. The list can contain elements of named tuples
@@ -287,11 +282,11 @@ class Evaluator(object):
             a dictionary that maps estimators to each case should
             be passed: ``{'case_a': list_of_est, ...}``.
 
-        param_dicts : dict
+        param_dicts : dict, optional
             parameter distribution mapping for estimators. Current
             implementation only supports randomized grid search. Passed
             distribution object must have an ``rvs`` method.
-            See :mod:`Scipy.stats` for details.
+            See :mod:`scipy.stats` for details.
 
             There is quite some flexibility in specifying ``param_dicts``. If
             there is no preprocessing, or if all estimators are fitted on all

@@ -1,0 +1,12 @@
+.highlight .hll { background-color: }
+.highlight  { background: }
+.highlight .ba { color: #7b4397; font-weight: italic } /* Bash */
+.highlight .o { color: #322E2E} /* Operator */
+.highlight .p { color: #322E2E} /* Operator */
+.highlight .kn { color: #322E2E; font-weight: bold } /* Keyword.Namespace */
+.highlight .nc { color: #C8C8C8; font-weight: bold } /* Name.Class */
+.highlight .nf { color: #C8C8C8} /* Name.Function */
+.highlight .nl { color: #002070; font-weight: italic } /* Name.Label */
+.highlight .no { color: #002070; font-weight: italic } /* Name.Label */
+.highlight .nn { color: #C8C8C8; font-weight: bold } /* Name.Namespace */
+.highlight .nv { color: #C8C8C8} /* Name.Variable */

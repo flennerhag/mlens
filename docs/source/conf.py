@@ -56,23 +56,10 @@ extensions = ['sphinx.ext.autodoc',
 # Sphinx-Gallery
 sphinx_gallery_conf = {'examples_dirs': ['tutorials_source'],
                        'gallery_dirs': ['tutorials'],
-                       'filename_pattern': 'tutorial.py',
+                       'filename_pattern': '',
                        'backreferences_dir': False,
                        'download_section_examples': False,
                        }
-
-# for i in range(len(sphinx_gallery_conf['examples_dirs'])):
-#    gallery_dir = sphinx_gallery_conf['gallery_dirs'][i]
-#    source_dir = sphinx_gallery_conf['examples_dirs'][i]
-    # Create gallery dirs if it doesn't exist
-#    try:
-#        os.mkdir(gallery_dir)
-#    except OSError:
-#        pass
-
-# Copy rst files from source dir to gallery dir
-#    for f in glob.glob(os.path.join(source_dir, '*.rst')):
-#        shutil.copy(f, gallery_dir)
 
 # Intersphinx options
 intersphinx_mapping = {'http://scikit-learn.org/stable/': None,
@@ -117,7 +104,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'landing']
 exclude_patterns += sphinx_gallery_conf['examples_dirs']
 exclude_patterns += ['*/index.rst']
 
@@ -152,8 +139,10 @@ html_logo = '_static/img/logo.png'
 
 html_context = {'css_files':
                 ['https://fonts.googleapis.com/css?family=Lato',
+                 '_static/css/pygments.css',
                  '_static/css/mlens-theme.css',
-                 '_static/css/sphinx-glr.css']}
+                 '_static/css/sphinx-glr.css',
+                ]}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

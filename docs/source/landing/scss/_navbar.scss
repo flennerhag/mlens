@@ -68,7 +68,7 @@
             }
             .navbar-nav > li > a,
             .navbar-nav > li > a:focus {
-                color: $gray-darker;
+                color: fade(white, 70%);
                 &:hover {
                     color: $theme-primary;
                 }

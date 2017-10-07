@@ -3,7 +3,7 @@
 
 .. _license:
 
-Licence
+License
 =======
 
 MIT License

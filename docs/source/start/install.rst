@@ -35,8 +35,6 @@ scipy         >= 0.17  All
 numpy         >= 1.11  All
 ============  =======  ======================
 
-.. currentmodule:: mlens.visualization
-
 Additionally, to use the :mod:`visualization` module, the following
 libraries are necessary:
 

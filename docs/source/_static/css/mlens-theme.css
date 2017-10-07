@@ -29,7 +29,7 @@ h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend, p.capti
 /* Fixes for mobile */
 .wy-nav-top {
     background-color: #fff;
-    background-image: url('../img/pytorch-logo-dark.svg');
+    background-image: url('../img/logo.png');
     background-repeat: no-repeat;
     background-position: center;
     padding: 0;
@@ -57,10 +57,10 @@ h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend, p.capti
     display: table;
 }
 
-/* Use our red for literals (it's very similar to the original color) */
+/* Literals */
 .rst-content tt.literal, .rst-content tt.literal, .rst-content code.literal {
-    color: #F05732;
-}
+    color: #A01E78;
+        }
 
 .rst-content tt.xref, a .rst-content tt, .rst-content tt.xref,
 .rst-content code.xref, a .rst-content tt, a .rst-content code {
@@ -70,16 +70,16 @@ h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend, p.capti
 /* Change link colors (except for the menu) */
 
 a {
-    color: #F05732;
+    color: #A01E78;
 }
 
 a:hover {
-    color: #F05732;
+    color: #FF5733;
 }
 
 
 a:visited {
-    color: #D44D2C;
+    color: #781E5A;
 }
 
 .wy-menu a {
@@ -95,7 +95,7 @@ a.icon.icon-home {
 }
 
 .version{
-    color: #D44D2C !important;
+    color: #A33964 !important;
 }
 
 /* Default footer text is quite big */

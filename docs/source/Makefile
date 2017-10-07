@@ -21,26 +21,46 @@ help:
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
+# Install necessary modules
+# TODO: should we load these as mockups?
 install:
 			pip install -U sphinx-gallery numpydoc matplotlib seaborn
 
+# Update API docs
 api:
 	rm -rf module
 	sphinx-apidoc -ef -o module ../../mlens/   ../../mlens/externals
 
+# Render landing page
+boostrap:
+	cp -rf landing/ ../
+	cd .. | gulp
+
+# Populate parent dir
+arrange:
+	cp -r build/html ../docs
+	rm -r build
+	-rm -rf tutorials
+	cp CNAME ../
+
+clean-build:
+	rm -rf tutorials
+
+# Make docs
 docs:
-			make api
-			make html
-			cp -r build/html/ ../
-			rm -r build
-			-rm -rf tutorials
-			cp CNAME ../
+	make api
+	make html
+	make arrange
+	make boostrap
+	make clean-build
 
 html-noplot:
 	$(SPHINXBUILD) -D plot_gallery=0 -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
+# Clear all in docs except source
 clean-cache:
 	make clean
+	rm -rf tutorials
 	bash clean-html.sh

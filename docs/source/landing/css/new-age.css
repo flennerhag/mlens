@@ -107,7 +107,7 @@ section {
             color: #fdcc52; }
         #mainNav.navbar-shrink .navbar-nav > li > a,
         #mainNav.navbar-shrink .navbar-nav > li > a:focus {
-          color: #222222; }
+          color: fade(white, 70%); }
           #mainNav.navbar-shrink .navbar-nav > li > a:hover,
           #mainNav.navbar-shrink .navbar-nav > li > a:focus:hover {
             color: #fdcc52; } }
@@ -207,16 +207,18 @@ section.cta {
   padding-top: 250px;
   padding-bottom: 300px;
   color: white;
-  background: #7b4397;
-  background: -webkit-linear-gradient(to left, #FF5733, #dc2430);
-  background: linear-gradient(to left, #FF5733, #dc2430); }
+  background: -webkit-linear-gradient(to left, #7b4397, #dc2430);
+  background: linear-gradient(to left, #7b4397, #dc2430); }
   @media (min-width: 768px) {
     section.cta h2 {
       font-size: 50px;
       max-width: 450px;
       margin-top: 0;
       margin-bottom: 25px;
-      color: white; } }
+      color: white; }
+    section.cta p {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 18px; } }
 
 section.contact {
   color: black;

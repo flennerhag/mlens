@@ -4,14 +4,11 @@ section.cta {
 
     width: 100%;
     padding-top: 250px;
-            padding-bottom: 300px;
-
-
+    padding-bottom: 300px;
 
     color: white;
-    background: $theme-secondary;
-    background: -webkit-linear-gradient(to left, $theme-sixth, $theme-tertiary);
-    background: linear-gradient(to left, $theme-sixth, $theme-tertiary);
+    background: -webkit-linear-gradient(to left, $theme-sixth, $theme-seventh);
+    background: linear-gradient(to left, $theme-sixth, $theme-seventh);
  
     @media (min-width: 768px) {
       h2 {
@@ -20,6 +17,10 @@ section.cta {
         margin-top: 0;
         margin-bottom: 25px;
         color: white;
-            }
-        }
+     }
+      p {
+        color: fade-out(white, 0.2);
+        font-size: 18px;
+      }
+    }
 }

@@ -2,56 +2,38 @@
 
 :github_url: https://github.com/flennerhag/mlens
 
-
-.. figure:: _static/img/logo.png
-   :align: center
-
+Documentation
+=============
 
 ML-Ensemble a Python library for memory efficient parallelized ensemble learning. In particular, ML-Ensemble is a `Scikit-learn`_ compatible library for building deep ensemble networks in just a few lines of code. :: 
 
   ensemble = SuperLearner().add(estimators)
   ensemble.fit(xtrain, ytrain).predict(xtest)
 
-:ref:`Get started <getting-started>` here, or head to the :ref:`advanced tutorials <tutorials>` for an in-depth tour of ML-Ensemble's high-level features. For the computational graph API, see :ref:`mechanics walkthroughs <learner_tutorial>`. 
-
-ML-Ensemble is easily installed via ``pip``. For further details see :ref:`install`. 
-
-.. code-block:: shell 
-
-  pip install -U mlens 
-
-ML-Ensemble is open for contributions at all levels. If you would like to get involved, reach out to the project's Github_ repository. 
-
-
-Core Features
--------------
 
 .. currentmodule:: mlens.parallel
 
 A network approach to multi-layered ensembles
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Ensembles are built by constructing a graph of :class:`Learner` nodes that handles all computations associated with a specific estimator. Nodes are connected sequentially by a :class:`Layer` and processed at maximum prallelization by a purpose-built :class:`ParallelProcessing` manager. A high-level API provides ready-made ensemble classes that allows you to build highly optimized ensembles of almost any shape and form in just a few lines of code. Alternatively, a low-level API gives you full control of the ensemble network and the computational procedure to build virtually any type of ensemble. 
+Ensembles are built by constructing a graph of :class:`Learner` nodes that handle computations associated with a specific estimator. Nodes are connected in a :class:`Layer` that optimized computation for maximum parallelization. Ready-made ensemble classes allow you to build computationally optimized ensembles of almost any shape and form in just a few lines of code. The low-level API gives you full control of the ensemble network and the computational procedure to build virtually any type of ensemble, including dynamic and recursive features.  
+
 
 .. figure:: _static/img/network.png
    :align: center
    :scale: 60%
 
-   The computational graph of a layer. The input :math:`X` is either the
-   original data or the previous layer's output;
-   :math:`\textrm{Tr}^{(j)}` represents preprocessing pipelines that transform
-   the input to its associated base learners :math:`f^{(i)}`. The
-   :math:`\textrm{Ft}` operation propagates specified features :math:`s` from input to
-   output. Base learner predictions :math:`p^{(i)}_j` are concatenated to
-   propagated features :math:`X_{:, s}` to form the output matrix :math:`P`.
+   A typical computational graph. An input :math:`X` is differentialy preprocessed
+   via tranformers :math:`\textrm{Tr}^{(j)}` before base learners :math:`f^{(i)}` generate predictions :math:`p^{(i)}_j`. 
+   Predictions are concatenated along with any propagated features from the input (:math:`X_{:, s}`) to form the 
+   output matrix :math:`P`.
 
-Easy to use high-level API
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Standard estimator API
+^^^^^^^^^^^^^^^^^^^^^^
 
-Ready-made classes allow ensembles to be built by simply calling the ``add``
-method with a set of estimators to group into a layer. Ensembles are 
-Scikit-learn compatible estimators–no matter how complex the
-ensemble, to train it call the ``fit`` method::
+Simply call the ``add`` method with a set of estimators to stack a layer on an ensemble. 
+Ensembles are Scikit-learn compatible estimators. No matter how complex the
+ensemble, to train with the ``fit`` method::
 
     ensemble = Subsemble()
 
@@ -72,11 +54,10 @@ ensemble, to train it call the ``fit`` method::
 Memory Efficient Parallelized Learning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ML-Ensemble is designed to
-maximize parallelization at minimum memory footprint and is fully thread-safe.
-It can fall back on multiprocessing seamlessly and completely avoids 
-overheads stemming from data sharing. An ensemble will not require more memory 
-when estimated in parallel than what it consumes with sequential
-processing. For more details, see :ref:`memory`.
+maximize parallelization at minimum memory footprint and is designed to be thread-safe.
+It can fall back on multiprocessing seamlessly and use shared memory to completely avoid array
+copying and serialization. An ensemble will not require more memory when estimated in parallel 
+than what it consumes with sequential processing. For more details, see the :ref:`memory benchmark <memory>`.
 
 Differentiated preprocessing pipelines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -117,54 +98,53 @@ comparison of performance. ::
    :maxdepth: 2
    :caption: Installation
 
-   pages/install
+   start/install
 
 .. toctree::
    :hidden:
    :maxdepth: 2
    :caption: High-level API 
 
-   tutorials/start_tutorial
-   tutorials/adv_tutorial
-   pages/ensembles
+   tutorials/start
+   tutorials/advanced
+   start/ensembles
 
 .. toctree::
    :hidden:
    :maxdepth: 2
    :caption: Mechanics 
 
-   tutorials/learner_tutorial
-   tutorials/layer_tutorial
-   tutorials/parallel_tutorial
-   tutorials/sequential_tutorial
+   tutorials/learner
+   tutorials/layer
+   tutorials/parallel
+   tutorials/sequential
 
 .. toctree::
    :hidden:
    :maxdepth: 2
    :caption: Details
 
-   pages/memory
-   pages/benchmarks
-   pages/scaling
-   pages/dev
-   pages/gotchas
+   benchmarks/memory
+   benchmarks/benchmarks
+   benchmarks/scaling
+   deep/dev
+   deep/troubleshooting
 
 .. toctree::
    :hidden:
    :maxdepth: 2
    :caption: Documentation
 
-   pages/API
-   pages/mlens_configs
+   deep/api
+   deep/mlens_configs
 
 .. toctree::
    :hidden:
    :maxdepth: 2
    :caption: Additional Information
 
-   pages/about
-   pages/licence
-   pages/updates
+   misc/license
+   misc/updates
 
 .. toctree::
    :hidden:

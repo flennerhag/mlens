@@ -8,6 +8,7 @@ Parallel processing job managers.
 """
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-arguments
+# pylint: disable=too-many-instance-attributes
 # pylint: disable=useless-super-delegation
 
 from __future__ import with_statement, division
@@ -26,10 +27,10 @@ from scipy.sparse import issparse, hstack
 
 from .. import config
 from ..externals.joblib import Parallel, dump, load
-from ..externals.sklearn.validation import check_random_state
 from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
                                 ParallelProcessingWarning)
+from ..externals.sklearn.validation import check_random_state
 
 
 ###############################################################################
@@ -87,16 +88,21 @@ class Job(object):
     """
 
     __slots__ = ['y', 'predict_in', 'predict_out', 'dir', 'job', 'tmp',
-                 '_n_dir']
+                 '_n_dir', 'kwargs']
 
-    def __init__(self, job):
+    def __init__(self, job, **kwargs):
         self.job = job
+        self.kwargs = kwargs
         self.y = None
         self.predict_in = None
         self.predict_out = None
         self.tmp = None
         self.dir = None
         self._n_dir = 0
+
+    def clear(self):
+        """Clear output data for new task"""
+        self.predict_out = None
 
     def update(self):
         """Shift output array to input array.
@@ -109,6 +115,8 @@ class Job(object):
         random_state : int, optional
             random seed to use.
         """
+        if self.predict_out is None:
+            return
         # Enforce csr on spare matrices
         if issparse(self.predict_out) and not \
                 self.predict_out.__class__.__name__.startswith('csr'):
@@ -141,7 +149,7 @@ class Job(object):
             name = str(self._n_dir)
             self._n_dir += 1
 
-        path = os.path.join(self.dir, ".mlens_subdir_%s" % name)
+        path = os.path.join(self.dir, "task_%s" % name)
         if os.path.exists(path):
             raise OSError("Subdirectory exist. Clear estimation cache.")
         os.mkdir(path)
@@ -150,16 +158,19 @@ class Job(object):
     @property
     def args(self):
         """Produce args dict"""
-        trans_feed = {'X': self.predict_in}
-        learn_feed = {'X': self.predict_in,
-                      'P': self.predict_out}
+        aux_feed = {'X': self.predict_in, 'P': None}
+        est_feed = {'X': self.predict_in, 'P': self.predict_out}
 
         if self.job in ['fit', 'evaluate']:
-            trans_feed['y'] = self.y
-            learn_feed['y'] = self.y
+            est_feed['y'] = self.y
+            aux_feed['y'] = self.y
 
-        out = {'transformer': trans_feed,
-               'learner': learn_feed,
+        if self.kwargs:
+            est_feed.update(self.kwargs)
+            aux_feed.update(self.kwargs)
+
+        out = {'auxiliary': aux_feed,
+               'estimator': est_feed,
                'dir': self.subdir(),
                'job': self.job}
 
@@ -176,21 +187,25 @@ class BaseProcessor(object):
 
     __meta_class__ = ABCMeta
 
-    __slots__ = ['caller', '__initialized__', '__threading__', 'job']
+    __slots__ = ['caller', '__initialized__', '__threading__', 'job',
+                 'n_jobs', 'backend', 'verbose']
 
     @abstractmethod
-    def __init__(self, caller):
+    def __init__(self, backend=None, n_jobs=None, verbose=None):
         self.job = None
-        self.caller = caller
         self.__initialized__ = 0
-        self.__threading__ = self.caller.backend == 'threading'
+
+        self.backend = config.BACKEND if not backend else backend
+        self.n_jobs = -1 if not n_jobs else n_jobs
+        self.verbose = False if not verbose else verbose
+        self.__threading__ = self.backend == 'threading'
 
     def __enter__(self):
         return self
 
-    def _initialize(self, job, X, y=None, path=None):
+    def _initialize(self, job, X, y=None, path=None, **kwargs):
         """Create a job instance for estimation."""
-        job = Job(job)
+        job = Job(job, **kwargs)
 
         if path is None:
             path = config.TMPDIR
@@ -278,82 +293,89 @@ class ParallelProcessing(BaseProcessor):
         the caller of the job. Either a Layer or a meta layer class
         such as Sequential.
     """
-    def __init__(self, caller):
-        super(ParallelProcessing, self).__init__(caller)
+    def __init__(self, *args, **kwargs):
+        super(ParallelProcessing, self).__init__(*args, **kwargs)
 
-    def process(self,
-                job,
-                X,
-                y=None,
-                path=None,
-                return_preds=False):
-        """Fit all layers in the attached :class:`Sequential`."""
-        self._initialize(job=job, X=X, y=y, path=path)
+    def process(self, caller, job, X, y=None, **kwargs):
+        """Process job."""
+        path = kwargs.pop('path', None)
+        r = kwargs.pop('return_preds', False)
+        out = None if not r else list()
+        return_names = list() if isinstance(r, bool) else r
+
+        self._initialize(job=job, X=X, y=y, path=path, **kwargs)
         check_initialized(self)
 
-        # Process each layer sequentially with the same worker pool
-        with Parallel(n_jobs=self.caller.n_jobs,
+        with Parallel(n_jobs=self.n_jobs,
                       temp_folder=self.job.dir,
                       max_nbytes=None,
                       mmap_mode='w+',
-                      verbose=max(self.caller.verbose - 4, 0),
-                      backend=self.caller.backend) as parallel:
+                      verbose=self.verbose,
+                      backend=self.backend) as parallel:
 
-            for lyr in self.caller:
-                # Shuffle inputs during training if required
-                if self.job.job == 'fit':
-                    self.job.shuffle(lyr.shuffle, lyr.random_state)
+            for task in caller:
+                self.job.clear()
 
-                # Process layer
-                self._partial_process(lyr, parallel)
+                self._partial_process(task, parallel)
 
-                # Update input array with output array
+                if task.name in return_names:
+                    out.append(self.get_preds(getattr(task, 'dtype', None)))
+
                 self.job.update()
 
-        if return_preds:
-            return self.get_preds(lyr.dtype)
+        if r and not out:
+            out = self.get_preds(dtype=getattr(task, 'dtype', None))
+        return out
 
-    def _partial_process(self, layer, parallel):
-        """Generate prediction matrix for a given :class:`layer`."""
-        layer.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
-        self._gen_prediction_array(layer, self.__threading__)
+    def _partial_process(self, task, parallel):
+        """Process given task"""
+        # Shuffle data if required
+        if self.job.job == 'fit':
+            self.job.shuffle(getattr(task, 'shuffle', False),
+                             getattr(task, 'random_state', None))
+
+        # Prep task
+        task.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
+        if not getattr(task, '__no_output__', False):
+            task.set_output_columns(self.job.predict_in, self.job.y)
+            self._gen_prediction_array(task, self.__threading__)
 
         # Run estimation to populate prediction matrix
-        layer.set_output_columns(self.job.y)
-        layer(parallel, self.job.args)
+        task(parallel, self.job.args)
 
         # Propagate features from input to output
-        if layer.n_feature_prop:
-            self._propagate_features(layer)
+        if getattr(task, 'n_feature_prop', False):
+            self._propagate_features(task)
 
-    def _propagate_features(self, lyr):
+    def _propagate_features(self, task):
         """Propagate features from input array to output array."""
         p_out, p_in = self.job.predict_out, self.job.predict_in
 
-        # Check for loss of obs between layers (i.e. blend)
+        # Check for loss of obs between layers (i.e. with blendindex)
         n_in, n_out = p_in.shape[0], p_out.shape[0]
         r = int(n_in - n_out)
 
         # Propagate features as the n first features of the outgoing array
         if not issparse(p_in):
             # Simple item setting
-            p_out[:, :lyr.n_feature_prop] = p_in[r:, lyr.propagate_features]
+            p_out[:, :task.n_feature_prop] = p_in[r:, task.propagate_features]
         else:
             # Need to populate propagated features using scipy sparse hstack
-            self.job.predict_out = hstack([p_in[r:, lyr.propagate_features],
-                                           p_out[:, lyr.n_feature_prop:]]
+            self.job.predict_out = hstack([p_in[r:, task.propagate_features],
+                                           p_out[:, task.n_feature_prop:]]
                                           ).tolil()
 
-    def _gen_prediction_array(self, lyr, threading):
+    def _gen_prediction_array(self, task, threading):
         """Generate prediction array either in-memory or persist to disk."""
-        shape = self._get_lyr_sample_size(lyr)
+        shape = self._get_array_size(task)
         if threading:
-            self.job.predict_out = np.empty(shape, dtype=lyr.dtype)
+            self.job.predict_out = np.empty(
+                shape, dtype=getattr(task, 'dtype', config.DTYPE))
         else:
-            f = os.path.join(self.job.dir, '%s.mmap' % lyr.name)
+            f = os.path.join(self.job.dir, '%s_out_array.mmap' % task.name)
             try:
                 self.job.predict_out = np.memmap(filename=f,
-                                                 dtype=lyr.dtype,
+                                                 dtype=task.dtype,
                                                  mode='w+',
                                                  shape=shape)
             except Exception as exc:
@@ -361,12 +383,12 @@ class ParallelProcessing(BaseProcessor):
                               "%i, %i), size %i MBs, for %s.\n Details:\n%r" %
                               (shape[0], shape[1],
                                8 * shape[0] * shape[1] / (1024 ** 2),
-                               lyr.name, exc))
+                               task.name, exc))
 
-    def _get_lyr_sample_size(self, lyr):
-        """Decide what sample size to create P with based on the job type."""
-        s0 = lyr.indexer.n_test_samples if self.job.job != 'predict' else \
-            lyr.indexer.n_samples
+    def _get_array_size(self, task):
+        """Decide what size to create P with based on the job type."""
+        s0 = task.indexer.n_test_samples if self.job.job != 'predict' else \
+            task.indexer.n_samples
 
         # Number of prediction columns depends on:
         # 1. number of estimators in layer
@@ -374,16 +396,13 @@ class ParallelProcessing(BaseProcessor):
         # 3. number of subsets (default is one for all data)
         # 4. number of features to propagate
         # Note that 1., 3. and 4. are params but 2. is data dependent
-        s1 = lyr.n_pred
+        s1 = task.n_pred
 
-        if lyr.proba:
-            if self.job.job == 'fit':
-                lyr.set_output_columns(self.job.y)
+        if getattr(task, 'proba', False):
+            s1 *= task.classes_
 
-            s1 *= lyr.classes_
-
-        if lyr.propagate_features is not None:
-            s1 += lyr.n_feature_prop
+        if getattr(task, 'propagate_features', None) is not None:
+            s1 += task.n_feature_prop
 
         return s0, s1
 
@@ -403,7 +422,7 @@ class ParallelProcessing(BaseProcessor):
                                           "cannot retrieve final prediction "
                                           "array from cache.")
         if dtype is None:
-            dtype = self.caller.dtype
+            dtype = config.DTYPE
 
         if issparse(self.job.predict_out):
             return self.job.predict_out
@@ -421,24 +440,23 @@ class ParallelEvaluation(BaseProcessor):
         The ``Evaluator`` that instantiated the processor.
     """
 
-    def __init__(self, caller):
-        super(ParallelEvaluation, self).__init__(caller)
+    def __init__(self, *args, **kwargs):
+        super(ParallelEvaluation, self).__init__(*args, **kwargs)
 
-    def process(self, case, X, y, path=None):
+    def process(self, caller, case, X, y, path=None):
         """Fit estimators"""
         self._initialize(job='fit', X=X, y=y, path=path)
         check_initialized(self)
 
         # Use context manager to ensure same parallel job during entire process
-        v = max(self.caller.verbose - 2, 0) if self.caller.verbose < 15 else 0
-        with Parallel(n_jobs=self.caller.n_jobs,
+        with Parallel(n_jobs=self.n_jobs,
                       temp_folder=self.job.dir,
                       max_nbytes=None,
                       mmap_mode='w+',
-                      verbose=v,
-                      backend=self.caller.backend) as parallel:
+                      verbose=self.verbose,
+                      backend=self.backend) as parallel:
 
-            self.caller.indexer.fit(
+            caller.indexer.fit(
                 self.job.predict_in, self.job.y, self.job.job)
 
-            self.caller(parallel, self.job.args, case)
+            caller(parallel, self.job.args, case)

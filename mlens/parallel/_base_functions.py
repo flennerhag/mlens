@@ -15,6 +15,56 @@ from ..utils.exceptions import MetricWarning
 from ..externals.joblib import delayed
 
 
+def set_output_columns(objects,
+                       n_partitions,
+                       multiplier,
+                       n_left_concats,
+                       target=None):
+    """Set output columns on objects.
+
+    Parameters
+    ----------
+    objects: list
+        list of objects to set output columns on
+
+    multiplier: int
+        number of columns claimed by each estimator.
+        Typically 1, but can also be ``n_classes`` if
+        making probability predictions
+
+    n_left_concats: int
+        number of columns to leave empty for left-concat
+
+    target: int, optional
+        target number of columns expected to be populated.
+        Allows a check to ensure that all columns have been
+        assigned.
+    """
+    col_index = n_left_concats
+    col_map = list()
+    sorted_learners = {obj.name:
+                       obj for obj in objects}
+    for _, obj in sorted(sorted_learners.items()):
+        col_dict = dict()
+
+        for partition_index in range(n_partitions):
+            col_dict[partition_index] = col_index
+            col_index += multiplier
+        col_map.append([obj, col_dict])
+
+    if (target) and (col_index != target):
+        # Note that since col_index is incremented at the end,
+        # the largest index_value we have col_index - 1
+        raise ValueError(
+            "Mismatch feature size in prediction array (%i) "
+            "and max column index implied by learner "
+            "predictions sizes (%i)" %
+            (target, col_index - 1))
+
+    for obj, col_dict in col_map:
+        obj.output_columns = col_dict
+
+
 def slice_array(x, y, idx, r=0):
     """Build training array index and slice data."""
     if idx == 'all':

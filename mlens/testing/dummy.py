@@ -139,7 +139,7 @@ class EstimatorContainer(object):
                 c += classes
 
         if preprocessing:
-            transformer = Transformer(pipeline=[('scale', Scale())],
+            transformer = Transformer(estimator=[('scale', Scale())],
                                       indexer=indexer,
                                       name='sc')
 
@@ -152,7 +152,8 @@ class EstimatorContainer(object):
                           attr=attr,
                           scorer=mae if not proba else None,
                           output_columns=output_columns,
-                          name=kls)
+                          name=kls,
+                          proba=proba)
 
         return learner, transformer
 
@@ -504,10 +505,10 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
     arg = (X, y, P) if job == 'fit' else (X, P)
     learner._indexer.fit(X)
     if transformer:
-        for obj in transformer(job, *arg):
+        for obj in getattr(transformer, 'gen_%s' % job)(*arg[:-1]):
             obj(job, path)
 
-    for obj in learner(job, *arg):
+    for obj in getattr(learner, 'gen_%s' % job)(*arg):
         obj(job, path)
 
     if job == 'fit':
@@ -560,7 +561,7 @@ def run_layer(job, layer, X, y, F, wf=None):
     path = _get_path()
     if job == 'fit':
         layer.indexer.fit(X)
-        layer.set_output_columns(y)
+        layer.set_output_columns(X, y)
         arg = (X, y, P)
     else:
         arg = (X, P)
@@ -569,10 +570,10 @@ def run_layer(job, layer, X, y, F, wf=None):
         # Run manually
         if layer._preprocess:
             for transformer in layer.transformers:
-                for subtransformer in transformer(job, *arg):
+                for subtransformer in getattr(transformer, 'gen_%s' % job)(*arg[:-1]):
                     subtransformer(job, path)
         for learner in layer.learners:
-            for sublearner in learner(job, *arg):
+            for sublearner in getattr(learner, 'gen_%s' % job)(*arg):
                 sublearner(job, path)
 
         if job == 'fit':
@@ -580,8 +581,9 @@ def run_layer(job, layer, X, y, F, wf=None):
 
     else:
         # Use context manager
-        with ParallelProcessing(layer) as manager:
-            P = manager.process(job, *arg[:-1], path=path, return_preds=True)
+        with ParallelProcessing(layer.backend, layer.n_jobs) as manager:
+            P = manager.process(
+                layer, job, *arg[:-1], path=path, return_preds=True)
 
     try:
         shutil.rmtree(path)

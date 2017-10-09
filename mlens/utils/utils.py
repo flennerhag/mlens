@@ -56,14 +56,14 @@ def pickle_load(name):
         return pickle.load(f)
 
 
-def load(file, raise_on_exception, enforce_filetype=True):
+def load(file, raise_on_exception=True, enforce_filetype=True):
     """Utility exception handler for loading file"""
     s, lim = IVALS
     if enforce_filetype:
         file = pickable(file)
     try:
         return pickle_load(file)
-    except (OSError, IOError) as exc:
+    except (EOFError, OSError, IOError) as exc:
         msg = str(exc)
 
         ts = _time()

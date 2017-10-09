@@ -4,9 +4,9 @@
 :copyright: 2017
 :licence: MIT
 """
-from .layer import Layer
-from .learner import Learner, EvalLearner, Transformer
 from .manager import ParallelProcessing, ParallelEvaluation
+from .learner import Learner, EvalLearner, Transformer
+from .layer import Layer
 
 __all__ = ['ParallelProcessing',
            'ParallelEvaluation',

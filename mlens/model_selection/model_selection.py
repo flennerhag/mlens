@@ -211,7 +211,7 @@ class Evaluator(object):
             parallel(delayed(subtransformer, not _threading)(job, path)
                      for transformer in self._transformers
                      for subtransformer
-                     in transformer(job, **args['transformer']))
+                     in getattr(transformer, 'gen_%s' % job)(**args['auxiliary']))
 
             if 'preprocess' in case:
                 self.collect(args['dir'], 'transformers')
@@ -226,7 +226,7 @@ class Evaluator(object):
 
             parallel(delayed(sublearner, not _threading)(job, path)
                      for learner in self._learners
-                     for sublearner in learner(job, **args['learner']))
+                     for sublearner in getattr(learner, 'gen_%s' % job)(**args['estimator']))
 
             self.collect(args['dir'], 'estimators')
             if self.verbose >= 2:
@@ -347,9 +347,9 @@ class Evaluator(object):
         self._initialize(job, estimators, preprocessing, param_dicts, n_iter)
 
         X, y = check_inputs(X, y, self.array_check)
-
-        with ParallelEvaluation(self) as manager:
-            manager.process(job, X, y)
+        verbose = max(self.verbose - 2, 0) if self.verbose < 15 else 0
+        with ParallelEvaluation(self.backend, self.n_jobs, verbose) as manager:
+            manager.process(self, job, X, y)
 
         return self
 
@@ -359,7 +359,7 @@ class Evaluator(object):
             self._preprocessing = check_instances(preprocessing)
 
             self._transformers = [
-                EvalTransformer(pipeline=transformers,
+                EvalTransformer(estimator=transformers,
                                 name=preprocess_name,
                                 indexer=self.indexer,
                                 verbose=max(0, self.verbose - 14),

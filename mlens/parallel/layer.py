@@ -13,20 +13,13 @@ Layer module.
 
 from __future__ import division, print_function
 
-
-import numpy as np
-
-
+from .base import BaseParallel, ProbaMixin
 from .learner import Learner, Transformer
-from .. import config
+from ._base_functions import set_output_columns
 from ..metrics import Data
-from ..externals.sklearn.base import BaseEstimator
 from ..externals.joblib import delayed
-from ..utils import (assert_correct_format,
-                     check_instances,
-                     clone_attribute,
-                     print_time,
-                     safe_print)
+from ..utils import (assert_correct_format, check_instances, clone_attribute,
+                     print_time, safe_print)
 try:
     # Try get performance counter
     from time import perf_counter as time
@@ -35,7 +28,7 @@ except ImportError:
     from time import time
 
 
-class Layer(BaseEstimator):
+class Layer(BaseParallel, ProbaMixin):
 
     r"""Layer of preprocessing pipes and estimators.
 
@@ -147,50 +140,27 @@ class Layer(BaseEstimator):
         ``1`` for sequential processing.
     """
 
-    def __init__(self,
-                 estimators,
-                 indexer,
-                 name,
-                 preprocessing=None,
-                 proba=False,
-                 propagate_features=None,
-                 scorer=None,
-                 raise_on_exception=False,
-                 shuffle=False,
-                 random_state=None,
-                 dtype=None,
-                 n_jobs=-1,
-                 backend=None,
-                 verbose=False):
-        self.name = name
+    def __init__(self, estimators, indexer, name, preprocessing=None,
+                 proba=False, propagate_features=None, scorer=None,
+                 shuffle=False, random_state=None, verbose=False, **kwargs):
+        super(Layer, self).__init__(name=name, **kwargs)
+        self.proba = proba
         self.shuffle = shuffle
         self.indexer = indexer
         self.scorer = scorer
-        self.n_jobs = n_jobs
         self.random_state = random_state
         self.propagate_features = propagate_features
-        self.raise_on_exception = raise_on_exception
 
-        # Careful with these
         self._verbose = verbose
-        self._proba = proba
-        self._predict_attr = 'predict' if not proba else 'predict_proba'
-
-        self._classes = None
-        self.n_pred = None
         self.n_prep = None
         self.n_est = None
         self.cases = None
         self.n_feature_prop = None
         self.cls = indexer.__class__.__name__.lower()[:-5]
-        self.dtype = dtype if dtype is not None else config.DTYPE
-        self.backend = backend if backend is not None else config.BACKEND
         self._partitions = getattr(self.indexer, 'partitions', 1)
-        self._set_learners(estimators, preprocessing)
 
-    def __iter__(self):
-        """Provide jobs for ParallelProcess manager"""
-        yield self
+        self._preprocess = None
+        self._set_learners(estimators, preprocessing)
 
     def __call__(self, parallel, args):
         """Process layer
@@ -233,7 +203,9 @@ class Layer(BaseEstimator):
             parallel(delayed(subtransformer, not _threading)(job, path)
                      for transformer in self.transformers
                      for subtransformer
-                     in transformer(job, **args['transformer']))
+                     in getattr(transformer, 'gen_%s' % job)(
+                         **args['auxiliary'])
+                     )
 
             if self.verbose >= 2:
                 print_time(t1, 'done', file=f)
@@ -244,7 +216,9 @@ class Layer(BaseEstimator):
 
         parallel(delayed(sublearner, not _threading)(job, path)
                  for learner in self.learners
-                 for sublearner in learner(job, **args['learner']))
+                 for sublearner in getattr(learner, 'gen_%s' % job)(
+                     **args['estimator'])
+                 )
 
         if self.verbose >= 2:
             print_time(t1, 'done', file=f)
@@ -292,7 +266,7 @@ class Layer(BaseEstimator):
         ]
 
         self._transformers = [
-            Transformer(pipeline=transformers,
+            Transformer(estimator=transformers,
                         name=preprocess_name,
                         indexer=self.indexer,
                         verbose=max(self.verbose - 2, 0),
@@ -303,43 +277,15 @@ class Layer(BaseEstimator):
 
         self._store_layer_data(self._estimators, self._preprocessing)
 
-    def set_output_columns(self, y=None):
+    def set_output_columns(self, X=None, y=None):
         """Set output columns for learners"""
-        # First make dummy allocation to check that it works out
-        if self.proba:
-            if y is not None:
-                self.classes_ = y
-            multiplier = self.classes_
-        else:
-            multiplier = 1
-        n_prediction_features = self.n_pred * multiplier
-
-        col_index = self.n_feature_prop
-        col_map = list()
-        sorted_learners = {lr.name:
-                           lr for lr in self.learners}
-        for _, lr in sorted(sorted_learners.items()):
-            col_dict = dict()
-
-            for partition_index in range(self._partitions):
-                col_dict[partition_index] = col_index
-
-                col_index += multiplier
-
-            col_map.append([lr, col_dict])
-
-        if col_index != n_prediction_features + self.n_feature_prop:
-            # Note that since col_index is incremented at the end,
-            # the largest index_value we have col_index - 1
-            raise ValueError(
-                "Mismatch feature size in prediction array (%i) "
-                "and max column index implied by learner "
-                "predictions sizes (%i)" %
-                (n_prediction_features, col_index - 1))
-
-        # Good to go
-        for lr, col_dict in col_map:
-            lr.output_columns = col_dict
+        multiplier = self._check_proba_multiplier(y)
+        target = self.n_pred * multiplier + self.n_feature_prop
+        set_output_columns(self.learners,
+                           self._partitions,
+                           multiplier,
+                           self.n_feature_prop,
+                           target)
 
     def _store_layer_data(self, ests, prep):
         """Utility for storing aggregate attributes about the layer."""
@@ -382,16 +328,7 @@ class Layer(BaseEstimator):
         deep : bool
             whether to return nested parameters
         """
-        out = dict()
-        for par_name in self._get_param_names():
-            par = getattr(self, '_%s' % par_name, None)
-            if par is None:
-                par = getattr(self, par_name, None)
-            if deep and hasattr(par, 'get_params'):
-                for key, value in par.get_params(deep=True).items():
-                    out['%s__%s' % (par_name, key)] = value
-            out[par_name] = par
-
+        out = super(Layer, self).get_params(deep=deep)
         if not deep:
             return out
 
@@ -485,24 +422,4 @@ class Layer(BaseEstimator):
             data.extend(learner.raw_data)
         return data
 
-    @property
-    def classes_(self):
-        """Prediction classes during proba"""
-        return self._classes
 
-    @classes_.setter
-    def classes_(self, y):
-        """Set classes given input y"""
-        if self.proba:
-            self._classes = np.unique(y).shape[0]
-
-    @property
-    def proba(self):
-        """Predict proba state"""
-        return self._proba
-
-    @proba.setter
-    def proba(self, proba):
-        """Update proba state"""
-        self._proba = proba
-        self._predict_attr = 'predict' if not proba else 'predict_proba'

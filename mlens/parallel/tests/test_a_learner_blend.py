@@ -75,4 +75,3 @@ def test_transform_prep_proba():
     """[Parallel | Learner | Blend | Proba | Prep] test transform"""
     args = get_learner('transform', 'blend', True, True)
     run_learner(*args)
-test_predict_prep()

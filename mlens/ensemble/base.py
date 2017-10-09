@@ -176,15 +176,17 @@ class Sequential(BaseEstimator):
        """
         f, t0 = print_job(self, "Fitting")
 
-        with ParallelProcessing(self) \
-                as manager:
-            out = manager.process('fit', X, y, **kwargs)
+        with ParallelProcessing(self.backend, self.n_jobs,
+                                max(self.verbose - 4, 0)) as manager:
+            out = manager.process(self, 'fit', X, y, **kwargs)
 
         if self.verbose:
-            print_time(t0, "{:<35}".format("Fit complete"), file=f, flush=True)
+            print_time(t0, "{:<35}".format("Fit complete"), file=f)
 
         if out is None:
             return self
+        if isinstance(out, list) and len(out) == 1:
+            out = out[0]
         return out
 
     def predict(self, X, **kwargs):
@@ -259,12 +261,14 @@ class Sequential(BaseEstimator):
             or new predictions on X using base learners fitted on all training
             data.
         """
-        return_preds = kwargs.pop('return_preds', True)
-        with ParallelProcessing(self) as manager:
-            preds = manager.process(
-                job, X, return_preds=return_preds, **kwargs)
+        r = kwargs.pop('return_preds', True)
+        with ParallelProcessing(self.backend, self.n_jobs,
+                                max(self.verbose - 4, 0)) as manager:
+            out = manager.process(self, job, X, return_preds=r, **kwargs)
 
-        return preds
+        if isinstance(out, list) and len(out) == 1:
+            out = out[0]
+        return out
 
     def _init_layers(self, layers):
         """Initialize layers"""
@@ -372,10 +376,10 @@ class BaseEnsemble(Sequential):
 
         Parameters
         -----------
-        estimators: dict of lists or list
-            estimators constituting the layer. If ``preprocessing`` is
-            ``None`` or ``list``, ``estimators`` should be a ``list``.
-            The list can either contain estimator instances,
+        estimators: dict of lists or list of estimators, or `:class:`Layer`.
+            Pre-made layer or estimators to construct layer with.
+            If ``preprocessing`` is ``None`` or ``list``, ``estimators`` should
+            be a ``list``. The list can either contain estimator instances,
             named tuples of estimator instances, or a combination of both. ::
 
                 option_1 = [estimator_1, estimator_2]
@@ -533,13 +537,14 @@ class BaseEnsemble(Sequential):
             # No layers instantiated, but raise_on_exception is False
             return
         X, _ = check_inputs(X, check_level=self.array_check)
-        y = super(BaseEnsemble, self).predict(X, **kwargs)
+        P = super(BaseEnsemble, self).predict(X, **kwargs)
 
-        if y.shape[1] == 1:
-            # The meta estimator is treated as a layer and thus a prediction
-            # matrix with shape [n_samples, 1] is created. Ravel before return
-            y = y.ravel()
-        return y
+        if not isinstance(P, list):
+            P = [P]
+        out = [p.squeeze() for p in P]
+        if len(out) == 1:
+            out = out[0]
+        return out
 
     def predict_proba(self, X, **kwargs):
         """Predict class probabilities with fitted ensemble.

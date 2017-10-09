@@ -231,8 +231,6 @@ class SequentialEnsemble(BaseEnsemble):
         kwargs_idx, kwargs = kwarg_parser(indexer.__init__, kwargs)
         indexer = indexer(**kwargs_idx)
 
-        return self._add(estimators=estimators,
-                         indexer=indexer,
-                         preprocessing=preprocessing,
-                         verbose=self.verbose,
-                         **kwargs)
+        return super(SequentialEnsemble, self).add(
+            estimators=estimators, indexer=indexer,
+            preprocessing=preprocessing, **kwargs)

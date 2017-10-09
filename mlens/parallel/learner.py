@@ -17,15 +17,14 @@ import warnings
 from copy import deepcopy
 from abc import ABCMeta, abstractmethod
 
-from .base import BaseParallel, ProbaMixin
-from .manager import ParallelProcessing
+from .base import BaseParallel, OutputMixin, ProbaMixin, Group
 from ._base_functions import (slice_array, transform, set_output_columns,
                               assign_predictions, score_predictions)
 from ..metrics import Data
 from ..utils import (pickle_save, pickle_load, load,
-                     safe_print, print_time)
+                     check_instances, safe_print, print_time)
 from ..utils.exceptions import NotFittedError, FitFailedWarning
-from ..externals.sklearn.base import clone, BaseEstimator
+from ..externals.sklearn.base import clone
 from ..externals.joblib.parallel import delayed
 try:
     from time import perf_counter as time
@@ -38,6 +37,7 @@ ONLY_SUB = []
 ONLY_ALL = ['fullindex', 'nonetype']
 
 
+###############################################################################
 def _replace(source_files):
     """Utility function to replace empty files list"""
     replace_files = [deepcopy(o) for o in source_files]
@@ -52,6 +52,34 @@ def _replace(source_files):
     return replace_files, replace_data
 
 
+def make_learners(indexer, estimators, preprocessing,
+                  learner_kwargs=None, transformer_kwargs=None):
+    """Set learners and preprocessing pipelines in layer"""
+    preprocessing, estimators = check_instances(estimators, preprocessing)
+
+    if learner_kwargs is None:
+        learner_kwargs = {}
+    if transformer_kwargs is None:
+        transformer_kwargs = {}
+
+    transformers = [
+        Transformer(estimator=tr,
+                    name=preprocess_name,
+                    indexer=indexer,
+                    **transformer_kwargs)
+        for preprocess_name, tr in preprocessing]
+
+    learners = [Learner(estimator=est,
+                        preprocess=pr_name,
+                        indexer=indexer,
+                        name=learner_name,
+                        **learner_kwargs)
+                for pr_name, learner_name, est in estimators]
+
+    return Group(indexer=indexer, learners=learners, transformers=transformers)
+
+
+###############################################################################
 class IndexedEstimator(object):
     """Indexed Estimator
 
@@ -89,7 +117,7 @@ class IndexedEstimator(object):
          self.out_index, self.data) = state
 
 
-class _BaseEstimator(BaseParallel, BaseEstimator):
+class _BaseEstimator(BaseParallel):
 
     """Base estimator class
 
@@ -125,34 +153,10 @@ class _BaseEstimator(BaseParallel, BaseEstimator):
         if job == 'fit':
             self.collect(path)
 
-    def fit(self, X, y, **kwargs):
-        """Fit"""
-        return self._run('fit', X, y, **kwargs)
-
-    def predict(self, X, **kwargs):
-        """Predict"""
-        return self._run('predict', X, **kwargs)
-
-    def transform(self, X, **kwargs):
-        """Transform"""
-        return self._run('transform', X, **kwargs)
-
-    def _run(self, attr, X, y=None, **kwargs):
-        """wrapper to run estimation directly on learner"""
-        # Force __no_output__ to False for the run
-        _np = self.__no_output__
-        self.__no_output__ = False
-
-        with ParallelProcessing(self.backend, self.n_jobs) as mgr:
-            out = mgr.process(self, attr, X, y, **kwargs)
-
-        self.__no_output__ = _np
-        return out
-
     @abstractmethod
     def _gen_pred(self, X, P, generator):
         """Method for generating predict or transform jobs"""
-        return
+        yield
 
     @abstractmethod
     def gen_fit(self, X, y, P=None, refit=True):
@@ -175,11 +179,16 @@ class _BaseEstimator(BaseParallel, BaseEstimator):
         return
 
     def _gen_fit(self, cls, X, y, P=None, refit=True):
-        """Routine for generating fit jobs"""
-        # Check whether to skip fit job
+        """Routine for generating fit jobs conditional on refit"""
         if not refit and self.__fitted__:
-            return
+            if P is not None:
+                # Caller expects predictions, equivalent to gen_transform
+                return self.gen_transform(X, P)
+        else:
+            return self._fit_generator(cls, X, y, P)
 
+    def _fit_generator(self, cls, X, y, P):
+        """Generator for fit jobs"""
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
         index = [0, 0]
@@ -343,7 +352,8 @@ class _BaseEstimator(BaseParallel, BaseEstimator):
         self._set_indexer(indexer)
 
 
-class Learner(_BaseEstimator, ProbaMixin):
+###############################################################################
+class Learner(OutputMixin, ProbaMixin, _BaseEstimator):
 
     """Learner
 
@@ -393,6 +403,7 @@ class Learner(_BaseEstimator, ProbaMixin):
                  scorer=None, output_columns=None, proba=False, **kwargs):
         super(Learner, self).__init__(name, estimator, indexer, **kwargs)
         self.proba = proba
+        self.feature_span = None
         self.output_columns = output_columns
         self.attr = attr if attr else self._predict_attr
         self.n_pred = self._partitions
@@ -405,7 +416,7 @@ class Learner(_BaseEstimator, ProbaMixin):
         # We protect these to avoid corrupting a fitted learner
         self._scorer = scorer
 
-        if preprocess:
+        if preprocess and not self.name.startswith('%s__' % preprocess):
             self.name = '%s__%s' % (preprocess, self.name)
 
         self._sublearners_ = None        # Fitted sub-learners
@@ -441,13 +452,17 @@ class Learner(_BaseEstimator, ProbaMixin):
                              out_array=P,
                              index=estimator.index)
 
-    def set_output_columns(self, X=None, y=None):
+    def set_output_columns(self, X=None, y=None, n_left_concats=0):
         """Set the output_columns attribute"""
         # pylint: disable=unused-argument
         multiplier = self._check_proba_multiplier(y)
-        target = self._partitions * multiplier
+        target = self._partitions * multiplier + n_left_concats
         set_output_columns(
-            [self], self._partitions, multiplier, 0, target)
+            [self], self._partitions, multiplier, n_left_concats, target)
+
+        mi = n_left_concats
+        mx = max([i for i in self.output_columns.values()]) + multiplier
+        self.feature_span = (mi, mx)
 
     @property
     def preprocess(self):
@@ -621,7 +636,8 @@ class SubLearner(object):
         return out
 
 
-class Transformer(_BaseEstimator):
+###############################################################################
+class Transformer(_BaseEstimator, OutputMixin):
 
     """Preprocessing handler.
 
@@ -666,13 +682,13 @@ class Transformer(_BaseEstimator):
     def gen_fit(self, X, y, P=None, refit=True):
         return self._gen_fit(SubTransformer, X, y, P, refit)
 
-    def set_output_columns(self, X, y=None):
+    def set_output_columns(self, X, y=None, n_left_concat=0):
         """Set the output_columns attribute"""
         # pylint: disable=unused-argument
         self.n_pred = multiplier = X.shape[1]
         target = self._partitions * multiplier
         set_output_columns(
-            [self], self._partitions, multiplier, 0, target)
+            [self], self._partitions, multiplier, n_left_concat, target)
 
     @property
     def output_columns(self):
@@ -715,20 +731,6 @@ class Transformer(_BaseEstimator):
                                      out_array=P,
                                      index=obj.index,
                                      targets=None)
-
-
-class EvalTransformer(Transformer):
-
-    r"""Evaluator version of the Transformer.
-
-    Derived class from Transformer adapted to cross\-validated grid-search.
-    See :class:`Transformer` for more details.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super(EvalTransformer, self).__init__(*args, **kwargs)
-        self.__only_all__ = False
-        self.__only_sub__ = True
 
 
 class Cache(object):
@@ -862,6 +864,21 @@ class SubTransformer(object):
         return {'ft': self.transform_time_}
 
 
+###############################################################################
+class EvalTransformer(Transformer):
+
+    r"""Evaluator version of the Transformer.
+
+    Derived class from Transformer adapted to cross\-validated grid-search.
+    See :class:`Transformer` for more details.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(EvalTransformer, self).__init__(*args, **kwargs)
+        self.__only_all__ = False
+        self.__only_sub__ = True
+
+
 class EvalLearner(Learner):
 
     """EvalLearner
@@ -916,7 +933,10 @@ class EvalLearner(Learner):
     def gen_fit(self, X, y, P=None, refit=True):
         """Generator for fitting learner on given data"""
         if not refit and self.__fitted__:
-            return
+            # No fits asked, but may have asked for predictions
+            if P is None:
+                return
+            self.gen_transform(X, P)
 
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant

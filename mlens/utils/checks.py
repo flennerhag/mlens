@@ -13,23 +13,6 @@ from .exceptions import (NotFittedError, LayerSpecificationWarning,
                          ParallelProcessingWarning)
 
 
-def check_is_fitted(estimator, attr):
-    """Check that ensemble has been fitted.
-
-    Parameters
-    ----------
-    estimator : estimator instance
-        ensemble instance to check.
-
-    attr : str
-        attribute to assert existence of.
-    """
-    msg = ("This %s instance is not fitted yet. Call 'fit' with "
-           "appropriate arguments before using this method.")
-    if not hasattr(estimator, attr):
-        raise NotFittedError(msg % type(estimator).__name__)
-
-
 def check_layers(layers):
     """Check that a list of layers are indeed layers."""
     failed = list()

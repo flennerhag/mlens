@@ -8,7 +8,7 @@ import numpy as np
 
 from mlens.externals.sklearn.base import clone
 from mlens.utils.checks import check_ensemble_build, assert_valid_estimator, \
-    check_is_fitted, assert_correct_format, check_initialized
+    assert_correct_format, check_initialized
 
 from mlens.utils.dummy import OLS, Scale
 from mlens.testing import EstimatorContainer
@@ -38,13 +38,6 @@ class Lyr(object):
 
     def __init__(self, raise_on_exception):
         self.raise_on_exception = raise_on_exception
-
-
-def test_check_is_fitted():
-    """[Utils] check_is_fitted : raises error."""
-    np.testing.assert_raises(NotFittedError,
-                             check_is_fitted,
-                             LAYER, 'estimators_')
 
 
 def test_check_ensemble_build_passes():

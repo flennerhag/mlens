@@ -18,29 +18,6 @@ class FitFailedWarning(RuntimeWarning):
     """Warning for a failed estimator 'fit' call."""
 
 
-class FitFailedError(RuntimeError, TypeError):
-
-    """Error for failed estimator 'fit' call.
-
-    Inherits type error to accommodate Scikit-learn expectation of a
-    ``TypeError`` on failed array checks in estimators.
-    """
-
-
-class PredictFailedError(RuntimeError, TypeError):
-
-    """Error for a failed estimator 'predict' call.
-
-    Inherits type error to accommodate Scikit-learn expectation of a
-    ``TypeError`` on failed array checks in estimators.
-    """
-
-
-class PredictFailedWarning(RuntimeWarning):
-
-    """Warning for a failed estimator 'predict' call."""
-
-
 class LayerSpecificationError(TypeError, ValueError):
 
     """Error class for incorrectly specified layers."""

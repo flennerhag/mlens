@@ -15,6 +15,18 @@ from ..utils.exceptions import MetricWarning
 from ..externals.joblib import delayed
 
 
+def mold_objects(objs, class_name):
+    """Utility for enforcing list, checking correct class and fit status"""
+    if not isinstance(objs, list):
+        objs = [objs]
+
+    for obj in objs:
+        if obj.__class__.__name__ != class_name:
+            raise TypeError(
+                "Expected %s instance(s). Got %r" % (class_name, objs))
+    return objs
+
+
 def set_output_columns(objects,
                        n_partitions,
                        multiplier,

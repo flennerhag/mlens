@@ -22,9 +22,9 @@ from ..parallel.learner import EvalLearner, EvalTransformer
 from ..metrics import Data, assemble_data
 from ..utils import (print_time,
                      safe_print,
-                     check_instances,
                      assert_correct_format,
                      check_inputs)
+from ..utils.formatting import _check_instances, _flatten
 from ..externals.joblib import delayed
 from ..externals.sklearn.base import clone
 
@@ -41,10 +41,8 @@ except ImportError:
 
 def parse_key(key):
     """Helper to format keys"""
-    draw = key[-1]
-    case_est = key[:-1]
-    if len(case_est) == 1:
-        case_est = case_est[0]
+    key = key.split('__')
+    case_est, draw = '__'.join(key[:-1]), key[-1]
     return case_est, draw
 
 
@@ -58,11 +56,11 @@ def _check_scorer(scorer):
                          "construct a valid scorer." % type(scorer).__name__)
 
 
-def _name(case, est_name):
+def _name(pr_name, est_name):
     """Get correct param_dict name."""
-    if case is not None:
-        return case.split('__')[0], est_name.split('__')[0]
-    return est_name.split('__')[0]
+    if not pr_name:
+        return est_name
+    return '%s__%s' % (pr_name, est_name)
 
 
 class Evaluator(object):
@@ -226,7 +224,8 @@ class Evaluator(object):
 
             parallel(delayed(sublearner, not _threading)(job, path)
                      for learner in self._learners
-                     for sublearner in getattr(learner, 'gen_%s' % job)(**args['estimator']))
+                     for sublearner in getattr(
+                learner, 'gen_%s' % job)(**args['estimator']))
 
             self.collect(args['dir'], 'estimators')
             if self.verbose >= 2:
@@ -356,7 +355,7 @@ class Evaluator(object):
     def _initialize(self, job, estimators, preprocessing, param_dicts, n_iter):
         """Set up generators for the job to be performed"""
         if 'preprocess' in job:
-            self._preprocessing = check_instances(preprocessing)
+            self._preprocessing = _check_instances(preprocessing)
 
             self._transformers = [
                 EvalTransformer(estimator=transformers,
@@ -370,10 +369,10 @@ class Evaluator(object):
 
         if 'evaluate' in job:
             estimators, param_dicts = self._format(estimators, param_dicts)
-            self._estimators, flattened_estimators = check_instances(
-                estimators, include_flattened=True)
+            self._estimators = _check_instances(estimators)
+            flattened_estimators = _flatten(self._estimators)
             self.n_iter = n_iter
-            self._param_sets(param_dicts)
+            self._draw_param_dicts(param_dicts)
 
             self._learners = [
                 EvalLearner(estimator=clone(est).set_params(**params),
@@ -400,32 +399,26 @@ class Evaluator(object):
             estimators = {case: ests_ for case in preprocessing.keys()}
 
         # Set parameter draws for each case
-        if preprocessing is not None:
-
+        if preprocessing:
             params = dict()
             for key, pars in param_dicts.items():
-                if isinstance(key, tuple):
-                    # Check that naming is of the (case, est) form
-
-                    if key[0] not in preprocessing:
-                        msg = ("param_dict poorly formatted. Valid keys are "
-                               "'(case_name, est_name)' or 'est_name'."
-                               " Failed on key entry {}. \nAll keys: "
-                               "{}".format(key, list(preprocessing)))
-
-                        raise ValueError(msg)
-
+                splitted = key.split('__')
+                if len(splitted) == 2:
+                    if splitted[0] not in preprocessing:
+                        raise ValueError(
+                            "invalid param_dict . Valid keys are "
+                            "'case_name__est_name' or 'est_name'. "
+                            "Failed on key entry {}.\n"
+                            "All keys: {}".format(key, list(preprocessing)))
                     params[key] = pars
-
                 else:
                     # have an est_name key entry. Need to generate
-                    # keys of the form (case, est)
                     for case in preprocessing.keys():
-                        if (case, key) in params:
+                        key_ = '%s__%s' % (case, key)
+                        if key_ in params:
                             # We do not want to overwrite user-specified dists
                             continue
-
-                        params[(case, key)] = pars
+                        params[key_] = pars
         else:
             params = param_dicts
 
@@ -461,7 +454,7 @@ class Evaluator(object):
                           "settings.".format(key))
             self.params[key] = [{}]
 
-    def _param_sets(self, param_dicts):
+    def _draw_param_dicts(self, param_dicts):
         """For each estimator, create a mapping of parameter draws."""
         self.params = dict()
 
@@ -473,14 +466,15 @@ class Evaluator(object):
         else:
             # Preprocessing
             # Iterate over cases, expected param_dicts key is
-            # ('case_name', 'est_name')
+            # 'case_name__est_name'
             if isinstance(self._preprocessing, dict):
                 for case in self._preprocessing:
                     for est_name, _ in self._estimators[case]:
-                        self._set_params(param_dicts, (case, est_name))
+                        self._set_params(
+                            param_dicts, '%s__%s' % (case, est_name))
             else:
                 for est_name, _ in self._estimators:
-                    self._set_params(param_dicts, (None, est_name))
+                    self._set_params(param_dicts, est_name)
 
     def _get_results(self):
         """For each case-estimator, return best param draw from cv results."""
@@ -505,6 +499,7 @@ class Evaluator(object):
                 best['test_score-m'][case_est] = score
                 for k, val in data.items():
                     best[k][case_est] = val[key]
+
                 best['params'][case_est] = self.params[case_est][int(draw)]
 
         self.results = Data(best, decimals=3)

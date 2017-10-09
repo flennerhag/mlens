@@ -1,7 +1,4 @@
 """ML-ENSEMBLE
-
-Place holder for more rigorous tests.
-
 """
 import numpy as np
 from mlens.ensemble import (SequentialEnsemble,
@@ -37,11 +34,8 @@ b = clone(lc_b)
 b.name += '-2'
 c = clone(lc_u)
 c.name += '-3'
-seq = Sequential()(a, b, c)
 
-lc_s = Sequential(lc_s)
-lc_b = Sequential(lc_b)
-lc_u = Sequential(lc_u)
+seq = Sequential()(a, b, c)
 
 
 def test_fit_seq():

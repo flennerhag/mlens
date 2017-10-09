@@ -323,11 +323,6 @@ class SuperLearner(BaseEnsemble):
         else:
             idx = FoldIndex(c, raise_on_exception=self.raise_on_exception)
 
-        return self._add(
-                estimators=estimators,
-                indexer=idx,
-                preprocessing=preprocessing,
-                proba=proba,
-                verbose=self.verbose,
-                propagate_features=propagate_features,
-                **kwargs)
+        return super(SuperLearner, self).add(
+            estimators=estimators, indexer=idx, preprocessing=preprocessing,
+            proba=proba, propagate_features=propagate_features, **kwargs)

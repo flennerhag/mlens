@@ -36,10 +36,12 @@ def test_clone():
 def test_set_params():
     """[Ensemble | Sequential] Test set_params on estimators."""
     lc.set_params(**{'layer-1__ols-3__estimator__offset': 4})
-    assert lc.layers[0].estimators[-1][1].offset == 4
+    lr = [l for l in lc.layers[0].learners][-1]
+    assert lr.estimator.offset == 4
 
 
 def test_set_params_layer():
     """[Ensemble | Layer] Test set_params on estimators."""
-    layer.set_params(**{'ols-3__estimator__offset': 4})
-    assert layer.estimators[-1][1].offset == 4
+    layer.set_params(**{'ols-3__estimator__offset': 2})
+    lr = [l for l in layer.learners][-1]
+    assert lr.estimator.offset == 2

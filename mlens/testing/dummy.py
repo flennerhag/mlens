@@ -22,15 +22,16 @@ from ..externals.sklearn.base import clone
 from ..index import INDEXERS
 from ..ensemble.base import Sequential
 from ..parallel import ParallelProcessing, Learner, Transformer, Layer
-
+from ..parallel import make_learners
 
 ##############################################################################
 PREPROCESSING = {'no': [], 'sc': [('scale', Scale())]}
 
-ESTIMATORS = {'sc': [('offs', OLS(offset=2))],
+ESTIMATORS = {'sc': [('offs', OLS(offset=2)), ('null', OLS())],
               'no': [('offs', OLS(offset=2)), ('null', OLS())]}
 
-ESTIMATORS_PROBA = {'sc': [('offs', LogisticRegression(offset=2))],
+ESTIMATORS_PROBA = {'sc': [('offs', LogisticRegression(offset=2)),
+                           ('null', LogisticRegression())],
                     'no': [('offs', LogisticRegression(offset=2)),
                            ('null', LogisticRegression())]}
 
@@ -173,23 +174,23 @@ class EstimatorContainer(object):
         """
         indexer, kwargs = self.load_indexer(kls, args, kwargs)
 
+        learner_kwargs = {'proba': kwargs.pop('proba', proba),
+                          'scorer': kwargs.pop('scorer', None)
+                          }
+
+        layer = Layer('layer', dtype=np.float64, **kwargs)
+
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
-            return Layer(estimators=ests,
-                         proba=proba,
-                         indexer=indexer,
-                         dtype=np.float,
-                         preprocessing=PREPROCESSING,
-                         name='layer',
-                         **kwargs)
+            prep = PREPROCESSING
         else:
             ests = ECM_PROBA if proba else ECM
-            return Layer(estimators=ests,
-                         proba=proba,
-                         indexer=indexer,
-                         dtype=np.float,
-                         name='layer',
-                         **kwargs)
+            prep = []
+
+        group = make_learners(indexer, ests, prep,
+                              learner_kwargs=learner_kwargs)
+        layer.push(group)
+        return layer
 
     def get_sequential(self, kls, proba, preprocessing, *args, **kwargs):
         """Generate a layer container instance.
@@ -540,11 +541,9 @@ def get_layer(job, backend, case, proba, preprocess, feature_prop=None):
     data.indexer.fit(X)
 
     prop = range(feature_prop) if feature_prop else None
-    layer = EstimatorContainer().get_layer(kls=case,
-                                           proba=proba,
-                                           preprocessing=preprocess,
-                                           backend=backend,
-                                           propagate_features=prop)
+    layer = EstimatorContainer().get_layer(
+        kls=case, proba=proba, preprocessing=preprocess,
+        backend=backend, propagate_features=prop)
 
     return {'fit': ('fit', layer, X, y, F, wf),
             'predict': ('predict', layer, X, y, H, wh),
@@ -559,8 +558,8 @@ def run_layer(job, layer, X, y, F, wf=None):
     P = np.zeros(F.shape)
 
     path = _get_path()
+    layer._setup(X, y, job)
     if job == 'fit':
-        layer.indexer.fit(X)
         layer.set_output_columns(X, y)
         arg = (X, y, P)
     else:
@@ -568,7 +567,7 @@ def run_layer(job, layer, X, y, F, wf=None):
 
     if layer.backend == 'manual':
         # Run manually
-        if layer._preprocess:
+        if layer.transformers:
             for transformer in layer.transformers:
                 for subtransformer in getattr(transformer, 'gen_%s' % job)(*arg[:-1]):
                     subtransformer(job, path)

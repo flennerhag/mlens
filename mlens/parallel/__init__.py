@@ -5,7 +5,7 @@
 :licence: MIT
 """
 from .manager import ParallelProcessing, ParallelEvaluation
-from .learner import Learner, EvalLearner, Transformer
+from .learner import Learner, EvalLearner, Transformer, make_learners
 from .layer import Layer
 
 __all__ = ['ParallelProcessing',
@@ -14,4 +14,5 @@ __all__ = ['ParallelProcessing',
            'Learner',
            'EvalLearner',
            'Transformer',
+           'make_learners'
            ]

@@ -34,6 +34,23 @@ def _get_partitions(obj):
     return False
 
 
+def _split(f, s, a_p='', a_s='', b_p='', b_s='', reverse=False):
+    """Split string on a symbol and return two string, first possible empty"""
+    splitted = f.split(s)
+    if len(splitted) == 1:
+        a, b = '', splitted[0]
+        if reverse:
+            b, a = a, b
+    else:
+        a, b = splitted
+
+    if a:
+        a = '%s%s%s' % (a_p, a, a_s)
+    if b:
+        b = '%s%s%s' % (b_p, b, b_s)
+
+    return a, b
+
 class Data(_dict):
 
     """Wrapper class around dict to get pretty prints
@@ -51,121 +68,88 @@ class Data(_dict):
 
 def assemble_table(data, padding=2, decimals=2):
     """Construct data table from input dict"""
-    db_ = 2  # two if case - est else 1
+    buffer = 0
+    row_glossary = ['layer', 'case', 'est', 'part']
 
-    # Construct column and row list (rows : case est)
-    # Measure table entry lengths
-    case = list()
-    ests = list()
     cols = list()
-    parts = list()
     rows = list()
+    row_keys = list()
     max_col_len = dict()
-    max_case_len = 0
-    max_part_len = 0
-    max_est_len = 0
+    max_row_len = {r: 0 for r in row_glossary}
 
+    # First, measure the maximum length of each column in table
     for key, val in data.items():
         cols.append(key)
         max_col_len[key] = len(key)
 
-        # TODO: generalize this to variable length keys
-        for k, v in val.items():
-            # Update longest column entry for column 'key'
+        # dat_key is the estimators. Number of columns is not fixed so need
+        # to assume all exist and purge empty columns
+        for dat_key, v in sorted(val.items()):
             if not v:
+                # Safety: no data
                 continue
 
             v_ = len(_get_string(v, decimals))
             if v_ > max_col_len[key]:
                 max_col_len[key] = v_
 
-            if isinstance(k, tuple):
-                db_ = len(k)
-                if db_ == 2:
-                    c, e = k
-                    try:
-                        int(e)
-                        p = e
-                        e = c
-                        c = ''
-                    except Exception:
-                        p = ''
-                elif db_ == 3:
-                    c, e, p = k
+            if dat_key in row_keys:
+                # Already mapped row entry name
+                continue
 
-                c_, p_ = len(c), len(p)
-                if c_ > max_case_len:
-                    max_case_len = c_
-                if p_ > max_part_len:
-                    max_part_len = p_
-            else:
-                # Treat p and c as empty
-                p, c, e = '', '', k
-                db_ = 1
+            layer, k = _split(dat_key, '/')
+            case, k = _split(k, '__')
+            est, part = _split(k, '--', reverse=True)
 
-            e_ = len(e)
-            if e_ > max_est_len:
-                max_est_len = e_
+            # Header space before column headings
+            items = [i for i in [layer, case, est, part] if i != '']
+            buffer = max(buffer, len('  '.join(items)))
 
-            if (c, e, p) not in rows:
-                rows.append((c, e, p))
-            if c not in case:
-                case.append(c)
-            if e not in ests:
-                ests.append(e)
-            if p not in parts:
-                parts.append(p)
+            for k, v in zip(row_glossary, [layer, case, est, part]):
+                v_ = len(v)
+                if v_ > max_row_len[k]:
+                    max_row_len[k] = v_
 
-    # TODO: refactor this using the '{}'.format() API
+            dat = _dict()
+            dat['layer'] = layer
+            dat['case'] = case
+            dat['est'] = est
+            dat['part'] = part
+            row_keys.append(dat_key)
+            rows.append(dat)
+
+    # Check which row name columns we can drop (ex partition number)
+    drop = list()
+    for k, v in max_row_len.items():
+        if v == 0:
+            drop.append(k)
+
     # Header
-    out = " " * (max_case_len + max_est_len + max_part_len + db_ * padding)
+    out = " " * (buffer + padding)
     for col in cols:
         adj = max_col_len[col] - len(col) + padding
         out += " " * adj + col
     out += "\n"
 
-    for c in sorted(case):
-        for e in sorted(ests):
-            for p in sorted(parts):
-                # Row entries
-                if (c, e, p) not in rows:
-                    continue
+    # Entries
+    for dat_key, dat in zip(row_keys, rows):
+        # Estimator name
+        for key, val in dat.items():
+            if key in drop:
+                continue
+            adj = max_row_len[key] - len(val) + padding
+            out += val + " " * adj
 
-                # Format row
-                k = [e]
-
-                if c:
-                    # First row entry
-                    k = [c] + k
-                    adj = max_case_len - len(c) + padding
-                    out += c + " " * adj
-
-                # Always est entry
-                adj = max_est_len - len(e) + padding
-                out += e + " " * adj
-
-                if p:
-                    # Partition entry
-                    k.append(p)
-                    adj = max_part_len - len(p) + padding
-                    out += p + " " * adj
-
-                if len(k) == 1:
-                    k = e
-                else:
-                    k = tuple(k)
-
-                # Table contents
-                for col in cols:
-                    item = data[col][k]
-                    if not item and item != 0:
-                        out += " " * (max_col_len[col] + padding)
-                        continue
-                    item_ = _get_string(item, decimals)
-                    adj = max_col_len[col] - len(item_) + padding
-                    out += " " * adj + item_
-                out += "\n"
-
+        # Data
+        for col in cols:
+            item = data[col][dat_key]
+            if not item and item != 0:
+                out += " " * (max_col_len[col] + padding)
+                continue
+            item_ = _get_string(item, decimals)
+            adj = max_col_len[col] - len(item_) + padding
+            out += " " * adj + item_
+        out += "\n"
     return out
 
 
@@ -181,20 +165,23 @@ def assemble_data(data_list):
         if not data_dict:
             continue
 
+        prefix, name = _split(name, '/', a_s='/')
+
         # Names are either est__i__j or case__est__i__j
         splitted = name.split('__')
-
         if partitions:
             name = tuple(splitted[:-1])
+
+            if len(name) == 3:
+                name = '%s__%s--%s' % name
+            else:
+                name = '%s--%s' % name
         else:
-            name = tuple(splitted[:-2])
+            name = '__'.join(splitted[:-2])
 
-        if len(name) == 1:
-            name = name[0]
+        name = '%s%s' % (prefix, name)
 
-        try:
-            tmp[name]
-        except KeyError:
+        if name not in tmp:
             # Set up data struct for name
             tmp[name] = _dict()
             for k in data_dict.keys():
@@ -211,15 +198,11 @@ def assemble_data(data_list):
 
     # Aggregate to get mean and std
     for name, data_dict in tmp.items():
-        if not data_dict:
-            continue
-
         for k, v in data_dict.items():
             if not v:
                 continue
             try:
-                # Purge None values from the main learner
-                # I.e. no prediction time during fit call
+                # Purge None values from the main est due to no predict times
                 v = [i for i in v if i is not None]
                 if v:
                     data['%s-m' % k][name] = np.mean(v)
@@ -229,7 +212,7 @@ def assemble_data(data_list):
                     "Aggregating data for %s failed. Raw data:\n%r\n"
                     "Details: %r" % (k, v, exc), MetricWarning)
 
-    # Drop empty entries
+    # Check if there are empty columns
     discard = list()
     for key, data_dict in data.items():
         empty = True

@@ -388,12 +388,9 @@ class Subsemble(BaseEnsemble):
             ensemble instance with layer instantiated.
         """
         if meta:
-            cls = 'full'
-            indexer = FullIndex()
+            idx = FullIndex()
         else:
             # Parse arguments for the indexer
-            cls = 'subsemble'
-
             p = partitions if partitions is not None else self.partitions
             e = partition_estimator if partition_estimator is not None \
                 else self.partition_estimator
@@ -407,12 +404,8 @@ class Subsemble(BaseEnsemble):
             if 'raise_on_exception' not in kwargs_idx:
                 kwargs_idx['raise_on_exception'] = self.raise_on_exception
 
-            indexer = idx(*args, **kwargs_idx)
+            idx = idx(*args, **kwargs_idx)
 
-        return self._add(estimators=estimators,
-                         preprocessing=preprocessing,
-                         indexer=indexer,
-                         proba=proba,
-                         verbose=self.verbose,
-                         propagate_features=propagate_features,
-                         **kwargs)
+        return super(Subsemble, self).add(
+            estimators=estimators, preprocessing=preprocessing, indexer=idx,
+            proba=proba, propagate_features=propagate_features, **kwargs)

@@ -17,7 +17,8 @@ from abc import ABCMeta, abstractmethod
 import warnings
 
 from .. import config
-from ..parallel import Layer, ParallelProcessing
+from ..parallel import Layer, ParallelProcessing, make_learners
+from ..parallel.base import BaseBackend
 from ..externals.sklearn.base import BaseEstimator
 from ..externals.sklearn.validation import check_random_state
 from ..utils import (check_ensemble_build,
@@ -74,7 +75,7 @@ def print_job(lc, start_message):
 
 
 ###############################################################################
-class Sequential(BaseEstimator):
+class Sequential(BaseBackend, BaseEstimator):
 
     r"""Container class for layers.
 
@@ -111,22 +112,9 @@ class Sequential(BaseEstimator):
         If ``verbose >= 10`` prints to ``sys.stderr``, else ``sys.stdout``.
     """
 
-    def __init__(self,
-                 layers=None,
-                 n_jobs=-1,
-                 backend=None,
-                 raise_on_exception=False,
-                 dtype=None,
-                 verbose=False):
-
-        # True params
-        self.n_jobs = n_jobs
-        self.backend = backend if backend is not None else config.BACKEND
-        self.raise_on_exception = raise_on_exception
-        self._verbose = verbose
-
-        # Set up layer
-        self.dtype = dtype if dtype else config.DTYPE
+    def __init__(self, layers=None, **kwargs):
+        self._verbose = kwargs.pop('verbose', False)
+        super(Sequential, self).__init__(**kwargs)
         self._init_layers(layers)
 
     def __call__(self, *layers):
@@ -142,14 +130,10 @@ class Sequential(BaseEstimator):
             if lyr.name in [lr.name for lr in self.layers]:
                 raise ValueError("Layer name exists in stack. "
                                  "Rename layers before attempting to push.")
-
             self.n_layers += 1
             self.layers.append(lyr)
-            self._get_layer_data(lyr)
-
             attr = lyr.name.replace('-', '_').replace(' ', '').strip()
             setattr(self, attr, lyr)
-
         return self
 
     def __iter__(self):
@@ -185,8 +169,6 @@ class Sequential(BaseEstimator):
 
         if out is None:
             return self
-        if isinstance(out, list) and len(out) == 1:
-            out = out[0]
         return out
 
     def predict(self, X, **kwargs):
@@ -266,7 +248,10 @@ class Sequential(BaseEstimator):
                                 max(self.verbose - 4, 0)) as manager:
             out = manager.process(self, job, X, return_preds=r, **kwargs)
 
-        if isinstance(out, list) and len(out) == 1:
+        if not isinstance(out, list):
+            out = [out]
+        out = [p.squeeze() for p in out]
+        if len(out) == 1:
             out = out[0]
         return out
 
@@ -279,15 +264,6 @@ class Sequential(BaseEstimator):
 
         self.layers = layers
         self.n_layers = len(self.layers)
-
-        self.summary = dict()
-        for layer in self.layers:
-            self._get_layer_data(layer)
-
-    def _get_layer_data(self, layer,
-                        attr=('cls', 'n_prep', 'n_pred', 'n_est', 'cases')):
-        """Utility for storing aggregate data about an added layer."""
-        self.summary[layer.name] = {k: getattr(layer, k, None) for k in attr}
 
     def get_params(self, deep=True):
         """Get parameters for this estimator.
@@ -327,7 +303,7 @@ class Sequential(BaseEstimator):
             d = layer.raw_data
             if not d:
                 continue
-            out.extend([('%s  %s' % (layer.name, k), v) for k, v in d])
+            out.extend([('%s/%s' % (layer.name, k), v) for k, v in d])
         return Data(out)
 
 
@@ -343,35 +319,18 @@ class BaseEnsemble(Sequential):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self,
-                 shuffle=False,
-                 random_state=None,
-                 scorer=None,
-                 raise_on_exception=True,
-                 verbose=False,
-                 dtype=None,
-                 n_jobs=-1,
-                 layers=None,
-                 array_check=2,
-                 backend=None
-                 ):
+    def __init__(self, shuffle=False, random_state=None, scorer=None,
+                 raise_on_exception=True, verbose=False, dtype=None,
+                 n_jobs=-1, layers=None, array_check=2, backend=None):
         super(BaseEnsemble, self).__init__(
-            layers=layers,
-            n_jobs=n_jobs,
-            backend=backend,
-            raise_on_exception=raise_on_exception,
-            dtype=dtype,
-            verbose=verbose)
+            layers=layers, n_jobs=n_jobs, backend=backend, dtype=dtype,
+            raise_on_exception=raise_on_exception, verbose=verbose)
         self.shuffle = shuffle
         self.random_state = random_state
         self.scorer = scorer
         self.array_check = array_check
 
-    def _add(self,
-             estimators,
-             indexer,
-             preprocessing=None,
-             **kwargs):
+    def add(self, estimators, indexer, preprocessing=None, **kwargs):
         """Method for adding a layer.
 
         Parameters
@@ -442,37 +401,36 @@ class BaseEnsemble(Sequential):
         if estimators.__class__.__name__.lower() == 'layer':
             return self(estimators)
 
-        # Override Sequential arguments if layer-specific args are found
-        verbose = kwargs.pop('verbose', self.verbose)
-        raise_ = kwargs.pop('raise_on_exception', self.raise_on_exception)
-        dtype = kwargs.pop('dtype', self.dtype)
-        scorer = kwargs.pop('scorer', self.scorer)
+        # --- check args ---
 
-        # Arguments that cannot be very between layers in a given fit -
-        # use Sequential params
+        # Arguments that cannot be very between layers
         check_kwargs(kwargs, ['backend', 'n_jobs'])
 
-        # Check shuffle
+        # Pop layer kwargs and override Sequential args
+        verbose = kwargs.pop('verbose', max(self.verbose - 1, 0))
+        dtype = kwargs.pop('dtype', self.dtype)
+        propagate = kwargs.pop('propagate_features', None)
+        raise_ = kwargs.pop('raise_on_exception', self.raise_on_exception)
         shuffle = kwargs.pop('shuffle', self.shuffle)
         random_state = kwargs.pop('random_state', self.random_state)
         if random_state:
             random_state = check_random_state(random_state).randint(0, 10000)
 
-        # Instantiate layer
-        name = "layer-%i" % (self.n_layers + 1)  # Start count at 1
-        lyr = Layer(estimators=estimators,
-                    indexer=indexer,
-                    name=name,
-                    preprocessing=preprocessing,
-                    dtype=dtype,
-                    scorer=scorer,
-                    shuffle=shuffle,
-                    random_state=random_state,
-                    verbose=max(verbose - 1, 0),
-                    raise_on_exception=raise_,
-                    **kwargs)
+        # Set learner kwargs
+        kwargs['verbose'] = max(verbose - 1, 0)
+        kwargs['scorer'] = kwargs.pop('scorer', self.scorer)
 
-        # Add layer to stack
+        # Check estimator and preprocessing formatting
+        group = make_learners(indexer, estimators, preprocessing, kwargs)
+
+        # --- layer ---
+        name = "layer-%i" % (self.n_layers + 1)  # Start count at 1
+        lyr = Layer(
+            name=name, dtype=dtype, shuffle=shuffle,
+            random_state=random_state, verbose=verbose,
+            raise_on_exception=raise_, propagate_features=propagate)
+
+        lyr.push(group)
         return self(lyr)
 
     def fit(self, X, y=None, **kwargs):
@@ -537,14 +495,8 @@ class BaseEnsemble(Sequential):
             # No layers instantiated, but raise_on_exception is False
             return
         X, _ = check_inputs(X, check_level=self.array_check)
-        P = super(BaseEnsemble, self).predict(X, **kwargs)
+        return super(BaseEnsemble, self).predict(X, **kwargs)
 
-        if not isinstance(P, list):
-            P = [P]
-        out = [p.squeeze() for p in P]
-        if len(out) == 1:
-            out = out[0]
-        return out
 
     def predict_proba(self, X, **kwargs):
         """Predict class probabilities with fitted ensemble.
@@ -563,7 +515,7 @@ class BaseEnsemble(Sequential):
         y_pred : array-like, shape=[n_samples, n_classes]
             predicted class membership probabilities for provided input array.
         """
-        lyr = self.layers.layers[-1]
+        lyr = self.layers[-1]
         if not getattr(lyr, 'proba', False):
             raise ValueError("Cannot use 'predict_proba' if final layer"
                              "does not have 'proba=True'.")

@@ -245,7 +245,8 @@ class EnsembleTransformer(BaseEnsemble):
 
         # If no kwargs, instantiate with defaults
         if kwargs is None:
-            return self._add(estimators, INDEXERS[cls](), preprocessing)
+            return super(EnsembleTransformer, self).add(
+                estimators, INDEXERS[cls](), preprocessing)
 
         # Else, pop arguments belonging to the indexer
         indexer, kwargs_idx = INDEXERS[cls], dict()
@@ -263,11 +264,9 @@ class EnsembleTransformer(BaseEnsemble):
 
         indexer = indexer(**kwargs_idx)
 
-        return self._add(estimators=estimators,
-                         indexer=indexer,
-                         preprocessing=preprocessing,
-                         verbose=self.verbose,
-                         **kwargs)
+        return super(EnsembleTransformer, self).add(
+            estimators=estimators, indexer=indexer,
+            preprocessing=preprocessing, **kwargs)
 
     def fit(self, X, y=None, **kwargs):
         """Fit the transformer.

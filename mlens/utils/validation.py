@@ -5,7 +5,7 @@
 :license: MIT
 
 Input validation module. Builds on Scikit-learns ``validation`` module, but
-extends it to a soft check that issues warnings but don't force change the
+extends it to a soft check that issues warnings but don't force changes to the
 inputs.
 """
 

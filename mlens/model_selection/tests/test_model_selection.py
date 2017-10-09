@@ -42,7 +42,7 @@ def test_params():
     np.testing.assert_raises(ValueError,
                              evl.fit, X, y,
                              estimators=[OLS()],
-                             param_dicts={('bad', 'ols'):
+                             param_dicts={'bad__ols':
                                           {'offset': randint(1, 10)}},
                              preprocessing={'prep': [Scale()]})
 
@@ -104,15 +104,15 @@ def test_w_prep_fit():
                 n_iter=3)
 
     np.testing.assert_approx_equal(
-            evl.results['test_score-m'][('no', 'ols')],
+            evl.results['test_score-m']['no__ols'],
             -24.903229451043195)
 
     np.testing.assert_approx_equal(
-            evl.results['test_score-m'][('pr', 'ols')],
+            evl.results['test_score-m']['pr__ols'],
             -26.510708862278072, 1)
 
-    assert evl.results['params'][('no', 'ols')]['offset'] == 4
-    assert evl.results['params'][('pr', 'ols')]['offset'] == 4
+    assert evl.results['params']['no__ols']['offset'] == 4
+    assert evl.results['params']['pr__ols']['offset'] == 4
 
 
 def test_w_prep_set_params():
@@ -120,8 +120,8 @@ def test_w_prep_set_params():
     evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100,
                     verbose=True)
 
-    params = {('no', 'ols'): {'offset': randint(3, 6)},
-              ('pr', 'ols'): {'offset': randint(1, 3)},
+    params = {'no__ols': {'offset': randint(3, 6)},
+              'pr__ols': {'offset': randint(1, 3)},
               }
 
     with open(os.devnull, 'w') as f, redirect_stderr(f):
@@ -133,11 +133,11 @@ def test_w_prep_set_params():
                 n_iter=10)
 
     np.testing.assert_approx_equal(
-            evl.results['test_score-m'][('no', 'ols')],
+            evl.results['test_score-m']['no__ols'],
             -18.684229451043198)
 
     np.testing.assert_approx_equal(
-            evl.results['test_score-m'][('pr', 'ols')],
+            evl.results['test_score-m']['pr__ols'],
             -7.2594502123869491, 1)
-    assert evl.results['params'][('no', 'ols')]['offset'] == 3
-    assert evl.results['params'][('pr', 'ols')]['offset'] == 1
+    assert evl.results['params']['no__ols']['offset'] == 3
+    assert evl.results['params']['pr__ols']['offset'] == 1

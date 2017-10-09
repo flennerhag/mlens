@@ -288,11 +288,6 @@ class BlendEnsemble(BaseEnsemble):
 
         verbose = kwargs.pop('verbose', self.verbose)
 
-        return self._add(
-                estimators=estimators,
-                preprocessing=preprocessing,
-                indexer=idx,
-                proba=proba,
-                propagate_features=propagate_features,
-                verbose=verbose,
-                **kwargs)
+        return super(BlendEnsemble, self).add(
+            estimators=estimators, preprocessing=preprocessing, indexer=idx,
+            proba=proba, propagate_features=propagate_features, **kwargs)

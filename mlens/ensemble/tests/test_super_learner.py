@@ -13,7 +13,7 @@ from mlens.ensemble import SuperLearner
 
 import os
 try:
-    from contextlib import redirect_stdout
+    from contextlib import redirect_stdout, redirect_stderr
 except ImportError:
     from mlens.externals.fixes import redirect as redirect_stdout
 
@@ -54,7 +54,7 @@ X2, y2 = data1.get_data((LEN, WIDTH), MOD)
 (F2, wf2), (P2, wp2) = data2.ground_truth(X2, y2, 1, False)
 G2 = OLS().fit(F2, y2).predict(P2)
 
-ens1 = SuperLearner(folds=FOLDS, scorer=rmse, verbose=100)
+ens1 = SuperLearner(folds=FOLDS, scorer=rmse, verbose=5)
 ens1.add(ESTIMATORS, PREPROCESSING, dtype=np.float64)
 ens1.add_meta(OLS(), dtype=np.float64)
 
@@ -62,7 +62,7 @@ ens1_b = SuperLearner(folds=FOLDS, scorer=in_script_func)
 ens1_b.add(ESTIMATORS, PREPROCESSING, dtype=np.float64)
 ens1_b.add_meta(OLS(), dtype=np.float64)
 
-ens2 = SuperLearner(folds=FOLDS, scorer=rmse, verbose=100)
+ens2 = SuperLearner(folds=FOLDS, scorer=rmse, verbose=3)
 ens2.add(ECM, dtype=np.float64)
 ens2.add_meta(OLS(), dtype=np.float64)
 
@@ -118,16 +118,21 @@ def test_score_agg_fail():
 def test_scores_w_folds():
     """[SuperLearner] test scoring with folds."""
 
-    scores = {'no__null': [],
-              'no__offs': [],
-              'sc__offs': []}
+    scores = {'null': [],
+              'offs': [],
+              'sc__offs': [],
+              'sc__null': []
+              }
 
     for _, tei in FoldIndex(FOLDS, X1).generate(as_array=True):
         col = 0
         for case in sorted(PREPROCESSING):
             for est_name, _ in sorted(ESTIMATORS[case]):
                 s = rmse(y1[tei], F1[tei][:, col])
-                scores['%s__%s' % (case, est_name)].append(s)
+                if case != 'no':
+                    scores['%s__%s' % (case, est_name)].append(s)
+                else:
+                    scores['%s' % est_name].append(s)
 
                 col += 1
 
@@ -135,8 +140,7 @@ def test_scores_w_folds():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-        case, est = k.split('__')
-        assert scores[k] == ens1.data['score-m'][('layer-1  %s' % case, est)]
+        assert scores[k] == ens1.data['score-m']['layer-1/%s' % k]
 
 
 def test_scores_wo_folds():
@@ -159,16 +163,17 @@ def test_scores_wo_folds():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-        assert scores[k] == ens2.data['score-m']['layer-1  %s' % k]
+        assert scores[k] == ens2.data['score-m']['layer-1/%s' % k]
 
 
 def test_scores_w_folds_in_script():
     """[SuperLearner] test scoring with folds and in-script scorer."""
     ens1_b.fit(X1, y1)
 
-    scores = {'no__null': [],
-              'no__offs': [],
-              'sc__offs': []
+    scores = {'null': [],
+              'offs': [],
+              'sc__offs': [],
+              'sc__null': []
               }
 
     for _, tei in FoldIndex(FOLDS, X1).generate(as_array=True):
@@ -176,7 +181,10 @@ def test_scores_w_folds_in_script():
         for case in sorted(PREPROCESSING):
             for est_name, __ in sorted(ESTIMATORS[case]):
                 s = in_script_func(y1[tei], F1[tei][:, col])
-                scores['%s__%s' % (case, est_name)].append(s)
+                if case != 'no':
+                    scores['%s__%s' % (case, est_name)].append(s)
+                else:
+                    scores['%s' % est_name].append(s)
 
                 col += 1
 
@@ -184,8 +192,7 @@ def test_scores_w_folds_in_script():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-        case, est = k.split('__')
-        assert scores[k] == ens1_b.data['score-m'][('layer-1  %s' % case, est)]
+        assert scores[k] == ens1_b.data['score-m']['layer-1/%s' % k]
 
 
 def test_scores_wo_folds_in_script():
@@ -208,7 +215,7 @@ def test_scores_wo_folds_in_script():
         scores[k] = np.mean(scores[k])
 
     for k in scores:
-        assert scores[k] == ens2_b.data['score-m']['layer-1  %s' % k]
+        assert scores[k] == ens2_b.data['score-m']['layer-1/%s' % k]
 
 
 if run_sklearn:
@@ -239,4 +246,4 @@ if run_sklearn:
             scores[k] = np.mean(scores[k])
 
         for k in scores:
-            assert scores[k] == ens3.data['score-m']['layer-1  %s' % k]
+            assert scores[k] == ens3.data['score-m']['layer-1/%s' % k]

@@ -4,7 +4,7 @@
 
 from mlens.utils.dummy import OLS
 from mlens.utils.formatting import (_check_format, _assert_format,
-                                    _format_instances, check_instances)
+                                    _format_instances, _check_instances)
 
 
 def test_check_format():
@@ -92,7 +92,7 @@ def test_check_instances_list_same():
     """[Utils] check_instances: test correct list is returned as is."""
 
     instances = [('ols-1', OLS()), ('ols-2', OLS(offset=1))]
-    out = check_instances(instances)
+    out = _check_instances(instances)
 
     assert id(out) == id(instances)
     for i in range(2):
@@ -104,7 +104,7 @@ def test_check_instances_list_formatting():
     """[Utils] check_instances: test formatting of list."""
 
     instances = [OLS(), ('ols', OLS()), ('ols', OLS()), ['list', OLS()]]
-    formatted = check_instances(instances)
+    formatted = _check_instances(instances)
 
     strings = []
     for i in formatted:
@@ -121,7 +121,7 @@ def test_check_instances_dict():
     instances = {'a': [('ols-1', OLS()), ('ols-2', OLS(offset=1))],
                  'b': [('ols-1', OLS()), ('ols-2', OLS(offset=1))],
                  }
-    out = check_instances(instances)
+    out = _check_instances(instances)
 
     assert id(out) == id(instances)
     for k in out:
@@ -138,7 +138,7 @@ def test_check_instances_dict_formatting():
                  'b': [],
                  'c': [OLS(), ('ols', OLS())]}
 
-    formatted = check_instances(instances)
+    formatted = _check_instances(instances)
 
     for k, v in formatted.items():
         if k == 'b':

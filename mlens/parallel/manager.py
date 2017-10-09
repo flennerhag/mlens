@@ -135,13 +135,12 @@ class Job(object):
             rebase = self.y.shape[0] - self.predict_in.shape[0]
             self.y = self.y[rebase:]
 
-    def shuffle(self, shuffle, random_state):
+    def shuffle(self, random_state):
         """Shuffle inputs if asked."""
-        if shuffle:
-            r = check_random_state(random_state)
-            idx = r.permutation(self.y.shape[0])
-            self.predict_in = self.predict_in[idx]
-            self.y = self.y[idx]
+        r = check_random_state(random_state)
+        idx = r.permutation(self.y.shape[0])
+        self.predict_in = self.predict_in[idx]
+        self.y = self.y[idx]
 
     def subdir(self, name=None):
         """Create new subdirectory in dir"""
@@ -315,7 +314,6 @@ class ParallelProcessing(BaseProcessor):
 
             for task in caller:
                 self.job.clear()
-
                 self._partial_process(task, parallel)
 
                 if task.name in return_names:
@@ -325,25 +323,21 @@ class ParallelProcessing(BaseProcessor):
 
         if r and not out:
             out = self.get_preds(dtype=getattr(task, 'dtype', None))
+        if isinstance(out, list) and len(out) == 1:
+            out = out[0]
         return out
 
     def _partial_process(self, task, parallel):
         """Process given task"""
-        # Shuffle data if required
-        if self.job.job == 'fit':
-            self.job.shuffle(getattr(task, 'shuffle', False),
-                             getattr(task, 'random_state', None))
+        if self.job.job == 'fit' and getattr(task, 'shuffle', False):
+            self.job.shuffle(getattr(task, 'random_state', None))
 
-        # Prep task
-        task.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
-        if not getattr(task, '__no_output__', False):
-            task.set_output_columns(self.job.predict_in, self.job.y)
-            self._gen_prediction_array(task, self.__threading__)
+        task._setup(self.job.predict_in, self.job.y, self.job.job)
+        if not task.__no_output__:
+            self._gen_prediction_array(task, self.job.job, self.__threading__)
 
-        # Run estimation to populate prediction matrix
         task(parallel, self.job.args)
 
-        # Propagate features from input to output
         if getattr(task, 'n_feature_prop', False):
             self._propagate_features(task)
 
@@ -355,7 +349,6 @@ class ParallelProcessing(BaseProcessor):
         n_in, n_out = p_in.shape[0], p_out.shape[0]
         r = int(n_in - n_out)
 
-        # Propagate features as the n first features of the outgoing array
         if not issparse(p_in):
             # Simple item setting
             p_out[:, :task.n_feature_prop] = p_in[r:, task.propagate_features]
@@ -365,9 +358,9 @@ class ParallelProcessing(BaseProcessor):
                                            p_out[:, task.n_feature_prop:]]
                                           ).tolil()
 
-    def _gen_prediction_array(self, task, threading):
+    def _gen_prediction_array(self, task, job, threading):
         """Generate prediction array either in-memory or persist to disk."""
-        shape = self._get_array_size(task)
+        shape = task.shape(job)
         if threading:
             self.job.predict_out = np.empty(
                 shape, dtype=getattr(task, 'dtype', config.DTYPE))
@@ -384,27 +377,6 @@ class ParallelProcessing(BaseProcessor):
                               (shape[0], shape[1],
                                8 * shape[0] * shape[1] / (1024 ** 2),
                                task.name, exc))
-
-    def _get_array_size(self, task):
-        """Decide what size to create P with based on the job type."""
-        s0 = task.indexer.n_test_samples if self.job.job != 'predict' else \
-            task.indexer.n_samples
-
-        # Number of prediction columns depends on:
-        # 1. number of estimators in layer
-        # 2. if ``predict_proba``, number of classes in training set
-        # 3. number of subsets (default is one for all data)
-        # 4. number of features to propagate
-        # Note that 1., 3. and 4. are params but 2. is data dependent
-        s1 = task.n_pred
-
-        if getattr(task, 'proba', False):
-            s1 *= task.classes_
-
-        if getattr(task, 'propagate_features', None) is not None:
-            s1 += task.n_feature_prop
-
-        return s0, s1
 
     def get_preds(self, dtype=None, order='C'):
         """Return prediction matrix.

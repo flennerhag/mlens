@@ -9,7 +9,7 @@ Formatting of instance lists.
 
 from __future__ import division, print_function
 
-from .checks import assert_valid_estimator
+from .checks import assert_valid_estimator, assert_correct_format
 from .exceptions import LayerSpecificationError
 from collections import Counter
 
@@ -65,7 +65,6 @@ def _format_instances(instances):
             name_count[name] += 1
             name += '-%d' % current_name_count  # rename
         out.append((name, instance))
-
     return sorted(out)
 
 
@@ -120,7 +119,64 @@ def _assert_format(instances):
     return _check_format(instances)
 
 
-def check_instances(instances, include_flattened=False):
+def check_instances(estimators=None, preprocessing=None):
+    """Ensure estimators and preprocessing pipelines are correctly formatted
+
+    Utility for formating estimator iterable and preprocessing iterable into
+    formats accepted by a the :class:`Layer`.
+
+    Parameters
+    ----------
+    estimators : iterable, optional
+        estimator instances.
+
+    preprocessing : iterable, optional
+        preprocessing pipeline instances.
+    """
+    assert_correct_format(estimators, preprocessing)
+    preprocessing = _check_instances(preprocessing)
+
+    if preprocessing:
+        if isinstance(preprocessing, list):
+            # Single case, force create a case for prep and ests
+            preprocessing = [('pr', preprocessing)]
+            estimators = {'pr': estimators} if estimators else {}
+        else:
+            preprocessing = [(n, l) for n, l in sorted(preprocessing.items())]
+
+    estimators = _check_instances(estimators)
+    estimators = _flatten(estimators)
+
+    out_prep, out_est, cases = list(), list(), list()
+    if preprocessing:
+        for preprocess_name, tr in sorted(preprocessing):
+            if tr:
+                out_prep.append((preprocess_name, tr))
+                cases.append(preprocess_name)
+    if estimators:
+        for preprocess_name, learner_name, est in estimators:
+            pr_name = preprocess_name if preprocess_name in cases else None
+            out_est.append((pr_name, learner_name, est))
+
+    return out_prep, out_est
+
+
+def _flatten(instances):
+    """Flatten iterator"""
+    # Flattened version
+    if isinstance(instances, list):
+        flattened = [(None, name, est) for name, est in sorted(instances)]
+    else:
+        # Compress dictionary and sort on case_est keys
+        vps = [('%s__%s' % (case, est_name), est)
+               for case, instance_list in instances.items()
+               for est_name, est in instance_list]
+        flattened = [(name.split('__')[0], name.split('__')[1], est)
+                     for name, est in sorted(vps)]
+    return flattened
+
+
+def _check_instances(instances):
     """Helper to ensure all instances are named.
 
     Check if ``instances`` is formatted as expected, and if not convert
@@ -130,10 +186,6 @@ def check_instances(instances, include_flattened=False):
     ----------
     instances : iterable
         instance iterable to test.
-
-    include_flattened : bool (default=False)
-        whether to flatten a dict into a list and sort on case_est keys,
-        where 'case' is the preprocessing key and 'est' is the estimator name.
 
     Returns
     -------
@@ -154,12 +206,10 @@ def check_instances(instances, include_flattened=False):
         :class:`mlens.ensemble.base.Layer`
     """
     is_iterable = isinstance(instances, (list, tuple, dict))
-    if instances is None or is_iterable and len(instances) == 0:
-        # If no instances specified, return empty list
-        return []
-    elif not is_iterable:
-        # Instance is the estimator, wrap in list and continue
+    if not is_iterable:
         instances = [instances]
+    if not instances or None in instances:
+        return None
 
     if _assert_format(instances):
         out = instances
@@ -171,18 +221,4 @@ def check_instances(instances, include_flattened=False):
         for case, case_list in instances.items():
             out['-'.join(case.lower().split())] = \
                 _format_instances(case_list)
-
-    if not include_flattened:
-        return out
-
-    # Flattened version
-    if isinstance(out, list):
-        flattened = [(None, name, est) for name, est in sorted(out)]
-    else:
-        # Compress dictionary and sort on case_est keys
-        vps = [('%s__%s' % (case, est_name), est)
-               for case, instance_list in out.items()
-               for est_name, est in instance_list]
-        flattened = [(name.split('__')[0], name.split('__')[1], est)
-                     for name, est in sorted(vps)]
-    return out, flattened
+    return out

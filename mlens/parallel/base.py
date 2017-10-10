@@ -147,14 +147,15 @@ class OutputMixin(IndexMixin):
         _np = self.__no_output__
         self.__no_output__ = False
 
-        r = kwargs.pop('return_preds', False if job == 'fit' else True)
-        verbose = max(getattr(self, 'verbose', 0) - 4, 0)
-        backend = getattr(self, 'backend', config.BACKEND)
-        n_jobs = getattr(self, 'n_jobs', -1)
-        with ParallelProcessing(backend, n_jobs, verbose) as mgr:
-            out = mgr.process(self, job, X, y, return_preds=r, **kwargs)
-
-        self.__no_output__ = _np
+        try:
+            r = kwargs.pop('return_preds', False if job == 'fit' else True)
+            verbose = max(getattr(self, 'verbose', 0) - 4, 0)
+            backend = getattr(self, 'backend', config.BACKEND)
+            n_jobs = getattr(self, 'n_jobs', -1)
+            with ParallelProcessing(backend, n_jobs, verbose) as mgr:
+                out = mgr.process(self, job, X, y, return_preds=r, **kwargs)
+        finally:
+            self.__no_output__ = _np
         return out
 
     @abstractmethod

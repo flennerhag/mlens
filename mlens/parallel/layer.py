@@ -136,7 +136,7 @@ class Layer(OutputMixin, BaseParallel):
                            file=f, end=e2)
                 t1 = time()
 
-            parallel(delayed(subtransformer, not _threading)(job, path)
+            parallel(delayed(subtransformer, not _threading)(path)
                      for transformer in self.transformers
                      for subtransformer
                      in getattr(transformer, 'gen_%s' % job)(
@@ -150,7 +150,7 @@ class Layer(OutputMixin, BaseParallel):
             safe_print(msg.format('Learners ...'), file=f, end=e2)
             t1 = time()
 
-        parallel(delayed(sublearner, not _threading)(job, path)
+        parallel(delayed(sublearner, not _threading)(path)
                  for learner in self.learners
                  for sublearner in getattr(learner, 'gen_%s' % job)(
                      **args['estimator'])
@@ -167,10 +167,11 @@ class Layer(OutputMixin, BaseParallel):
                 else (msg + " {}").format(self.name, "done")
             print_time(t0, msg, file=f)
 
-    def push(self, group):
+    def push(self, *groups):
         """Push an indexer and associated learners and transformers"""
-        self._check_indexer(group.indexer)
-        self.groups.append(group)
+        for group in groups:
+            self._check_indexer(group.indexer)
+            self.groups.append(group)
         self.__initialized__ = True
         return self
 
@@ -243,6 +244,9 @@ class Layer(OutputMixin, BaseParallel):
     @property
     def __fitted__(self):
         """Fitted status"""
+        if not self.groups:
+            # all on an empty list yields True
+            return False
         return all([g.__fitted__ for g in self.groups])
 
     @__fitted__.setter

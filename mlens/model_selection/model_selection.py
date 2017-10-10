@@ -206,7 +206,7 @@ class Evaluator(object):
                 safe_print(self._print_prep_start(), file=f)
                 t1 = time()
 
-            parallel(delayed(subtransformer, not _threading)(job, path)
+            parallel(delayed(subtransformer, not _threading)(path)
                      for transformer in self._transformers
                      for subtransformer
                      in getattr(transformer, 'gen_%s' % job)(**args['auxiliary']))
@@ -222,7 +222,7 @@ class Evaluator(object):
                 safe_print(self._print_eval_start(), file=f)
                 t1 = time()
 
-            parallel(delayed(sublearner, not _threading)(job, path)
+            parallel(delayed(sublearner, not _threading)(path)
                      for learner in self._learners
                      for sublearner in getattr(
                 learner, 'gen_%s' % job)(**args['estimator']))

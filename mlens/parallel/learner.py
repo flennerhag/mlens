@@ -24,7 +24,7 @@ from ..metrics import Data
 from ..utils import (pickle_save, pickle_load, load,
                      check_instances, safe_print, print_time)
 from ..utils.exceptions import NotFittedError, FitFailedWarning
-from ..externals.sklearn.base import clone
+from ..externals.sklearn.base import clone, BaseEstimator
 from ..externals.joblib.parallel import delayed
 try:
     from time import perf_counter as time
@@ -136,26 +136,47 @@ class _BaseEstimator(BaseParallel):
         self._set_indexer(indexer)
         self._estimator = estimator
 
+        # Collection flag
+        # Default is false, only turned on during a fit call with no refit
+        # See gen_fit and collect methods
+        self.__collect__ = False
+
     def __call__(self, parallel, args, arg_type='estimator'):
         """Caller for producing jobs"""
         job = args['job']
         path = args['dir']
         _threading = self.backend == 'threading'
 
-        aux = getattr(self, '_auxiliary', None)
+        aux = getattr(self, 'auxiliary', None)
         if aux:
             aux(parallel, args, arg_type='auxiliary')
 
-        parallel(delayed(subtask, not _threading)(job, path)
+        parallel(delayed(subtask, not _threading)(path)
                  for subtask in getattr(self, 'gen_%s' % job)(
                      **args[arg_type]))
 
-        if job == 'fit':
+        if self.__collect__:
             self.collect(path)
 
     @abstractmethod
-    def _gen_pred(self, X, P, generator):
-        """Method for generating predict or transform jobs"""
+    def _gen_pred(self, job, X, P, generator):
+        """Generator for predicting with fitted learner
+
+        Parameters
+        ----------
+        job: str
+            type of job
+
+        X : array
+            input array
+
+        P : array
+            output array to populate. Must be writeable.
+
+        generator : iterable
+            iterator of learners of sub-learners to predict with.
+            One of ``self.learner_`` and ``self.sublearners_``.
+        """
         yield
 
     @abstractmethod
@@ -176,35 +197,36 @@ class _BaseEstimator(BaseParallel):
         refit: bool, (default = True)
             if ``False`` will not refit fitted learner.
         """
-        return
+        yield
 
     def _gen_fit(self, cls, X, y, P=None, refit=True):
         """Routine for generating fit jobs conditional on refit"""
         if not refit and self.__fitted__:
-            if P is not None:
-                # Caller expects predictions, equivalent to gen_transform
-                return self.gen_transform(X, P)
+            return self.gen_transform(X, P)
         else:
+            # Generate new sub-learners and collect
+            self.__collect__ = True
             return self._fit_generator(cls, X, y, P)
 
     def _fit_generator(self, cls, X, y, P):
         """Generator for fit jobs"""
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
-        index = [0, 0]
+        i = 0
         if not self.__only_sub__:
             out = P if self.__only_all__ else None
             for partition_index in self.indexer.partition():
                 # This yields None, None for default indexers
-                yield cls(parent=self,
+                yield cls(job='fit',
+                          parent=self,
                           estimator=self.estimator,
                           in_index=partition_index,
                           out_index=None,
                           in_array=X,
                           targets=y,
                           out_array=out,
-                          index=index)
-                index[0] = index[0] + 1
+                          index=(i, 0))
+                i += 1
 
         if not self.__only_all__:
             # Fit sub-learners on cv folds
@@ -217,7 +239,8 @@ class _BaseEstimator(BaseParallel):
                     splits = self.indexer.folds
                     index = (i // splits, i % splits + 1)
 
-                yield cls(parent=self,
+                yield cls(job='fit',
+                          parent=self,
                           estimator=self.estimator,
                           in_index=train_index,
                           out_index=test_index,
@@ -228,24 +251,29 @@ class _BaseEstimator(BaseParallel):
 
     def gen_transform(self, X, P=None):
         """Generate cross-validated predict jobs"""
-        return self._gen_pred(X, P, self.sublearners_)
+        return self._gen_pred('transform', X, P, self.sublearners_)
 
     def gen_predict(self, X, P=None):
         """Generate predicting jobs"""
-        return self._gen_pred(X, P, self.learner_)
+        return self._gen_pred('predict', X, P, self.learner_)
 
     def collect(self, path):
         """Load fitted estimator from cache"""
-        (learner_files,
-         learner_data,
-         sublearner_files,
-         sublearner_data) = self._collect(path)
+        if self.__collect__:
+            self.clear()
+            (learner_files,
+             learner_data,
+             sublearner_files,
+             sublearner_data) = self._collect(path)
 
-        self._learner_ = learner_files
-        self._sublearners_ = sublearner_files
-        self._data_ = sublearner_data
-        self._times_ = learner_data
-        self.__fitted__ = True
+            self._learner_ = learner_files
+            self._sublearners_ = sublearner_files
+            self._data_ = sublearner_data
+            self._times_ = learner_data
+            self.__fitted__ = True
+
+            # Collection complete, turn off
+            self.__collect__ = False
 
     def clear(self):
         """Clear load"""
@@ -263,8 +291,6 @@ class _BaseEstimator(BaseParallel):
 
     def _collect(self, path):
         """Collect files from cache"""
-        self.clear()
-
         files = [os.path.join(path, f)
                  for f in os.listdir(path)
                  if self.name == '__'.join(f.split('__')[:-2])]
@@ -400,7 +426,8 @@ class Learner(OutputMixin, ProbaMixin, _BaseEstimator):
     """
 
     def __init__(self, estimator, preprocess, indexer, name, attr=None,
-                 scorer=None, output_columns=None, proba=False, **kwargs):
+                 scorer=None, output_columns=None, proba=False,
+                 auxiliary=None, **kwargs):
         super(Learner, self).__init__(name, estimator, indexer, **kwargs)
         self.proba = proba
         self.feature_span = None
@@ -409,9 +436,12 @@ class Learner(OutputMixin, ProbaMixin, _BaseEstimator):
         self.n_pred = self._partitions
 
         # Set protected arguments
-        self._preprocess = None
-        self._auxiliary = None
         self.preprocess = preprocess
+        self.auxiliary = auxiliary
+
+        # Ensure auxiliary is based on same indexer
+        if self.auxiliary and self.auxiliary.indexer is not self.indexer:
+            self.auxiliary.indexer = self.indexer
 
         # We protect these to avoid corrupting a fitted learner
         self._scorer = scorer
@@ -424,26 +454,12 @@ class Learner(OutputMixin, ProbaMixin, _BaseEstimator):
 
     def gen_fit(self, X, y, P=None, refit=True):
         # If we have a transformer, run it
-        for obj in self._gen_fit(SubLearner, X, y, P, refit):
-            yield obj
+        return self._gen_fit(SubLearner, X, y, P, refit)
 
-    def _gen_pred(self, X, P, generator):
-        """Generator for predicting with fitted learner
-
-        Parameters
-        ----------
-        X : array
-            input array
-
-        P : array
-            output array to populate. Must be writeable.
-
-        generator : iterable
-            iterator of learners of sub-learners to predict with.
-            One of ``self.learner_`` and ``self.sublearners_``.
-        """
+    def _gen_pred(self, job, X, P, generator):
         for estimator in generator:
-            yield SubLearner(parent=self,
+            yield SubLearner(job=job,
+                             parent=self,
                              estimator=estimator.estimator,
                              in_index=estimator.in_index,
                              out_index=estimator.out_index,
@@ -465,21 +481,6 @@ class Learner(OutputMixin, ProbaMixin, _BaseEstimator):
         self.feature_span = (mi, mx)
 
     @property
-    def preprocess(self):
-        """Copy of estimator"""
-        return self._preprocess
-
-    @preprocess.setter
-    def preprocess(self, preprocess):
-        """Replace blueprint estimator"""
-        _transformer = None
-        if preprocess and not isinstance(preprocess, str):
-            _transformer = preprocess
-            preprocess = preprocess.name
-        self._auxiliary = _transformer
-        self._preprocess = preprocess
-
-    @property
     def scorer(self):
         """Copy of scorer"""
         return deepcopy(self._scorer)
@@ -495,8 +496,9 @@ class SubLearner(object):
 
     Wrapper around a sub_learner job.
     """
-    def __init__(self, parent, estimator, in_index, out_index,
+    def __init__(self, job, parent, estimator, in_index, out_index,
                  in_array, targets, out_array, index):
+        self.job = job
         self.estimator = estimator
         self.in_index = in_index
         self.out_index = out_index
@@ -527,12 +529,9 @@ class SubLearner(object):
         else:
             self.processing_index = ''
 
-    def __call__(self, job, path):
+    def __call__(self, path):
         """Launch job"""
-        if not hasattr(self, job):
-            raise NotImplementedError(
-                "SubLearner does not implement [%s]" % job)
-        return getattr(self, job)(path)
+        return getattr(self, self.job)(path)
 
     def fit(self, path):
         """Fit sub-learner"""
@@ -637,7 +636,7 @@ class SubLearner(object):
 
 
 ###############################################################################
-class Transformer(_BaseEstimator, OutputMixin):
+class Transformer(OutputMixin, _BaseEstimator):
 
     """Preprocessing handler.
 
@@ -676,19 +675,24 @@ class Transformer(_BaseEstimator, OutputMixin):
     def __init__(
             self, estimator, indexer, name, output_columns=None, **kwargs):
         super(Transformer, self).__init__(name, estimator, indexer, **kwargs)
-        self._output_columns = self.n_pred = None
+        self.feature_span = None
+        self._output_columns = None
         self.output_columns = output_columns
 
     def gen_fit(self, X, y, P=None, refit=True):
         return self._gen_fit(SubTransformer, X, y, P, refit)
 
-    def set_output_columns(self, X, y=None, n_left_concat=0):
+    def set_output_columns(self, X, y=None, n_left_concats=0):
         """Set the output_columns attribute"""
         # pylint: disable=unused-argument
-        self.n_pred = multiplier = X.shape[1]
-        target = self._partitions * multiplier
+        multiplier = X.shape[1]
+        target = self._partitions * multiplier + n_left_concats
         set_output_columns(
-            [self], self._partitions, multiplier, n_left_concat, target)
+            [self], self._partitions, multiplier, n_left_concats, target)
+
+        mi = n_left_concats
+        mx = max([i for i in self.output_columns.values()]) + multiplier
+        self.feature_span = (mi, mx)
 
     @property
     def output_columns(self):
@@ -700,7 +704,7 @@ class Transformer(_BaseEstimator, OutputMixin):
         """Update output columns"""
         self.__no_output__ = obj is None
         if obj is None:
-            self.n_pred = self._output_columns = obj
+            self._output_columns = obj
         elif isinstance(obj, dict):
             self._output_columns = obj
         else:
@@ -717,13 +721,14 @@ class Transformer(_BaseEstimator, OutputMixin):
         """Update pipeline blueprint"""
         self._estimator = estimator
 
-    def _gen_pred(self, X, P, generator):
+    def _gen_pred(self, job, X, P, generator):
         """Generator for Cache object"""
         for obj in generator:
             if P is None:
                 yield Cache(obj, self.verbose)
             else:
-                yield SubTransformer(parent=self,
+                yield SubTransformer(job=job,
+                                     parent=self,
                                      estimator=obj.estimator,
                                      in_index=obj.in_index,
                                      out_index=obj.out_index,
@@ -743,15 +748,8 @@ class Cache(object):
         self.name = obj.name
         self.verbose = verbose
 
-    def __call__(self, job, path):
+    def __call__(self, path):
         """Cache estimator to path"""
-        if not hasattr(self, job):
-            raise NotImplementedError(
-                "Cache does not implement [%s]' % job")
-        return getattr(self, job)(path)
-
-    def predict(self, path):
-        """Cache transformer for predict"""
         f = os.path.join(path, self.name)
         pickle_save(self.obj, f)
         if self.verbose:
@@ -759,18 +757,15 @@ class Cache(object):
             f = "stdout" if self.verbose < 10 - 3 else "stderr"
             safe_print(msg, file=f)
 
-    def transform(self, path):
-        """Cache transformer for transform"""
-        self.predict(path)
-
 
 class SubTransformer(object):
 
     """Sub-routine for fitting a pipeline
     """
 
-    def __init__(self, parent, estimator, in_index, in_array,
+    def __init__(self, job, parent, estimator, in_index, in_array,
                  targets, index, out_index=None, out_array=None):
+        self.job = job
         self.estimator = estimator
         self.in_index = in_index
         self.out_index = out_index
@@ -789,12 +784,9 @@ class SubTransformer(object):
         if parent.output_columns is not None:
             self.output_columns = parent.output_columns[index[0]]
 
-    def __call__(self, job, path):
+    def __call__(self, path):
         """Launch job"""
-        if not hasattr(self, job):
-            raise NotImplementedError(
-                "SubTransformer does not implement [%s]' % job")
-        return getattr(self, job)(path)
+        return getattr(self, self.job)(path)
 
     def predict(self, path=None):
         """Dump transformers for prediction"""
@@ -849,8 +841,8 @@ class SubTransformer(object):
         o = IndexedEstimator(estimator=fitted_transformers,
                              name=self.name_index,
                              index=self.index,
-                             in_index=None,
-                             out_index=None,
+                             in_index=self.in_index,
+                             out_index=self.out_index,
                              data=self.data)
         pickle_save(o, f)
         if self.verbose:
@@ -933,17 +925,14 @@ class EvalLearner(Learner):
     def gen_fit(self, X, y, P=None, refit=True):
         """Generator for fitting learner on given data"""
         if not refit and self.__fitted__:
-            # No fits asked, but may have asked for predictions
-            if P is None:
-                return
             self.gen_transform(X, P)
 
         # We use an index to keep track of partition and fold
         # For single-partition estimations, index[0] is constant
-        index = [0, 0]
         if self.indexer is None:
             raise ValueError("Cannot run cross-validation without an indexer")
 
+        self.__collect__ = True
         for i, (train_index, test_index) in enumerate(
                 self.indexer.generate()):
             # Note that we bump index[1] by 1 to have index[1] start at 1
@@ -951,7 +940,8 @@ class EvalLearner(Learner):
                 index = (0, i + 1)
             else:
                 index = (0, i % self._partitions + 1)
-            yield EvalSubLearner(parent=self,
+            yield EvalSubLearner(job='fit',
+                                 parent=self,
                                  estimator=self.estimator,
                                  in_index=train_index,
                                  out_index=test_index,
@@ -966,11 +956,11 @@ class EvalSubLearner(SubLearner):
 
     sub-routine for cross-validated evaluation.
     """
-    def __init__(self, parent, estimator, in_index, out_index,
+    def __init__(self, job, parent, estimator, in_index, out_index,
                  in_array, targets, index):
 
         super(EvalSubLearner, self).__init__(
-            parent=parent, estimator=estimator,
+            job=job, parent=parent, estimator=estimator,
             in_index=in_index, out_index=out_index,
             in_array=in_array, out_array=None,
             targets=targets, index=index)

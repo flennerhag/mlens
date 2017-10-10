@@ -12,9 +12,9 @@ from mlens.testing import Data
 from scipy.stats import randint
 
 try:
-    from contextlib import redirect_stderr
+    from contextlib import redirect_stdout
 except ImportError:
-    from mlens.externals.fixes import redirect as redirect_stderr
+    from mlens.externals.fixes import redirect as redirect_stdout
 
 np.random.seed(100)
 
@@ -62,14 +62,15 @@ def test_raises():
 def test_passes():
     """[Model Selection] Test sets error score on failed scoring."""
 
-    evl = Evaluator(bad_scorer, error_score=0, n_jobs=1, verbose=15)
+    evl = Evaluator(bad_scorer, error_score=0, n_jobs=1, verbose=5)
 
-    evl = np.testing.assert_warns(FitFailedWarning,
-                                  evl.fit, X, y,
-                                  estimators=[OLS()],
-                                  param_dicts={'ols':
-                                               {'offset': randint(1, 10)}},
-                                  n_iter=1)
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
+        evl = np.testing.assert_warns(FitFailedWarning,
+                                      evl.fit, X, y,
+                                      estimators=[OLS()],
+                                      param_dicts={'ols':
+                                                   {'offset': randint(1, 10)}},
+                                      n_iter=1)
     assert evl.results['test_score-m']['ols'] == 0
 
 
@@ -78,7 +79,7 @@ def test_no_prep():
     evl = Evaluator(mape_scorer, cv=5, shuffle=False,
                     random_state=100, verbose=12)
 
-    with open(os.devnull, 'w') as f, redirect_stderr(f):
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
         evl.fit(X, y,
                 estimators=[OLS()],
                 param_dicts={'ols': {'offset': randint(1, 10)}},
@@ -95,7 +96,7 @@ def test_w_prep_fit():
     evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100,
                     verbose=True)
 
-    with open(os.devnull, 'w') as f, redirect_stderr(f):
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
 
         evl.fit(X, y,
                 estimators=[OLS()],
@@ -124,7 +125,7 @@ def test_w_prep_set_params():
               'pr__ols': {'offset': randint(1, 3)},
               }
 
-    with open(os.devnull, 'w') as f, redirect_stderr(f):
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
 
         evl.fit(X, y,
                 estimators={'pr': [OLS()], 'no': [OLS()]},

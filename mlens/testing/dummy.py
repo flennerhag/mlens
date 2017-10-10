@@ -72,7 +72,7 @@ class InitMixin(object):
 
     >>> from sklearn.utils.estimator_checks import check_estimator
     >>> from mlens.ensemble import SuperLearner
-    >>> from mlens.utils.dummy import InitMixin
+    >>> from mlens.testing.dummy import InitMixin
     >>>
     >>> class TestSuperLearner(InitMixin, SuperLearner):
     ...
@@ -125,12 +125,10 @@ class EstimatorContainer(object):
         classes = kwargs.pop('classes', 4)
 
         if not proba:
-            attr = 'predict'
             est = OLS()
             n = getattr(indexer, 'partitions', 1)
             output_columns = {i: i for i in range(n)}
         else:
-            attr = 'predict_proba'
             est = LogisticRegression()
             n = getattr(indexer, 'partitions', 1)
             output_columns = dict()
@@ -141,20 +139,15 @@ class EstimatorContainer(object):
 
         if preprocessing:
             transformer = Transformer(estimator=[('scale', Scale())],
-                                      indexer=indexer,
-                                      name='sc')
+                                      indexer=indexer, name='sc')
 
         else:
             transformer = None
 
-        learner = Learner(estimator=est,
-                          indexer=indexer,
+        learner = Learner(estimator=est, indexer=indexer,
                           preprocess='sc' if transformer else None,
-                          attr=attr,
                           scorer=mae if not proba else None,
-                          output_columns=output_columns,
-                          name=kls,
-                          proba=proba)
+                          output_columns=output_columns, name=kls, proba=proba)
 
         return learner, transformer
 
@@ -227,7 +220,8 @@ class Data(object):
 
     """Class for getting data."""
 
-    def __init__(self, cls, proba, preprocessing, is_learner=False, *args, **kwargs):
+    def __init__(self, cls, proba, preprocessing, is_learner=False,
+                 *args, **kwargs):
         self.lr = is_learner
         self.proba = proba
         self.preprocessing = preprocessing
@@ -507,10 +501,10 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
     learner._indexer.fit(X)
     if transformer:
         for obj in getattr(transformer, 'gen_%s' % job)(*arg[:-1]):
-            obj(job, path)
+            obj(path)
 
     for obj in getattr(learner, 'gen_%s' % job)(*arg):
-        obj(job, path)
+        obj(path)
 
     if job == 'fit':
         learner.collect(path)
@@ -570,10 +564,10 @@ def run_layer(job, layer, X, y, F, wf=None):
         if layer.transformers:
             for transformer in layer.transformers:
                 for subtransformer in getattr(transformer, 'gen_%s' % job)(*arg[:-1]):
-                    subtransformer(job, path)
+                    subtransformer(path)
         for learner in layer.learners:
             for sublearner in getattr(learner, 'gen_%s' % job)(*arg):
-                sublearner(job, path)
+                sublearner(path)
 
         if job == 'fit':
             layer.collect(path)

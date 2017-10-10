@@ -109,6 +109,9 @@ class EnsembleTransformer(BaseEnsemble):
         documentation. To change global backend, set
         ``mlens.config.BACKEND``
 
+    .. deprecated:: 0.2.0
+        use the ``model_selection`` parameter on regular ensembles instead.
+
     Examples
     --------
     >>> from mlens.model_selection import EnsembleTransformer

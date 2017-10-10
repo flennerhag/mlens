@@ -21,11 +21,9 @@ from ..parallel import Layer, ParallelProcessing, make_learners
 from ..parallel.base import BaseBackend
 from ..externals.sklearn.base import BaseEstimator
 from ..externals.sklearn.validation import check_random_state
-from ..utils import (check_ensemble_build,
-                     check_layers,
-                     check_inputs,
-                     print_time,
-                     safe_print)
+from ..utils import (
+    check_ensemble_build, check_layers, check_inputs, print_time,
+    safe_print, IdTrain)
 from ..utils.exceptions import LayerSpecificationWarning
 from ..metrics import Data
 try:
@@ -314,21 +312,60 @@ class BaseEnsemble(Sequential):
 
     Core ensemble class methods used to add ensemble layers and manipulate
     parameters.
+
+    Parameters
+    ----------
+    model_selection: bool (default=False)
+        Whether to use the ensemble in model selection mode. If ``True``,
+        this will alter the ``transform`` method. When calling ``transform``
+        on new data, the ensemble will call ``predict``, while calling
+        ``transform`` with the training data reproduces predictions from the
+        ``fit`` call. Hence the ensemble can be used as a pure transformer
+        in a preprocessing pipeline passed to the :class:`Evaluator`, as
+        training folds are faithfully reproduced as during a ``fit``call and
+        test folds are transformed with the ``predict`` method.
+
+    samples_size: int (default=20)
+        size of training set sample
+        (``[min(sample_size, X.size[0]), min(X.size[1], sample_size)]``
+
+    shuffle: bool (default=False)
+        whether to shuffle input data during fit calls
+
+    random_state: bool (default=False)
+        random seed.
+
+    scorer: obj, optional
+        scorer function
+
+    verbose: bool, optional
+        verbosity
+
+    array_check: int (default=2)
+        severity of array checks. ``2`` mimicks Scikit-learn, ``1`` warns,
+        ``0`` disables.
+
+    samples_size: int (default=20)
+        size of training set sample
+        (``[min(sample_size, X.size[0]), min(X.size[1], sample_size)]``
     """
 
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, shuffle=False, random_state=None, scorer=None,
-                 raise_on_exception=True, verbose=False, dtype=None,
-                 n_jobs=-1, layers=None, array_check=2, backend=None):
+    def __init__(
+            self, shuffle=False, random_state=None, scorer=None, verbose=False,
+            layers=None, array_check=2, model_selection=False, sample_size=20,
+            **kwargs):
         super(BaseEnsemble, self).__init__(
-            layers=layers, n_jobs=n_jobs, backend=backend, dtype=dtype,
-            raise_on_exception=raise_on_exception, verbose=verbose)
+            layers=layers, verbose=verbose, **kwargs)
         self.shuffle = shuffle
         self.random_state = random_state
         self.scorer = scorer
         self.array_check = array_check
+        self._model_selection = model_selection
+        self.model_selection = model_selection
+        self.sample_size = sample_size
 
     def add(self, estimators, indexer, preprocessing=None, **kwargs):
         """Method for adding a layer.
@@ -455,9 +492,12 @@ class BaseEnsemble(Sequential):
 
         X, y = check_inputs(X, y, self.array_check)
 
+        if self.model_selection:
+            self.id_train.fit(X)
+
         return super(BaseEnsemble, self).fit(X, y, **kwargs)
 
-    def transform(self, X, **kwargs):
+    def transform(self, X, y=None, **kwargs):
         """Transform with fitted ensemble.
 
         Replicates cross-validated prediction process from training.
@@ -467,15 +507,43 @@ class BaseEnsemble(Sequential):
         X : array-like, shape=[n_samples, n_features]
             input matrix to be used for prediction.
 
+        y : array-like, shape[n_samples, ]
+            targets. Needs to be passed as input in model selection mode as
+            some indexers will reduce the size of the input array (X) and
+            y must be adjusted accordingly.
+
         Returns
         -------
-        y_pred : array-like, shape=[n_samples, n_features]
-            predictions for provided input array.
+        pred : array-like or tuple, shape=[n_samples, n_features]
+            predictions for provided input array. If in model selection mode,
+            return a tuple ``(X_trans, y_trans)`` where ``y_trans`` is either
+            ``y``, or a trunctated version to match the samples in ``X_trans``.
         """
         if not check_ensemble_build(self):
             # No layers instantiated, but raise_on_exception is False
             return
-        X, _ = check_inputs(X, check_level=self.array_check)
+
+        X, y = check_inputs(X, y, check_level=self.array_check)
+
+        if self.model_selection:
+            if y is None:
+                raise ValueError(
+                    "In model selection mode, y is a required argument.")
+
+            # Need to modify the transform method to account for blending
+            # cutting X in size, so y needs to be cut too
+            if not self.id_train.is_train(X):
+                return self.predict(X, **kwargs), y
+
+            # Asked to reproduce predictions during fit, here we need to
+            # account for that in model selection mode,
+            # blend ensemble will cut X in observation size so need to adjust y
+            X = super(BaseEnsemble, self).transform(X, **kwargs)
+            if X.shape[0] != y.shape[0]:
+                r = y.shape[0] - X.shape[0]
+                y = y[r:]
+            return X, y
+
         return super(BaseEnsemble, self).transform(X, **kwargs)
 
     def predict(self, X, **kwargs):
@@ -520,3 +588,17 @@ class BaseEnsemble(Sequential):
             raise ValueError("Cannot use 'predict_proba' if final layer"
                              "does not have 'proba=True'.")
         return self.predict(X, **kwargs)
+
+    @property
+    def model_selection(self):
+        """Turn model selection mode"""
+        return self._model_selection
+
+    @model_selection.setter
+    def model_selection(self, model_selection):
+        """Turn model selection on or off"""
+        self._model_selection = model_selection
+        if self._model_selection:
+            self.id_train = IdTrain(self.sample_size)
+        else:
+            self.id_train = None

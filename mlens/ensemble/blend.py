@@ -113,6 +113,20 @@ class BlendEnsemble(BaseEnsemble):
         documentation. To set global backend, set ``mlens.config.BACKEND``.
         Cannot be overriden in the :attr:`add` method.
 
+    model_selection: bool (default=False)
+        Whether to use the ensemble in model selection mode. If ``True``,
+        this will alter the ``transform`` method. When calling ``transform``
+        on new data, the ensemble will call ``predict``, while calling
+        ``transform`` with the training data reproduces predictions from the
+        ``fit`` call. Hence the ensemble can be used as a pure transformer
+        in a preprocessing pipeline passed to the :class:`Evaluator`, as
+        training folds are faithfully reproduced as during a ``fit``call and
+        test folds are transformed with the ``predict`` method.
+
+    sample_size: int (default=20)
+        size of training set sample
+        (``[min(sample_size, X.size[0]), min(X.size[1], sample_size)]``)
+
     Examples
     --------
 
@@ -163,24 +177,15 @@ class BlendEnsemble(BaseEnsemble):
     8.249013
     """
 
-    def __init__(self,
-                 test_size=0.5,
-                 shuffle=False,
-                 random_state=None,
-                 scorer=None,
-                 raise_on_exception=True,
-                 array_check=2,
-                 verbose=False,
-                 n_jobs=-1,
-                 backend=None,
-                 layers=None):
-
+    def __init__(
+            self, test_size=0.5, shuffle=False, random_state=None, scorer=None,
+            raise_on_exception=True, array_check=2, verbose=False, n_jobs=-1,
+            backend=None, model_selection=False, sample_size=20, layers=None):
         super(BlendEnsemble, self).__init__(
-                shuffle=shuffle, random_state=random_state,
-                scorer=scorer, raise_on_exception=raise_on_exception,
-                array_check=array_check, verbose=verbose, n_jobs=n_jobs,
-                layers=layers, backend=backend)
-
+            shuffle=shuffle, random_state=random_state, scorer=scorer,
+            raise_on_exception=raise_on_exception, array_check=array_check,
+            verbose=verbose, n_jobs=n_jobs, model_selection=model_selection,
+            sample_size=sample_size, layers=layers, backend=backend)
         self.test_size = test_size
 
     def add_meta(self, estimator, **kwargs):

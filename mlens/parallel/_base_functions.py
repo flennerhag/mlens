@@ -9,10 +9,64 @@ from copy import deepcopy
 from scipy.sparse import issparse
 import numpy as np
 
-from ..config import IVALS
-from ..utils import pickle_load
+from ..utils import pickle_load, pickle_save, load as _load
 from ..utils.exceptions import MetricWarning
-from ..externals.joblib import delayed
+
+
+def load(path, name, raise_on_exception=True):
+    """Utility for loading from cache"""
+    if isinstance(path, str):
+        f = os.path.join(path, name)
+        obj = _load(f, raise_on_exception)
+    elif isinstance(path, list):
+        obj = [tup[1] for tup in path if tup[0] == name]
+        if not len(obj) == 1:
+            raise ValueError(
+                "Could not load unique preprocessing pipeline. "
+                "Transformer and/or Learner names are not unique")
+        obj = obj[0]
+    else:
+        raise ValueError("Expected str or list. Got %r" % path)
+    return obj
+
+
+def save(path, name, obj):
+    """Utility for saving to cache"""
+    if isinstance(path, str):
+        f = os.path.join(path, name)
+        pickle_save(obj, f)
+    elif isinstance(path, list):
+        path.append((name, obj))
+
+
+def prune_files(path, name):
+    """Utility for safely selecting only relevant files"""
+    if isinstance(path, str):
+        files = [os.path.join(path, f)
+                 for f in os.listdir(path)
+                 if name == '__'.join(f.split('__')[:-2])]
+        files = [pickle_load(f) for f in sorted(files)]
+    elif isinstance(path, list):
+        files = [tup[1] for tup in sorted(path)
+                 if name == '__'.join(tup[0].split('__')[:-2])]
+    else:
+        raise ValueError(
+            "Expected string to cache or list of tuples. Got %r" % path)
+    return files
+
+
+def replace(source_files):
+    """Utility function to replace empty files list"""
+    replace_files = [deepcopy(o) for o in source_files]
+    for o in replace_files:
+        o.name = o.name[:-1] + '0'
+        o.index = (o.index[0], 0)
+        o.out_index = None
+        o.in_index = None
+
+    # Set a vacuous data list
+    replace_data = [(o.name, None) for o in replace_files]
+    return replace_files, replace_data
 
 
 def mold_objects(objs, class_name):

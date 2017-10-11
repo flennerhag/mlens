@@ -12,19 +12,18 @@ Learner classes
 
 from __future__ import print_function, division
 
-import os
 import warnings
 from copy import deepcopy
 from abc import ABCMeta, abstractmethod
 
 from .base import BaseParallel, OutputMixin, ProbaMixin, Group
 from ._base_functions import (slice_array, transform, set_output_columns,
-                              assign_predictions, score_predictions)
+                              assign_predictions, score_predictions, replace,
+                              save, load, prune_files)
 from ..metrics import Data
-from ..utils import (pickle_save, pickle_load, load,
-                     check_instances, safe_print, print_time)
+from ..utils import pickle_load, check_instances, safe_print, print_time
 from ..utils.exceptions import NotFittedError, FitFailedWarning
-from ..externals.sklearn.base import clone, BaseEstimator
+from ..externals.sklearn.base import clone
 from ..externals.joblib.parallel import delayed
 try:
     from time import perf_counter as time
@@ -35,21 +34,6 @@ except ImportError:
 # Types of indexers that require fits only on subsets or only on the full data
 ONLY_SUB = []
 ONLY_ALL = ['fullindex', 'nonetype']
-
-
-###############################################################################
-def _replace(source_files):
-    """Utility function to replace empty files list"""
-    replace_files = [deepcopy(o) for o in source_files]
-    for o in replace_files:
-        o.name = o.name[:-1] + '0'
-        o.index = (o.index[0], 0)
-        o.out_index = None
-        o.in_index = None
-
-    # Set a vacuous data list
-    replace_data = [(o.name, None) for o in replace_files]
-    return replace_files, replace_data
 
 
 def make_learners(indexer, estimators, preprocessing,
@@ -291,29 +275,25 @@ class _BaseEstimator(BaseParallel):
 
     def _collect(self, path):
         """Collect files from cache"""
-        files = [os.path.join(path, f)
-                 for f in os.listdir(path)
-                 if self.name == '__'.join(f.split('__')[:-2])]
-
+        files = prune_files(path, self.name)
         learner_files = list()
         learner_data = list()
         sublearner_files = list()
         sublearner_data = list()
-        for f in sorted(files):
-            o = pickle_load(f)
-            if o.index[1] == 0:
-                learner_files.append(o)
-                learner_data.append((o.name, o.data))
+        for f in files:
+            if f.index[1] == 0:
+                learner_files.append(f)
+                learner_data.append((f.name, f.data))
             else:
-                sublearner_files.append(o)
-                sublearner_data.append((o.name, o.data))
+                sublearner_files.append(f)
+                sublearner_data.append((f.name, f.data))
 
         if self.__only_sub__:
             # Full learners are the same as the sub-learners
-            learner_files, learner_data = _replace(sublearner_files)
+            learner_files, learner_data = replace(sublearner_files)
         if self.__only_all__:
             # Sub learners are the same as the sub-learners
-            sublearner_files, sublearner_data = _replace(learner_files)
+            sublearner_files, sublearner_data = replace(learner_files)
 
         self.__fitted__ = True
 
@@ -543,14 +523,14 @@ class SubLearner(object):
         if self.out_array is not None:
             self._predict(transformers, self.scorer is not None)
 
-        f = os.path.join(path, self.name_index)
         o = IndexedEstimator(estimator=self.estimator,
                              name=self.name_index,
                              index=self.index,
                              in_index=self.in_index,
                              out_index=self.out_index,
                              data=self.data)
-        pickle_save(o, f)
+
+        save(path, self.name_index, o)
 
         if self.verbose:
             msg = "{:<30} {}".format(self.name_index, "done")
@@ -590,8 +570,7 @@ class SubLearner(object):
     def _load_preprocess(self, path):
         """Load preprocessing pipeline"""
         if self.preprocess is not None:
-            f = os.path.join(path, self.preprocess_index)
-            obj = load(f, self.raise_on_exception)
+            obj = load(path, self.preprocess_index, self.raise_on_exception)
             tr_list = obj.estimator
         else:
             tr_list = list()
@@ -750,8 +729,7 @@ class Cache(object):
 
     def __call__(self, path):
         """Cache estimator to path"""
-        f = os.path.join(path, self.name)
-        pickle_save(self.obj, f)
+        save(path, self.name, self.obj)
         if self.verbose:
             msg = "{:<30} {}".format(self.name, "cached")
             f = "stdout" if self.verbose < 10 - 3 else "stderr"
@@ -837,14 +815,13 @@ class SubTransformer(object):
         if self.out_array is not None:
             self._transform()
 
-        f = os.path.join(path, self.name_index)
         o = IndexedEstimator(estimator=fitted_transformers,
                              name=self.name_index,
                              index=self.index,
                              in_index=self.in_index,
                              out_index=self.out_index,
                              data=self.data)
-        pickle_save(o, f)
+        save(path, self.name_index, o)
         if self.verbose:
             f = "stdout" if self.verbose < 10 else "stderr"
             msg = "{:<30} {}".format(self.name_index, "done")
@@ -979,14 +956,13 @@ class EvalSubLearner(SubLearner):
         self._fit(transformers)
         self._predict(transformers)
 
-        f = os.path.join(path, self.name_index)
         o = IndexedEstimator(estimator=self.estimator,
                              name=self.name_index,
                              index=self.index,
                              in_index=self.in_index,
                              out_index=self.out_index,
                              data=self.data)
-        pickle_save(o, f)
+        save(path, self.name_index, o)
 
         if self.verbose:
             f = "stdout" if self.verbose else "stderr"

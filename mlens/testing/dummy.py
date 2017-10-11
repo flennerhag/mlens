@@ -464,12 +464,15 @@ class DummyPartition(object):
 
 
 ###############################################################################
-def _get_path():
+def _get_path(backend, is_learner):
     """Helper to get a path dir"""
-    path = os.path.join(os.getcwd(), '.mlens_testing_tmp')
-    if os.path.exists(path):
-        shutil.rmtree(path)
-    os.mkdir(path)
+    if backend in ['manual', 'multiprocessing']:
+        path = os.path.join(os.getcwd(), '.mlens_testing_tmp')
+        if os.path.exists(path):
+            shutil.rmtree(path)
+        os.mkdir(path)
+    else:
+        path = list() if is_learner else dict()
     return path
 
 
@@ -496,7 +499,7 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
 
     P = np.zeros(F.shape)
 
-    path = _get_path()
+    path = _get_path('manual', is_learner=True)
     arg = (X, y, P) if job == 'fit' else (X, P)
     learner._indexer.fit(X)
     if transformer:
@@ -551,7 +554,7 @@ def run_layer(job, layer, X, y, F, wf=None):
 
     P = np.zeros(F.shape)
 
-    path = _get_path()
+    path = _get_path(layer.backend, is_learner=False)
     layer._setup(X, y, job)
     if job == 'fit':
         layer.set_output_columns(X, y)
@@ -578,10 +581,11 @@ def run_layer(job, layer, X, y, F, wf=None):
             P = manager.process(
                 layer, job, *arg[:-1], path=path, return_preds=True)
 
-    try:
-        shutil.rmtree(path)
-    except OSError:
-        warnings.warn("Failed to destroy temporary test cache at %s" % path)
+    if isinstance(path, str):
+        try:
+            shutil.rmtree(path)
+        except OSError:
+            warnings.warn("Failed to destroy temporary test cache at %s" % path)
 
     if wf is not None:
         if job in ['fit', 'transform']:

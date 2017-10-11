@@ -77,6 +77,35 @@ def _load_mmap(f):
         return np.load(f, mmap_mode='r')
 
 
+def _set_path(job, path, threading):
+    """Build path as a cache or list depending on whether using threading"""
+    if path:
+        if isinstance(path, str) and threading:
+            raise ValueError("Cannot use directory cache with threading. "
+                             "Path should be a dict. Got %r" % path.__class__)
+        elif isinstance(path, dict) and not threading:
+            raise ValueError("Cannot use a dictionary with multiprocessing. "
+                             "Path should be a str. Got %r" % path.__class__)
+        elif not isinstance(path, (str, dict)):
+            raise ValueError("Invalid path format. Should be one of "
+                             "str, dict. Got %r" % path.__class__)
+    if threading:
+        path = dict()
+        job.dir = path
+        return job
+
+    # Else, need a directory
+    path = config.TMPDIR
+    try:
+        job.tmp = tempfile.TemporaryDirectory(
+            prefix=config.PREFIX, dir=path)
+        job.dir = job.tmp.name
+    except AttributeError:
+        # Fails on python 2
+        job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=path)
+    return job
+
+
 ###############################################################################
 class Job(object):
 
@@ -148,10 +177,14 @@ class Job(object):
             name = str(self._n_dir)
             self._n_dir += 1
 
-        path = os.path.join(self.dir, "task_%s" % name)
-        if os.path.exists(path):
-            raise OSError("Subdirectory exist. Clear estimation cache.")
-        os.mkdir(path)
+        if isinstance(self.dir, str):
+            path = os.path.join(self.dir, "task_%s" % name)
+            if os.path.exists(path):
+                raise OSError("Subdirectory exist. Clear estimation cache.")
+            os.mkdir(path)
+        else:
+            self.dir[name] = list()
+            path = self.dir[name]
         return path
 
     @property
@@ -206,15 +239,7 @@ class BaseProcessor(object):
         """Create a job instance for estimation."""
         job = Job(job, **kwargs)
 
-        if path is None:
-            path = config.TMPDIR
-        try:
-            job.tmp = tempfile.TemporaryDirectory(
-                prefix=config.PREFIX, dir=path)
-            job.dir = job.tmp.name
-        except AttributeError:
-            # Fails on python 2
-            job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=path)
+        job = _set_path(job, path, self.__threading__)
 
         # --- Prepare inputs
         for name, arr in zip(('X', 'y'), (X, y)):
@@ -247,8 +272,9 @@ class BaseProcessor(object):
         if getattr(self, 'job', None) is not None:
             # Delete all contents from cache
             try:
-                self.job.tmp.cleanup()
-
+                if not self.__threading__:
+                    # Need to remove cache dir
+                    self.job.tmp.cleanup()
             except (AttributeError, OSError):
                 # Fall back on shutil for python 2, can also fail on windows
                 try:
@@ -305,8 +331,9 @@ class ParallelProcessing(BaseProcessor):
         self._initialize(job=job, X=X, y=y, path=path, **kwargs)
         check_initialized(self)
 
+        tf = self.job.dir if not isinstance(self.job.dir, list) else None
         with Parallel(n_jobs=self.n_jobs,
-                      temp_folder=self.job.dir,
+                      temp_folder=tf,
                       max_nbytes=None,
                       mmap_mode='w+',
                       verbose=self.verbose,
@@ -421,8 +448,9 @@ class ParallelEvaluation(BaseProcessor):
         check_initialized(self)
 
         # Use context manager to ensure same parallel job during entire process
+        tf = self.job.dir if not isinstance(self.job.dir, list) else None
         with Parallel(n_jobs=self.n_jobs,
-                      temp_folder=self.job.dir,
+                      temp_folder=tf,
                       max_nbytes=None,
                       mmap_mode='w+',
                       verbose=self.verbose,

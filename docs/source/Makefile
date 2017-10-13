@@ -31,17 +31,11 @@ api:
 	rm -rf module
 	sphinx-apidoc -ef -o module ../../mlens/   ../../mlens/externals
 
-# Render landing page
-boostrap:
-	cp -rf landing/ ../
-	cd .. | gulp
-
 # Populate parent dir
-arrange:
+arange:
 	cp -r build/html ../docs
 	rm -r build
 	-rm -rf tutorials
-	cp CNAME ../
 
 clean-build:
 	rm -rf tutorials
@@ -50,8 +44,7 @@ clean-build:
 docs:
 	make api
 	make html
-	make arrange
-	make boostrap
+	make arange
 	make clean-build
 
 html-noplot:

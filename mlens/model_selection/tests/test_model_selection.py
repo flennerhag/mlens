@@ -12,9 +12,10 @@ from mlens.testing import Data
 from scipy.stats import randint
 
 try:
-    from contextlib import redirect_stdout
+    from contextlib import redirect_stdout, redirect_stderr
 except ImportError:
     from mlens.externals.fixes import redirect as redirect_stdout
+    redirect_stderr = redirect_stdout
 
 np.random.seed(100)
 
@@ -139,7 +140,7 @@ def test_w_prep_set_params():
 
     np.testing.assert_approx_equal(
             evl.results['test_score-m']['pr__ols'],
-            -7.2594502123869491, 1)
+            -7.2594502123869491)
     assert evl.results['params']['no__ols']['offset'] == 3
     assert evl.results['params']['pr__ols']['offset'] == 1
 
@@ -147,7 +148,7 @@ def test_w_prep_set_params():
 def test_bench_equality():
     """[Model Selection] Test benchmark correspondence with eval."""
 
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
         evl = Evaluator(mape_scorer, cv=5)
         evl.fit(X, y, estimators={'pr': [OLS()], 'no': [OLS()]},
                 param_dicts={}, preprocessing={'pr': [Scale()], 'no': []})
@@ -155,4 +156,5 @@ def test_bench_equality():
         out = benchmark(X, y, mape_scorer, 5, {'pr': [OLS()], 'no': [OLS()]},
                         {'pr': [Scale()], 'no': []}, None)
 
-    assert out['test_score-m']['no__ols'] == evl.results['test_score-m']['no__ols']
+    np.testing.assert_approx_equal(out['test_score-m']['no__ols'],
+                                   evl.results['test_score-m']['no__ols'])

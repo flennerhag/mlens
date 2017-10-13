@@ -4,7 +4,7 @@ Test model selection.
 """
 import os
 import numpy as np
-from mlens.model_selection import Evaluator
+from mlens.model_selection import Evaluator, benchmark
 from mlens.metrics import mape, make_scorer
 from mlens.utils.exceptions import FitFailedWarning
 from mlens.utils.dummy import OLS, Scale
@@ -142,3 +142,15 @@ def test_w_prep_set_params():
             -7.2594502123869491, 1)
     assert evl.results['params']['no__ols']['offset'] == 3
     assert evl.results['params']['pr__ols']['offset'] == 1
+
+
+def test_bench_equality():
+    """[Model Selection] Test benchmark correspondence with eval."""
+    evl = Evaluator(mape_scorer, cv=5)
+    evl.fit(X, y, estimators={'pr': [OLS()], 'no': [OLS()]},
+            param_dicts={}, preprocessing={'pr': [Scale()], 'no': []})
+
+    out = benchmark(X, y, mape_scorer, 5, {'pr': [OLS()], 'no': [OLS()]},
+                    {'pr': [Scale()], 'no': []}, None)
+
+    assert out['test_score-m']['no__ols'] == evl.results['test_score-m']['no__ols']

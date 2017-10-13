@@ -157,7 +157,7 @@ class OutputMixin(IndexMixin):
         finally:
             self.__no_output__ = _np
 
-        if not out:
+        if out is None or len(out) == 0:
             return self
         return out
 

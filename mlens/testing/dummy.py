@@ -514,10 +514,11 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
         if transformer:
             transformer.collect(path)
 
-    try:
-        shutil.rmtree(path)
-    except OSError:
-        warnings.warn("Failed to destroy temporary test cache at %s" % path)
+    if isinstance(path, str):
+        try:
+            shutil.rmtree(path)
+        except OSError:
+            warnings.warn("Failed to destroy temporary test cache at %s" % path)
 
     if wf is not None:
         if job in ['fit', 'transform']:
@@ -581,7 +582,7 @@ def run_layer(job, layer, X, y, F, wf=None):
             P = manager.process(
                 layer, job, *arg[:-1], path=path, return_preds=True)
 
-    if isinstance(path, str):
+    if isinstance(path, str) and layer.backend == 'manual':
         try:
             shutil.rmtree(path)
         except OSError:

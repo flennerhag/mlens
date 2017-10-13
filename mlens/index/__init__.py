@@ -2,16 +2,15 @@
 
 :author: Sebastian Flennerhag
 :copyright: 2017
-:licence: MIT
+:license: MIT
 
 Base modules
 """
 
-from .indexer import (FoldIndex,
-                      BlendIndex,
-                      SubsetIndex,
-                      FullIndex,
-                      ClusteredSubsetIndex)
+from .base import FullIndex
+from .fold import FoldIndex
+from .blend import BlendIndex
+from .subsemble import SubsetIndex, ClusteredSubsetIndex
 
 
 INDEXERS = {'stack': FoldIndex,

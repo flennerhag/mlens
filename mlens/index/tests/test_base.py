@@ -17,7 +17,7 @@ from mlens.index import (FoldIndex,
                          ClusteredSubsetIndex,
                          FullIndex)
 
-from mlens.index.indexer import _partition, _prune_train
+from mlens.index.base import partition, prune_train
 try:
     from contextlib import redirect_stderr
 except ImportError:
@@ -342,9 +342,8 @@ def test_clustered_subset_array_shape():
 def test_clustered_subset_separation():
     """[Base] SubsetIndex: test the array shape on generation."""
     classes = cl_2.predict(X)
-    t = list()
-    for partition in ClusteredSubsetIndex(cl_2,
-                                         2, 2, X=X).partition(as_array=True):
+    for partition in ClusteredSubsetIndex(
+        cl_2, 2, 2, X=X).partition(as_array=True):
         pc = np.unique(classes[partition])
         assert len(pc) == 1
 
@@ -397,12 +396,11 @@ def test_subset_raises_empty():
 ###############################################################################
 def test_prune_train():
     """[Base] indexers: test _prune_train."""
-    assert _prune_train(0, 0, 4, 7) == ((4, 7),)
-    assert _prune_train(4, 7, 9, 9) == ((4, 7),)
-    assert _prune_train(4, 7, 10, 12) == ((4, 7), (10, 12))
+    assert prune_train(0, 0, 4, 7) == ((4, 7),)
+    assert prune_train(4, 7, 9, 9) == ((4, 7),)
+    assert prune_train(4, 7, 10, 12) == ((4, 7), (10, 12))
 
 
 def test_partition():
     """[Base] indexers: test _partition."""
-    np.testing.assert_array_equal(np.array([4, 3, 3]), _partition(10, 3))
-
+    np.testing.assert_array_equal(np.array([4, 3, 3]), partition(10, 3))

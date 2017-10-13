@@ -1,4 +1,5 @@
-"""
+"""ML-Ensemble
+
 Functions for base computations
 """
 from __future__ import division

@@ -156,6 +156,9 @@ class OutputMixin(IndexMixin):
                 out = mgr.process(self, job, X, y, return_preds=r, **kwargs)
         finally:
             self.__no_output__ = _np
+
+        if not out:
+            return self
         return out
 
     @abstractmethod

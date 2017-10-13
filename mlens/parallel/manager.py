@@ -80,18 +80,18 @@ def _load_mmap(f):
 def _set_path(job, path, threading):
     """Build path as a cache or list depending on whether using threading"""
     if path:
-        if isinstance(path, str) and threading:
-            raise ValueError("Cannot use directory cache with threading. "
-                             "Path should be a dict. Got %r" % path.__class__)
-        elif isinstance(path, dict) and not threading:
-            raise ValueError("Cannot use a dictionary with multiprocessing. "
-                             "Path should be a str. Got %r" % path.__class__)
+        if not isinstance(path, str) and not threading:
+            raise ValueError("Path must be a str with backend=multiprocessing."
+                             " Got %r" % path.__class__)
         elif not isinstance(path, (str, dict)):
             raise ValueError("Invalid path format. Should be one of "
                              "str, dict. Got %r" % path.__class__)
-    if threading:
-        path = dict()
         job.dir = path
+        return job
+
+    if threading:
+        # No need to pickle
+        job.dir = dict()
         return job
 
     # Else, need a directory
@@ -269,10 +269,11 @@ class BaseProcessor(object):
 
     def __exit__(self, *args):
         """Ensure cache cleanup"""
-        if getattr(self, 'job', None) is not None:
+        job = getattr(self, 'job', None)
+        if job is not None:
             # Delete all contents from cache
             try:
-                if not self.__threading__:
+                if isinstance(job.dir, str):
                     # Need to remove cache dir
                     self.job.tmp.cleanup()
             except (AttributeError, OSError):
@@ -332,11 +333,8 @@ class ParallelProcessing(BaseProcessor):
         check_initialized(self)
 
         tf = self.job.dir if not isinstance(self.job.dir, list) else None
-        with Parallel(n_jobs=self.n_jobs,
-                      temp_folder=tf,
-                      max_nbytes=None,
-                      mmap_mode='w+',
-                      verbose=self.verbose,
+        with Parallel(n_jobs=self.n_jobs, temp_folder=tf, max_nbytes=None,
+                      mmap_mode='w+', verbose=self.verbose,
                       backend=self.backend) as parallel:
 
             for task in caller:
@@ -394,10 +392,8 @@ class ParallelProcessing(BaseProcessor):
         else:
             f = os.path.join(self.job.dir, '%s_out_array.mmap' % task.name)
             try:
-                self.job.predict_out = np.memmap(filename=f,
-                                                 dtype=task.dtype,
-                                                 mode='w+',
-                                                 shape=shape)
+                self.job.predict_out = np.memmap(
+                    filename=f, dtype=task.dtype, mode='w+', shape=shape)
             except Exception as exc:
                 raise OSError("Cannot create prediction matrix of shape ("
                               "%i, %i), size %i MBs, for %s.\n Details:\n%r" %
@@ -417,9 +413,9 @@ class ParallelProcessing(BaseProcessor):
             data order. See :class:`numpy.asarray` for details.
         """
         if not hasattr(self, 'job'):
-            raise ParallelProcessingError("Processor has been terminated: "
-                                          "cannot retrieve final prediction "
-                                          "array from cache.")
+            raise ParallelProcessingError(
+                "Processor has been terminated:\ncannot retrieve final "
+                "prediction array from cache.")
         if dtype is None:
             dtype = config.DTYPE
 
@@ -449,14 +445,9 @@ class ParallelEvaluation(BaseProcessor):
 
         # Use context manager to ensure same parallel job during entire process
         tf = self.job.dir if not isinstance(self.job.dir, list) else None
-        with Parallel(n_jobs=self.n_jobs,
-                      temp_folder=tf,
-                      max_nbytes=None,
-                      mmap_mode='w+',
-                      verbose=self.verbose,
+        with Parallel(n_jobs=self.n_jobs, temp_folder=tf, max_nbytes=None,
+                      mmap_mode='w+', verbose=self.verbose,
                       backend=self.backend) as parallel:
 
-            caller.indexer.fit(
-                self.job.predict_in, self.job.y, self.job.job)
-
+            caller.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
             caller(parallel, self.job.args, case)

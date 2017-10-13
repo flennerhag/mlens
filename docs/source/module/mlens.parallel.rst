@@ -6,6 +6,7 @@ Submodules
 
 .. toctree::
 
+   mlens.parallel.base
    mlens.parallel.layer
    mlens.parallel.learner
    mlens.parallel.manager

@@ -1,7 +1,7 @@
-mlens\.index\.indexer module
+mlens\.parallel\.base module
 ============================
 
-.. automodule:: mlens.index.indexer
+.. automodule:: mlens.parallel.base
     :members:
     :undoc-members:
     :show-inheritance:

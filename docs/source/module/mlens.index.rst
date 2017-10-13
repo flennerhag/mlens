@@ -6,7 +6,10 @@ Submodules
 
 .. toctree::
 
-   mlens.index.indexer
+   mlens.index.base
+   mlens.index.blend
+   mlens.index.fold
+   mlens.index.subsemble
 
 Module contents
 ---------------

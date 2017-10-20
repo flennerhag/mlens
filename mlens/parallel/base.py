@@ -9,9 +9,9 @@ Base classes for parallel estimation
 from abc import abstractmethod
 import numpy as np
 
-from .manager import ParallelProcessing
 from ._base_functions import mold_objects
 from .. import config
+from ..utils.exceptions import ParallelProcessingError
 from ..externals.sklearn.base import BaseEstimator
 
 
@@ -20,18 +20,19 @@ class Group(BaseEstimator):
     """Group
 
     Lightweight class for pairing an estimator to a set of transformers and
-    learners.
+    learners. Allows cloning.
     """
 
     def __init__(self, indexer, learners, transformers):
-        learners = mold_objects(learners, 'Learner')
-        transformers = mold_objects(transformers, 'Transformer')
+        learners, transformers = mold_objects(learners, transformers)
 
+        # Enforce common indexer
         self.indexer = indexer
+        for o in learners + transformers:
+            o.set_indexer(self.indexer)
+
         self.learners = learners
         self.transformers = transformers
-        for obj in self.learners + self.transformers:
-            obj.indexer = self.indexer
 
     def __iter__(self):
         for tr in self.transformers:
@@ -52,6 +53,11 @@ class IndexMixin(object):
     Mixin for handling indexers.
     """
 
+    @property
+    def __indexer__(self):
+        """Flag for existence of indexer"""
+        return hasattr(self, 'indexer') or hasattr(self, 'indexers')
+
     def _check_indexer(self, indexer):
         """Check consistent indexer classes"""
         cls = indexer.__class__.__name__.lower()
@@ -62,21 +68,21 @@ class IndexMixin(object):
         if lcls:
             if 'blendindex' in lcls and cls != 'blendindex':
                 raise ValueError(
-                "Layer has blend indexers, but passed indexer if of full type")
+                    "Instance has blendindex, but was passed full type")
             elif 'blendindex' not in lcls and cls == 'blendindex':
                 raise ValueError(
-               "Layer has full size indexers, passed indexer is of blend type")
+                    "Instance has full type index, but was passed blendindex")
 
     def _get_indexers(self):
         """Return list of indexers"""
+        if not self.__indexer__:
+            raise AttributeError("No indexer or indexers attribute available")
         indexers = [getattr(self, 'indexer', None)]
         if None in indexers:
             indexers = getattr(self, 'indexers', [None])
-        if None in indexers:
-            raise AttributeError("No indexer or indexers attribute available")
         return indexers
 
-    def _fit_indexers(self, X, y, job):
+    def _setup_0_index(self, X, y, job):
         indexers = self._get_indexers()
         for indexer in indexers:
             indexer.fit(X, y, job)
@@ -87,87 +93,30 @@ class OutputMixin(IndexMixin):
     """Output Mixin
 
     Mixin class for interfacing with ParallelProcessing when outputs are
-    desired. Also implements generic fit, predict and transform methods.
+    desired.
 
     .. Note::
        To use this mixin the instance inheriting it must set the
        ``feature_span`` attribute in ``__init__``.
     """
 
-    def fit(self, X, y, **kwargs):
-        """Fit
-
-        Fit learner(s) and transformer(s).
-
-        Parameters
-        ----------
-        X: array
-            input data
-        y: array
-            targets
-
-        **kwargs: optional
-            optional arguments to :attr:`ParallelProcessing.process`
-        """
-        return self._run('fit', X, y, **kwargs)
-
-    def predict(self, X, **kwargs):
-        """Predict
-
-        Use final learner(s) to predict.
-
-        Parameters
-        ----------
-        X: array,
-            input data
-
-        **kwargs: optional
-            optional arguments to :attr:`ParallelProcessing.process`
-        """
-        return self._run('predict', X, **kwargs)
-
-    def transform(self, X, **kwargs):
-        """Transform
-
-        Use cross-validation to predict.
-
-        Parameters
-        ----------
-        X: array,
-            input data
-
-        **kwargs: optional
-            optional arguments to :attr:`ParallelProcessing.process`
-        """
-        return self._run('transform', X, **kwargs)
-
-    def _run(self, job, X, y=None, **kwargs):
-        """Run job"""
-        # Force __no_output__ to False for the run
-        _np = self.__no_output__
-        self.__no_output__ = False
-
-        try:
-            r = kwargs.pop('return_preds', False if job == 'fit' else True)
-            verbose = max(getattr(self, 'verbose', 0) - 4, 0)
-            backend = getattr(self, 'backend', config.BACKEND)
-            n_jobs = getattr(self, 'n_jobs', -1)
-            with ParallelProcessing(backend, n_jobs, verbose) as mgr:
-                out = mgr.process(self, job, X, y, return_preds=r, **kwargs)
-        finally:
-            self.__no_output__ = _np
-
-        if out is None or len(out) == 0:
-            return self
-        return out
-
     @abstractmethod
-    def set_output_columns(self, X, y, n_left_concats=0):
+    def set_output_columns(self, X, y, job, n_left_concats=0):
         """Set output columns for prediction array"""
         pass
 
+    def _setup_3_output_columns(self, X, y, job, n_left_concats=0):
+        """Set output columns for prediction array. Used during setup"""
+        if not self.__no_output__:
+            self.set_output_columns(X, y, job, n_left_concats)
+
     def shape(self, job):
         """Prediction array shape"""
+        if not hasattr(self, 'feature_span'):
+            raise ParallelProcessingError(
+                "Instance dose not set the feature_span attribute "
+                "in the constructor.")
+
         if not self.feature_span:
             raise ValueError("Columns not set. Call set_output_columns.")
         return self.size(job), self.feature_span[1]
@@ -186,16 +135,10 @@ class OutputMixin(IndexMixin):
         if not sizes.shape[0] == 1:
             raise ValueError(
                 "Inconsistent output sizes generated by indexers.\n"
-                 "All indexers need to generate same output size.\n"
-                 "Got sizes %r from indexers %r" % (sizes.tolist(), indexers))
+                "All indexers need to generate same output size.\n"
+                "Got sizes %r from indexers %r" % (sizes.tolist(), indexers))
 
         return sizes[0]
-
-    def _setup(self, X, y, job):
-        """Setup instance for estimation"""
-        self._fit_indexers(X, y, job)
-        if not getattr(self, '__no_output__', False):
-            self.set_output_columns(X, y)
 
 
 class ProbaMixin(object):
@@ -210,10 +153,12 @@ class ProbaMixin(object):
        attribute in ``__init__``.
     """
 
-    def _check_proba_multiplier(self, y, alt=1):
+    def _setup_2_multiplier(self, X, y, job=None):
+        if self.proba and y is not None:
+            self.classes_ = y
+
+    def _get_multiplier(self, X, y, alt=1):
         if self.proba:
-            if y is not None:
-                self.classes_ = y
             multiplier = self.classes_
         else:
             multiplier = alt
@@ -231,8 +176,41 @@ class ProbaMixin(object):
     @classes_.setter
     def classes_(self, y):
         """Set classes given input y"""
-        if self.proba:
-            self._classes = np.unique(y).shape[0]
+        self._classes = np.unique(y).shape[0]
+
+
+class AttributeMixin(object):
+
+    """Base Estimator class
+
+    Derived class from Scikit-learn's BaseEstimator. Protects parameters
+    by forcing a re-run of ``__init__`` to ensure backend is updated.
+
+    Child classes must set ``__initialized__ = 0`` on first line in
+    ``__init__`` and ``__initialized__ = 1`` on last line in ``__init__``.
+
+    Examples
+    --------
+    ::
+        class Foo(_BaseEstimator):
+
+            def __init__(self, bar):
+                self.__initialized__ = 0  # Unblock __setattr__
+                self.bar = bar
+                self.__initialized__ = 1  # Protect __setattr__ wrt params chg
+    """
+
+    def __setattr__(self, name, value):
+        reinit = False
+        if getattr(self, '__initialized__', False):
+            params = self.get_params(deep=False)
+            if name in params:
+                reinit = True
+                params[name] = value
+        if reinit:
+            self.__init__(**params)
+        else:
+            super(AttributeMixin, self).__setattr__(name, value)
 
 
 class BaseBackend(object):
@@ -250,7 +228,7 @@ class BaseBackend(object):
         self.raise_on_exception = raise_on_exception
 
 
-class BaseParallel(BaseBackend, IndexMixin, BaseEstimator):
+class BaseParallel(BaseBackend, BaseEstimator):
 
     """Base class for parallel objects
 
@@ -286,18 +264,29 @@ class BaseParallel(BaseBackend, IndexMixin, BaseEstimator):
     def __init__(self, name, *args, **kwargs):
         super(BaseParallel, self).__init__(*args, **kwargs)
         self.name = name
-
-        # Flags for parallel
-        self.__fitted__ = False      # Status for whether is fitted
-        self.__no_output__ = False   # Status for whether to not expect outputs
+        self.__no_output__ = getattr(self, '__no_output__', False)
 
     def __iter__(self):
         """Iterator for process manager"""
         yield self
 
-    def _setup(self, X, y, job):
+    @property
+    @abstractmethod
+    def __fitted__(self):
+        """Fit status"""
+        return
+
+    def setup(self, X, y, job, skip=None, **kwargs):
         """Setup instance for estimation"""
-        self._fit_indexers(X, y, job)
+        skip = ['_setup_%s' % s for s in skip] if skip else []
+        funs = [f for f in dir(self)
+                if f.startswith('_setup_') and f not in skip]
+
+        for f in sorted(funs):
+            func = getattr(self, f)
+            args = func.__func__.__code__.co_varnames
+            fargs = {k: v for k, v in kwargs.items() if k in args}
+            func(X, y, job, **fargs)
 
     def get_params(self, deep=True):
         """Get learner parameters

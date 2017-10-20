@@ -9,14 +9,34 @@ Formatting of instance lists.
 
 from __future__ import division, print_function
 
+from collections import Counter
 from .checks import assert_valid_estimator, assert_correct_format
 from .exceptions import LayerSpecificationError
-from collections import Counter
+from ..externals.sklearn.base import clone
 
 
-def _format_instances(instances):
+def _format_instances(instances, nested, namespace=None):
     """Format a list of instances to a list of named estimator tuples."""
-    named_instances = []
+    if nested:
+        # Need to flatten, but record hierarchy
+        instances_dict = instances
+        vacuous = list()
+        case_map = dict()
+        instances = list()
+        for case, instance_list in instances_dict.items():
+            case = '-'.join(case.lower().split())
+
+            if not instance_list:
+                vacuous.append((case, instance_list))
+                continue
+
+            for val in instance_list:
+                instances.append(val)
+                if isinstance(val, (list, tuple, set)):
+                    val = val[1]  # Grab estimator
+                case_map[val] = case
+
+    named_instances = list()
     for val in instances:
         # Check that the instance appears correctly specified
         if not isinstance(val, (list, tuple, set)):
@@ -34,7 +54,7 @@ def _format_instances(instances):
 
             # We keep the instance as a list to change possible duplicate names
             # exploiting that lists are mutable, before switching to tuple
-            if instance == val:
+            if instance is val:
                 tup = [instance.__class__.__name__.lower(), instance]
             else:
                 tup = ['-'.join(val[0].split()).lower(), val[-1]]
@@ -52,12 +72,13 @@ def _format_instances(instances):
             raise LayerSpecificationError(msg % (instance, e))
 
     # Check and correct duplicate names
-    duplicates = Counter([tup[0] for tup in named_instances])
-    duplicates = {key: val for key, val in duplicates.items() if
-                  val > 1}
+    names = [tup[0] for tup in named_instances]
+    if namespace:
+        names.extend(namespace)
+    duplicates = Counter(names)
+    duplicates = {key: val for key, val in duplicates.items() if val > 1}
 
-    out = []  # final named_instances list
-
+    out = list()  # final named_instances list
     name_count = {key: 1 for key in duplicates}
     for name, instance in named_instances:
         if name in duplicates:
@@ -65,17 +86,35 @@ def _format_instances(instances):
             name_count[name] += 1
             name += '-%d' % current_name_count  # rename
         out.append((name, instance))
-    return sorted(out)
+    out = sorted(out)
+
+    if nested:
+        # Rebuild hierarchy
+        nested_out = dict()
+        for name, instance in out:
+            case = case_map[instance]
+            if case not in nested_out:
+                nested_out[case] = list()
+            nested_out[case].append((name, instance))
+
+        for k, v in vacuous:
+            nested_out[k] = v
+
+        out = nested_out
+
+    return out
 
 
-def _check_format(instance_list):
+def _check_format(instance_list, namespace=None):
     """Quick check of an instance list to see if the format is correct."""
+    if namespace is None:
+        namespace = []
     # Assert list instance
     if not isinstance(instance_list, list):
         return False
 
     # If empty list, no preprocessing case
-    if len(instance_list) == 0:
+    if not instance_list:
         return True
 
     # Check if each element in instance_list is a named instance tuple
@@ -85,13 +124,15 @@ def _check_format(instance_list):
         if not isinstance(element, tuple) or len(element) != 2:
             return False
 
-        # Check that the first element is a string with no spaces,
-        # the latter an estimator
+        # Check tuple
         is_str = isinstance(element[0], str)
         no_spa = ' ' not in element[0]
+        no_dup = element[0] not in namespace
+
         is_est = (hasattr(element[1], 'get_params') and
                   hasattr(element[1], 'fit'))
-        if not (is_str and is_est and no_spa):
+
+        if not (is_str and is_est and no_dup and no_spa):
             return False
 
         # Check that the last element is a valid estimator
@@ -106,20 +147,24 @@ def _check_format(instance_list):
     return True
 
 
-def _assert_format(instances):
+def _assert_format(instances, namespace=None):
     """Assert that a generic instances object is correctly formatted."""
+    if not namespace:
+        namespace = list()
+
     if isinstance(instances, dict):
         # Need to check every instance list across preprocessing cases
         for instance_list in instances.values():
-            if not _check_format(instance_list):
+            if not _check_format(instance_list, namespace=namespace):
                 return False
+            namespace.extend(n for n, e in instance_list)
         return True
 
     # For list, check the given list
-    return _check_format(instances)
+    return _check_format(instances, namespace=namespace)
 
 
-def check_instances(estimators=None, preprocessing=None):
+def check_instances(estimators=None, preprocessing=None, namespace=None):
     """Ensure estimators and preprocessing pipelines are correctly formatted
 
     Utility for formating estimator iterable and preprocessing iterable into
@@ -133,30 +178,36 @@ def check_instances(estimators=None, preprocessing=None):
     preprocessing : iterable, optional
         preprocessing pipeline instances.
     """
+    if not namespace:
+        namespace = list()
     assert_correct_format(estimators, preprocessing)
     preprocessing = _check_instances(preprocessing)
+    if estimators and not isinstance(estimators, (dict, list)):
+        estimators = [estimators]
 
     if preprocessing:
         if isinstance(preprocessing, list):
-            # Single case, force create a case for prep and ests
-            preprocessing = [('pr', preprocessing)]
-            estimators = {'pr': estimators} if estimators else {}
-        else:
-            preprocessing = [(n, l) for n, l in sorted(preprocessing.items())]
+            # Preprocessing but there's not case: force create
+            preprocessing = {'pr': preprocessing}
+            estimators = {'pr': estimators} if estimators else dict()
+        preprocessing = [(n, l) for n, l in sorted(preprocessing.items())]
+        namespace += [n for n, l in preprocessing]
 
-    estimators = _check_instances(estimators)
-    estimators = _flatten(estimators)
+    if estimators:
+        estimators = _check_instances(estimators, namespace=namespace)
+        estimators = _flatten(estimators)
 
     out_prep, out_est, cases = list(), list(), list()
     if preprocessing:
         for preprocess_name, tr in sorted(preprocessing):
             if tr:
-                out_prep.append((preprocess_name, tr))
+                out_prep.append((preprocess_name,
+                                 [(n, clone(t)) for n, t in tr]))
                 cases.append(preprocess_name)
     if estimators:
         for preprocess_name, learner_name, est in estimators:
             pr_name = preprocess_name if preprocess_name in cases else None
-            out_est.append((pr_name, learner_name, est))
+            out_est.append((pr_name, learner_name, clone(est)))
 
     return out_prep, out_est
 
@@ -176,7 +227,7 @@ def _flatten(instances):
     return flattened
 
 
-def _check_instances(instances):
+def _check_instances(instances, namespace=None):
     """Helper to ensure all instances are named.
 
     Check if ``instances`` is formatted as expected, and if not convert
@@ -186,6 +237,9 @@ def _check_instances(instances):
     ----------
     instances : iterable
         instance iterable to test.
+
+    namespace: list, optional
+        list of assigned instance names.
 
     Returns
     -------
@@ -205,20 +259,18 @@ def _check_instances(instances):
     --------
         :class:`mlens.ensemble.base.Layer`
     """
+    if not namespace:
+        namespace = list()
+
     is_iterable = isinstance(instances, (list, tuple, dict))
     if not is_iterable:
         instances = [instances]
     if not instances or None in instances:
         return None
 
-    if _assert_format(instances):
+    if _assert_format(instances, namespace):
         out = instances
-    elif isinstance(instances, list):
-        out = _format_instances(instances)
     else:
-        # We need to check the instance list of each case
-        out = {}
-        for case, case_list in instances.items():
-            out['-'.join(case.lower().split())] = \
-                _format_instances(case_list)
+        out = _format_instances(
+            instances, nested=isinstance(instances, dict), namespace=namespace)
     return out

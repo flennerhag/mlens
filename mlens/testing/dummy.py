@@ -23,6 +23,7 @@ from ..index import INDEXERS
 from ..ensemble.base import Sequential
 from ..parallel import ParallelProcessing, Learner, Transformer, Layer
 from ..parallel import make_learners
+from ..estimators import LayerEnsemble
 
 ##############################################################################
 PREPROCESSING = {'no': [], 'sc': [('scale', Scale())]}
@@ -94,9 +95,8 @@ class InitMixin(object):
 
         # Build an ensemble consisting of two OLS estimators in the first
         # layer, and a single on top.
-        if getattr(self, 'layers', None) is None:
-            getattr(self, 'add')([OLS(offset=1), OLS(offset=2)])
-            getattr(self, 'add_meta')(OLS())
+        getattr(self, 'add')([OLS(offset=1), OLS(offset=2)])
+        getattr(self, 'add_meta')(OLS())
 
 
 ###############################################################################
@@ -185,6 +185,39 @@ class EstimatorContainer(object):
         layer.push(group)
         return layer
 
+    def get_layer_estimator(self, kls, proba, preprocessing, *args, **kwargs):
+        """Generate a layer estimator instance.
+
+        Parameters
+        ----------
+        kls : str
+            class type
+
+        proba : bool
+            whether to set ``proba`` to ``True``
+
+        preprocessing : bool
+            layer with preprocessing cases
+        """
+        indexer, kwargs = self.load_indexer(kls, args, kwargs)
+
+        learner_kwargs = {'proba': kwargs.pop('proba', proba),
+                          'scorer': kwargs.pop('scorer', None)
+                          }
+
+        if preprocessing:
+            ests = ESTIMATORS_PROBA if proba else ESTIMATORS
+            prep = PREPROCESSING
+        else:
+            ests = ECM_PROBA if proba else ECM
+            prep = []
+
+        group = make_learners(indexer, ests, prep,
+                              learner_kwargs=learner_kwargs)
+        layer = LayerEnsemble([group], **kwargs)
+        layer._backend.dtype = np.float64
+        return layer
+
     def get_sequential(self, kls, proba, preprocessing, *args, **kwargs):
         """Generate a layer container instance.
 
@@ -216,6 +249,7 @@ class EstimatorContainer(object):
         return indexer, kwargs
 
 
+
 class Data(object):
 
     """Class for getting data."""
@@ -230,20 +264,16 @@ class Data(object):
 
     def get_data(self, shape, m):
         """Generate X and y data with X.
-
         Parameters
         ----------
         shape : tuple
             shape of data to be generated
-
         m : int
             length of step function for y
-
         Returns
         -------
         train : ndarray
             generated as a sequence of  reshaped to (LEN, WIDTH)
-
         labels : ndarray
             generated as a step-function with a step every ``m``. As such,
             each prediction fold during cross-validation have
@@ -271,15 +301,12 @@ class Data(object):
 
     def ground_truth(self, X, y, subsets=1, feature_prop=None):
         """Set up an experiment ground truth.
-
         Returns
         -------
         F : ndarray
             Full prediction array (train errors)
-
         P : ndarray
             Folded prediction array (test errors)
-
         Raises
         ------
         AssertionError :
@@ -500,13 +527,20 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
     P = np.zeros(F.shape)
 
     path = _get_path('manual', is_learner=True)
-    arg = (X, y, P) if job == 'fit' else (X, P)
-    learner._indexer.fit(X)
+    args = {
+        'dir': path,
+        'job': job,
+        'auxiliary': {'X': X, 'y': y} if job == 'fit' else {'X': X},
+        'main': {'X': X, 'y': y, 'P': P} if job == 'fit' else {'X': X, 'P': P}
+        }
+
     if transformer:
-        for obj in getattr(transformer, 'gen_%s' % job)(*arg[:-1]):
+        transformer.setup(X, y, job)
+        for obj in transformer(args, 'auxiliary'):
             obj(path)
 
-    for obj in getattr(learner, 'gen_%s' % job)(*arg):
+    learner.setup(X, y, job)
+    for obj in learner(args, 'main'):
         obj(path)
 
     if job == 'fit':
@@ -556,43 +590,46 @@ def run_layer(job, layer, X, y, F, wf=None):
     P = np.zeros(F.shape)
 
     path = _get_path(layer.backend, is_learner=False)
-    layer._setup(X, y, job)
-    if job == 'fit':
-        layer.set_output_columns(X, y)
-        arg = (X, y, P)
-    else:
-        arg = (X, P)
+    args = {
+        'dir': path,
+        'job': job,
+        'auxiliary': {'X': X, 'y': y} if job == 'fit' else {'X': X},
+        'main': {'X': X, 'y': y, 'P': P} if job == 'fit' else {'X': X, 'P': P}
+        }
 
     if layer.backend == 'manual':
         # Run manually
+        layer.setup(X, y, job)
         if layer.transformers:
             for transformer in layer.transformers:
-                for subtransformer in getattr(transformer, 'gen_%s' % job)(*arg[:-1]):
+                for subtransformer in transformer(args, 'auxiliary'):
                     subtransformer(path)
         for learner in layer.learners:
-            for sublearner in getattr(learner, 'gen_%s' % job)(*arg):
+            for sublearner in learner(args, 'main'):
                 sublearner(path)
 
         if job == 'fit':
             layer.collect(path)
 
     else:
-        # Use context manager
+        args = (X, y) if job == 'fit' else (X,)
         with ParallelProcessing(layer.backend, layer.n_jobs) as manager:
-            P = manager.process(
-                layer, job, *arg[:-1], path=path, return_preds=True)
+            P = manager.map(layer, job, *args, path=path, return_preds=True)
 
     if isinstance(path, str) and layer.backend == 'manual':
         try:
             shutil.rmtree(path)
         except OSError:
-            warnings.warn("Failed to destroy temporary test cache at %s" % path)
+            warnings.warn(
+                "Failed to destroy temporary test cache at %s" % path)
 
     if wf is not None:
         if job in ['fit', 'transform']:
-            w = [obj.estimator.coef_ for lr in layer.learners for obj in lr.sublearners_]
+            w = [obj.estimator.coef_
+                 for lr in layer.learners for obj in lr.sublearners_]
         else:
-            w = [obj.estimator.coef_ for lr in layer.learners for obj in lr.learner_]
+            w = [obj.estimator.coef_
+                 for lr in layer.learners for obj in lr.learner_]
         np.testing.assert_array_equal(P, F)
         np.testing.assert_array_equal(w, wf)
 

@@ -291,8 +291,6 @@ class BlendEnsemble(BaseEnsemble):
             c = kwargs.pop('test_size', self.test_size)
             idx = BlendIndex(c, raise_on_exception=self.raise_on_exception)
 
-        verbose = kwargs.pop('verbose', self.verbose)
-
         return super(BlendEnsemble, self).add(
             estimators=estimators, preprocessing=preprocessing, indexer=idx,
             proba=proba, propagate_features=propagate_features, **kwargs)

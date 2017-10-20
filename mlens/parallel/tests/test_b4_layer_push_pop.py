@@ -11,7 +11,7 @@ import numpy as np
 from mlens.index import INDEXERS
 from mlens.testing.dummy import Data, ECM
 from mlens.utils.dummy import Scale, LogisticRegression
-from mlens.parallel import make_learners, Layer
+from mlens.parallel import make_learners, Layer, run
 from mlens.externals.sklearn.base import clone
 try:
     from contextlib import redirect_stdout
@@ -64,29 +64,31 @@ def test_push_1():
     assert layer.__initialized__
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        layer.fit(X, y)
+        run(layer, 'fit', X, y)
+        run(layer, 'transform', X)
+        run(layer, 'predict', X)
+    assert layer.__fitted__
 
 
 def test_push_2():
     """[Parallel | Layer] Testing double push"""
 
-    assert layer.__fitted__
     layer.push(g2)
     assert not layer.__fitted__
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        a = layer.fit(X, y, refit=False, return_preds=True)
+        a = run(layer, 'fit', X, y, refit=False, return_preds=True)
 
     assert layer.__fitted__
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        b = layer.fit(X, y, refit=False, return_preds=True)
+        b = run(layer, 'fit', X, y, refit=False, return_preds=True)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        c = layer.transform(X)
+        c = run(layer, 'transform', X, return_preds=True)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        d = layer.fit(X, y, refit=True, return_preds=True)
+        d = run(layer, 'fit', X, y, refit=True, return_preds=True)
 
     np.testing.assert_array_equal(a, b)
     np.testing.assert_array_equal(a, c)
@@ -101,18 +103,18 @@ def test_clone():
     assert not lyr.__fitted__
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        F = layer.fit(X, y, return_preds=True, refit=False)
-        H = lyr.fit(X, y, return_preds=True)
+        F = run(layer, 'fit', X, y, refit=False, return_preds=True)
+        H = run(lyr, 'fit', X, y, return_preds=True)
     np.testing.assert_array_equal(F, H)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        F = layer.transform(X)
-        H = lyr.transform(X)
+        F = run(layer, 'transform', X)
+        H = run(lyr, 'transform', X)
     np.testing.assert_array_equal(F, H)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
-        F = layer.predict(X)
-        H = lyr.predict(X)
+        F = run(layer, 'predict', X)
+        H = run(lyr, 'predict', X)
     np.testing.assert_array_equal(F, H)
 
 
@@ -123,7 +125,7 @@ def test_data():
     for lr in lyr.learners:
         lr.scorer = scorer
 
-    lyr.fit(X, y)
+    run(lyr, 'fit', X, y, return_preds=True)
     repr = lyr.data.__repr__()
     assert lyr.raw_data
     assert isinstance(lyr.raw_data, list)

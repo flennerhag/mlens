@@ -1,9 +1,10 @@
 """
 Test Scikit-learn
 """
+from mlens.utils.dummy import LogisticRegression
 from mlens.ensemble import SuperLearner, Subsemble, BlendEnsemble
-
 try:
+    from sklearn.utils.estimator_checks import check_estimator
     from sklearn.linear_model import Lasso, LinearRegression
     from sklearn.neighbors import KNeighborsRegressor
     from sklearn.svm import SVR
@@ -152,3 +153,4 @@ if has_sklearn:
         p = ens.predict(X)
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
+

@@ -214,13 +214,13 @@ class SuperLearner(BaseEnsemble):
     def __init__(
             self, folds=2, shuffle=False, random_state=None, scorer=None,
             raise_on_exception=True, array_check=2, verbose=False, n_jobs=-1,
-            backend=None, model_selection=False, sample_size=20, layers=None):
+            backend='threading', model_selection=False, sample_size=20, layers=None):
         super(SuperLearner, self).__init__(
             shuffle=shuffle, random_state=random_state, scorer=scorer,
             raise_on_exception=raise_on_exception, verbose=verbose,
             n_jobs=n_jobs, layers=layers, backend=backend,
             array_check=array_check, model_selection=model_selection,
-            sample_size=sample_size,)
+            sample_size=sample_size)
 
         self.folds = folds
 

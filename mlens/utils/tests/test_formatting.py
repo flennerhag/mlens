@@ -60,13 +60,13 @@ def test_assert_format_list_bad():
 
 def test_assert_format_dict():
     """[Utils] _assert_format: test correct dict passes."""
-    instances = {'a': [('ols-1', OLS()), ('ols-2', OLS(offset=1))],
-                 'b': [('ols-1', OLS()), ('ols-2', OLS(offset=1))]}
+    instances = {'a': [('ols-a1', OLS()), ('ols-a2', OLS(offset=1))],
+                 'b': [('ols-b1', OLS()), ('ols-b2', OLS(offset=1))]}
     assert _assert_format(instances)
 
 
 def test_assert_format():
-    """[Utils] _assert_format: test correct dict passes."""
+    """[Utils] _assert_format: test incorrect dict does not pass."""
     instances = {'a': [('ols-1', OLS()), ('ols-2', OLS(offset=1))],
                  'b': [OLS(), ('ols-2', OLS(offset=1))]}
     assert not _assert_format(instances)
@@ -77,7 +77,7 @@ def test_formatting_list():
 
     instances = [OLS(), ('ols', OLS()), ('ols', OLS()), ['list', OLS()]]
 
-    formatted = _format_instances(instances)
+    formatted = _format_instances(instances, False)
 
     strings = []
     for i in formatted:
@@ -118,8 +118,8 @@ def test_check_instances_list_formatting():
 def test_check_instances_dict():
     """[Utils] check_instances: test correct dict is returned as is."""
 
-    instances = {'a': [('ols-1', OLS()), ('ols-2', OLS(offset=1))],
-                 'b': [('ols-1', OLS()), ('ols-2', OLS(offset=1))],
+    instances = {'a': [('ols-a1', OLS()), ('ols-a2', OLS(offset=1))],
+                 'b': [('ols-b1', OLS()), ('ols-b2', OLS(offset=1))],
                  }
     out = _check_instances(instances)
 

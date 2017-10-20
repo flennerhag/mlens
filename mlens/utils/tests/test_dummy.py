@@ -17,7 +17,7 @@ from mlens.testing.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \
 from mlens.testing.dummy import Data, EstimatorContainer
 
 from mlens.utils import assert_correct_format
-from mlens.utils.formatting import _assert_format
+from mlens.utils.formatting import _assert_format, _format_instances
 
 from mlens.utils.exceptions import NotFittedError
 from mlens.externals.sklearn.base import BaseEstimator
@@ -195,8 +195,8 @@ def test_estimator_lists():
     assert_correct_format(ECM, None)
     assert_correct_format(ECM_PROBA, None)
 
-    assert _assert_format(ESTIMATORS)
-    assert _assert_format(ESTIMATORS_PROBA)
+    assert _assert_format(_format_instances(ESTIMATORS, True))
+    assert _assert_format(_format_instances(ESTIMATORS_PROBA, True))
     assert _assert_format(ECM)
     assert _assert_format(ECM_PROBA)
     assert _assert_format(PREPROCESSING)
@@ -249,10 +249,9 @@ def test_ground_truth():
                     [1.14285714 ,  1.14285714],
                     [3.14285714 ,  3.14285714]])
 
-    t, z = Data('stack', False, True).get_data((6, 2), 2)
-
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
-        (F, wf), (P, wp) = Data('stack', False, True, folds=3).ground_truth(t, z)
+    data = Data('stack', False, True, folds=3)
+    t, z = data.get_data((6, 2), 2)
+    (F, wf), (P, wp) = data.ground_truth(t, z)
 
     np.testing.assert_array_almost_equal(F, gf)
     np.testing.assert_array_almost_equal(wf, gwf)

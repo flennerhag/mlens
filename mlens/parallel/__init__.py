@@ -4,9 +4,10 @@
 :copyright: 2017
 :licence: MIT
 """
-from .manager import ParallelProcessing, ParallelEvaluation
+from .backend import ParallelProcessing, ParallelEvaluation
 from .learner import Learner, EvalLearner, Transformer, make_learners
 from .layer import Layer
+from .wrapper import run, get_backend
 
 __all__ = ['ParallelProcessing',
            'ParallelEvaluation',
@@ -14,5 +15,7 @@ __all__ = ['ParallelProcessing',
            'Learner',
            'EvalLearner',
            'Transformer',
-           'make_learners'
+           'make_learners',
+           'run',
+           'get_backend'
            ]

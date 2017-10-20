@@ -24,15 +24,15 @@ data = Data('stack', False, True, FOLDS)
 X, y = data.get_data((LEN, WIDTH), MOD)
 
 est = EstimatorContainer()
-lc_s = est.get_layer('stack', False, True)
-lc_b = est.get_layer('blend', False, False)
-lc_u = est.get_layer('subsemble', False, False)
+lc_s = est.get_layer_estimator('stack', False, True)
+lc_b = est.get_layer_estimator('blend', False, False)
+lc_u = est.get_layer_estimator('subsemble', False, False)
 
-a = clone(lc_s)
+a = clone(lc_s._backend)
 a.name += '-1'
-b = clone(lc_b)
+b = clone(lc_b._backend)
 b.name += '-2'
-c = clone(lc_u)
+c = clone(lc_u._backend)
 c.name += '-3'
 
 seq = Sequential()(a, b, c)
@@ -40,11 +40,11 @@ seq = Sequential()(a, b, c)
 
 def test_fit_seq():
     """[Sequential] Test multilayer fitting."""
-    S = lc_s.fit(X, y, return_preds=True)
-    B = lc_b.fit(S, y, return_preds=True)
+    S = lc_s.fit_transform(X, y)
+    B = lc_b.fit_transform(S, y)
     r = y.shape[0] - B.shape[0]
-    U = lc_u.fit(B, y[r:], return_preds=True)
-    out = seq.fit(X, y, return_preds=True)
+    U = lc_u.fit_transform(B, y[r:])
+    out = seq.fit_transform(X, y)
     np.testing.assert_array_equal(U, out)
 
 
@@ -59,17 +59,17 @@ def test_predict_seq():
 
 def test_fit():
     """[SequentialEnsemble] Test multilayer fitting."""
-    S = lc_s.fit(X, y, return_preds=True)
-    B = lc_b.fit(S, y, return_preds=True)
+    S = lc_s.fit_transform(X, y)
+    B = lc_b.fit_transform(S, y)
     r = y.shape[0] - B.shape[0]
-    U = lc_u.fit(B, y[r:], return_preds=True)
+    U = lc_u.fit_transform(B, y[r:])
 
     ens = SequentialEnsemble()
     ens.add('stack', ESTIMATORS, PREPROCESSING, dtype=np.float64)
     ens.add('blend', ECM, dtype=np.float64)
     ens.add('subsemble', ECM, dtype=np.float64)
 
-    out = ens.fit(X, y, return_preds=True)
+    out = ens.fit_transform(X, y)
     np.testing.assert_array_equal(U, out)
 
 
@@ -88,7 +88,6 @@ def test_predict():
 
 def test_equivalence_super_learner():
     """[SequentialEnsemble] Test ensemble equivalence with SuperLearner."""
-
     ens = SuperLearner()
     seq = SequentialEnsemble()
 
@@ -103,7 +102,6 @@ def test_equivalence_super_learner():
 
 def test_equivalence_blend():
     """[SequentialEnsemble] Test ensemble equivalence with BlendEnsemble."""
-
     ens = BlendEnsemble()
     seq = SequentialEnsemble()
 
@@ -118,7 +116,6 @@ def test_equivalence_blend():
 
 def test_equivalence_subsemble():
     """[SequentialEnsemble] Test ensemble equivalence with Subsemble."""
-
     ens = Subsemble(n_jobs=1)
     seq = SequentialEnsemble(n_jobs=1)
 

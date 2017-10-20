@@ -21,7 +21,11 @@ def load(path, name, raise_on_exception=True):
         obj = _load(f, raise_on_exception)
     elif isinstance(path, list):
         obj = [tup[1] for tup in path if tup[0] == name]
-        if not len(obj) == 1:
+        if not obj:
+            raise ValueError(
+                "No preprocessing pipeline in cache. Auxiliary Transformer "
+                "have not cached pipelines, or cached to the sub-cache.")
+        elif not len(obj) == 1:
             raise ValueError(
                 "Could not load unique preprocessing pipeline. "
                 "Transformer and/or Learner names are not unique")
@@ -45,11 +49,11 @@ def prune_files(path, name):
     if isinstance(path, str):
         files = [os.path.join(path, f)
                  for f in os.listdir(path)
-                 if name == '__'.join(f.split('__')[:-2])]
+                 if name == '.'.join(f.split('.')[:-3])]
         files = [pickle_load(f) for f in sorted(files)]
     elif isinstance(path, list):
         files = [tup[1] for tup in sorted(path)
-                 if name == '__'.join(tup[0].split('__')[:-2])]
+                 if name == '.'.join(tup[0].split('.')[:-2])]
     else:
         raise ValueError(
             "Expected string to cache or list of tuples. Got %r" % path)
@@ -70,16 +74,15 @@ def replace(source_files):
     return replace_files, replace_data
 
 
-def mold_objects(objs, class_name):
+def mold_objects(learners, transformers):
     """Utility for enforcing list, checking correct class and fit status"""
-    if not isinstance(objs, list):
-        objs = [objs]
-
-    for obj in objs:
-        if obj.__class__.__name__ != class_name:
-            raise TypeError(
-                "Expected %s instance(s). Got %r" % (class_name, objs))
-    return objs
+    out = []
+    for objects in [learners, transformers]:
+        if objects:
+            if not isinstance(objects, list):
+                objects = [objects]
+        out.append(objects)
+    return out
 
 
 def set_output_columns(objects,
@@ -219,3 +222,12 @@ def transform(tr, x, y):
         x, y = tr.transform(x, y)
 
     return x, y
+
+
+def get_params(est):
+    """Get parameters from estimator or preprocessing pipeline"""
+    try:
+        return est.get_params(deep=True)
+    except AttributeError:
+        return {k: v for _, e in est
+                for k, v in e.get_params(deep=True).items()}

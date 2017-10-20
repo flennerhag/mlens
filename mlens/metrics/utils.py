@@ -29,7 +29,7 @@ def _get_string(obj, dec):
 def _get_partitions(obj):
     """Check if any entry has partitions"""
     for name, _ in obj:
-        if int(name.split('__')[-2]) > 0:
+        if int(name.split('.')[-2]) > 0:
             return True
     return False
 
@@ -50,6 +50,7 @@ def _split(f, s, a_p='', a_s='', b_p='', b_s='', reverse=False):
         b = '%s%s%s' % (b_p, b, b_s)
 
     return a, b
+
 
 class Data(_dict):
 
@@ -98,7 +99,7 @@ def assemble_table(data, padding=2, decimals=2):
                 continue
 
             layer, k = _split(dat_key, '/')
-            case, k = _split(k, '__')
+            case, k = _split(k, '.')
             est, part = _split(k, '--', reverse=True)
 
             # Header space before column headings
@@ -167,17 +168,17 @@ def assemble_data(data_list):
 
         prefix, name = _split(name, '/', a_s='/')
 
-        # Names are either est__i__j or case__est__i__j
-        splitted = name.split('__')
+        # Names are either est.i.j or case.est.i.j
+        splitted = name.split('.')
         if partitions:
             name = tuple(splitted[:-1])
 
             if len(name) == 3:
-                name = '%s__%s--%s' % name
+                name = '%s.%s--%s' % name
             else:
                 name = '%s--%s' % name
         else:
-            name = '__'.join(splitted[:-2])
+            name = '.'.join(splitted[:-2])
 
         name = '%s%s' % (prefix, name)
 

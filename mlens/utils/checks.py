@@ -83,7 +83,7 @@ def assert_valid_estimator(instance):
 
 def assert_correct_format(estimators, preprocessing):
     """Initial check to assert layer can be constructed."""
-    if (preprocessing is None) or (isinstance(preprocessing, list)):
+    if (preprocessing is None) or (not isinstance(preprocessing, dict)):
         if isinstance(estimators, dict):
             # Either no or uniform preprocessing, estimators should be list
             msg = ("Preprocessing is either 'None' or 'list': 'estimators' "

@@ -70,13 +70,13 @@ def partition(n, p):
 
     Return sample sizes of 2 partitions given a total of 4 samples
 
-    >>> from mlens.index.indexer import _partition
+    >>> from mlens.index.base import partition
     >>> _partition(4, 2)
     array([2, 2])
 
     Return sample sizes of 3 partitions given a total of 8 samples
 
-    >>> from mlens.index.indexer import _partition
+    >>> from mlens.index.base import partition
     >>> _partition(8, 3)
     array([3, 3, 2])
     """
@@ -99,7 +99,7 @@ def make_tuple(arr):
     Examples
     --------
     >>> import numpy as np
-    >>> from mlens.index.indexer import _make_tuple
+    >>> from mlens.index.base import make_tuple
     >>> _make_tuple(np.array([0, 1, 2, 5, 6, 8, 9, 10]))
     [(0, 3), (5, 7), (8, 11)]
     """
@@ -125,6 +125,14 @@ class BaseIndex(BaseEstimator):
     expect to find in any indexer. Helps to provide a uniform interface
     during parallel estimation.
     """
+
+    def __init__(self):
+        self.folds = None
+        self.partitions = 1
+        self.n_samples = None
+        self.n_test_samples = None
+
+        self.__fitted__ = False
 
     @abstractmethod
     def fit(self, X, y=None, job=None):
@@ -165,8 +173,8 @@ class BaseIndex(BaseEstimator):
         iterable :
             a generator of ``train_index, test_index``.
         """
-        n_samples = getattr(self, 'n_samples')
-        folds = getattr(self, 'folds')
+        n_samples = self.n_samples
+        folds = self.folds
 
         if folds == 1:
             # Return the full index as both training and test set
@@ -232,16 +240,15 @@ class BaseIndex(BaseEstimator):
             when slicing is required.
         """
         # Check that the instance have some array information to work with
-        if not hasattr(self, 'n_samples'):
+        if not self.__fitted__:
             if X is None:
                 raise AttributeError("No array provided to indexer. Either "
                                      "pass an array to the 'generate' method, "
                                      "or call the 'fit' method first or "
                                      "initiate the instance with an array X "
                                      "as argument.")
-            else:
-                # Need to call fit to continue
-                self.fit(X)
+            # Need to call fit to continue
+            self.fit(X)
 
         for tri, tei in self._gen_indices():
 
@@ -263,19 +270,23 @@ class BaseIndex(BaseEstimator):
         --------
         Single slice (convex slicing)
 
-        >>> from mlens.indexer import BaseIndex
+        >>> from mlens.index.base import BaseIndex
         >>> BaseIndex._build_range((0, 6))
         array([0, 1, 2, 3, 4, 5])
 
         Several slices (non-convex slicing)
 
-        >>> from mlens.indexer import BaseIndex
+        >>> from mlens.index.base import BaseIndex
         >>> BaseIndex._build_range([(0, 2), (4, 6)])
         array([0, 1, 4, 5])
         """
         if isinstance(idx[0], tuple):
             return np.hstack([np.arange(t0, t1) for t0, t1 in idx])
         return np.arange(idx[0], idx[1])
+
+    def set_params(self, **params):
+        self.__fitted__ = False
+        return super(BaseIndex, self).set_params(**params)
 
 
 class FullIndex(BaseIndex):
@@ -289,14 +300,15 @@ class FullIndex(BaseIndex):
     """
 
     def __init__(self, X=None):
+        super(FullIndex, self).__init__()
         if X is not None:
             self.fit(X)
-        self.partitions = 1
 
     def fit(self, X, y=None, job=None):
         """Store dimensionality data about X."""
         self.n_samples = X.shape[0]
         self.n_test_samples = X.shape[0]
+        self.__fitted__ = True
 
     def _gen_indices(self):
         """Vacuous generator to ensure training data is not sliced."""

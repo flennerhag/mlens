@@ -25,12 +25,11 @@ def test_run():
     meta.fit(F, y[10:])
     g = meta.predict(P)
 
-    ens = BlendEnsemble(test_size=10)
+    ens = BlendEnsemble()
     ens.add(ESTIMATORS, PREPROCESSING, dtype=np.float64)
     ens.add(OLS(), meta=True, dtype=np.float64)
 
     ens.fit(X, y)
 
     pred = ens.predict(X)
-
     np.testing.assert_array_equal(pred, g)

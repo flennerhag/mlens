@@ -124,6 +124,9 @@ class Sequential(BaseBackend, BaseEstimator):
             list of layers to add to sequential
         """
         check_layers(layers)
+        if not self.layers:
+            self.layers = list()
+
         for lyr in layers:
             if lyr.name in [lr.name for lr in self.layers]:
                 raise ValueError("Layer name exists in stack. "
@@ -160,7 +163,7 @@ class Sequential(BaseBackend, BaseEstimator):
 
         with ParallelProcessing(self.backend, self.n_jobs,
                                 max(self.verbose - 4, 0)) as manager:
-            out = manager.process(self, 'fit', X, y, **kwargs)
+            out = manager.stack(self, 'fit', X, y, **kwargs)
 
         if self.verbose:
             print_time(t0, "{:<35}".format("Fit complete"), file=f)
@@ -168,6 +171,24 @@ class Sequential(BaseBackend, BaseEstimator):
         if out is None:
             return self
         return out
+
+    def fit_transform(self, X, y=None, **kwargs):
+        r"""Fit instance and return cross-validated predictions.
+
+        Equivalent to ``Sequential().fit(X, y, return_preds=True)``
+
+        Parameters
+        -----------
+        X : array-like of shape = [n_samples, n_features]
+            input matrix to be used for fitting and predicting.
+
+        y : array-like of shape = [n_samples, ]
+            training labels.
+
+        **kwargs : optional
+            optional arguments to processor
+        """
+        return self.fit(X, y, return_preds=True, **kwargs)
 
     def predict(self, X, **kwargs):
         r"""Predict.
@@ -244,7 +265,7 @@ class Sequential(BaseBackend, BaseEstimator):
         r = kwargs.pop('return_preds', True)
         with ParallelProcessing(self.backend, self.n_jobs,
                                 max(self.verbose - 4, 0)) as manager:
-            out = manager.process(self, job, X, return_preds=r, **kwargs)
+            out = manager.stack(self, job, X, return_preds=r, **kwargs)
 
         if not isinstance(out, list):
             out = [out]
@@ -255,13 +276,13 @@ class Sequential(BaseBackend, BaseEstimator):
 
     def _init_layers(self, layers):
         """Initialize layers"""
-        if layers is None:
-            layers = list()
-        elif layers.__class__.__name__.lower() == 'layer':
-            layers = [layers]
+        self.layers = None
+        self.n_layers = 0
 
-        self.layers = layers
-        self.n_layers = len(self.layers)
+        if layers is not None:
+            if layers.__class__.__name__.lower() == 'layer':
+                layers = [layers]
+            self(*layers)
 
     def get_params(self, deep=True):
         """Get parameters for this estimator.
@@ -272,14 +293,14 @@ class Sequential(BaseBackend, BaseEstimator):
             whether to return nested parameters.
         """
         out = super(Sequential, self).get_params(deep=deep)
-
         if not deep:
             return out
 
-        for layer in self.layers:
-            out[layer.name] = layer
-            for key, val in layer.get_params(deep=True).items():
-                out['%s__%s' % (layer.name, key)] = val
+        if self.layers:
+            for layer in self.layers:
+                out[layer.name] = layer
+                for key, val in layer.get_params(deep=True).items():
+                    out['%s.%s' % (layer.name, key)] = val
         return out
 
     @property
@@ -366,6 +387,7 @@ class BaseEnsemble(Sequential):
         self._model_selection = model_selection
         self.model_selection = model_selection
         self.sample_size = sample_size
+        self._id_train = None
 
     def add(self, estimators, indexer, preprocessing=None, **kwargs):
         """Method for adding a layer.
@@ -493,7 +515,7 @@ class BaseEnsemble(Sequential):
         X, y = check_inputs(X, y, self.array_check)
 
         if self.model_selection:
-            self.id_train.fit(X)
+            self._id_train.fit(X)
 
         return super(BaseEnsemble, self).fit(X, y, **kwargs)
 
@@ -532,7 +554,7 @@ class BaseEnsemble(Sequential):
 
             # Need to modify the transform method to account for blending
             # cutting X in size, so y needs to be cut too
-            if not self.id_train.is_train(X):
+            if not self._id_train.is_train(X):
                 return self.predict(X, **kwargs), y
 
             # Asked to reproduce predictions during fit, here we need to
@@ -565,7 +587,6 @@ class BaseEnsemble(Sequential):
         X, _ = check_inputs(X, check_level=self.array_check)
         return super(BaseEnsemble, self).predict(X, **kwargs)
 
-
     def predict_proba(self, X, **kwargs):
         """Predict class probabilities with fitted ensemble.
 
@@ -583,11 +604,8 @@ class BaseEnsemble(Sequential):
         y_pred : array-like, shape=[n_samples, n_classes]
             predicted class membership probabilities for provided input array.
         """
-        lyr = self.layers[-1]
-        if not getattr(lyr, 'proba', False):
-            raise ValueError("Cannot use 'predict_proba' if final layer"
-                             "does not have 'proba=True'.")
-        return self.predict(X, **kwargs)
+        kwargs.pop('proba', None)
+        return self.predict(X, proba=True, **kwargs)
 
     @property
     def model_selection(self):
@@ -599,6 +617,6 @@ class BaseEnsemble(Sequential):
         """Turn model selection on or off"""
         self._model_selection = model_selection
         if self._model_selection:
-            self.id_train = IdTrain(self.sample_size)
+            self._id_train = IdTrain(self.sample_size)
         else:
-            self.id_train = None
+            self._id_train = None

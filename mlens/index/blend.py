@@ -138,7 +138,9 @@ class BlendIndex(BaseIndex):
                  train_size=None,
                  X=None,
                  raise_on_exception=True):
-        self.partitions = 1
+        super(BlendIndex, self).__init__()
+        self.n_train = None
+        self.n_test = None
         self.test_size = test_size
         self.train_size = train_size
         self.raise_on_exception = raise_on_exception
@@ -188,6 +190,7 @@ class BlendIndex(BaseIndex):
 
         self.n_test_samples = self.n_test
 
+        self.__fitted__ = True
         return self
 
     def _gen_indices(self):

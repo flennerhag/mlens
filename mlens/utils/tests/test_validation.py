@@ -33,6 +33,7 @@ def test_check_all_finite():
     """[Utils] _check_all_finite passes finite matrix."""
     assert _check_all_finite(X)
 
+
 def test_check_all_finite_nans():
     """[Utils] _check_all_finite fails on NaNs."""
     Z = X.astype('float')

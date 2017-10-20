@@ -117,11 +117,13 @@ class Job(object):
     """
 
     __slots__ = ['y', 'predict_in', 'predict_out', 'dir', 'job', 'tmp',
-                 '_n_dir', 'kwargs']
+                 '_n_dir', 'kwargs', 'stack', 'split']
 
-    def __init__(self, job, **kwargs):
+    def __init__(self, job, stack, split):
         self.job = job
-        self.kwargs = kwargs
+        self.stack = stack
+        self.split = split
+
         self.y = None
         self.predict_in = None
         self.predict_out = None
@@ -134,25 +136,17 @@ class Job(object):
         self.predict_out = None
 
     def update(self):
-        """Shift output array to input array.
-
-        Parameters
-        ----------
-        shuffle : bool (default = False)
-            whether to shuffle the new input data.
-
-        random_state : int, optional
-            random seed to use.
-        """
+        """Updated output array and shift to input if stacked."""
         if self.predict_out is None:
             return
-        # Enforce csr on spare matrices
-        if issparse(self.predict_out) and not \
-                self.predict_out.__class__.__name__.startswith('csr'):
+        if (issparse(self.predict_out) and not
+                self.predict_out.__class__.__name__.startswith('csr')):
+            # Enforce csr on spare matrices
             self.predict_out = self.predict_out.tocsr()
 
-        self.predict_in = self.predict_out
-        self.rebase()
+        if self.stack:
+            self.predict_in = self.predict_out
+            self.rebase()
 
     def rebase(self):
         """Rebase output labels to input indexing."""
@@ -171,38 +165,46 @@ class Job(object):
         self.predict_in = self.predict_in[idx]
         self.y = self.y[idx]
 
-    def subdir(self, name=None):
-        """Create new subdirectory in dir"""
-        if not name:
-            name = str(self._n_dir)
+    def subdir(self):
+        """Manage cache subdirectory"""
+        path_name = "task_%s" % str(self._n_dir)
+        if self.split:
+            # Increment sub-cache counter
             self._n_dir += 1
 
         if isinstance(self.dir, str):
-            path = os.path.join(self.dir, "task_%s" % name)
-            if os.path.exists(path):
-                raise OSError("Subdirectory exist. Clear estimation cache.")
-            os.mkdir(path)
-        else:
-            self.dir[name] = list()
-            path = self.dir[name]
-        return path
+            # Persist cache to disk
+            path = os.path.join(self.dir, path_name)
+            if os.path.exists(path) and self.split:
+                raise ParallelProcessingError(
+                    "Subdirectory %s exist. Clear cache." % path_name)
+            else:
+                os.mkdir(path)
+            return path
 
-    @property
-    def args(self):
+        # Keep in memory
+        if path_name in self.dir and self.split:
+            raise ParallelProcessingError(
+                "Subdirectory %s exist. Clear cache." % path_name)
+        else:
+            self.dir[path_name] = list()
+        return self.dir[path_name]
+
+    def args(self, **kwargs):
         """Produce args dict"""
         aux_feed = {'X': self.predict_in, 'P': None}
-        est_feed = {'X': self.predict_in, 'P': self.predict_out}
+        main_feed = {'X': self.predict_in, 'P': self.predict_out}
 
         if self.job in ['fit', 'evaluate']:
-            est_feed['y'] = self.y
+            main_feed['y'] = self.y
             aux_feed['y'] = self.y
 
-        if self.kwargs:
-            est_feed.update(self.kwargs)
-            aux_feed.update(self.kwargs)
+        out = dict()
+        if kwargs:
+            out.update(kwargs)
 
         out = {'auxiliary': aux_feed,
-               'estimator': est_feed,
+               'main': main_feed,
                'dir': self.subdir(),
                'job': self.job}
 
@@ -235,10 +237,66 @@ class BaseProcessor(object):
     def __enter__(self):
         return self
 
-    def _initialize(self, job, X, y=None, path=None, **kwargs):
-        """Create a job instance for estimation."""
-        job = Job(job, **kwargs)
+    def initialize(self, job, X, y, path, warm_start=False, return_preds=False,
+                   **kwargs):
+        """Initialize processing engine.
 
+        Set up the job parameters before a :method:`process` call. Calling
+        :method:`clear` will undo initialization.
+
+        Parameters
+        ----------
+        job: str
+            type of job to complete with each task. One of ``'fit'``,
+            ``'predict'`` and ``'transform'``.
+
+        X: array-like of shape [n_samples, n_features]
+            Input data
+
+        y: array-like of shape [n_samples,], optional.
+            targets. Required for fit, should not be passed to predict or
+            transform jobs.
+
+        path: str or dict, optional
+            Custom estimation cache. Pass a string to force use of persistent
+            cache on disk. Pass a ``dict`` for in-memory cache (requires
+            ``backend != 'multiprocessing'``.
+
+        return_preds: bool or list, optional
+            whether to return prediction ouput. If ``True``, final prediction
+            is returned. Alternatively, pass a list of task names for which
+            output should be returned.
+
+        warm_start: bool, optional
+            whether to re-use previous input data initialization. Useful if
+            repeated jobs are made on the same input arrays.
+
+        **kwargs: optional
+            optional keyword arguments to pass onto the task's call method.
+
+        Returns
+        -------
+        out: dict
+            An output parameter dictionary to pass to :method:`process`.
+            Either empty (no output), ``{'final':True}`` for only final
+            prediction, or ``{'final': False, 'return_names': return_preds}``
+            if a list of task-specific output was passed.
+        """
+        if not warm_start:
+            self._initialize(job=job, X=X, y=y, path=path, **kwargs)
+
+        if return_preds is True:
+            return {'return_final': True}
+        if return_preds is False:
+            return {}
+        return {'return_final': False, 'return_names': return_preds}
+
+    def _initialize(self, job, X, y=None, path=None, **kwargs):
+        """Create a job instance for estimation.
+
+        See :method:`initialize` for futher details.
+        """
+        job = Job(job, **kwargs)
         job = _set_path(job, path, self.__threading__)
 
         # --- Prepare inputs
@@ -268,7 +326,10 @@ class BaseProcessor(object):
         return self
 
     def __exit__(self, *args):
-        """Ensure cache cleanup"""
+        self.clear()
+
+    def clear(self):
+        """Destroy cache and reset instance job parameters."""
         job = getattr(self, 'job', None)
         if job is not None:
             # Delete all contents from cache
@@ -293,7 +354,6 @@ class BaseProcessor(object):
                             "removed on reboot. For immediate "
                             "removal, manual removal is required." %
                             self.job.dir, ParallelProcessingWarning)
-
             finally:
                 # Always release process memory
                 del self.job
@@ -322,15 +382,140 @@ class ParallelProcessing(BaseProcessor):
     def __init__(self, *args, **kwargs):
         super(ParallelProcessing, self).__init__(*args, **kwargs)
 
-    def process(self, caller, job, X, y=None, **kwargs):
-        """Process job."""
-        path = kwargs.pop('path', None)
-        r = kwargs.pop('return_preds', False)
-        out = None if not r else list()
-        return_names = list() if isinstance(r, bool) else r
+    def map(self, caller, job, X, y=None, path=None,
+            return_preds=False, wart_start=False, split_cache=False, **kwargs):
+        """Parallel task mapping.
 
-        self._initialize(job=job, X=X, y=y, path=path, **kwargs)
+        Run independent tasks in caller in parallel.
+
+        Warning
+        -------
+        By defaul, the :method:`map` method runs on a shallow cache, where all
+        tasks share the same cache. As such, the user must ensure that each
+        task has a unique name, or cache retrieval will be corrupted.
+        To commit a  seperate sub-cache to each task, set ``split_cache=True``.
+
+        Parameters
+        ----------
+        caller: iterable
+            Iterable that generates accepted task instances. Tasks should be
+            one of :class:`Transformer`, :class:`Learner`, :class`Layer`.
+
+        job: str
+            type of job to complete with each task. One of ``'fit'``,
+            ``'predict'`` and ``'transform'``.
+
+        X: array-like of shape [n_samples, n_features]
+            Input data
+
+        y: array-like of shape [n_samples,], optional.
+            targets. Required for fit, should not be passed to predict or
+            transform jobs.
+
+        path: str or dict, optional
+            Custom estimation cache. Pass a string to force use of persistent
+            cache on disk. Pass a ``dict`` for in-memory cache (requires
+            ``backend != 'multiprocessing'``.
+
+        return_preds: bool or list, optional
+            whether to return prediction ouput. If ``True``, final prediction
+            is returned. Alternatively, pass a list of task names for which
+            output should be returned.
+
+        warm_start: bool, optional
+            whether to re-use previous input data initialization. Useful if
+            repeated jobs are made on the same input arrays.
+
+        split_cache: bool (default=False)
+            whether to commit a separate sub-cache to each task.
+
+        **kwargs: optional
+            optional keyword arguments to pass onto the task's call method.
+        """
+        out = self.initialize(
+            job=job, X=X, y=y, path=path, warm_start=wart_start,
+            return_preds=return_preds, split=split_cache, stack=False)
+        return self.process(caller=caller, out=out, **kwargs)
+
+    def stack(self, caller, job, X, y=None, path=None, return_preds=False,
+              wart_start=False, split_cache=True, **kwargs):
+        """Stacked parallel task mapping.
+
+        Run stacked tasks in caller in parallel.
+
+        This method runs a stack of tasks as a stack, where the output of
+        each task is the input to the next.
+
+        Warning
+        -------
+        By default, the :method:`map` method runs on a shallow cache, where all
+        tasks share the same cache. As such, the user must ensure that each
+        task has a unique name, or cache retrieval will be corrupted.
+        To commit a  seperate sub-cache to each task, set ``split_cache=True``.
+
+        Parameters
+        ----------
+        caller: iterable
+            Iterable that generates accepted task instances. Tasks should be
+            one of :class:`Transformer`, :class:`Learner`, :class`Layer`.
+
+        job: str
+            type of job to complete with each task. One of ``'fit'``,
+            ``'predict'`` and ``'transform'``.
+
+        X: array-like of shape [n_samples, n_features]
+            Input data
+
+        y: array-like of shape [n_samples,], optional.
+            targets. Required for fit, should not be passed to predict or
+            transform jobs.
+
+        path: str or dict, optional
+            Custom estimation cache. Pass a string to force use of persistent
+            cache on disk. Pass a ``dict`` for in-memory cache (requires
+            ``backend != 'multiprocessing'``.
+
+        return_preds: bool or list, optional
+            whether to return prediction ouput. If ``True``, final prediction
+            is returned. Alternatively, pass a list of task names for which
+            output should be returned.
+
+        warm_start: bool, optional
+            whether to re-use previous input data initialization. Useful if
+            repeated jobs are made on the same input arrays.
+
+        split_cache: bool (default=True)
+            whether to commit a separate sub-cache to each task.
+
+        **kwargs: optional
+            optional keyword arguments to pass onto the task's call method.
+        """
+        out = self.initialize(
+            job=job, X=X, y=y, path=path, warm_start=wart_start,
+            return_preds=return_preds, split=split_cache, stack=True)
+        return self.process(caller=caller, out=out, **kwargs)
+
+    def process(self, caller, out, **kwargs):
+        """Process job.
+
+        Main method for processing a caller. Requires the instance to be
+        setup by a prior call to :method:`initialize`.
+
+        Parameters
+        ----------
+        caller: iterable
+            Iterable that generates accepted task instances. Tasks should be
+            one of :class:`Transformer`, :class:`Learner`, :class`Layer`.
+
+        out: dict
+            A dictionary with output parameters. Pass an empty dict for no
+            ouput. See :method:`initialize` for format details.
+        """
         check_initialized(self)
+
+        return_names = out.pop('return_names', [])
+        return_final = out.pop('return_final', False)
+        out = list() if return_names else None
 
         tf = self.job.dir if not isinstance(self.job.dir, list) else None
         with Parallel(n_jobs=self.n_jobs, temp_folder=tf, max_nbytes=None,
@@ -339,31 +524,31 @@ class ParallelProcessing(BaseProcessor):
 
             for task in caller:
                 self.job.clear()
-                self._partial_process(task, parallel)
+
+                self._partial_process(task, parallel, **kwargs)
 
                 if task.name in return_names:
                     out.append(self.get_preds(getattr(task, 'dtype', None)))
 
                 self.job.update()
 
-        if r and not out:
+        if return_final:
             out = self.get_preds(dtype=getattr(task, 'dtype', None))
-        if isinstance(out, list) and len(out) == 1:
-            out = out[0]
         return out
 
-    def _partial_process(self, task, parallel):
+    def _partial_process(self, task, parallel, **kwargs):
         """Process given task"""
         if self.job.job == 'fit' and getattr(task, 'shuffle', False):
             self.job.shuffle(getattr(task, 'random_state', None))
 
-        task._setup(self.job.predict_in, self.job.y, self.job.job)
+        task.setup(self.job.predict_in, self.job.y, self.job.job)
+
         if not task.__no_output__:
             self._gen_prediction_array(task, self.job.job, self.__threading__)
 
-        task(parallel, self.job.args)
+        task(self.job.args(**kwargs), parallel=parallel)
 
-        if getattr(task, 'n_feature_prop', False):
+        if not task.__no_output__ and getattr(task, 'n_feature_prop', 0):
             self._propagate_features(task)
 
     def _propagate_features(self, task):
@@ -429,18 +614,41 @@ class ParallelEvaluation(BaseProcessor):
 
     """Parallel cross-validation engine.
 
-    Parameters
-    ----------
-    caller : :class:`Evaluator`
-        The ``Evaluator`` that instantiated the processor.
+    Minimal parallel processing engine. Similar to :class:`ParallelProcessing`,
+    but offers less features, only fits the *callers* indexer, and excepts
+    no task output.
     """
 
     def __init__(self, *args, **kwargs):
         super(ParallelEvaluation, self).__init__(*args, **kwargs)
 
-    def process(self, caller, case, X, y, path=None):
-        """Fit estimators"""
-        self._initialize(job='fit', X=X, y=y, path=path)
+    def process(self, caller, case, X, y, path=None, **kwargs):
+        """Process caller.
+
+        Parameters
+        ----------
+        caller: iterable
+            Iterable for evaluation job.s Expected caller is a
+            :class:`Evaluator` instance.
+
+        case: str
+            evaluation case to run on the evaluator. One of
+            ``'preprocess'`` and ``'evaluate'``.
+
+        X: array-like of shape [n_samples, n_features]
+            Input data
+
+        y: array-like of shape [n_samples,], optional.
+            targets. Required for fit, should not be passed to predict or
+            transform jobs.
+
+        path: str or dict, optional
+            Custom estimation cache. Pass a string to force use of persistent
+            cache on disk. Pass a ``dict`` for in-memory cache (requires
+            ``backend != 'multiprocessing'``.
+        """
+        self._initialize(
+            job='fit', X=X, y=y, path=path, split=False, stack=False)
         check_initialized(self)
 
         # Use context manager to ensure same parallel job during entire process
@@ -450,4 +658,4 @@ class ParallelEvaluation(BaseProcessor):
                       backend=self.backend) as parallel:
 
             caller.indexer.fit(self.job.predict_in, self.job.y, self.job.job)
-            caller(parallel, self.job.args, case)
+            caller(parallel, self.job.args(**kwargs), case)

@@ -13,7 +13,7 @@ Layer module.
 
 from __future__ import division, print_function
 
-from .base import BaseParallel, OutputMixin
+from .base import BaseParallel, OutputMixin, IndexMixin
 from ..metrics import Data
 from ..utils import print_time, safe_print
 from ..utils.exceptions import NotFittedError
@@ -26,7 +26,7 @@ except ImportError:
     from time import time
 
 
-class Layer(OutputMixin, BaseParallel):
+class Layer(OutputMixin, IndexMixin, BaseParallel):
 
     r"""Layer of preprocessing pipes and estimators.
 
@@ -36,18 +36,11 @@ class Layer(OutputMixin, BaseParallel):
 
     Parameters
     ----------
-    proba : bool (default = False)
-        whether to call `predict_proba` on the estimators in the layer when
-        predicting.
-
     propagate_features : list, range, optional
         Features to propagate from the input array to the output array.
         Carries input features to the output of the layer, useful for
         propagating original data through several stacked layers. Propagated
         features are stored in the left-most columns.
-
-    raise_on_exception : bool (default = False)
-        whether to raise an error on soft exceptions, else issue warning.
 
     verbose : int or bool (default = False)
         level of verbosity.
@@ -89,7 +82,7 @@ class Layer(OutputMixin, BaseParallel):
         self.groups = list() if not groups else groups
         self.__initialized__ = False if not groups else True
 
-    def __call__(self, parallel, args):
+    def __call__(self, args, parallel):
         """Process layer
 
         Parameters
@@ -138,9 +131,7 @@ class Layer(OutputMixin, BaseParallel):
 
             parallel(delayed(subtransformer, not _threading)(path)
                      for transformer in self.transformers
-                     for subtransformer
-                     in getattr(transformer, 'gen_%s' % job)(
-                         **args['auxiliary'])
+                     for subtransformer in transformer(args, 'auxiliary')
                      )
 
             if self.verbose >= 2:
@@ -152,8 +143,7 @@ class Layer(OutputMixin, BaseParallel):
 
         parallel(delayed(sublearner, not _threading)(path)
                  for learner in self.learners
-                 for sublearner in getattr(learner, 'gen_%s' % job)(
-                     **args['estimator'])
+                 for sublearner in learner(args, 'main')
                  )
 
         if self.verbose >= 2:
@@ -189,15 +179,33 @@ class Layer(OutputMixin, BaseParallel):
         for learner in self.learners:
             learner.collect(path)
 
-    def set_output_columns(self, X=None, y=None, n_left_concats=0):
-        """Set output columns for learners"""
-        start_index = mi = n_left_concats + self.n_feature_prop
-        for learner in self.learners:
-            learner.set_output_columns(X, y, start_index)
-            start_index = learner.feature_span[1]
-
+    def set_output_columns(self, X, y, job, n_left_concats=0):
+        """Compatibility method for setting learner output columns"""
+        start_index = mi = self.n_feature_prop
+        for lr in self.learners:
+            lr.set_output_columns(X, y, job, n_left_concats=start_index)
+            start_index = lr.feature_span[1]
         mx = start_index
         self.feature_span = (mi, mx)
+
+    def _setup_1_global(self, X, y, job, **kwargs):
+        """Run setup on all dependencies"""
+        if self.__no_output__:
+            for gr in self.groups:
+                for g in gr:
+                    g.setup(X, y, job, skip=['0_index'], **kwargs)
+        else:
+            for tr in self.transformers:
+                tr.setup(X, y, job, skip=['0_index'], **kwargs)
+
+            start_index = mi = self.n_feature_prop
+            for lr in self.learners:
+                lr.setup(X, y, job, n_left_concats=start_index,
+                         skip=['0_index'], **kwargs)
+                start_index = lr.feature_span[1]
+
+            mx = start_index
+            self.feature_span = (mi, mx)
 
     def get_params(self, deep=True):
         """Get learner parameters
@@ -214,22 +222,24 @@ class Layer(OutputMixin, BaseParallel):
         for i, idx in enumerate(self.indexers):
             for k, v in idx.get_params(deep=deep).items():
                 out['indexer-%i__%s' % (i, k)] = v
+                out['indexer-%i' % i] = idx
 
         for step in [self.transformers, self.learners]:
             for obj in step:
                 obj_name = obj.name
                 for key, value in obj.get_params(deep=deep).items():
-                    if hasattr(value, 'get_params'):
-                        for k, v in obj.get_params(deep=deep).items():
-                            out["%s__%s" % (obj_name, k)] = v
-                    out["%s__%s" % (obj_name, key)] = value
-                out[obj_name] = obj
+                    out["%s.%s" % (obj_name, key)] = value
         return out
 
     @property
     def indexers(self):
         """Check indexer"""
         return [g.indexer for g in self.groups]
+
+    @property
+    def indexers_(self):
+        """Check indexer"""
+        return [g.indexer_ for g in self.groups]
 
     @property
     def learners(self):

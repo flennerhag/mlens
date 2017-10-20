@@ -107,17 +107,17 @@ def test_full_index():
 def test_full_index_is_fitted():
     """[Base] FoldIndex: check fit methods."""
     idx = FoldIndex(4)
-    assert not hasattr(idx, 'n_samples')
+    assert not idx.n_samples
     idx.fit(X)
-    assert hasattr(idx, 'n_samples')
+    assert idx.n_samples
 
     idx = FoldIndex(4)
-    assert not hasattr(idx, 'n_samples')
+    assert not idx.n_samples
     for _ in idx.generate(X): pass
-    assert hasattr(idx, 'n_samples')
+    assert idx.n_samples
 
     idx = FoldIndex(4, X)
-    assert hasattr(idx, 'n_samples')
+    assert idx.n_samples
 
 
 def test_full_tuple_shape():
@@ -179,17 +179,17 @@ def test_blend_index_is_fitted():
     attrs = ['n_samples', 'n_test_samples', 'n_train', 'n_test']
 
     idx = BlendIndex(2, 3)
-    for attr in attrs: assert not hasattr(idx, attr)
+    for attr in attrs: assert not getattr(idx, attr)
     idx.fit(X)
-    for attr in attrs: assert hasattr(idx, attr)
+    for attr in attrs: assert getattr(idx, attr)
 
     idx = BlendIndex(2, 3)
-    for attr in attrs: assert not hasattr(idx, attr)
+    for attr in attrs: assert not getattr(idx, attr)
     for _ in idx.generate(X): pass
-    for attr in attrs: assert hasattr(idx, attr)
+    for attr in attrs: assert getattr(idx, attr)
 
     idx = BlendIndex(2, 3, X=X)
-    for attr in attrs: assert hasattr(idx, attr)
+    for attr in attrs: assert getattr(idx, attr)
 
 
 def test_blend_tuple_shape():
@@ -241,17 +241,17 @@ def test_subset_index_is_fitted():
     attrs = ['n_samples', 'n_test_samples']
 
     idx = SubsetIndex()
-    for attr in attrs: assert not hasattr(idx, attr)
+    for attr in attrs: assert not getattr(idx, attr)
     idx.fit(X)
-    for attr in attrs: assert hasattr(idx, attr)
+    for attr in attrs: assert getattr(idx, attr)
 
     idx = SubsetIndex()
-    for attr in attrs: assert not hasattr(idx, attr)
+    for attr in attrs: assert not getattr(idx, attr)
     for _ in idx.generate(X): pass
-    for attr in attrs: assert hasattr(idx, attr)
+    for attr in attrs: assert getattr(idx, attr)
 
     idx = SubsetIndex(X=X)
-    for attr in attrs: assert hasattr(idx, attr)
+    for attr in attrs: assert getattr(idx, attr)
 
 
 def test_subset_partition_array():

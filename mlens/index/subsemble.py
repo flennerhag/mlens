@@ -105,11 +105,8 @@ class SubsetIndex(BaseIndex):
     J = 3 | f = 2 | train:   array([7, 8]) | test: array([2, 3, 6, 9])
     """
 
-    def __init__(self,
-                 partitions=2,
-                 folds=2,
-                 X=None,
-                 raise_on_exception=True):
+    def __init__(self, partitions=2, folds=2, X=None, raise_on_exception=True):
+        super(SubsetIndex, self).__init__()
         self.partitions = partitions
         self.folds = folds
         self.raise_on_exception = raise_on_exception
@@ -139,6 +136,7 @@ class SubsetIndex(BaseIndex):
                               self.raise_on_exception)
 
         self.n_samples = self.n_test_samples = n
+        self.__fitted__ = True
         return self
 
     def partition(self, X=None, as_array=False):
@@ -159,7 +157,7 @@ class SubsetIndex(BaseIndex):
             whether to return partition as an index array. Otherwise tuples
             of ``(start, stop)`` indices are returned.
         """
-        if not hasattr(self, 'n_samples'):
+        if not self.__fitted__:
             if X is None:
                 raise AttributeError("No array provided to indexer. Either "
                                      "pass an array to the 'generate' method, "
@@ -385,6 +383,7 @@ class ClusteredSubsetIndex(BaseIndex):
                  attr='predict',
                  partition_on='X',
                  raise_on_exception=True):
+        super(ClusteredSubsetIndex, self).__init__()
         self.partition_estimator = partition_estimator
         self.fit_estimator = fit_estimator
         self.attr = attr
@@ -434,7 +433,7 @@ class ClusteredSubsetIndex(BaseIndex):
             # generate cluster predictions during the fit call. To minimize
             # memory consumption, store cluster indexes as list of tuples
             self._clusters_ = self._get_partitions(X, y)
-
+        self.__fitted__ = True
         return self
 
     def partition(self, X=None, y=None, as_array=False):

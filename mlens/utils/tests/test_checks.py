@@ -103,6 +103,11 @@ def test_assert_correct_layer_format_3():
     assert_correct_format({'a': [OLS()]}, {'a': [Scale()]})
 
 
+def test_assert_correct_layer_format_4():
+    """[Utils] assert_correct_format: prep - inst, est - inst."""
+    assert_correct_format(OLS(), Scale())
+
+
 def test_assert_correct_layer_format_fails_dict_list():
     """[Utils] assert_correct_format: prep - list, est - dict."""
     np.testing.assert_raises(LayerSpecificationError,
@@ -117,18 +122,12 @@ def test_assert_correct_layer_format_fails_dict_none():
                              {'a': [OLS()]}, None)
 
 
-def test_assert_correct_layer_format_list_dict():
-    """[Utils] assert_correct_format: prep - dict, est - list."""
-    np.testing.assert_raises(LayerSpecificationError,
-                             assert_correct_format,
-                             [OLS()], {'a': [Scale()]})
-
-
 def test_assert_correct_layer_format_tuple():
     """[Utils] assert_correct_format: prep - dict, est - list."""
     np.testing.assert_raises(LayerSpecificationError,
                              assert_correct_format,
-                             [OLS()], (Scale()))
+                             OLS(), {'a': [Scale()]})
+
 
 def test_assert_correct_layer_format_dict_keys():
     """[Utils] assert_correct_format: assert raises on no key overlap."""
@@ -139,26 +138,22 @@ def test_assert_correct_layer_format_dict_keys():
 
 def test_check_initialized():
     """[Utils] check_initialized: passes initialized."""
-
     check_initialized(Tmp(Lyr(True), 1, 0))
 
 
 def test_check_initialized_fails():
     """[Utils] check_initialized: fails not initialized."""
-
     np.testing.assert_raises(ParallelProcessingError,
                              check_initialized, Tmp(Lyr(True), 0, 0))
 
 
 def test_check_initialized_fails_fitted():
     """[Utils] check_initialized: fails initialized and fitted."""
-
     np.testing.assert_raises(ParallelProcessingError,
                              check_initialized, Tmp(Lyr(True), 1, 1))
 
 
 def test_check_initialized_warns_fitted():
     """[Utils] check_initialized: warns initialized and fitted if not raise."""
-
     np.testing.assert_warns(ParallelProcessingWarning,
                             check_initialized, Tmp(Lyr(False), 1, 1))

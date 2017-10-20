@@ -50,7 +50,7 @@ class FoldIndex(BaseIndex):
     Creating arrays of folds and checking overlap
 
     >>> import numpy as np
-    >>> from mlens.indexer import FoldIndex
+    >>> from mlens.index import FoldIndex
     >>> X = np.arange(10)
     >>> print("Data set: %r" % X)
     >>> print()
@@ -88,7 +88,7 @@ class FoldIndex(BaseIndex):
     Passing ``folds = 1`` without raising exception.
 
     >>> import numpy as np
-    >>> from mlens.indexer import FoldIndex
+    >>> from mlens.index import FoldIndex
     >>> X = np.arange(3)
     >>> print("Data set: %r" % X)
     >>> print()
@@ -105,11 +105,8 @@ class FoldIndex(BaseIndex):
     TRAIN IDX: array([0, 1, 2]) | TEST IDX: array([0, 1, 2])
     """
 
-    def __init__(self,
-                 folds=2,
-                 X=None,
-                 raise_on_exception=True):
-        self.partitions = 1
+    def __init__(self, folds=2, X=None, raise_on_exception=True):
+        super(FoldIndex, self).__init__()
         self.folds = folds
         self.raise_on_exception = raise_on_exception
 
@@ -137,7 +134,7 @@ class FoldIndex(BaseIndex):
         check_full_index(n, self.folds, self.raise_on_exception)
 
         self.n_test_samples = self.n_samples = n
-
+        self.__fitted__ = True
         return self
 
     def _gen_indices(self):

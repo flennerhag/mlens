@@ -674,7 +674,12 @@ class _BaseEstimator(OutputMixin, AttributeMixin, IndexMixin, BaseParallel):
         learner_data = list()
         sublearner_files = list()
         sublearner_data = list()
-        for f in files:
+        while files:
+            f = files.pop(0)
+            if f in files:
+                raise ParallelProcessingError(
+                    "Corrupt cache: duplicate cache entry found.\n%r" % f)
+
             if f.index[1] == 0:
                 learner_files.append(f)
                 learner_data.append((f.name, f.data))

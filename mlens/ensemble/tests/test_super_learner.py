@@ -118,10 +118,10 @@ def test_score_agg_fail():
 def test_scores_w_folds():
     """[SuperLearner] test scoring with folds."""
 
-    scores = {'null-2': [],
-              'offs-2': [],
-              'sc.offs-1': [],
-              'sc.null-1': []
+    scores = {'null-1': [],
+              'offs-1': [],
+              'sc.offs-2': [],
+              'sc.null-2': []
               }
 
     for _, tei in FoldIndex(FOLDS, X1).generate(as_array=True):
@@ -130,9 +130,9 @@ def test_scores_w_folds():
             for est_name, _ in sorted(ESTIMATORS[case]):
                 s = rmse(y1[tei], F1[tei][:, col])
                 if case != 'no':
-                    scores['%s.%s-1' % (case, est_name)].append(s)
+                    scores['%s.%s-2' % (case, est_name)].append(s)
                 else:
-                    scores['%s-2' % est_name].append(s)
+                    scores['%s-1' % est_name].append(s)
 
                 col += 1
 
@@ -170,10 +170,10 @@ def test_scores_w_folds_in_script():
     """[SuperLearner] test scoring with folds and in-script scorer."""
     ens1_b.fit(X1, y1)
 
-    scores = {'null-2': [],
-              'offs-2': [],
-              'sc.offs-1': [],
-              'sc.null-1': []
+    scores = {'null-1': [],
+              'offs-1': [],
+              'sc.offs-2': [],
+              'sc.null-2': []
               }
 
     for _, tei in FoldIndex(FOLDS, X1).generate(as_array=True):
@@ -182,9 +182,9 @@ def test_scores_w_folds_in_script():
             for est_name, __ in sorted(ESTIMATORS[case]):
                 s = in_script_func(y1[tei], F1[tei][:, col])
                 if case != 'no':
-                    scores['%s.%s-1' % (case, est_name)].append(s)
+                    scores['%s.%s-2' % (case, est_name)].append(s)
                 else:
-                    scores['%s-2' % est_name].append(s)
+                    scores['%s-1' % est_name].append(s)
 
                 col += 1
 

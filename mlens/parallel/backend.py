@@ -330,41 +330,49 @@ class BaseProcessor(object):
 
     def clear(self):
         """Destroy cache and reset instance job parameters."""
-        job = getattr(self, 'job', None)
-        if job is not None:
-            # Delete all contents from cache
+        # Detach Job instance
+        job = self.job
+        self.job = None
+        self.__initialized__ = 0
+
+        if job:
+            path = job.dir
+            path_handle = job.tmp
+
+            del job
+            gc.collect()
             try:
-                if isinstance(job.dir, str):
-                    # Need to remove cache dir
-                    self.job.tmp.cleanup()
+                if isinstance(path, str):
+                    # Clear disk cache
+                    path_handle.cleanup()
             except (AttributeError, OSError):
-                # Fall back on shutil for python 2, can also fail on windows
+                # Python 2 has no handler, can also fail on windows
+                # Use explicit shutil process, or fall back on subprocess
                 try:
-                    shutil.rmtree(self.job.dir)
+                    shutil.rmtree(path)
                 except OSError:
                     # Can fail on windows, need to use the shell
                     try:
-                        subprocess.Popen('rmdir /S /Q %s' % self.job.dir,
-                                         shell=True, stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE)
+                        subprocess.Popen(
+                            'rmdir /S /Q %s' % path, shell=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     except OSError:
                         warnings.warn(
                             "Failed to delete cache at %s."
                             "If created with default settings, will be "
                             "removed on reboot. For immediate "
                             "removal, manual removal is required." %
-                            self.job.dir, ParallelProcessingWarning)
+                            path, ParallelProcessingWarning)
             finally:
                 # Always release process memory
-                del self.job
+                del path
+                del path_handle
                 gc.collect()
 
                 if gc.garbage:
-                    warnings.warn("Clearing process memory failed, "
-                                  "uncollected:\n%r." % gc.garbage,
-                                  ParallelProcessingWarning)
-
-                self.__initialized__ = 0
+                    warnings.warn(
+                        "Clearing cache failed, uncollected:\n%r" %
+                        gc.garbage, ParallelProcessingWarning)
 
 
 class ParallelProcessing(BaseProcessor):

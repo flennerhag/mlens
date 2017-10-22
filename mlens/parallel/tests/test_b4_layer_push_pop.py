@@ -51,7 +51,7 @@ g2 = make_learners(
     learner_kwargs={'proba': False, 'verbose': True},
     transformer_kwargs={'verbose': True})
 
-layer = Layer('layer', n_jobs=2)
+layer = Layer('layer')
 
 
 def test_push_1():

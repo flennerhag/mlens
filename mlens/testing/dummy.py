@@ -122,32 +122,18 @@ class EstimatorContainer(object):
             layer with preprocessing cases
         """
         indexer, kwargs = self.load_indexer(kls, args, kwargs)
-        classes = kwargs.pop('classes', 4)
-
-        if not proba:
-            est = OLS()
-            n = getattr(indexer, 'partitions', 1)
-            output_columns = {i: i for i in range(n)}
-        else:
-            est = LogisticRegression()
-            n = getattr(indexer, 'partitions', 1)
-            output_columns = dict()
-            c = 0
-            for i in range(n):
-                output_columns[i] = c
-                c += classes
+        est = OLS() if not proba else LogisticRegression()
 
         if preprocessing:
             transformer = Transformer(estimator=[('scale', Scale())],
                                       indexer=indexer, name='sc')
-
         else:
             transformer = None
 
         learner = Learner(estimator=est, indexer=indexer,
                           preprocess='sc' if transformer else None,
                           scorer=mae if not proba else None,
-                          output_columns=output_columns, name=kls, proba=proba)
+                          name=kls, proba=proba)
 
         return learner, transformer
 
@@ -168,8 +154,7 @@ class EstimatorContainer(object):
         indexer, kwargs = self.load_indexer(kls, args, kwargs)
 
         learner_kwargs = {'proba': kwargs.pop('proba', proba),
-                          'scorer': kwargs.pop('scorer', None)
-                          }
+                          'scorer': kwargs.pop('scorer', None)}
 
         layer = Layer('layer', dtype=np.float64, **kwargs)
 
@@ -202,8 +187,7 @@ class EstimatorContainer(object):
         indexer, kwargs = self.load_indexer(kls, args, kwargs)
 
         learner_kwargs = {'proba': kwargs.pop('proba', proba),
-                          'scorer': kwargs.pop('scorer', None)
-                          }
+                          'scorer': kwargs.pop('scorer', None)}
 
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
@@ -247,7 +231,6 @@ class EstimatorContainer(object):
                 idx_kwargs[var] = kwargs.pop(var)
         indexer = indexer(*args, **idx_kwargs)
         return indexer, kwargs
-
 
 
 class Data(object):

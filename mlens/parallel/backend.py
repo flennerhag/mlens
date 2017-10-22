@@ -355,7 +355,8 @@ class BaseProcessor(object):
                     try:
                         subprocess.Popen(
                             'rmdir /S /Q %s' % path, shell=True,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE).kill()
                     except OSError:
                         warnings.warn(
                             "Failed to delete cache at %s."

@@ -37,7 +37,7 @@ def scorer(p, y): return np.mean(p - y)
 
 data = Data('stack', True, True)
 
-X, y = data.get_data((10, 4), 3)
+X, y = data.get_data((25, 4), 3)
 
 idx1 = INDEXERS['stack']()
 g1 = make_learners(
@@ -51,7 +51,7 @@ g2 = make_learners(
     learner_kwargs={'proba': False, 'verbose': True},
     transformer_kwargs={'verbose': True})
 
-layer = Layer('layer')
+layer = Layer('layer', n_jobs=2)
 
 
 def test_push_1():
@@ -71,7 +71,7 @@ def test_push_1():
 
 
 def test_push_2():
-    """[Parallel | Layer] Testing double push"""
+    """[Parallel | Layer] Test double push"""
 
     layer.push(g2)
     assert not layer.__fitted__
@@ -96,7 +96,7 @@ def test_push_2():
 
 
 def test_clone():
-    """[Parallel | Layer] Testing cloning"""
+    """[Parallel | Layer] Test cloning"""
     lyr = clone(layer)
 
     assert lyr.__initialized__
@@ -135,7 +135,7 @@ def test_data():
 
 
 def test_pop():
-    """[Parallel | Layer] Testing pop"""
+    """[Parallel | Layer] Test pop"""
     # Popping one group leaves the layer intact
     g = layer.pop(0)
     assert layer.__initialized__

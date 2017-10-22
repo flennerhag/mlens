@@ -148,7 +148,7 @@ def test_w_prep_set_params():
 def test_bench_equality():
     """[Model Selection] Test benchmark correspondence with eval."""
 
-    with open(os.devnull, 'w') as f, redirect_stderr(f):
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
         evl = Evaluator(mape_scorer, cv=5)
         evl.fit(X, y, estimators={'pr': [OLS()], 'no': [OLS()]},
                 param_dicts={}, preprocessing={'pr': [Scale()], 'no': []})

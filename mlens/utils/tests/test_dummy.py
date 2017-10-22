@@ -195,8 +195,8 @@ def test_estimator_lists():
     assert_correct_format(ECM, None)
     assert_correct_format(ECM_PROBA, None)
 
-    assert _assert_format(_format_instances(ESTIMATORS, True))
-    assert _assert_format(_format_instances(ESTIMATORS_PROBA, True))
+    assert _assert_format(_format_instances(ESTIMATORS))
+    assert _assert_format(_format_instances(ESTIMATORS_PROBA))
     assert _assert_format(ECM)
     assert _assert_format(ECM_PROBA)
     assert _assert_format(PREPROCESSING)

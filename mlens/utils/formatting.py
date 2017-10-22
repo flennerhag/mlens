@@ -15,15 +15,16 @@ from .exceptions import LayerSpecificationError
 from ..externals.sklearn.base import clone
 
 
-def _format_instances(instances, nested, namespace=None):
+def _format_instances(instances, namespace=None):
     """Format a list of instances to a list of named estimator tuples."""
+    nested = isinstance(instances, dict)
     if nested:
         # Need to flatten, but record hierarchy
         instances_dict = instances
         vacuous = list()
         case_map = dict()
         instances = list()
-        for case, instance_list in instances_dict.items():
+        for case, instance_list in sorted(instances_dict.items()):
             case = '-'.join(case.lower().split())
 
             if not instance_list:
@@ -272,5 +273,5 @@ def _check_instances(instances, namespace=None):
         out = instances
     else:
         out = _format_instances(
-            instances, nested=isinstance(instances, dict), namespace=namespace)
+            instances, namespace=namespace)
     return out

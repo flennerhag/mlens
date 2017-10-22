@@ -37,7 +37,7 @@ except ImportError:
 
 
 ###############################################################################
-def pickable(name):
+def pickled(name):
     """Filetype enforcer"""
     if not name.endswith('.pkl'):
         name = '.'.join([name, 'pkl'])
@@ -46,44 +46,37 @@ def pickable(name):
 
 def pickle_save(obj, name):
     """Utility function for pickling an object"""
-    with open(pickable(name), 'wb') as f:
+    with open(pickled(name), 'wb') as f:
         pickle.dump(obj, f)
 
 
 def pickle_load(name):
     """Utility function for loading pickled object"""
-    with open(pickable(name), 'rb') as f:
+    with open(pickled(name), 'rb') as f:
         return pickle.load(f)
 
 
-def load(file, raise_on_exception=True, enforce_filetype=True):
+def load(file, enforce_filetype=True):
     """Utility exception handler for loading file"""
     s, lim = IVALS
     if enforce_filetype:
-        file = pickable(file)
+        file = pickled(file)
     try:
         return pickle_load(file)
     except (EOFError, OSError, IOError) as exc:
         msg = str(exc)
+        warnings.warn(
+            "Could not load transformer at %s. Will check every %.1f seconds "
+            "for %i seconds before aborting. " % (file, s, lim),
+            ParallelProcessingWarning)
 
         ts = _time()
         while not os.path.exists(file):
             sleep(s)
-
             if _time() - ts > lim:
-                if raise_on_exception:
-                    raise ParallelProcessingError(
-                        "Could not load transformer at %s\nDetails:\n%r" %
-                        (dir, msg))
-
-                warnings.warn("Could not load transformer at %s. "
-                              "Will check every %.1f seconds for %i seconds "
-                              "before aborting. " % (file, s, lim),
-                              ParallelProcessingWarning)
-
-                # Set raise_on_exception to True now to ensure timeout
-                raise_on_exception = True
-                ts = _time()
+                raise ParallelProcessingError(
+                    "Could not load transformer at %s\nDetails:\n%r" %
+                    (dir, msg))
 
         return pickle_load(file)
 

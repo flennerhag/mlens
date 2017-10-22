@@ -6,9 +6,6 @@
 
 Collection of dummy estimator classes, Mixins to build transparent layers for
 unit testing.
-
-Also contains pre-made Layer, LayerContainers and data generation functions
-for unit testing.
 """
 
 from __future__ import division, print_function
@@ -17,7 +14,7 @@ from __future__ import division, print_function
 import numpy as np
 
 from .exceptions import NotFittedError
-from ..externals.sklearn.base import BaseEstimator, TransformerMixin, clone
+from ..externals.sklearn.base import BaseEstimator, TransformerMixin
 from ..externals.sklearn.validation import check_X_y, check_array
 
 
@@ -88,7 +85,6 @@ class OLS(BaseEstimator):
         return np.dot(X, self.coef_.T)
 
 
-# FIXME: Needs a quality check!
 class LogisticRegression(OLS):
 
     """No frill Logistic Regressor w. one-vs-rest estimation of P(label).
@@ -142,8 +138,7 @@ class LogisticRegression(OLS):
         models = []
         for label in self.labels_:
             labels = y == label
-            models.append(super(LogisticRegression,
-                                clone(self)).fit(X, labels))
+            models.append(super(LogisticRegression, self).fit(X, labels))
 
         self._models_ = models
         self.coef_ = np.vstack([l.coef_ for l in self._models_])

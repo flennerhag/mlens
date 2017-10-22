@@ -368,7 +368,6 @@ class BaseProcessor(object):
                 del path
                 del path_handle
                 gc.collect()
-
                 if gc.garbage:
                     warnings.warn(
                         "Clearing cache failed, uncollected:\n%r" %

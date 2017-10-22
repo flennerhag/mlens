@@ -2,7 +2,7 @@
 
 Testing suite for Layer and Transformer
 """
-from mlens.testing import Data, EstimatorContainer, get_layer, run_layer
+from mlens.testing import get_layer, run_layer
 
 
 def test_fit():

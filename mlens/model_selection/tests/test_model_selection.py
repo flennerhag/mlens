@@ -52,7 +52,7 @@ def test_raises():
     """[Model Selection] Test raises on error."""
 
     evl = Evaluator(bad_scorer, verbose=1)
-    
+
     with open(os.devnull, 'w') as f, redirect_stdout(f):
         np.testing.assert_raises(
             ValueError, evl.fit, X, y, estimators=[OLS()],

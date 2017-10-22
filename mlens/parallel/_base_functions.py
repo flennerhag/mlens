@@ -56,7 +56,7 @@ def prune_files(path, name):
                  if name == '.'.join(tup[0].split('.')[:-2])]
     else:
         raise ValueError(
-            "Expected string to cache or list of tuples. Got %r" % path)
+            "Expected name of cache or cache list. Got %r" % path)
     return files
 
 

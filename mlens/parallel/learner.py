@@ -768,7 +768,7 @@ class _BaseEstimator(OutputMixin, AttributeMixin, IndexMixin, BaseParallel):
 
     @property
     def raw_data(self):
-        """List of data collected from each sub-learner during fiting."""
+        """List of data collected from each sub-learner during fitting."""
         return self._return_attr('_data_')
 
     @property

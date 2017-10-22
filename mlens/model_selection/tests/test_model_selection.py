@@ -52,12 +52,11 @@ def test_raises():
     """[Model Selection] Test raises on error."""
 
     evl = Evaluator(bad_scorer, verbose=1)
-
-    np.testing.assert_raises(ValueError,
-                             evl.fit, X, y,
-                             estimators=[OLS()],
-                             param_dicts={'ols': {'offset': randint(1, 10)}},
-                             n_iter=1)
+    
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
+        np.testing.assert_raises(
+            ValueError, evl.fit, X, y, estimators=[OLS()],
+            param_dicts={'ols': {'offset': randint(1, 10)}}, n_iter=1)
 
 
 def test_passes():
@@ -148,7 +147,7 @@ def test_w_prep_set_params():
 def test_bench_equality():
     """[Model Selection] Test benchmark correspondence with eval."""
 
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
         evl = Evaluator(mape_scorer, cv=5)
         evl.fit(X, y, estimators={'pr': [OLS()], 'no': [OLS()]},
                 param_dicts={}, preprocessing={'pr': [Scale()], 'no': []})

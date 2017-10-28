@@ -6,9 +6,8 @@
 
 Front-end classes
 """
+from ..parallel import Layer, make_learners
 from ..parallel.base import AttributeMixin
-from ..parallel.learner import make_learners
-from ..parallel.layer import Layer
 from ..parallel.wrapper import EstimatorMixin
 from ..externals.sklearn.base import BaseEstimator, clone, TransformerMixin
 

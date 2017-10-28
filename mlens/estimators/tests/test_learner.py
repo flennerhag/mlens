@@ -83,7 +83,7 @@ def test_learner_params_estimator():
     out = est.get_params()
     assert isinstance(out, dict)
 
-    est._backend.set_params(estimator__offset=1)
+    est._backend.set_params(estimator__offset=10)
     assert not est._backend.__fitted__
 
 

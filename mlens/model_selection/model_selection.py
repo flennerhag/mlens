@@ -143,7 +143,6 @@ class BaseEval(IndexMixin, BaseBackend):
 
     def _run(self, case, parallel, args):
         """Process eval"""
-        job = args['job']
         path = args['dir']
         _threading = self.backend == 'threading'
 
@@ -155,8 +154,7 @@ class BaseEval(IndexMixin, BaseBackend):
             inp = 'main'
 
         parallel(delayed(subtask, not _threading)(path)
-                 for task in generator for subtask in task(args, inp)
-                 )
+                 for task in generator for subtask in task(args, inp))
 
     def _fit(self, X, y, job):
         X, y = check_inputs(X, y, self.array_check)

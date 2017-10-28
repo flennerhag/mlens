@@ -15,6 +15,15 @@ from .exceptions import LayerSpecificationError
 from ..externals.sklearn.base import clone
 
 
+def format_name(name, cls, global_names):
+    """Utility for assigning a unique name"""
+    # TODO: should pop names when instance is destroyed and check if name taken
+    if not name:
+        name = '%s-%i' % (cls, len(global_names))
+        global_names.append(name)
+    return name
+
+
 def _format_instances(instances, namespace=None):
     """Format a list of instances to a list of named estimator tuples."""
     nested = isinstance(instances, dict)

@@ -5,7 +5,7 @@ Support functions for model selection suite.
 from __future__ import division
 
 from collections import Counter
-from ..parallel.learner import EvalLearner, EvalTransformer
+from ..parallel import EvalLearner, EvalTransformer, Pipeline
 from ..utils.formatting import _assert_format
 from ..utils.checks import assert_valid_estimator
 from ..externals.sklearn.base import clone
@@ -152,9 +152,9 @@ def check_instances(instances):
 def make_tansformers(generator, indexer, **kwargs):
     """Set up generators for the job to be performed"""
     transformers = [
-        EvalTransformer(estimator=transformers, name=preprocess_name,
-                        indexer=indexer, **kwargs)
-        for preprocess_name, transformers in generator]
+        EvalTransformer(estimator=Pipeline(pipeline, return_y=True),
+                        name=preprocess_name, indexer=indexer, **kwargs)
+        for preprocess_name, pipeline in generator]
     return transformers
 
 

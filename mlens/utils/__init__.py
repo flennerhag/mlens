@@ -15,7 +15,7 @@ from .utils import (pickle_save,
                     kwarg_parser,
                     clone_attribute)
 
-from .formatting import check_instances
+from .formatting import check_instances, format_name
 from .validation import check_inputs
 from .checks import (check_ensemble_build,
                      assert_correct_format, check_layers,
@@ -35,5 +35,6 @@ __all__ = ['IdTrain',
            'safe_print',
            'CMLog',
            'kwarg_parser',
-           'clone_attribute'
+           'clone_attribute',
+           'format_name'
            ]

@@ -21,8 +21,8 @@ from ..utils.dummy import OLS, LogisticRegression, Scale
 from ..externals.sklearn.base import clone
 from ..index import INDEXERS
 from ..ensemble.base import Sequential
-from ..parallel import ParallelProcessing, Learner, Transformer, Layer
-from ..parallel import make_learners
+from ..parallel import (
+    ParallelProcessing, Learner, Transformer, Layer, make_learners, Pipeline)
 from ..estimators import LayerEnsemble
 
 ##############################################################################
@@ -125,8 +125,9 @@ class EstimatorContainer(object):
         est = OLS() if not proba else LogisticRegression()
 
         if preprocessing:
-            transformer = Transformer(estimator=[('scale', Scale())],
-                                      indexer=indexer, name='sc')
+            transformer = Transformer(
+                estimator=Pipeline(Scale(), return_y=True),
+                indexer=indexer, name='sc')
         else:
             transformer = None
 
@@ -517,6 +518,7 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
         'main': {'X': X, 'y': y, 'P': P} if job == 'fit' else {'X': X, 'P': P}
         }
 
+#    transformer.__fitted__
     if transformer:
         transformer.setup(X, y, job)
         for obj in transformer(args, 'auxiliary'):

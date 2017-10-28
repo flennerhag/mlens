@@ -48,6 +48,9 @@ class EstimatorMixin(object):
             whether to fit for later predict_proba calls. Will register number
             of classes to expect in later predict and transform calls.
 
+        refit: bool (default = True)
+            Whether to refit already fitted sub-learners.
+
         Returns
         -------
         self: instance
@@ -73,6 +76,9 @@ class EstimatorMixin(object):
         proba: bool, optional
             whether to fit for later predict_proba calls. Will register number
             of classes to expect in later predict and transform calls.
+
+        refit: bool (default = True)
+            Whether to refit already fitted sub-learners.
 
         Returns
         -------

@@ -1,5 +1,9 @@
 """ML-Ensemble
 
+:author: Sebastian Flennerhag
+:license: MIT
+:copyright: 2017
+
 Functions for base computations
 """
 from __future__ import division
@@ -24,7 +28,7 @@ def load(path, name, raise_on_exception=True):
         if not obj:
             raise ValueError(
                 "No preprocessing pipeline in cache. Auxiliary Transformer "
-                "have not cached pipelines, or cached to the sub-cache.")
+                "have not cached pipelines, or cached to another sub-cache.")
         elif not len(obj) == 1:
             raise ValueError(
                 "Could not load unique preprocessing pipeline. "
@@ -75,7 +79,7 @@ def replace(source_files):
 
 
 def mold_objects(learners, transformers):
-    """Utility for enforcing list, checking correct class and fit status"""
+    """Utility for enforcing list"""
     out = []
     for objects in [learners, transformers]:
         if objects:
@@ -85,11 +89,8 @@ def mold_objects(learners, transformers):
     return out
 
 
-def set_output_columns(objects,
-                       n_partitions,
-                       multiplier,
-                       n_left_concats,
-                       target=None):
+def set_output_columns(
+        objects, n_partitions, multiplier, n_left_concats, target=None):
     """Set output columns on objects.
 
     Parameters
@@ -224,10 +225,37 @@ def transform(tr, x, y):
     return x, y
 
 
-def get_params(est):
-    """Get parameters from estimator or preprocessing pipeline"""
-    try:
-        return est.get_params(deep=True)
-    except AttributeError:
-        return {k: v for _, e in est
-                for k, v in e.get_params(deep=True).items()}
+def check_params(lpar, rpar):
+    """Check parameter overlap"""
+    for par in lpar:
+        par1 = lpar[par]
+        par2 = rpar[par]
+
+        try:
+            val = par1 == par2
+            if hasattr(val, 'all'):
+                val = val.all()
+            if val:
+                continue
+        except ValueError:
+            # Failed param check, ignore
+            continue
+
+        # Check for nested parameters
+        # We control specifically for lists of named instance tuples
+
+        if hasattr(par1, 'get_params'):
+            par1 = [('', par1)]
+            par2 = [('', par2)]
+
+        if (isinstance(par1, list)
+                and isinstance(par1[0], tuple)
+                and hasattr(par1[0][1], 'get_params')):
+            # Check all params on all estimators in list
+            if all([check_params(par1[i][1].get_params(deep=True),
+                                 par2[i][1].get_params(deep=True))
+                    for i in range(len(par1))]):
+                continue
+
+        return False
+    return True

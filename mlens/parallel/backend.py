@@ -2,7 +2,7 @@
 
 :author: Sebastian Flennerhag
 :copyright: 2017
-:licence: MIT
+:license: MIT
 
 Parallel processing job managers.
 """
@@ -339,11 +339,14 @@ class BaseProcessor(object):
             path = job.dir
             path_handle = job.tmp
 
+            # Release shared memory references
             del job
             gc.collect()
+
+            # Destroy cache
             try:
+                # If the cache has been persisted to disk, remove it
                 if isinstance(path, str):
-                    # Clear disk cache
                     path_handle.cleanup()
             except (AttributeError, OSError):
                 # Python 2 has no handler, can also fail on windows
@@ -365,9 +368,7 @@ class BaseProcessor(object):
                             "removal, manual removal is required." %
                             path, ParallelProcessingWarning)
             finally:
-                # Always release process memory
-                del path
-                del path_handle
+                del path, path_handle
                 gc.collect()
                 if gc.garbage:
                     warnings.warn(

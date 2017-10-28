@@ -5,45 +5,34 @@
 :license: MIT
 
 Base classes for parallel estimation
+
+
+Schedulers for global setups:
+   0:
+      Base setups - independent of other features:
+         IndexMixin._setup_0_index
+
+   1:
+      Global setups - reserved for aggregating classes:
+         Layer._setup_1_global
+
+   2:
+      Dependents on 0:
+         ProbaMixin.__setup_2_multiplier
+
+   3:
+      Dependents on 0, 2:
+         OutputMixin.__setup_3__output_columns
+
+Note that schedulers are experimental and may change without a depreciation
+cycle.
 """
 from abc import abstractmethod
 import numpy as np
 
-from ._base_functions import mold_objects
 from .. import config
 from ..utils.exceptions import ParallelProcessingError
 from ..externals.sklearn.base import BaseEstimator
-
-
-class Group(BaseEstimator):
-
-    """Group
-
-    Lightweight class for pairing an estimator to a set of transformers and
-    learners. Allows cloning.
-    """
-
-    def __init__(self, indexer, learners, transformers):
-        learners, transformers = mold_objects(learners, transformers)
-
-        # Enforce common indexer
-        self.indexer = indexer
-        for o in learners + transformers:
-            o.set_indexer(self.indexer)
-
-        self.learners = learners
-        self.transformers = transformers
-
-    def __iter__(self):
-        for tr in self.transformers:
-            yield tr
-        for lr in self.learners:
-            yield lr
-
-    @property
-    def __fitted__(self):
-        """Fitted status"""
-        return all([o.__fitted__ for o in self.learners + self.transformers])
 
 
 class IndexMixin(object):

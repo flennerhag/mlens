@@ -1,7 +1,7 @@
 """ML-Ensemble
 
 :author: Sebastian Flennerhag
-:licence: MIT
+:license: MIT
 :copyright: 2017
 
 Layer module.
@@ -14,16 +14,19 @@ Layer module.
 from __future__ import division, print_function
 
 from .base import BaseParallel, OutputMixin, IndexMixin
-from ..metrics import Data
-from ..utils import print_time, safe_print
+from ..utils import print_time, safe_print, format_name
 from ..utils.exceptions import NotFittedError
 from ..externals.joblib import delayed
+from ..metrics import Data
 try:
     # Try get performance counter
     from time import perf_counter as time
 except ImportError:
     # Fall back on wall clock
     from time import time
+
+
+GLOBAL_LAYER_NAMES = list()
 
 
 class Layer(OutputMixin, IndexMixin, BaseParallel):
@@ -66,9 +69,10 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
         optional arguments to :class:`BaseParallel`.
     """
 
-    def __init__(self, name, propagate_features=None, shuffle=False,
+    def __init__(self, name=None, propagate_features=None, shuffle=False,
                  random_state=None, verbose=False, groups=None, **kwargs):
-        super(Layer, self).__init__(name=name, **kwargs)
+        super(Layer, self).__init__(
+            name=format_name(name, 'layer', GLOBAL_LAYER_NAMES), **kwargs)
         self.feature_span = None
         self.shuffle = shuffle
         self._verbose = verbose

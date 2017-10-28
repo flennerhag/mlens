@@ -16,14 +16,15 @@ import warnings
 from copy import deepcopy
 from abc import ABCMeta, abstractmethod
 
-from ._base_functions import (slice_array, transform, set_output_columns,
-                              assign_predictions, score_predictions, replace,
-                              save, load, prune_files, get_params)
-from .base import (BaseParallel, OutputMixin, ProbaMixin,
-                   IndexMixin, AttributeMixin, Group)
+from ._base_functions import (
+    slice_array, set_output_columns, assign_predictions, score_predictions,
+    replace, save, load, prune_files, check_params)
+from .base import (
+    BaseParallel, OutputMixin, ProbaMixin, IndexMixin, AttributeMixin)
 from ..metrics import Data
-from ..utils import check_instances, safe_print, print_time
-from ..utils.exceptions import NotFittedError, FitFailedWarning, ParallelProcessingError
+from ..utils import safe_print, print_time, format_name
+from ..utils.exceptions import (
+    NotFittedError, FitFailedWarning, ParallelProcessingError)
 from ..externals.sklearn.base import clone
 from ..externals.joblib.parallel import delayed
 try:
@@ -35,31 +36,8 @@ except ImportError:
 # Types of indexers that require fits only on subsets or only on the full data
 ONLY_SUB = []
 ONLY_ALL = ['fullindex', 'nonetype']
-
-
-def make_learners(indexer, estimators, preprocessing,
-                  learner_kwargs=None, transformer_kwargs=None):
-    """Set learners and preprocessing pipelines in layer"""
-    preprocessing, estimators = check_instances(estimators, preprocessing)
-
-    if learner_kwargs is None:
-        learner_kwargs = {}
-    if transformer_kwargs is None:
-        transformer_kwargs = {}
-
-    transformers = [
-        Transformer(estimator=tr,
-                    name=preprocess_name,
-                    **transformer_kwargs)
-        for preprocess_name, tr in preprocessing]
-
-    learners = [Learner(estimator=est,
-                        preprocess=pr_name,
-                        name=learner_name,
-                        **learner_kwargs)
-                for pr_name, learner_name, est in estimators]
-
-    return Group(indexer=indexer, learners=learners, transformers=transformers)
+GLOBAL_LEARNER_NAMES = list()
+GLOBAL_TRANSFORMER_NAMES = list()
 
 
 ###############################################################################
@@ -188,8 +166,8 @@ class SubLearner(object):
 
         # Transform input (triggers copying)
         t0 = time()
-        for _, tr in transformers:
-            xtemp, ytemp = transform(tr, xtemp, ytemp)
+        if transformers:
+            xtemp, ytemp = transformers.transform(xtemp, ytemp)
 
         # Fit estimator
         self.estimator.fit(xtemp, ytemp)
@@ -199,10 +177,8 @@ class SubLearner(object):
         """Load preprocessing pipeline"""
         if self.preprocess is not None:
             obj = load(path, self.preprocess_index, self.raise_on_exception)
-            tr_list = obj.estimator
-        else:
-            tr_list = list()
-        return tr_list
+            return obj.estimator
+        return
 
     def _predict(self, transformers, score_preds):
         """Sub-routine to with sublearner"""
@@ -211,10 +187,11 @@ class SubLearner(object):
         # During test time, ytemp is None
         xtemp, ytemp = slice_array(self.in_array, self.targets, self.out_index)
         t0 = time()
-        for _, tr in transformers:
-            xtemp, ytemp = transform(tr, xtemp, ytemp)
 
+        if transformers:
+            xtemp, ytemp = transformers.transform(xtemp, ytemp)
         predictions = getattr(self.estimator, self.attr)(xtemp)
+
         self.pred_time_ = time() - t0
 
         # Assign predictions to matrix
@@ -282,8 +259,7 @@ class SubTransformer(object):
         xtemp, ytemp = slice_array(
             self.in_array, self.targets, self.out_index)
 
-        for _, tr in self.estimator:
-            xtemp, ytemp = transform(tr, xtemp, ytemp)
+        xtemp, ytemp = self.estimator.transform(xtemp, ytemp)
 
         assign_predictions(
             self.out_array, xtemp, self.out_index, self.output_columns, n)
@@ -296,25 +272,17 @@ class SubTransformer(object):
     def fit(self, path):
         """Fit transformers"""
         t0 = time()
-        n = len(self.estimator)
         xtemp, ytemp = slice_array(
             self.in_array, self.targets, self.in_index)
 
         t0_f = time()
-        fitted_transformers = list()
-        for tr_name, tr in self.estimator:
-            tr.fit(xtemp, ytemp)
-            fitted_transformers.append((tr_name, tr))
-
-            if n > 1:
-                xtemp, ytemp = transform(tr, xtemp, ytemp)
-
+        self.estimator.fit(xtemp, ytemp)
         self.transform_time_ = time() - t0_f
 
         if self.out_array is not None:
             self._transform()
 
-        o = IndexedEstimator(estimator=fitted_transformers,
+        o = IndexedEstimator(estimator=self.estimator,
                              name=self.name_index,
                              index=self.index,
                              in_index=self.in_index,
@@ -387,8 +355,8 @@ class EvalSubLearner(SubLearner):
     def _score_preds(self, transformers, index):
         # Train scores
         xtemp, ytemp = slice_array(self.in_array, self.targets, index)
-        for _, tr in transformers:
-            xtemp, ytemp = transform(tr, xtemp, ytemp)
+        if transformers:
+            xtemp, ytemp = transformers.transform(xtemp, ytemp)
 
         t0 = time()
 
@@ -506,7 +474,6 @@ class _BaseEstimator(OutputMixin, AttributeMixin, IndexMixin, BaseParallel):
         if self.__collect__:
             self.collect(path)
 
-    @abstractmethod
     def _gen_pred(self, job, X, P, generator):
         """Generator for predicting with fitted learner
 
@@ -525,7 +492,18 @@ class _BaseEstimator(OutputMixin, AttributeMixin, IndexMixin, BaseParallel):
             iterator of learners of sub-learners to predict with.
             One of ``self.learner_`` and ``self.sublearners_``.
         """
-        yield
+        for estimator in generator:
+            yield self.__subtype__(
+                job=job,
+                parent=self,
+                estimator=estimator.estimator,
+                in_index=estimator.in_index,
+                out_index=estimator.out_index,
+                in_array=X,
+                out_array=P,
+                index=estimator.index,
+                targets=None,
+                )
 
     def gen_fit(self, X, y, P=None):
         """Routine for generating fit jobs conditional on refit
@@ -653,6 +631,7 @@ class _BaseEstimator(OutputMixin, AttributeMixin, IndexMixin, BaseParallel):
         self._sublearners_ = None
         self._learner_ = None
         self._data_ = None
+        self._times_ = None
 
     def set_indexer(self, indexer):
         """Set indexer and auxiliary attributes
@@ -727,27 +706,13 @@ class _BaseEstimator(OutputMixin, AttributeMixin, IndexMixin, BaseParallel):
 
         # Check param overlap
         fitted = self._learner_ + self._sublearners_
-        current_params = get_params(fitted[0].estimator)
+        current_params = fitted[0].estimator.get_params(deep=True)
 
-        for k, v in get_params(self.estimator).items():
-            try:
-                cond = current_params[k] == v
-                # To ensure cond evaluates on an if statement,
-                # we run a vacuous if-else statement in the try-except block
-                cond = cond if cond else cond
-            except Exception as exc:
-                # Don't fail __fitted__ flag if we can't check params: warn
-                cond = True
-                warnings.warn(
-                    "Failed to check parameter equivalence with fitted "
-                    "learners on instance (%s). Details:\nParameter:%s\n"
-                    "Old Value:%r\nNew Value:%s\nTraceback:\n%r" %
-                    (self.cache_name, k,
-                     current_params[k], v, exc), RuntimeWarning)
-            if not cond:
-                # Params have changed: need to refit
-                self.clear()  # Release obsolete estimators
-                return False
+        p = check_params(current_params, self.estimator.get_params(deep=True))
+        if not p:
+            # Params have changed: need to refit
+            self.clear()  # Release obsolete estimators
+            return False
         return True
 
     @property
@@ -833,9 +798,11 @@ class Learner(ProbaMixin, _BaseEstimator):
 
     __subtype__ = SubLearner
 
-    def __init__(self, estimator, name, preprocess=None, attr=None,
+    def __init__(self, estimator, name=None, preprocess=None, attr=None,
                  scorer=None, output_columns=None, proba=False, **kwargs):
-        super(Learner, self).__init__(name, estimator, **kwargs)
+        super(Learner, self).__init__(
+            format_name(name, 'learner', GLOBAL_LEARNER_NAMES),
+            estimator, **kwargs)
 
         # Parameter settings
         self.__initialized__ = 0  # Unblock __setattr__
@@ -850,18 +817,6 @@ class Learner(ProbaMixin, _BaseEstimator):
         # Variables
         self.cache_name = \
             '%s.%s' % (preprocess, self.name) if preprocess else self.name
-
-    def _gen_pred(self, job, X, P, generator):
-        for estimator in generator:
-            yield SubLearner(job=job,
-                             parent=self,
-                             estimator=estimator.estimator,
-                             in_index=estimator.in_index,
-                             out_index=estimator.out_index,
-                             in_array=X,
-                             targets=None,
-                             out_array=P,
-                             index=estimator.index)
 
     @property
     def scorer(self):
@@ -907,10 +862,18 @@ class Transformer(_BaseEstimator):
 
     def __init__(
             self, estimator, name, output_columns=None, **kwargs):
-        # Variables
+        # A hack to check that the estimator is an mlens pipeline (not sklearn)
+        cls = str(estimator.__class__).split("'")[1].lower()
+        if not cls.startswith('mlens') and not cls.endswith('pipeline'):
+            raise ValueError("Expected estimator to be an mlens Pipeline.")
+
         # Override BaseParallel default for __no_output__
         self.__no_output__ = getattr(self, '__no_output__', True)
-        super(Transformer, self).__init__(name, estimator, **kwargs)
+
+        # Variables
+        super(Transformer, self).__init__(
+            format_name(name, 'transformer', GLOBAL_TRANSFORMER_NAMES),
+            estimator, **kwargs)
 
         # Parameter settings
         self.__initialized__ = 0  # Unblock __setattr__
@@ -921,28 +884,15 @@ class Transformer(_BaseEstimator):
         """Number of cols produced in prediction"""
         return X.shape[1]
 
-    @property
-    def cloned_estimator(self):
-        """Blueprint pipeline"""
-        return [(tr_name, clone(tr)) for tr_name, tr in self.estimator]
-
     def _gen_pred(self, job, X, P, generator):
-        """Generator for Cache object"""
-        for obj in generator:
-            if P is None:
-                yield Cache(obj, self.verbose)
-            else:
-                yield SubTransformer(
-                    job=job,
-                    parent=self,
-                    estimator=obj.estimator,
-                    in_index=obj.in_index,
-                    out_index=obj.out_index,
-                    in_array=X,
-                    out_array=P,
-                    index=obj.index,
-                    targets=None,
-                )
+        if P is None:
+            def gen():
+                for o in generator:
+                    yield Cache(o, self.verbose)
+
+            return gen()
+        else:
+            return super(Transformer, self)._gen_pred(job, X, P, generator)
 
 
 class EvalTransformer(Transformer):

@@ -4,9 +4,19 @@ Test of the fit, predict and transform wrappers on the learners
 """
 import numpy as np
 from mlens.testing import Data, EstimatorContainer
-from mlens.parallel import Learner, run as _run
-from mlens.utils.dummy import OLS
+from mlens.parallel import Learner, Pipeline, run as _run
+from mlens.utils.dummy import OLS, Scale
 from mlens.externals.sklearn.base import clone
+
+
+try:
+    from sklearn.utils.estimator_checks import check_estimator
+    SKLEARN = True
+except ImportError:
+    check_estimator = None
+    SKLEARN = False
+
+
 est = EstimatorContainer()
 
 
@@ -15,6 +25,12 @@ def scorer(p, y): return np.mean(p - y)
 
 data = Data('stack', True, False)
 X, y = data.get_data((25, 4), 3)
+
+
+if SKLEARN:
+    def test_pipeline():
+        """[Parallel | Pipeline] Test estimator"""
+        check_estimator(Pipeline(Scale()))
 
 
 def test_fit():
@@ -109,7 +125,7 @@ def test_transformer():
     F = _run(tr, 'fit', X, y, return_preds=True)
     H = _run(tr, 'transform', X, y, return_preds=True)
     P = _run(tr, 'predict', X, y, return_preds=True)
-    Z = tr.estimator[0][1].fit(X).transform(X)
+    Z, _ = tr.estimator.fit_transform(X)
     G = _run(tr, 'fit', X, y, return_preds=True, refit=False)
 
     np.testing.assert_array_equal(H, F)

@@ -417,44 +417,75 @@ class BaseEnsemble(BaseEstimator):
 
         Returns
         ----------
-        self : instance, optional
-            if ``in_place = True``, returns ``self`` with the layer
-            instantiated.
+        self : instance
+            Modified instance.
         """
-        # --- check args ---
-
-        # Arguments that cannot be very between layers
-        check_kwargs(kwargs, ['backend', 'n_jobs'])
-
-        # Pop layer kwargs and override Sequential args
-        verbose = kwargs.pop('verbose', max(self._backend.verbose - 1, 0))
-        dtype = kwargs.pop('dtype', self._backend.dtype)
-        propagate = kwargs.pop('propagate_features', None)
-        shuffle = kwargs.pop('shuffle', self.shuffle)
-        random_state = kwargs.pop('random_state', self.random_state)
-        rs = kwargs.pop('raise_on_exception', self.raise_on_exception)
-        if random_state:
-            random_state = check_random_state(random_state).randint(0, 10000)
-
-        # Set learner kwargs
-        kwargs['verbose'] = max(verbose - 1, 0)
-        kwargs['scorer'] = kwargs.pop('scorer', self.scorer)
-
-        # Check estimator and preprocessing formatting
-        group = make_group(indexer, estimators, preprocessing, kwargs)
-
-        # --- layer ---
-        name = "layer-%i" % (len(self._backend.stack) + 1)  # Start count at 1
-        lyr = Layer(
-            name=name, dtype=dtype, shuffle=shuffle,
-            random_state=random_state, verbose=verbose,
-            raise_on_exception=rs, propagate_features=propagate)
-        lyr.push(group)
+        lyr = self._build_layer(estimators, indexer, preprocessing, **kwargs)
 
         self.layers.append(clone(lyr))
-        setattr(self, name.replace('-', '_'), lyr)
+        setattr(self, lyr.name.replace('-', '_'), lyr)
 
         self._backend.push(lyr)
+        return self
+
+    def replace(self, idx, estimators, indexer, preprocessing=None, **kwargs):
+        """Replace a layer.
+
+        Replace a layer in the stack with a new layer.
+        See :func:`add` for full parameter documentation.
+
+        Parameters
+        -----------
+        idx: int
+            Position in stack of layer to replace. Indexing is 0-based.
+
+        estimators: dict of lists or list of estimators, or `:class:`Layer`.
+            Pre-made layer or estimators to construct layer with.
+
+        indexer : instance or None (default = None)
+            Indexer instance to use. Defaults to the layer class
+            indexer with default settings. See :mod:`mlens.base` for details.
+
+        preprocessing: dict of lists or list, optional (default = None)
+            preprocessing pipelines for given layer.
+
+        **kwargs : optional
+            keyword arguments to be passed onto the layer at instantiation.
+
+        Returns
+        ----------
+        self : instance
+            Modified instance
+        """
+        lyr = self._build_layer(estimators, indexer, preprocessing, **kwargs)
+
+        self.layers[idx] = clone(lyr)
+        setattr(self, lyr.name.replace('-', '_'), lyr)
+
+        self._backend.replace(idx, lyr)
+        return self
+
+    def remove(self, idx):
+        """Remove a layer from stack
+
+        Remove a layer at a given position from stack.
+
+        Parameters
+        ----------
+        idx: int
+            Position in stack. Indexing is 0-based.
+
+        Returns
+        -------
+        self: instance
+            Modified instance
+        """
+        name = self.layers[idx].name
+
+        self.layers.pop(idx)
+        delattr(self, name.replace('-', '_'))
+
+        self._backend.pop(idx)
         return self
 
     def fit(self, X, y=None, **kwargs):
@@ -602,6 +633,39 @@ class BaseEnsemble(BaseEstimator):
         """
         kwargs.pop('proba', None)
         return self.predict(X, proba=True, **kwargs)
+
+    def _build_layer(self, estimators, indexer, preprocessing, **kwargs):
+        """Build a layer from estimators and preprocessing pipelines"""
+        # --- check args ---
+
+        # Arguments that cannot be very between layers
+        check_kwargs(kwargs, ['backend', 'n_jobs'])
+
+        # Pop layer kwargs and override Sequential args
+        verbose = kwargs.pop('verbose', max(self._backend.verbose - 1, 0))
+        dtype = kwargs.pop('dtype', self._backend.dtype)
+        propagate = kwargs.pop('propagate_features', None)
+        shuffle = kwargs.pop('shuffle', self.shuffle)
+        random_state = kwargs.pop('random_state', self.random_state)
+        rs = kwargs.pop('raise_on_exception', self.raise_on_exception)
+        if random_state:
+            random_state = check_random_state(random_state).randint(0, 10000)
+
+        # Set learner kwargs
+        kwargs['verbose'] = max(verbose - 1, 0)
+        kwargs['scorer'] = kwargs.pop('scorer', self.scorer)
+
+        # Check estimator and preprocessing formatting
+        group = make_group(indexer, estimators, preprocessing, kwargs)
+
+        # --- layer ---
+        name = "layer-%i" % (len(self._backend.stack) + 1)  # Start count at 1
+        lyr = Layer(
+            name=name, dtype=dtype, shuffle=shuffle,
+            random_state=random_state, verbose=verbose,
+            raise_on_exception=rs, propagate_features=propagate)
+        lyr.push(group)
+        return lyr
 
     @property
     def model_selection(self):

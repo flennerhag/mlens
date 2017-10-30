@@ -324,6 +324,12 @@ class BaseStacker(BaseEstimator):
             setattr(self, attr, item)
         return self
 
+    def replace(self, idx, item):
+        """Replace a current member of the stack with a new instance"""
+        attr = item.name.replace('-', '_').replace(' ', '').strip()
+        setattr(self, attr, item)
+        self.stack[idx] = item
+
     def pop(self, idx):
         """Pop a previous push with index idx"""
         return self.stack.pop(idx)

@@ -54,10 +54,10 @@ complex the ensemble, to train it call the ``fit`` method:
 ensemble = Subsemble()
 
 # First layer
-ensemble.push(list_of_estimators)
+ensemble.add(list_of_estimators)
 
 # Second layer
-ensemble.push(list_of_estimators)
+ensemble.add(list_of_estimators)
 
 # Final meta estimator
 ensemble.add_meta(estimator)
@@ -70,10 +70,10 @@ Similarly, it's straightforward to modify an existing ensemble:
 
 ```python
 # Remove layer
-ensemble.pop(2)
+ensemble.remove(2)
 
 # Change layer parameters
-ensemble.update(0, new_list_of_estimators)
+ensemble.replace(0, new_list_of_estimators)
 ```
 
 And to create differentiated preprocessing pipelines for different subsets

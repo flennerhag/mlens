@@ -95,14 +95,14 @@ def _set_path(job, path, threading):
         return job
 
     # Else, need a directory
-    path = config.TMPDIR
+    path = config.get_tmpdir()
     try:
         job.tmp = tempfile.TemporaryDirectory(
-            prefix=config.PREFIX, dir=path)
+            prefix=config.get_prefix(), dir=path)
         job.dir = job.tmp.name
     except AttributeError:
         # Fails on python 2
-        job.dir = tempfile.mkdtemp(prefix=config.PREFIX, dir=path)
+        job.dir = tempfile.mkdtemp(prefix=config.get_prefix(), dir=path)
     return job
 
 
@@ -230,7 +230,7 @@ class BaseProcessor(object):
         self.job = None
         self.__initialized__ = 0
 
-        self.backend = config.BACKEND if not backend else backend
+        self.backend = config.get_backend() if not backend else backend
         self.n_jobs = -1 if not n_jobs else n_jobs
         self.verbose = False if not verbose else verbose
         self.__threading__ = self.backend == 'threading'
@@ -583,7 +583,7 @@ class ParallelProcessing(BaseProcessor):
         shape = task.shape(job)
         if threading:
             self.job.predict_out = np.empty(
-                shape, dtype=getattr(task, 'dtype', config.DTYPE))
+                shape, dtype=getattr(task, 'dtype', config.get_dtype()))
         else:
             f = os.path.join(self.job.dir, '%s_out_array.mmap' % task.name)
             try:
@@ -612,7 +612,7 @@ class ParallelProcessing(BaseProcessor):
                 "Processor has been terminated:\ncannot retrieve final "
                 "prediction array from cache.")
         if dtype is None:
-            dtype = config.DTYPE
+            dtype = config.get_dtype()
 
         if issparse(self.job.predict_out):
             return self.job.predict_out

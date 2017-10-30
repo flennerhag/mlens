@@ -482,6 +482,9 @@ class Evaluator(BaseEval):
 
     def _initialize(self, job, estimators, preprocessing, param_dicts, n_iter):
         """Set up generators for the job to be performed"""
+        if preprocessing and isinstance(preprocessing, list):
+            preprocessing = {'pr': preprocessing}
+
         if 'preprocess' in job:
             self._preprocessing = check_instances(preprocessing)
             self._transformers = make_tansformers(

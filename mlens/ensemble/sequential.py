@@ -83,7 +83,7 @@ class SequentialEnsemble(BaseEnsemble):
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
         documentation. To change global backend, set
-        ``mlens.config.BACKEND``
+        ``mlens.config._BACKEND``
 
     model_selection: bool (default=False)
         Whether to use the ensemble in model selection mode. If ``True``,

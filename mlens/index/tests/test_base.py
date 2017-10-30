@@ -25,7 +25,7 @@ except ImportError:
 
 X = np.arange(25).reshape(5, 5)
 
-tmpdir = config.TMPDIR
+tmpdir = config.get_tmpdir()
 
 
 class ClusterEstimator(object):
@@ -60,29 +60,29 @@ cl_2 = ClusterEstimator(2)
 ###############################################################################
 def test_set_dir():
     """[Base] Test setting temp dir."""
-    before = config.TMPDIR
+    before = config.get_tmpdir()
 
     config.set_tmpdir(os.getcwd())
 
-    after = config.TMPDIR
+    after = config.get_tmpdir()
 
     assert before != after
 
 
 def test_check_cache():
     """[Base] Test check cache."""
-    tmp = config.PREFIX + "test"
+    tmp = config.get_prefix() + "test"
     os.mkdir(tmp)
     with open(os.devnull, 'w') as f, redirect_stderr(f):
         subprocess.Popen("echo this is a test >> " + tmp +
                          "/test.txt", shell=True)
-        config.clear_cache(config.TMPDIR)
+        config.clear_cache(config.get_tmpdir())
 
 
 def test_reset_dir():
     """[Base] Test resetting temp dir."""
     config.set_tmpdir(tmpdir)
-    assert config.TMPDIR == tmpdir
+    assert config.get_tmpdir() == tmpdir
 
 
 ###############################################################################

@@ -209,8 +209,8 @@ class BaseBackend(object):
     def __init__(self, backend=None, n_jobs=-1, dtype=None,
                  raise_on_exception=True):
         self.n_jobs = n_jobs
-        self.dtype = dtype if dtype is not None else config.DTYPE
-        self.backend = backend if backend is not None else config.BACKEND
+        self.dtype = dtype if dtype is not None else config.get_dtype()
+        self.backend = backend if backend is not None else config.get_backend()
         self.raise_on_exception = raise_on_exception
 
     @abstractmethod
@@ -230,7 +230,7 @@ class BaseParallel(BaseBackend):
     backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation. To set global backend, set ``mlens.config.BACKEND``.
+        documentation. To set global backend, see ``mlens.config.set_backend``.
 
     raise_on_exception : bool (default = True)
         whether to issue warnings on soft exceptions or raise error.

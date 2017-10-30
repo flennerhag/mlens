@@ -8,9 +8,12 @@ author: Sebastian Flennerhag
 from __future__ import division
 
 import os
+import numpy as np
 import sysconfig
 import subprocess
+from mlens import config
 from mlens.utils import utils
+from mlens.utils.exceptions import ParallelProcessingError
 
 from time import sleep
 try:
@@ -19,9 +22,10 @@ except ImportError:
     from time import time
 
 try:
-    from contextlib import redirect_stdout
+    from contextlib import redirect_stdout, redirect_stderr
 except ImportError:
     from mlens.externals.fixes import redirect as redirect_stdout
+    redirect_stderr = redirect_stdout
 
 try:
     import psutil
@@ -137,3 +141,14 @@ def test_pickle():
     assert isinstance(d, dict)
     assert test['entry1'] == 'test'
     assert test['entry2'] == 'also_test'
+
+
+def test_load():
+    """[Utils] Check that load handles exceptions gracefully"""
+
+    config.set_ivals(0.1, 0.1)
+
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+        np.testing.assert_raises(
+            ParallelProcessingError,
+            utils.load, os.path.join(os.getcwd(), 'nonexist'))

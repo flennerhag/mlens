@@ -112,7 +112,7 @@ def _get_temp_dir(pool_folder_name, temp_folder=None):
           RAMdisk filesystem available by default on modern Linux
           distributions,
         - the default system temporary folder that can be
-          overridden with TMP, TMPDIR or TEMP environment
+          overridden with TMP, _TMPDIR or TEMP environment
           variables, typically /tmp under Unix operating systems.
 
     Returns
@@ -527,7 +527,7 @@ class MemmapingPool(PicklingPool):
         - /dev/shm if the folder exists and is writable: this is a RAMdisk
           filesystem available by default on modern Linux distributions,
         - the default system temporary folder that can be overridden
-          with TMP, TMPDIR or TEMP environment variables, typically /tmp
+          with TMP, _TMPDIR or TEMP environment variables, typically /tmp
           under Unix operating systems.
     max_nbytes int or None, optional, 1e6 by default
         Threshold on the size of arrays passed to the workers that

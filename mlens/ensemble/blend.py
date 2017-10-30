@@ -110,7 +110,7 @@ class BlendEnsemble(BaseEnsemble):
     backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation. To set global backend, set ``mlens.config.BACKEND``.
+        documentation. To set global backend, set ``mlens.config._BACKEND``.
         Cannot be overriden in the :attr:`add` method.
 
     model_selection: bool (default=False)

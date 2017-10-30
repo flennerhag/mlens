@@ -282,7 +282,7 @@ def run(caller, job, X, y=None, map=True, **kwargs):
 
     try:
         verbose = max(getattr(caller, 'verbose', 0) - 4, 0)
-        backend = getattr(caller, 'backend', config.BACKEND)
+        backend = getattr(caller, 'backend', config.get_backend())
         n_jobs = getattr(backend, 'n_jobs', -1)
         with ParallelProcessing(backend, n_jobs, verbose) as mgr:
             if map:

@@ -68,7 +68,7 @@ def print_job(lc, start_message):
 [INFO] backend = %r
 [INFO] start_method = %r
 [INFO] cache = %r
-""" % (lc.n_jobs, lc.backend, config.START_METHOD, config.TMPDIR),
+""" % (lc.n_jobs, lc.backend, config.get_start_method(), config.get_tmpdir()),
                        file=f, flush=True)
 
     t0 = time()

@@ -13,19 +13,6 @@ from .exceptions import (NotFittedError, LayerSpecificationWarning,
                          ParallelProcessingWarning)
 
 
-def check_layers(layers):
-    """Check that a list of layers are indeed layers."""
-    failed = list()
-    for i, lr in enumerate(layers):
-        name = getattr(lr, 'name', str(i))
-        is_layer = lr.__class__.__name__.lower() == 'layer'
-        if not is_layer:
-            failed.append(name)
-    if failed:
-        raise LayerSpecificationError(
-            "Does not appear to be a Layer instance: %r" % failed)
-
-
 def check_ensemble_build(inst, attr='stack'):
     """Check that layers have been instantiated."""
     if not hasattr(inst, attr):

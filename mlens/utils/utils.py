@@ -14,9 +14,8 @@ import warnings
 import subprocess
 from numpy import array
 
-from ..config import IVALS
+from ..config import get_ivals
 from .exceptions import ParallelProcessingError, ParallelProcessingWarning
-from ..externals.sklearn.base import clone
 
 try:
     import psutil
@@ -59,7 +58,7 @@ def pickle_load(name):
 
 def load(file, enforce_filetype=True):
     """Utility exception handler for loading file"""
-    s, lim = IVALS
+    s, lim = get_ivals()
     if enforce_filetype:
         file = pickled(file)
     try:
@@ -225,13 +224,11 @@ class CMLog(object):
                            "every {} seconds.".format(ival))
 
         # Initialize subprocess
-        self._out = \
-            subprocess.Popen([sys.executable, '-c',
-                              'from mlens.utils.utils import _recorder; '
-                              '_recorder({}, {}, {})'.format(self.pid,
-                                                             stop,
-                                                             float(ival))],
-                             stdout=subprocess.PIPE)
+        self._out = subprocess.Popen(
+            [sys.executable, '-c',
+             'from mlens.utils.utils import _recorder; '
+             '_recorder({}, {}, {})'.format(
+                 self.pid, stop, float(ival))], stdout=subprocess.PIPE)
         return
 
     def collect(self):

@@ -2,12 +2,19 @@
 
 Test ensemble transformer.
 """
-
+import os
 import numpy as np
 from mlens.testing.dummy import Data, PREPROCESSING
 from mlens.testing.dummy import ESTIMATORS, ESTIMATORS_PROBA,ECM, ECM_PROBA
 from mlens.model_selection import EnsembleTransformer
 from mlens.ensemble import SequentialEnsemble
+
+try:
+    from contextlib import redirect_stdout, redirect_stderr
+except ImportError:
+    from mlens.externals.fixes import redirect as redirect_stdout
+    redirect_stderr = redirect_stdout
+
 
 FOLDS = 3
 LEN = 12
@@ -36,15 +43,16 @@ def run(cls, kls, proba, preprocessing, **kwargs):
     X, y = data.get_data((LEN, WIDTH), MOD)
     (F, wf), _ = data.ground_truth(X, y, p)
 
-    ens = cls()
-    ens.add(kls, ests, prep, proba=proba, dtype=np.float64, **kwargs)
+    with open(os.devnull, 'w') as f, redirect_stderr(f):
+        ens = cls()
+        ens.add(kls, ests, prep, proba=proba, dtype=np.float64, **kwargs)
 
-    if model_selection:
-        ens.model_selection = True
+        if model_selection:
+            ens.model_selection = True
 
-    ens.fit(X, y)
+        ens.fit(X, y)
 
-    pred, _ = ens.transform(X, y)
+        pred, _ = ens.transform(X, y)
 
     np.testing.assert_array_equal(F, pred)
 

@@ -76,6 +76,11 @@ class MetricWarning(UserWarning):
 
 
 ###############################################################################
+class DepreciationWarning(UserWarning):
+
+    """Warning to notify the user of a depreciated feature"""
+
+
 class EfficiencyWarning(UserWarning):
 
     """Warning used to notify the user of inefficient computation.

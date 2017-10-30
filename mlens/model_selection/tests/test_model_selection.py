@@ -116,10 +116,29 @@ def test_w_prep_fit():
     assert evl.results['params']['pr.ols']['offset'] == 4
 
 
+def test_w_prep_list_fit():
+    """[Model Selection] Test run with preprocessing as list."""
+    evl = Evaluator(
+        mape_scorer, cv=5, shuffle=False, random_state=100, verbose=2)
+
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
+
+        evl.fit(X, y,
+                estimators=[OLS()],
+                param_dicts={'ols': {'offset': randint(1, 10)}},
+                preprocessing=[Scale()], n_iter=3)
+
+    np.testing.assert_approx_equal(
+            evl.results['test_score-m']['pr.ols'],
+            -26.510708862278072)
+
+    assert evl.results['params']['pr.ols']['offset'] == 4
+
+
 def test_w_prep_set_params():
     """[Model Selection] Test run with preprocessing, sep param dists."""
     evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100,
-                    verbose=True)
+                    verbose=2)
 
     params = {'no.ols': {'offset': randint(3, 6)},
               'pr.ols': {'offset': randint(1, 3)},

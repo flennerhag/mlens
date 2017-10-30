@@ -14,12 +14,11 @@ from .formatting import check_instances, format_name
 from .validation import check_inputs
 from .checks import (
     check_ensemble_build, assert_valid_estimator, assert_valid_pipeline,
-    assert_correct_format, check_layers, check_initialized)
+    assert_correct_format, check_initialized)
 
 __all__ = ['IdTrain',
            'check_inputs',
            'check_instances',
-           'check_layers',
            'check_ensemble_build',
            'assert_correct_format',
            'assert_valid_estimator',

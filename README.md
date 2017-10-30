@@ -22,30 +22,30 @@ maximally parallelized ensemble networks in as few lines of codes as possible.
 ML-Ensemble is thread safe as long as base learners are and can fall back on
 memory mapped multiprocessing for memory-neutral process-based concurrency.
 For tutorials and full documentation, visit the project
- [website](http://www.ml-ensemble.com/).
-
+ [website](http://www.ml-ensemble.com/). Core features include:
 
 ## Ensembles as computational graphs
 
-ML-Ensemble implements generalized ensemble learning as a computational graph,
-allowing users great flexibility in ensemble designs, including recursion,
+An ensemble is built on top of a computational graph,
+allowing users great design freedom. Ensembles can be built with recursion,
 dynamic evaluation (e.g. ``if-else``) and much more. 
 
-Standard stacked ensembles are implemented in ready-made Scikit-learn
-estimators. For more information, see the [docs](http://www.ml-ensemble.com/).
+A high-level API packages common ensemble architectures into 
+Scikit-learn estimators.
 
 <div align="center">
 <img src="docs/source/_static/img/network.png" width="60%"><br><br>
 </div>
+*A standard computational graph of a ready-made ensemble*
 
 ### Memory Efficient Parallelized Learning
 
-ML-Ensemble is optimized for minimal memory consumption and completely avoid
-serialization of data, regardless of whether multithreading or multiprocessing
-is used. Additionally, multithreading is pickle-free. 
+ML-Ensemble is optimized for speed and minimal memory consumption. No
+serialization of data takes place, regardless of whether multithreading or
+multiprocessing is used. Additionally, multithreading is pickle-free. 
 
 
-### Transparent Architecture API
+### Easy of Use
 
 Ready-made ensembles are built by adding layers to an instance. No matter how
 complex the ensemble, to train it call the ``fit`` method:
@@ -130,9 +130,9 @@ prep-3 est-1       0.000735      0.000248          0.791111         0.019821    
 
 ## Install
 
-#### PyPi
+#### PyPI
 
-ML-Ensemble is available on PyPi. Install with
+ML-Ensemble is available on PyPI. Install with
 
 ```bash
 pip install mlens
@@ -140,12 +140,13 @@ pip install mlens
 
 #### Bleeding edge
 
-For developer versons, fork the GitHub repository. For instance,
+For developer version, fork the GitHub repository.
 
 ```bash
 git clone https://github.com/flennerhag/mlens.git; cd mlens;
 python install setup.py
 ```
+
 
 ## License
 

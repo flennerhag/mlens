@@ -11,8 +11,11 @@ from __future__ import division
 
 from ..index import INDEXERS
 from ..utils import check_ensemble_build, check_inputs, IdTrain
+from ..utils.exceptions import DepreciationWarning
 from ..ensemble import BaseEnsemble
 from ..externals.sklearn.validation import check_random_state
+
+import warnings
 
 
 class EnsembleTransformer(BaseEnsemble):
@@ -38,6 +41,8 @@ class EnsembleTransformer(BaseEnsemble):
     :class:`EnsembleTransformer` to generate k-fold base learner predictions,
     and then fit different meta learners (or higher-order layers) in a call
     to ``evaluate``.
+
+    .. note:: will be depreciated in 0.2.2.
 
     See Also
     --------
@@ -107,7 +112,7 @@ class EnsembleTransformer(BaseEnsemble):
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
         documentation. To change global backend, set
-        ``mlens.config.BACKEND``
+        ``mlens.config._BACKEND``
 
     .. deprecated:: 0.2.0
         use the ``model_selection`` parameter on regular ensembles instead.
@@ -156,6 +161,10 @@ class EnsembleTransformer(BaseEnsemble):
                  layers=None,
                  backend=None,
                  sample_dim=20):
+        warnings.warn(
+            "EnsembleTransformer is depreciated and will be discontinued in "
+            "0.2.2. Use ensemble classes with 'model_selection=True'.",
+            DeprecationWarning)
 
         super(EnsembleTransformer, self).__init__(
                 shuffle=shuffle, random_state=random_state,

@@ -11,4 +11,4 @@ learning.
 # pylint: disable=wildcard-import
 from .config import *
 
-__version__ = "0.2.0.dev0"
+__version__ = "0.2.0"

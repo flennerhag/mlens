@@ -11,7 +11,7 @@ import numpy as np
 from mlens.index import INDEXERS
 from mlens.testing.dummy import Data, ECM
 from mlens.utils.dummy import Scale, LogisticRegression
-from mlens.parallel import make_learners, Layer, run
+from mlens.parallel import make_group, Layer, run
 from mlens.externals.sklearn.base import clone
 try:
     from contextlib import redirect_stdout
@@ -40,13 +40,13 @@ data = Data('stack', True, True)
 X, y = data.get_data((25, 4), 3)
 
 idx1 = INDEXERS['stack']()
-g1 = make_learners(
+g1 = make_group(
     idx1, ESTIMATORS_PROBA_1, PREPROCESSING_1,
     learner_kwargs={'proba': True, 'verbose': True},
     transformer_kwargs={'verbose': True})
 
 idx2 = INDEXERS['subsemble']()
-g2 = make_learners(
+g2 = make_group(
     idx2, ESTIMATORS_PROBA_2, PREPROCESSING_2,
     learner_kwargs={'proba': False, 'verbose': True},
     transformer_kwargs={'verbose': True})
@@ -56,12 +56,12 @@ layer = Layer('layer')
 
 def test_push_1():
     """[Parallel | Layer] Testing single push"""
-    assert not layer.__initialized__
+    assert not layer.__stack__
 
     layer.push(g1)
 
-    assert layer.groups[0] is g1
-    assert layer.__initialized__
+    assert layer.stack[0] is g1
+    assert layer.__stack__
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
         run(layer, 'fit', X, y)
@@ -99,7 +99,7 @@ def test_clone():
     """[Parallel | Layer] Test cloning"""
     lyr = clone(layer)
 
-    assert lyr.__initialized__
+    assert lyr.__stack__
     assert not lyr.__fitted__
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
@@ -121,7 +121,7 @@ def test_clone():
 def test_data():
     """[Parallel | Learner] Test data"""
     idx = INDEXERS['subsemble']()
-    lyr = Layer('layer-scorer').push(make_learners(idx, ECM, None))
+    lyr = Layer('layer-scorer').push(make_group(idx, ECM, None))
     for lr in lyr.learners:
         lr.scorer = scorer
 
@@ -138,13 +138,13 @@ def test_pop():
     """[Parallel | Layer] Test pop"""
     # Popping one group leaves the layer intact
     g = layer.pop(0)
-    assert layer.__initialized__
+    assert layer.__stack__
     assert layer.__fitted__
     assert g1 is g
 
     # Popping both leaves if empty
     g = layer.pop(0)
-    assert not layer.__initialized__
+    assert not layer.__stack__
     assert not layer.__fitted__
     assert g2 is g
 

@@ -30,9 +30,36 @@ cycle.
 from abc import abstractmethod
 import numpy as np
 
+from ._base_functions import check_stack, check_params
 from .. import config
 from ..utils.exceptions import ParallelProcessingError
-from ..externals.sklearn.base import BaseEstimator
+from ..externals.sklearn.base import clone, BaseEstimator as _BaseEstimator
+
+
+class ParamMixin(_BaseEstimator, object):
+
+    """Parameter Mixin
+
+    Mixin for protecting static parameters from changes after fitting.
+
+    .. Note::
+   To use this mixin the instance inheriting it must set
+   ``__static__=list()`` and ``_static_fit_params_=dict()``  in ``__init__``.
+    """
+
+    def _store_static_params(self):
+        """Record current static params for future comparison."""
+        if self.__static__:
+            for key, val in self.get_params(deep=False).items():
+                if key in self.__static__:
+                    self._static_fit_params[key] = clone(val, safe=False)
+
+    def _check_static_params(self):
+        """Check if current static params are identical to previous params"""
+        current_static_params = {
+            k: v for k, v in self.get_params(deep=False).items()
+            if k in self.__static__}
+        return check_params(self._static_fit_params, current_static_params)
 
 
 class IndexMixin(object):
@@ -40,6 +67,10 @@ class IndexMixin(object):
     """Indexer mixin
 
     Mixin for handling indexers.
+
+    .. Note::
+   To use this mixin the instance inheriting it must set the
+   ``indexer`` or ``indexers`` attribute in ``__init__`` (not both).
     """
 
     @property
@@ -86,7 +117,7 @@ class OutputMixin(IndexMixin):
 
     .. Note::
        To use this mixin the instance inheriting it must set the
-       ``feature_span`` attribute in ``__init__``.
+       ``feature_span`` attribute and ``__no_output__`` flag in ``__init__``.
     """
 
     @abstractmethod
@@ -139,7 +170,7 @@ class ProbaMixin(object):
 
     .. Note::
        To use this mixin the instance inheriting it must set the ``proba``
-       attribute in ``__init__``.
+       and the ``_classes(=None)``attribute in ``__init__``.
     """
 
     def _setup_2_multiplier(self, X, y, job=None):
@@ -168,40 +199,6 @@ class ProbaMixin(object):
         self._classes = np.unique(y).shape[0]
 
 
-class AttributeMixin(object):
-
-    """Base Estimator class
-
-    Derived class from Scikit-learn's BaseEstimator. Protects parameters
-    by forcing a re-run of ``__init__`` to ensure backend is updated.
-
-    Child classes must set ``__initialized__ = 0`` on first line in
-    ``__init__`` and ``__initialized__ = 1`` on last line in ``__init__``.
-
-    Examples
-    --------
-    ::
-        class Foo(_BaseEstimator):
-
-            def __init__(self, bar):
-                self.__initialized__ = 0  # Unblock __setattr__
-                self.bar = bar
-                self.__initialized__ = 1  # Protect __setattr__ wrt params chg
-    """
-
-    def __setattr__(self, name, value):
-        reinit = False
-        if getattr(self, '__initialized__', False):
-            params = self.get_params(deep=False)
-            if name in params:
-                reinit = True
-                params[name] = value
-        if reinit:
-            self.__init__(**params)
-        else:
-            super(AttributeMixin, self).__setattr__(name, value)
-
-
 class BaseBackend(object):
 
     """Base class for parallel backend
@@ -216,8 +213,12 @@ class BaseBackend(object):
         self.backend = backend if backend is not None else config.BACKEND
         self.raise_on_exception = raise_on_exception
 
+    @abstractmethod
+    def __iter__(self):
+        yield
 
-class BaseParallel(BaseBackend, BaseEstimator):
+
+class BaseParallel(BaseBackend):
 
     """Base class for parallel objects
 
@@ -253,17 +254,12 @@ class BaseParallel(BaseBackend, BaseEstimator):
     def __init__(self, name, *args, **kwargs):
         super(BaseParallel, self).__init__(*args, **kwargs)
         self.name = name
-        self.__no_output__ = getattr(self, '__no_output__', False)
+        self.__no_output__ = False
 
+    @abstractmethod
     def __iter__(self):
         """Iterator for process manager"""
-        yield self
-
-    @property
-    @abstractmethod
-    def __fitted__(self):
-        """Fit status"""
-        return
+        yield
 
     def setup(self, X, y, job, skip=None, **kwargs):
         """Setup instance for estimation"""
@@ -277,25 +273,103 @@ class BaseParallel(BaseBackend, BaseEstimator):
             fargs = {k: v for k, v in kwargs.items() if k in args}
             func(X, y, job, **fargs)
 
+
+class BaseEstimator(ParamMixin, _BaseEstimator, BaseParallel):
+
+    """Base Parallel Estimator class
+
+    Modified Scikit-learn class to handle backend params that we want to
+    protect from changes.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(BaseEstimator, self).__init__(*args, **kwargs)
+        self.__static__ = list()
+        self._static_fit_params = dict()
+
     def get_params(self, deep=True):
-        """Get learner parameters
-
-        Parameters
-        ----------
-        deep : bool
-            whether to return nested parameters
-        """
-        out = super(BaseParallel, self).get_params(deep=deep)
-        for par_name in self._get_param_names():
-            par = getattr(self, '_%s' % par_name, None)
-            if par is None:
-                par = getattr(self, par_name, None)
-            if deep and hasattr(par, 'get_params'):
-                for key, value in par.get_params(deep=True).items():
-                    out['%s__%s' % (par_name, key)] = value
-            out[par_name] = par
-
+        out = super(BaseEstimator, self).get_params(deep=deep)
         for name in BaseBackend.__init__.__code__.co_varnames:
             if name not in ['self']:
                 out[name] = getattr(self, name)
         return out
+
+    @property
+    @abstractmethod
+    def __fitted__(self):
+        """Fit status"""
+        return self._check_static_params()
+
+
+class BaseStacker(BaseEstimator):
+    """Base class for instanes that stack job estimators"""
+
+    def __init__(self, stack=None, verbose=False, *args, **kwargs):
+        super(BaseStacker, self).__init__(*args, **kwargs)
+        if stack and not isinstance(stack, list):
+            raise ValueError("Stack must be a list. Got %r:" % type(stack))
+        self.stack = stack if stack else list()
+        self._verbose = verbose
+
+    @abstractmethod
+    def __iter__(self):
+        yield
+
+    def push(self, *stack):
+        """Push onto stack"""
+        check_stack(stack, self.stack)
+        for item in stack:
+            self.stack.append(item)
+            attr = item.name.replace('-', '_').replace(' ', '').strip()
+            setattr(self, attr, item)
+        return self
+
+    def pop(self, idx):
+        """Pop a previous push with index idx"""
+        return self.stack.pop(idx)
+
+    def get_params(self, deep=True):
+        """Get parameters for this estimator.
+
+        Parameters
+        ----------
+        deep : boolean, optional
+            whether to return nested parameters.
+        """
+        out = super(BaseStacker, self).get_params(deep=deep)
+        if not deep:
+            return out
+
+        for item in self.stack:
+            out[item.name] = item
+            for key, val in item.get_params(deep=True).items():
+                out['%s__%s' % (item.name, key)] = val
+        return out
+
+    @property
+    def __fitted__(self):
+        """Fitted status"""
+        if not self.stack:
+            # all on an empty list yields True
+            return False
+        return all([g.__fitted__ for g in self.stack])
+
+    @property
+    def __stack__(self):
+        """Check stack"""
+        if not isinstance(self.stack, list):
+            raise ValueError(
+                "Stack corrupted. Extected list. Got %r" % type(self.stack))
+        return len(self.stack) > 0
+
+    @property
+    def verbose(self):
+        """Verbosity"""
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose):
+        """Set verbosity"""
+        for g in self.stack:
+            for obj in g:
+                obj.verbose = verbose

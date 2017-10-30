@@ -49,7 +49,7 @@ def test_check_ensemble_build_passes():
 def test_check_ensemble_build_no_lc():
     """[Utils] check_ensemble_build : raises error on no LC."""
     lc = clone(LAYER_CONTAINER)
-    del lc.layers
+    del lc.stack
     np.testing.assert_raises(AttributeError, check_ensemble_build, lc)
 
 
@@ -57,7 +57,7 @@ def test_check_ensemble_build_lc_none():
     """[Utils] check_ensemble_build : raises error on LC None."""
     lc = clone(LAYER_CONTAINER)
     lc.raise_on_exception = True
-    lc.layers = None
+    lc.stack = None
 
     np.testing.assert_raises(LayerSpecificationError, check_ensemble_build, lc)
 
@@ -65,7 +65,7 @@ def test_check_ensemble_build_lc_none():
 def test_check_ensemble_build_lc_none_no_raise_():
     """[Utils] check_ensemble_build : raises warning on LC None + no raise_."""
     lc = clone(LAYER_CONTAINER)
-    lc.layers = None
+    lc.stack = None
     lc.raise_on_exception = False
 
     FLAG = np.testing.assert_warns(LayerSpecificationWarning,

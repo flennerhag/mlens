@@ -56,7 +56,7 @@ def prune_files(path, name):
                  if name == '.'.join(f.split('.')[:-3])]
         files = [pickle_load(f) for f in sorted(files)]
     elif isinstance(path, list):
-        files = [tup[1] for tup in sorted(path)
+        files = [tup[1] for tup in sorted(path, key=lambda x: x[0])
                  if name == '.'.join(tup[0].split('.')[:-2])]
     else:
         raise ValueError(
@@ -242,20 +242,31 @@ def check_params(lpar, rpar):
             continue
 
         # Check for nested parameters
-        # We control specifically for lists of named instance tuples
-
         if hasattr(par1, 'get_params'):
-            par1 = [('', par1)]
-            par2 = [('', par2)]
+            par1 = [par1]
+            par2 = [par2]
 
-        if (isinstance(par1, list)
-                and isinstance(par1[0], tuple)
-                and hasattr(par1[0][1], 'get_params')):
-            # Check all params on all estimators in list
-            if all([check_params(par1[i][1].get_params(deep=True),
-                                 par2[i][1].get_params(deep=True))
-                    for i in range(len(par1))]):
-                continue
+        if isinstance(par1, list):
 
+            # Prune named tuples
+            if (isinstance(par1[0], tuple)
+                    and hasattr(par1[0][1], 'get_params')):
+                par1 = [p1[1] for p1 in par1]
+                par2 = [p2[1] for p2 in par2]
+
+            if hasattr(par1[0], 'get_params'):
+                if all([check_params(par1[i].get_params(deep=True),
+                                     par2[i].get_params(deep=True))
+                        for i in range(len(par1))]):
+                    continue
         return False
     return True
+
+
+def check_stack(new_items, stack):
+    """Check if new items can safely be stacked onto old items"""
+    names = [st.name for st in stack]
+    for item in new_items:
+        if item.name in names:
+            raise ValueError("Name (%s) already exists in stack. "
+                             "Rename before attempting to push." % item.name)

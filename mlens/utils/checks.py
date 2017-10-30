@@ -26,7 +26,7 @@ def check_layers(layers):
             "Does not appear to be a Layer instance: %r" % failed)
 
 
-def check_ensemble_build(inst, attr='layers'):
+def check_ensemble_build(inst, attr='stack'):
     """Check that layers have been instantiated."""
     if not hasattr(inst, attr):
         # No layer container. This should not happen!
@@ -79,6 +79,13 @@ def assert_valid_estimator(instance):
     except TypeError:
         raise TypeError("'%s' does not appear to be an instance of an "
                         "estimator class, but the class itself." % instance)
+
+
+def assert_valid_pipeline(pipeline):
+    """Quick check to ensure the pipeline is an mlens Pipeline"""
+    cls = str(pipeline.__class__).split("'")[1].lower()
+    if not cls.endswith('pipeline') and not cls.startswith('mlens'):
+        raise ValueError("Expect mlens Pipeline instance. Got %r" % pipeline)
 
 
 def assert_correct_format(estimators, preprocessing):

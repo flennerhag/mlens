@@ -1,7 +1,7 @@
 """
 Test Scikit-learn
 """
-from mlens.utils.dummy import LogisticRegression
+import numpy as np
 from mlens.ensemble import SuperLearner, Subsemble, BlendEnsemble
 try:
     from sklearn.utils.estimator_checks import check_estimator
@@ -26,11 +26,11 @@ if has_sklearn:
     X, y = load_boston(True)
 
     estimators = [Lasso(),
+                  GradientBoostingRegressor(),
                   LinearRegression(),
                   KNeighborsRegressor(),
                   SVR(),
                   RandomForestRegressor(),
-                  GradientBoostingRegressor()
                   ]
 
     est_prep = {'prep1': estimators,

@@ -258,9 +258,11 @@ class Subsemble(BaseEnsemble):
             n_jobs=n_jobs, layers=layers, model_selection=model_selection,
             sample_size=sample_size, array_check=array_check, backend=backend)
 
+        self.__initialized__ = 0  # Unlock parameter setting
         self.partition_estimator = partition_estimator
         self.partitions = partitions
         self.folds = folds
+        self.__initialized__ = 1  # Protect against param resets
 
     def add_meta(self, estimator, **kwargs):
         """Add meta estimator.

@@ -227,7 +227,7 @@ if run_sklearn:
 
         with open(os.devnull, 'w') as f, redirect_stdout(f):
             ens3.fit(X2, y2)
-            pred = ens3.predict(X2)
+            ens3.predict(X2)
 
         scores = dict()
         for _, tei in FoldIndex(FOLDS, X2).generate(as_array=True):

@@ -7,7 +7,8 @@ from mlens.index import FoldIndex
 from mlens.testing import Data
 from mlens.testing.dummy import ESTIMATORS, PREPROCESSING
 from mlens.utils.dummy import OLS, Scale
-from mlens.parallel import make_learners
+from mlens.utils.exceptions import NotFittedError
+from mlens.parallel import make_group
 from mlens.estimators import LearnerEstimator, TransformerEstimator, LayerEnsemble
 from mlens.externals.sklearn.base import clone
 
@@ -23,8 +24,8 @@ X, y = data.get_data((25, 4), 3)
 (F, wf), (P, wp) = data.ground_truth(X, y)
 
 Est = LayerEnsemble
-est = LayerEnsemble(make_learners(FoldIndex(), ESTIMATORS, PREPROCESSING))
-est._backend.dtype = np.float64
+est = LayerEnsemble(make_group(FoldIndex(), ESTIMATORS, PREPROCESSING),
+                    dtype=np.float64)
 
 
 class Tmp(Est):
@@ -37,7 +38,7 @@ class Tmp(Est):
 
     def __init__(self):
         args = {LearnerEstimator: (OLS(), FoldIndex()),
-                LayerEnsemble: (make_learners(
+                LayerEnsemble: (make_group(
                     FoldIndex(), ESTIMATORS, PREPROCESSING),),
                 TransformerEstimator: (Scale(), FoldIndex())}[Est]
         super(Tmp, self).__init__(*args)
@@ -70,8 +71,6 @@ def test_layer_predict():
 def test_layer_clone():
     """[Module | LayerEnsemble] test clone"""
     cl = clone(est)
-    cl._backend.dtype = np.float64
-
     p = cl.fit_transform(X, y)
     np.testing.assert_array_equal(p, F)
 
@@ -84,22 +83,22 @@ def test_layer_params_estimator():
     out = est.get_params()
     assert isinstance(out, dict)
 
-    est.set_params(**{'offs-2.estimator__offset': 1})
-    assert not est._backend.__fitted__
+    est.set_params(**{'offs-1__estimator__offset': 10})
+    np.testing.assert_raises(NotFittedError, est.predict, X)
 
 
 def test_layer_params_indexer():
     """[Module | LayerEnsemble] test set params on indexer"""
     est.fit(X, y)
 
-    est._backend.indexers[0].set_params(folds=3)
-    assert not est._backend.__fitted__
+    est.set_params(**{'null-1__indexer__folds': 3})
+    np.testing.assert_raises(NotFittedError, est.predict, X)
 
 
 def test_layer_attr():
     """[Module | LayerEnsemble] test setting attribute"""
     est.propagate_features = [0]
-    assert not est._backend.__fitted__
+    assert not est.__fitted__
 
     # If this fails, it is trying to propagate feature but predict_out is None!
     est.fit(X, y)

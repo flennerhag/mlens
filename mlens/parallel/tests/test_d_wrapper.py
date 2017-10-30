@@ -4,7 +4,7 @@ Test of the fit, predict and transform wrappers on the learners
 """
 import numpy as np
 from mlens.testing import Data, EstimatorContainer
-from mlens.parallel import Learner, Pipeline, run as _run
+from mlens.parallel import Learner, Transformer, Pipeline, run as _run
 from mlens.utils.dummy import OLS, Scale
 from mlens.externals.sklearn.base import clone
 
@@ -52,7 +52,7 @@ def test_collect():
 
     np.testing.assert_array_equal(a, b)
     np.testing.assert_array_equal(a, c)
-    assert d is None
+    np.testing.assert_array_equal(a, d)
 
 
 def test_clone():
@@ -107,9 +107,9 @@ def run(cls, job, eval=True):
     np.testing.assert_array_equal(P, F)
 
     if job in ['fit', 'transform']:
-        lrs = lr.sublearners_
+        lrs = lr.sublearners
     else:
-        lrs = lr.learner_
+        lrs = lr.learner
 
     w = [obj.estimator.coef_ for obj in lrs]
     np.testing.assert_array_equal(w, wf)
@@ -161,3 +161,46 @@ def test_pred_subsemble():
 def test_tr_subsemble():
     """[Parallel | Learner | Subsemble | Wrapper] test transform"""
     run('subsemble', 'transform')
+
+
+def test_run_fit():
+    """[Parallel | Wrapper] test fit with auxiliary"""
+    tr = Transformer(Pipeline(Scale(), return_y=True),
+                     name='pr', indexer=data.indexer)
+    lr = Learner(OLS(),
+                 indexer=data.indexer, name='lr', preprocess='pr',
+                 scorer=scorer)
+
+    out = _run([tr, lr], 'fit', X, y)
+    assert out is None
+
+
+def test_run_transform():
+    """[Parallel | Wrapper] test transform with auxiliary"""
+    tr = Transformer(Pipeline(Scale(), return_y=True), indexer=data.indexer)
+    lr = Learner(OLS(), indexer=data.indexer, scorer=scorer)
+
+    # Indirect stack
+    X_ = _run(tr, 'fit', X, y, return_preds=True)
+    A = _run(lr, 'fit', X_, y, return_preds=True)
+
+    # Direct stack
+    B = _run([tr, lr], 'transform', X, y, map=False)
+
+    np.testing.assert_array_equal(A, B)
+
+
+def test_run_predict():
+    """[Parallel | Wrapper] test predict with auxiliary"""
+    tr = Transformer(Pipeline(Scale(), return_y=True),
+                     name='pr', indexer=data.indexer)
+    lr = Learner(OLS(), indexer=data.indexer, name='lr', scorer=scorer)
+
+    _run([tr, lr], 'fit', X, y, map=False)
+    B = _run([tr, lr], 'predict', X, y, map=False)
+
+    X1 = _run(tr, 'transform', X)
+    X2 = _run(tr, 'predict', X)
+    A = OLS().fit(X1, y).predict(X2)
+
+    np.testing.assert_array_equal(A.astype(np.float32), B.ravel())

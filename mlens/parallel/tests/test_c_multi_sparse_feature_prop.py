@@ -14,8 +14,8 @@ SEED = 1324
 
 class TempClass(BaseEnsemble):
 
-    def __init__(self, *args, **kwargs):
-        super(TempClass, self).__init__(*args, **kwargs)
+    def __init__(self):
+        super(TempClass, self).__init__()
 
 
 def _shuffled(X, y, seed):

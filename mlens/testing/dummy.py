@@ -22,7 +22,7 @@ from ..externals.sklearn.base import clone
 from ..index import INDEXERS
 from ..ensemble.base import Sequential
 from ..parallel import (
-    ParallelProcessing, Learner, Transformer, Layer, make_learners, Pipeline)
+    ParallelProcessing, Learner, Transformer, Layer, make_group, Pipeline)
 from ..estimators import LayerEnsemble
 
 ##############################################################################
@@ -157,7 +157,7 @@ class EstimatorContainer(object):
         learner_kwargs = {'proba': kwargs.pop('proba', proba),
                           'scorer': kwargs.pop('scorer', None)}
 
-        layer = Layer('layer', dtype=np.float64, **kwargs)
+        layer = Layer(name='layer', dtype=np.float64, **kwargs)
 
         if preprocessing:
             ests = ESTIMATORS_PROBA if proba else ESTIMATORS
@@ -166,8 +166,8 @@ class EstimatorContainer(object):
             ests = ECM_PROBA if proba else ECM
             prep = []
 
-        group = make_learners(indexer, ests, prep,
-                              learner_kwargs=learner_kwargs)
+        group = make_group(indexer, ests, prep,
+                           learner_kwargs=learner_kwargs, name='group')
         layer.push(group)
         return layer
 
@@ -197,10 +197,9 @@ class EstimatorContainer(object):
             ests = ECM_PROBA if proba else ECM
             prep = []
 
-        group = make_learners(indexer, ests, prep,
-                              learner_kwargs=learner_kwargs)
-        layer = LayerEnsemble([group], **kwargs)
-        layer._backend.dtype = np.float64
+        group = make_group(indexer, ests, prep,
+                           learner_kwargs=learner_kwargs)
+        layer = LayerEnsemble([group], dtype=np.float64, **kwargs)
         return layer
 
     def get_sequential(self, kls, proba, preprocessing, *args, **kwargs):
@@ -220,7 +219,7 @@ class EstimatorContainer(object):
         lyr = self.get_layer(kls, proba, preprocessing, *args, **kwargs)
         lyr.name += '-1'
         seq = Sequential()
-        return seq(lyr)
+        return seq.push(lyr)
 
     @staticmethod
     def load_indexer(kls, args, kwargs):
@@ -541,9 +540,9 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
 
     if wf is not None:
         if job in ['fit', 'transform']:
-            lrs = learner.sublearners_
+            lrs = learner.sublearners
         else:
-            lrs = learner.learner_
+            lrs = learner.learner
         np.testing.assert_array_equal(P, F)
         w = [obj.estimator.coef_ for obj in lrs]
         np.testing.assert_array_equal(w, wf)
@@ -611,10 +610,10 @@ def run_layer(job, layer, X, y, F, wf=None):
     if wf is not None:
         if job in ['fit', 'transform']:
             w = [obj.estimator.coef_
-                 for lr in layer.learners for obj in lr.sublearners_]
+                 for lr in layer.learners for obj in lr.sublearners]
         else:
             w = [obj.estimator.coef_
-                 for lr in layer.learners for obj in lr.learner_]
+                 for lr in layer.learners for obj in lr.learner]
         np.testing.assert_array_equal(P, F)
         np.testing.assert_array_equal(w, wf)
 

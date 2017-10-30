@@ -6,13 +6,42 @@
 
 Front-end classes
 """
-from ..parallel import Layer, make_learners
-from ..parallel.base import AttributeMixin
+from ..parallel import Layer, make_group
+from ..parallel.base import ParamMixin
 from ..parallel.wrapper import EstimatorMixin
-from ..externals.sklearn.base import BaseEstimator, clone, TransformerMixin
+from ..parallel._base_functions import check_stack
+from ..externals.sklearn.base import BaseEstimator as _BaseEstimator
+from ..externals.sklearn.base import clone, TransformerMixin
 
 
-class LearnerEstimator(EstimatorMixin, AttributeMixin, BaseEstimator):
+class BaseEstimator(EstimatorMixin, ParamMixin, _BaseEstimator):
+
+    """Base class for estimators
+
+    Ensure proper initialization of Mixins.
+    """
+
+    def __init__(self):
+        self.__static__ = list()
+        self._static_fit_params = dict()
+
+    @property
+    def __fitted__(self):
+        """Fitted status"""
+        if not self._backend:
+            return False
+        return self._check_static_params()
+
+    @property
+    def data(self):
+        return self._backend.data
+
+    @property
+    def raw_data(self):
+        return self._backend.raw_data
+
+
+class LearnerEstimator(BaseEstimator):
 
     """Learner estimator
 
@@ -48,49 +77,36 @@ class LearnerEstimator(EstimatorMixin, AttributeMixin, BaseEstimator):
         sequential processing.
     """
 
-    def __init__(self, estimator, indexer, name=None,
-                 verbose=False, scorer=None, backend=None, n_jobs=-1):
-        # Set __initialized__ to False to unblock __setattr__
-        self.__initialized__ = 0
+    def __init__(self, estimator, indexer, verbose=False, scorer=None,
+                 backend=None, n_jobs=-1, dtype=None):
+        super(LearnerEstimator, self).__init__()
 
-        # Params
         self.estimator = estimator
         self.indexer = indexer
-        self.name = name
         self.verbose = verbose
         self.scorer = scorer
         self.backend = backend
         self.n_jobs = n_jobs
+        self.dtype = dtype
+        self._backend = None
 
-        # Backend
+        self.__static__.extend(['estimator', 'indexer'])
+
+    def _build(self):
+        """Build backend"""
         lr_kwargs = {'attr': 'predict', 'verbose': self.verbose,
                      'scorer': self.scorer, 'backend': self.backend,
-                     'n_jobs': self.n_jobs}
+                     'n_jobs': self.n_jobs, 'dtype': self.dtype}
 
-        if self.name:
-            est = [(self.name, clone(self.estimator))]
-        else:
-            est = clone(self.estimator)
-        group = make_learners(
-            clone(self.indexer), est, None, learner_kwargs=lr_kwargs)
+        idx = clone(self.indexer)
+        est = clone(self.estimator)
+        group = make_group(idx, est, None, learner_kwargs=lr_kwargs)
 
-        _learner = group.learners[0]
-        self._backend = _learner
-
-        # Set __initialized__ to True to protect __setattr__ of parameters
-        self.__initialized__ = 1
-
-    @property
-    def data_(self):
-        return self._backend.data
-
-    @property
-    def raw_data_(self):
-        return self._backend.raw_data
+        self._backend = group.learners[0]
+        self._store_static_params()
 
 
-class TransformerEstimator(
-        TransformerMixin, EstimatorMixin, AttributeMixin, BaseEstimator):
+class TransformerEstimator(TransformerMixin, BaseEstimator):
     """Transformer estimator
 
     Wraps an preprocessing pipeline in a cross-validation strategy.
@@ -119,50 +135,35 @@ class TransformerEstimator(
         sequential processing.
     """
 
-    def __init__(self, preprocessing, indexer, name=None, verbose=False,
-                 backend=None, n_jobs=-1):
-        # Set __initialized__ to False to unblock __setattr__
-        self.__initialized__ = 0
+    def __init__(self, preprocessing, indexer, verbose=False,
+                 backend=None, n_jobs=-1, dtype=None):
+        super(TransformerEstimator, self).__init__()
 
-        # Params
         self.preprocessing = preprocessing
         self.indexer = indexer
-        self.name = name
         self.verbose = verbose
         self.backend = backend
         self.n_jobs = n_jobs
+        self.dtype = dtype
+        self._backend = None
 
-        # Backend
+        self.__static__.extend(['preprocessing', 'indexer'])
+
+    def _build(self):
+        """Build backend"""
         tr_kwargs = {'backend': self.backend,
-                     'n_jobs': self.n_jobs, 'verbose': self.verbose}
+                     'n_jobs': self.n_jobs, 'verbose': self.verbose,
+                     'dtype': self.dtype}
 
-        if isinstance(self.preprocessing, list):
-            prep = list()
-            for u in self.preprocessing:
-                if isinstance(u, (tuple, list)):
-                    prep.append((u[0], clone(u[1])))
-                else:
-                    prep.append(clone(u))
-        else:
-            prep = clone(self.preprocessing)
+        idx = clone(self.indexer)
+        prep = clone(self.preprocessing)
 
-        group = make_learners(
-            clone(self.indexer), None, prep, transformer_kwargs=tr_kwargs)
+        group = make_group(idx, None, prep, transformer_kwargs=tr_kwargs)
         self._backend = group.transformers[0]
-
-        # Set __initialized__ to True to protect __setattr__ of parameters
-        self.__initialized__ = 1
-
-    @property
-    def data_(self):
-        return self._backend.data
-
-    @property
-    def raw_data_(self):
-        return self._backend.raw_data
+        self._store_static_params()
 
 
-class LayerEnsemble(EstimatorMixin, AttributeMixin, BaseEstimator):
+class LayerEnsemble(BaseEstimator):
 
     """One-layer ensemble
 
@@ -206,10 +207,10 @@ class LayerEnsemble(EstimatorMixin, AttributeMixin, BaseEstimator):
         Random seed number to use for shuffling inputs
     """
 
-    def __init__(self, groups, propagate_features=None, shuffle=False,
-                 random_state=None, verbose=False, name=None, backend=None,
-                 n_jobs=-1):
-        self.__initialized__ = 0
+    def __init__(
+            self, groups, propagate_features=None, shuffle=False, n_jobs=-1,
+            backend=None, verbose=False, random_state=None, dtype=None):
+        super(LayerEnsemble, self).__init__()
         self.groups = groups if isinstance(groups, list) else [groups]
         self.propagate_features = propagate_features
         self.shuffle = shuffle
@@ -217,14 +218,18 @@ class LayerEnsemble(EstimatorMixin, AttributeMixin, BaseEstimator):
         self.verbose = verbose
         self.backend = backend
         self.n_jobs = n_jobs
+        self.dtype = dtype
+        self._backend = None
 
-        name = name if name else 'layer'
-        self.name = name
+        self.__static__.extend(['groups'])
+
+    def _build(self):
+        """Build Backend"""
         self._backend = Layer(
-            name=self.name, propagate_features=self.propagate_features,
+            propagate_features=self.propagate_features, dtype=self.dtype,
             shuffle=self.shuffle, random_state=self.random_state,
-            verbose=self.verbose, groups=self.groups)
-        self.__initialized__ = 1
+            verbose=self.verbose, stack=clone(self.groups))
+        self._store_static_params()
 
     def push(self, *groups):
         """Push more groups onto stack
@@ -235,7 +240,10 @@ class LayerEnsemble(EstimatorMixin, AttributeMixin, BaseEstimator):
             :class:`Group` instance(s) to push onto stack. Order is preserved
             (see pop).
         """
-        self._backend.push(*groups)
+        check_stack(groups, self.groups)
+        for group in groups:
+            self.groups.append(group)
+        return self
 
     def pop(self, idx):
         """Pop group
@@ -246,7 +254,7 @@ class LayerEnsemble(EstimatorMixin, AttributeMixin, BaseEstimator):
             index of group to be popped in stack (0-based indexing).
             Equivalent to [group_0, group_1, ..., group_n].pop(idx)
         """
-        self._backend.pop(idx)
+        return self.groups.pop(idx)
 
     def get_params(self, deep=True):
         out = super(LayerEnsemble, self).get_params(deep=deep)
@@ -256,5 +264,6 @@ class LayerEnsemble(EstimatorMixin, AttributeMixin, BaseEstimator):
         for group in self.groups:
             for g in group:
                 for key, value in g.get_params(deep=deep).items():
-                    out["%s.%s" % (g.name, key)] = value
+                    out["%s__%s" % (g.name, key)] = value
+                    out[g.name] = g
         return out

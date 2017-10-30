@@ -5,8 +5,8 @@ Test classes.
 import numpy as np
 from mlens.index import FoldIndex
 from mlens.utils.dummy import OLS, Scale
+from mlens.utils.exceptions import NotFittedError
 from mlens.testing import Data
-from mlens.parallel import make_learners
 from mlens.estimators import LearnerEstimator, TransformerEstimator, LayerEnsemble
 from mlens.externals.sklearn.base import clone
 
@@ -21,8 +21,7 @@ data = Data('stack', False, False)
 X, y = data.get_data((25, 4), 3)
 (F, wf), (P, wp) = data.ground_truth(X, y)
 
-est = LearnerEstimator(OLS(), FoldIndex())
-est._backend.dtype = np.float64
+est = LearnerEstimator(OLS(), FoldIndex(), dtype=np.float64)
 
 Est = LearnerEstimator
 
@@ -69,7 +68,6 @@ def test_learner_predict():
 def test_learner_clone():
     """[Module | LearnerEstimator] test clone"""
     cl = clone(est)
-    cl._backend.dtype = np.float64
 
     p = cl.fit_transform(X, y)
     np.testing.assert_array_equal(p, F[:, [0]])
@@ -83,21 +81,22 @@ def test_learner_params_estimator():
     out = est.get_params()
     assert isinstance(out, dict)
 
-    est._backend.set_params(estimator__offset=10)
-    assert not est._backend.__fitted__
+    est.set_params(estimator__offset=10)
+    np.testing.assert_raises(NotFittedError, est.predict, X)
 
 
 def test_learner_params_indexer():
     """[Module | LearnerEstimator] test set params on indexer"""
     est.fit(X, y)
-    est._backend.indexer.set_params(folds=3)
-    assert not est._backend.__fitted__
+    est.indexer.set_params(folds=3)
+    np.testing.assert_raises(NotFittedError, est.predict, X)
 
 
 def test_learner_attr():
     """[Module | LearnerEstimator] test setting attribute"""
-    est.indexer = FoldIndex(3)
-    assert not est._backend.__fitted__
+    est.fit(X, y)
+    est.indexer = FoldIndex(1)
+    np.testing.assert_raises(NotFittedError, est.predict, X)
 
 
 if run_sklearn:

@@ -6,7 +6,6 @@
 
 Handles for mlens.parallel objects.
 """
-from .base import AttributeMixin
 from .learner import Learner, Transformer
 from ._base_functions import mold_objects, transform
 from ..utils import format_name, check_instances
@@ -71,7 +70,8 @@ class Pipeline(BaseEstimator):
 
     def _check_empty(self, process, X, y=None):
         """Check if empty pipeline and return vacuously"""
-        # TODO: disallow None pipeline (modify model selection case handling)
+        # TODO: remove ability to set None pipelines and modify
+
         if self.pipeline:
             return False
         if not process:
@@ -164,7 +164,7 @@ class Pipeline(BaseEstimator):
         return out
 
 
-class Group(AttributeMixin, BaseEstimator):
+class Group(BaseEstimator):
 
     """Group
 
@@ -188,7 +188,6 @@ class Group(AttributeMixin, BaseEstimator):
     """
 
     def __init__(self, indexer, learners=None, transformers=None, name=None):
-        self.__initialized__ = 0  # Unblock __setattr__
 
         self.name = format_name(name, 'group', GLOBAL_GROUP_NAMES)
         learners, transformers = mold_objects(learners, transformers)
@@ -200,8 +199,6 @@ class Group(AttributeMixin, BaseEstimator):
 
         self.learners = learners
         self.transformers = transformers
-
-        self.__initialized__ = 1  # Lock __setattr__
 
     def __iter__(self):
         for tr in self.transformers:
@@ -218,15 +215,15 @@ class Group(AttributeMixin, BaseEstimator):
         out = super(Group, self).get_params(deep)
         if not deep:
             return out
-
-        out.update(self.indexer.get_params(deep))
-        for obj in self:
-            out.update(obj.get_params(deep))
+        for item in self:
+            for k, v in item.get_params(deep=deep).items():
+                out['%s__%s' % (item.name, k)] = v
+            out[item.name] = item
         return out
 
 
-def make_learners(indexer, estimators, preprocessing,
-                  learner_kwargs=None, transformer_kwargs=None):
+def make_group(indexer, estimators, preprocessing,
+               learner_kwargs=None, transformer_kwargs=None, name=None):
     """Set learners and preprocessing pipelines in layer"""
     preprocessing, estimators = check_instances(estimators, preprocessing)
 
@@ -243,4 +240,6 @@ def make_learners(indexer, estimators, preprocessing,
                         name=learner_name, **learner_kwargs)
                 for case_name, learner_name, est in estimators]
 
-    return Group(indexer=indexer, learners=learners, transformers=transformers)
+    group = Group(indexer=indexer, learners=learners,
+                  transformers=transformers, name=name)
+    return group

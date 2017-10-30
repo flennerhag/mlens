@@ -222,7 +222,9 @@ class SuperLearner(BaseEnsemble):
             array_check=array_check, model_selection=model_selection,
             sample_size=sample_size)
 
+        self.__initialized__ = 0  # Unlock parameter setting
         self.folds = folds
+        self.__initialized__ = 1  # Protect against param resets
 
     def add_meta(self, estimator, **kwargs):
         """Meta Learner.

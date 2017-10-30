@@ -173,12 +173,13 @@ class Job(object):
             self._n_dir += 1
 
         if isinstance(self.dir, str):
-            # Persist cache to disk
             path = os.path.join(self.dir, path_name)
-            if os.path.exists(path) and self.split:
+            cache_exists = os.path.exists(path)
+            # Persist cache to disk
+            if cache_exists and self.split:
                 raise ParallelProcessingError(
                     "Subdirectory %s exist. Clear cache." % path_name)
-            else:
+            elif not cache_exists:
                 os.mkdir(path)
             return path
 
@@ -186,7 +187,7 @@ class Job(object):
         if path_name in self.dir and self.split:
             raise ParallelProcessingError(
                 "Subdirectory %s exist. Clear cache." % path_name)
-        else:
+        elif path_name not in self.dir:
             self.dir[path_name] = list()
         return self.dir[path_name]
 
@@ -392,7 +393,7 @@ class ParallelProcessing(BaseProcessor):
         super(ParallelProcessing, self).__init__(*args, **kwargs)
 
     def map(self, caller, job, X, y=None, path=None,
-            return_preds=False, wart_start=False, split_cache=False, **kwargs):
+            return_preds=False, wart_start=False, split=False, **kwargs):
         """Parallel task mapping.
 
         Run independent tasks in caller in parallel.
@@ -435,7 +436,7 @@ class ParallelProcessing(BaseProcessor):
             whether to re-use previous input data initialization. Useful if
             repeated jobs are made on the same input arrays.
 
-        split_cache: bool (default=False)
+        split: bool (default=False)
             whether to commit a separate sub-cache to each task.
 
         **kwargs: optional
@@ -443,11 +444,11 @@ class ParallelProcessing(BaseProcessor):
         """
         out = self.initialize(
             job=job, X=X, y=y, path=path, warm_start=wart_start,
-            return_preds=return_preds, split=split_cache, stack=False)
+            return_preds=return_preds, split=split, stack=False)
         return self.process(caller=caller, out=out, **kwargs)
 
     def stack(self, caller, job, X, y=None, path=None, return_preds=False,
-              wart_start=False, split_cache=True, **kwargs):
+              wart_start=False, split=True, **kwargs):
         """Stacked parallel task mapping.
 
         Run stacked tasks in caller in parallel.
@@ -493,7 +494,7 @@ class ParallelProcessing(BaseProcessor):
             whether to re-use previous input data initialization. Useful if
             repeated jobs are made on the same input arrays.
 
-        split_cache: bool (default=True)
+        split: bool (default=True)
             whether to commit a separate sub-cache to each task.
 
         **kwargs: optional
@@ -501,7 +502,7 @@ class ParallelProcessing(BaseProcessor):
         """
         out = self.initialize(
             job=job, X=X, y=y, path=path, warm_start=wart_start,
-            return_preds=return_preds, split=split_cache, stack=True)
+            return_preds=return_preds, split=split, stack=True)
         return self.process(caller=caller, out=out, **kwargs)
 
     def process(self, caller, out, **kwargs):

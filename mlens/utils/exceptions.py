@@ -13,6 +13,14 @@ class NotFittedError(ValueError, AttributeError):
     """
 
 
+class NotInitializedError(ValueError, AttributeError):
+
+    """Error class for an instance that has not been properly initialized.
+
+    Raised when required methods and attributes have not been initialized.
+    """
+
+
 class FitFailedWarning(RuntimeWarning):
 
     """Warning for a failed estimator 'fit' call."""

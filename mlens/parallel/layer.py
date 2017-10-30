@@ -13,23 +13,17 @@ Layer module.
 
 from __future__ import division, print_function
 
-from .base import BaseParallel, OutputMixin, IndexMixin
-from ..utils import print_time, safe_print, format_name
+from .base import OutputMixin, IndexMixin, BaseStacker
+from ..utils import time, print_time, safe_print, format_name
 from ..utils.exceptions import NotFittedError
 from ..externals.joblib import delayed
 from ..metrics import Data
-try:
-    # Try get performance counter
-    from time import perf_counter as time
-except ImportError:
-    # Fall back on wall clock
-    from time import time
 
 
 GLOBAL_LAYER_NAMES = list()
 
 
-class Layer(OutputMixin, IndexMixin, BaseParallel):
+class Layer(OutputMixin, IndexMixin, BaseStacker):
 
     r"""Layer of preprocessing pipes and estimators.
 
@@ -70,12 +64,21 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
     """
 
     def __init__(self, name=None, propagate_features=None, shuffle=False,
-                 random_state=None, verbose=False, groups=None, **kwargs):
+                 random_state=None, verbose=False, stack=None, **kwargs):
+        if stack and not isinstance(stack, list):
+            if stack.__class__.__name__.lower() == 'group':
+                stack = [stack]
+            else:
+                raise ValueError(
+                    "Expected stack to be a Group or a list of Groups. "
+                    "Got %r" % type(stack))
+
+        name = format_name(name, 'layer', GLOBAL_LAYER_NAMES)
         super(Layer, self).__init__(
-            name=format_name(name, 'layer', GLOBAL_LAYER_NAMES), **kwargs)
+            name=name, stack=stack, verbose=verbose, **kwargs)
+
         self.feature_span = None
         self.shuffle = shuffle
-        self._verbose = verbose
         self.random_state = random_state
         self.propagate_features = propagate_features
 
@@ -83,8 +86,11 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
         if self.propagate_features:
             self.n_feature_prop = len(self.propagate_features)
 
-        self.groups = list() if not groups else groups
-        self.__initialized__ = False if not groups else True
+        # Protect stack against changes
+        self.__static__.append('stack')
+
+    def __iter__(self):
+        yield self
 
     def __call__(self, args, parallel):
         """Process layer
@@ -105,10 +111,9 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
 
             - ``learner`` (dict): kwargs for learner(s)
         """
-        if not self.__initialized__:
-            raise ValueError(
-                "Layer instance (%s) not initialized. "
-                "Add learners before calling" % self.name)
+        if not self.__stack__:
+            raise ValueError("Layer instance (%s) not initialized. "
+                             "Add learners before calling" % self.name)
 
         job = args['job']
         path = args['dir']
@@ -135,8 +140,7 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
 
             parallel(delayed(subtransformer, not _threading)(path)
                      for transformer in self.transformers
-                     for subtransformer in transformer(args, 'auxiliary')
-                     )
+                     for subtransformer in transformer(args, 'auxiliary'))
 
             if self.verbose >= 2:
                 print_time(t1, 'done', file=f)
@@ -147,8 +151,7 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
 
         parallel(delayed(sublearner, not _threading)(path)
                  for learner in self.learners
-                 for sublearner in learner(args, 'main')
-                 )
+                 for sublearner in learner(args, 'main'))
 
         if self.verbose >= 2:
             print_time(t1, 'done', file=f)
@@ -160,21 +163,6 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
             msg = "done" if self.verbose == 1 \
                 else (msg + " {}").format(self.name, "done")
             print_time(t0, msg, file=f)
-
-    def push(self, *groups):
-        """Push an indexer and associated learners and transformers"""
-        for group in groups:
-            self._check_indexer(group.indexer)
-            self.groups.append(group)
-        self.__initialized__ = True
-        return self
-
-    def pop(self, idx):
-        """Pop a previous push with index idx"""
-        gr = self.groups.pop(idx)
-        if not self.groups:
-            self.__initialized__ = False
-        return gr
 
     def collect(self, path):
         """Collect cache estimators"""
@@ -195,7 +183,7 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
     def _setup_1_global(self, X, y, job, **kwargs):
         """Run setup on all dependencies"""
         if self.__no_output__:
-            for gr in self.groups:
+            for gr in self.stack:
                 for g in gr:
                     g.setup(X, y, job, skip=['0_index'], **kwargs)
         else:
@@ -211,74 +199,20 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
             mx = start_index
             self.feature_span = (mi, mx)
 
-    def get_params(self, deep=True):
-        """Get learner parameters
-
-        Parameters
-        ----------
-        deep : bool
-            whether to return nested parameters
-        """
-        out = super(Layer, self).get_params(deep=deep)
-        if not deep:
-            return out
-
-        for i, idx in enumerate(self.indexers):
-            for k, v in idx.get_params(deep=deep).items():
-                out['indexer-%i__%s' % (i, k)] = v
-                out['indexer-%i' % i] = idx
-
-        for step in [self.transformers, self.learners]:
-            for obj in step:
-                obj_name = obj.name
-                for key, value in obj.get_params(deep=deep).items():
-                    out["%s.%s" % (obj_name, key)] = value
-        return out
-
     @property
     def indexers(self):
         """Check indexer"""
-        return [g.indexer for g in self.groups]
-
-    @property
-    def indexers_(self):
-        """Check indexer"""
-        return [g.indexer_ for g in self.groups]
+        return [g.indexer for g in self.stack]
 
     @property
     def learners(self):
         """Generator for learners in layer"""
-        return [lr for g in self.groups for lr in g.learners]
+        return [lr for g in self.stack for lr in g.learners]
 
     @property
     def transformers(self):
         """Generator for learners in layer"""
-        return [tr for g in self.groups for tr in g.transformers]
-
-    @property
-    def __fitted__(self):
-        """Fitted status"""
-        if not self.groups:
-            # all on an empty list yields True
-            return False
-        return all([g.__fitted__ for g in self.groups])
-
-    @__fitted__.setter
-    def __fitted__(self, val):
-        """Compatibility"""
-        pass
-
-    @property
-    def verbose(self):
-        """Verbosity"""
-        return self._verbose
-
-    @verbose.setter
-    def verbose(self, verbose):
-        """Set verbosity"""
-        for g in self.groups:
-            for obj in g:
-                obj.verbose = verbose
+        return [tr for g in self.stack for tr in g.transformers]
 
     @property
     def data(self):
@@ -290,10 +224,10 @@ class Layer(OutputMixin, IndexMixin, BaseParallel):
         """Cross validated scores"""
         data = list()
 
-# TODO: Fix table printing
-#        if self._preprocess:
-#            for transformer in self.transformers:
-#                data.extend(transformer.raw_data)
+        # TODO: Fix table printing
+        #        if self._preprocess:
+        #            for transformer in self.transformers:
+        #                data.extend(transformer.raw_data)
 
         for learner in self.learners:
             data.extend(learner.raw_data)

@@ -7,7 +7,7 @@
 from .backend import ParallelProcessing, ParallelEvaluation
 from .learner import Learner, EvalLearner, Transformer, EvalTransformer
 from .layer import Layer
-from .handles import Group, make_learners, Pipeline
+from .handles import Group, make_group, Pipeline
 from .wrapper import run, get_backend
 
 __all__ = ['ParallelProcessing',
@@ -19,7 +19,7 @@ __all__ = ['ParallelProcessing',
            'Transformer',
            'EvalLearner',
            'EvalTransformer',
-           'make_learners',
+           'make_group',
            'run',
            'get_backend',
            ]

@@ -163,8 +163,10 @@ class EnsembleTransformer(BaseEnsemble):
                 verbose=verbose, n_jobs=n_jobs, layers=layers,
                 backend=backend, array_check=array_check)
 
+        self.__initialized__ = 0
         self.sample_dim = sample_dim
         self.id_train = IdTrain(size=sample_dim)
+        self.__initialized__ = 1
 
     def add(self, cls, estimators, preprocessing=None, **kwargs):
         """Add layer to ensemble.
@@ -311,7 +313,7 @@ class EnsembleTransformer(BaseEnsemble):
 
     def _transform(self, X, y, **kwargs):
         """Check whether to reproduce predictions from 'fit' call or predict anew."""
-        if not check_ensemble_build(self):
+        if not check_ensemble_build(self._backend):
             # No layers instantiated, but raise_on_exception is False
             return
 

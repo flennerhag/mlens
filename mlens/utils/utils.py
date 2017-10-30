@@ -30,10 +30,11 @@ except ImportError:
 
 from time import sleep
 try:
-    from time import perf_counter as _time
+    # Try get performance counter
+    from time import perf_counter as time
 except ImportError:
-    # Fall back on time for older versions
-    from time import time as _time
+    # Fall back on wall clock
+    from time import time
 
 
 ###############################################################################
@@ -70,10 +71,10 @@ def load(file, enforce_filetype=True):
             "for %i seconds before aborting. " % (file, s, lim),
             ParallelProcessingWarning)
 
-        ts = _time()
+        ts = time()
         while not os.path.exists(file):
             sleep(s)
-            if _time() - ts > lim:
+            if time() - ts > lim:
                 raise ParallelProcessingError(
                     "Could not load transformer at %s\nDetails:\n%r" %
                     (dir, msg))
@@ -122,7 +123,7 @@ def print_time(t0, message='', **kwargs):
     if len(message) > 0:
         message += ' | '
 
-    m, s = divmod(_time() - t0, 60)
+    m, s = divmod(time() - t0, 60)
     h, m = divmod(m, 60)
 
     safe_print(message + '%02d:%02d:%02d' % (h, m, s), **kwargs)
@@ -203,7 +204,7 @@ class CMLog(object):
         if stop is None and not kill:
             raise ValueError("If no time limit is set 'kill' must be enabled.")
 
-        self._t0 = _time()
+        self._t0 = time()
         self._stop = stop
         self._kill = kill
 
@@ -253,7 +254,7 @@ class CMLog(object):
                 safe_print("[CMLog] Collecting...", end=" ",  flush=True)
 
         # Check if job is not completed and if so, check whether to kill
-        elif _time() - self._t0 < self._stop:
+        elif time() - self._t0 < self._stop:
             if self._kill:
                 if self.verbose:
                     safe_print("[CMLog] Job not finished - killing process "
@@ -271,7 +272,7 @@ class CMLog(object):
         elif self.verbose:
             safe_print("[CMLog] Collecting...", end=" ",  flush=True)
 
-        t0, i = _time(), 0
+        t0, i = time(), 0
         cpu, rss, vms = [], [], []
 
         out = self._out.communicate()
@@ -288,7 +289,7 @@ class CMLog(object):
 
         if self.verbose:
             safe_print('done. Read {} lines in '
-                       '{:.3f} seconds.'.format(i, _time() - t0))
+                       '{:.3f} seconds.'.format(i, time() - t0))
 
         self.cpu = array(cpu)
         self.vms = array(vms)
@@ -305,7 +306,7 @@ class CMLog(object):
 
 def _recorder(pid, stop, ival):
     """Subprocess call function to record cpu and memory."""
-    t = t0 = _time()
+    t = t0 = time()
 
     process = psutil.Process(pid)
 
@@ -314,10 +315,10 @@ def _recorder(pid, stop, ival):
             m = process.memory_info()
             print(psutil.cpu_percent(), ',', m[0], ',', m[1])
             sleep(ival)
-            t = _time()
+            t = time()
     else:
         while t - t0 < stop:
             m = process.memory_info()
             print(psutil.cpu_percent(), ',', m[0], ',', m[1])
             sleep(ival)
-            t = _time()
+            t = time()

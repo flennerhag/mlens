@@ -13,8 +13,6 @@ from mlens.testing.dummy import (Data,
                                  ECM,
                                  EstimatorContainer)
 
-from mlens.externals.sklearn.base import clone
-
 FOLDS = 3
 LEN = 24
 WIDTH = 2
@@ -28,14 +26,11 @@ lc_s = est.get_layer_estimator('stack', False, True)
 lc_b = est.get_layer_estimator('blend', False, False)
 lc_u = est.get_layer_estimator('subsemble', False, False)
 
-a = clone(lc_s._backend)
-a.name += '-1'
-b = clone(lc_b._backend)
-b.name += '-2'
-c = clone(lc_u._backend)
-c.name += '-3'
+l_s = est.get_layer('stack', False, True)
+l_b = est.get_layer('blend', False, False)
+l_u = est.get_layer('subsemble', False, False)
 
-seq = Sequential()(a, b, c)
+seq = Sequential(stack=[l_s, l_b, l_u])
 
 
 def test_fit_seq():

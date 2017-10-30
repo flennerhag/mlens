@@ -5,6 +5,7 @@ Test classes.
 import numpy as np
 from mlens.index import FoldIndex
 from mlens.utils.dummy import OLS, Scale
+from mlens.utils.exceptions import NotFittedError
 from mlens.testing import Data
 from mlens.estimators import LearnerEstimator, TransformerEstimator, LayerEnsemble
 from mlens.externals.sklearn.base import clone
@@ -20,8 +21,7 @@ data = Data('stack', False, False)
 X, y = data.get_data((25, 4), 3)
 
 
-est = TransformerEstimator(Scale(), FoldIndex())
-est._backend.dtype = np.float64
+est = TransformerEstimator(Scale(), FoldIndex(), dtype=np.float64)
 
 Est = TransformerEstimator
 
@@ -70,7 +70,6 @@ def test_learner_predict():
 def test_learner_clone():
     """[Module | TransformerEstimator] test clone"""
     cl = clone(est)
-    cl._backend.dtype = np.float64
     cl.fit_transform(X, y)
 
 
@@ -82,21 +81,27 @@ def test_learner_params_estimator():
     out = est.get_params()
     assert isinstance(out, dict)
 
-    est.set_params(name='chg')
-    assert not est._backend.__fitted__
+    est.set_params(preprocessing__copy=False)
+    np.testing.assert_raises(NotFittedError, est.predict, X)
 
 
 def test_learner_params_indexer():
     """[Module | TransformerEstimator] test set params on indexer"""
     est.fit(X, y)
-    est._backend.indexer.set_params(folds=3)
-    assert not est._backend.__fitted__
+
+    # Just a check that this works
+    out = est.get_params()
+    assert isinstance(out, dict)
+
+    est.set_params(indexer__folds=3)
+    np.testing.assert_raises(NotFittedError, est.predict, X)
 
 
 def test_learner_attr():
     """[Module | TransformerEstimator] test setting attribute"""
-    est.indexer = FoldIndex(3)
-    assert not est._backend.__fitted__
+    est.fit(X, y)
+    est.indexer = FoldIndex(2)
+    np.testing.assert_raises(NotFittedError, est.predict, X)
 
 
 if run_sklearn:

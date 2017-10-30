@@ -186,7 +186,10 @@ class BlendEnsemble(BaseEnsemble):
             raise_on_exception=raise_on_exception, array_check=array_check,
             verbose=verbose, n_jobs=n_jobs, model_selection=model_selection,
             sample_size=sample_size, layers=layers, backend=backend)
+
+        self.__initialized__ = 0  # Unlock parameter setting
         self.test_size = test_size
+        self.__initialized__ = 1  # Protect against param resets
 
     def add_meta(self, estimator, **kwargs):
         """Meta Learner.

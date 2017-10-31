@@ -9,8 +9,9 @@ Subsemble class. Fully integrable with Scikit-learn.
 
 from __future__ import division
 
+from .. import config
 from .base import BaseEnsemble
-from ..base import FullIndex, SubsetIndex, ClusteredSubsetIndex
+from ..index import FullIndex, SubsetIndex, ClusteredSubsetIndex
 from ..utils import kwarg_parser
 
 
@@ -22,7 +23,7 @@ class Subsemble(BaseEnsemble):
     the full data to fit a layer, and within each subset K-fold estimation
     to map a training set :math:`(X, y)` into a prediction set :math:`(Z, y)`,
     where :math:`Z` is a matrix of prediction from each estimator on each
-    subset (thus of shape ``[n_samples, (n_partitions * n_estimators)]``).
+    subset (thus of shape ``[n_samples, (partitions * n_estimators)]``).
     :math:`Z` is constructed using K-Fold splits of each partition of `X` to
     ensure :math:`Z` reflects test errors within each partition. A final
     user-specified meta learner is fitted to the final ensemble layer's
@@ -68,7 +69,7 @@ class Subsemble(BaseEnsemble):
 
     This implementation allows very general partition estimators. The user
     must ensure that the partition estimator behaves as desired. To alter
-    the expected behavior, see the ``kwd`` parameter under the ``add`` method
+    the expected behavior, see the ``kwd`` parameter under the :attr:`add` method
     and the :class:`mlens.base.ClusteredSubsetIndex`. Also see
     the `advanced tutorials <http://mlens.readthedocs.io/en/latest/ensemble_tutorial.html#advanced-subsemble-techniques>`_
     for example use cases.
@@ -83,6 +84,11 @@ class Subsemble(BaseEnsemble):
     See Also
     --------
     :class:`BlendEnsemble`, :class:`SuperLearner`
+
+
+    .. note :: All parameters can be overriden in the :attr:`add` method unless
+        otherwise specified. Notably, the ``backend`` and ``n_jobs`` cannot
+        be altered in the :attr:`add` method.
 
     Parameters
     ----------
@@ -102,18 +108,21 @@ class Subsemble(BaseEnsemble):
         predictions will be used for partitioning). The number of partitions
         by the estimator must correspond to the ``partitions`` argument.
         Specific estimators can be added to each layer by passing the
-        estimator during the call to the ensemble's ``add`` method.
+        estimator during the call to the ensemble's :attr:`add` method.
 
     folds : int (default = 2)
         number of folds to use during fitting. Note: this parameter can be
         specified on a layer-specific basis in the :attr:`add` method.
 
     shuffle : bool (default = False)
-        whether to shuffle data before before processing each layer.
-        For greater control, specify ``shuffle`` when adding the layer.
+        whether to shuffle data before before processing each layer. This
+        parameter can be overridden in the :attr:`add` method if different test
+        sizes is desired for each layer.
 
     random_state : int (default = None)
-        random seed if shuffling inputs.
+        random seed for shuffling inputs. Note that the seed here is used to
+        generate a unique seed for each layer. Can be overridden in the
+        :attr:`add` method.
 
     scorer : object (default = None)
         scoring function. If a function is provided, base estimators will be
@@ -156,19 +165,39 @@ class Subsemble(BaseEnsemble):
         For verbosity in the layers themselves, use ``fit_params``.
 
     n_jobs : int (default = -1)
-        number of CPU cores to use for fitting and prediction.
+        Degree of concurrency in estimation. Set to -1 to maximize
+        paralellization, while 1 runs on a single process (or thread
+        equivalent). Cannot be overriden in the :attr:`add` method.
+
+        .. note::
+
+            A high degree of partitioning can incur a thread overload that can
+            in certain cases overwhelm OpenBLAS. If any of your estimators
+            rely on OpenBLAS and you experience crashed, set
+            ``n_jobs`` to a lower (i.e. -2). In these cases, this will actually
+            not impact performance since the issues stems from having too many
+            threads active, so lowering the count avoids the bottleneck.
+            Reference: https://github.com/xianyi/OpenBLAS/issues/889
 
     backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation. To set global backend, set ``mlens.config.BACKEND``.
+        documentation. To set global backend, set ``mlens.config._BACKEND``.
+        Cannot be overriden in the :attr:`add` method.
 
-    Attributes
-    ----------
-    scores\_ : dict
-        if ``scorer`` was passed to instance, ``scores_`` contains dictionary
-        with cross-validated scores assembled during ``fit`` call. The fold
-        structure used for scoring is determined by ``folds``.
+    model_selection: bool (default=False)
+        Whether to use the ensemble in model selection mode. If ``True``,
+        this will alter the ``transform`` method. When calling ``transform``
+        on new data, the ensemble will call ``predict``, while calling
+        ``transform`` with the training data reproduces predictions from the
+        ``fit`` call. Hence the ensemble can be used as a pure transformer
+        in a preprocessing pipeline passed to the :class:`Evaluator`, as
+        training folds are faithfully reproduced as during a ``fit``call and
+        test folds are transformed with the ``predict`` method.
+
+    sample_size: int (default=20)
+        size of training set sample
+        (``[min(sample_size, X.size[0]), min(X.size[1], sample_size)]``)
 
     Examples
     --------
@@ -218,28 +247,22 @@ class Subsemble(BaseEnsemble):
     9.0115741...
     """
 
-    def __init__(self,
-                 partitions=2,
-                 partition_estimator=None,
-                 folds=2,
-                 shuffle=False,
-                 random_state=None,
-                 scorer=None,
-                 raise_on_exception=True,
-                 array_check=2,
-                 verbose=False,
-                 n_jobs=-1,
-                 backend=None,
-                 layers=None):
+    def __init__(
+            self, partitions=2, partition_estimator=None, folds=2,
+            shuffle=False, random_state=None, scorer=None,
+            raise_on_exception=True, array_check=2, verbose=False, n_jobs=-1,
+            backend=None, model_selection=False, sample_size=20, layers=None):
         super(Subsemble, self).__init__(
-                shuffle=shuffle, random_state=random_state,
-                scorer=scorer, raise_on_exception=raise_on_exception,
-                verbose=verbose, n_jobs=n_jobs, layers=layers,
-                array_check=array_check, backend=backend)
+            shuffle=shuffle, random_state=random_state, scorer=scorer,
+            raise_on_exception=raise_on_exception, verbose=verbose,
+            n_jobs=n_jobs, layers=layers, model_selection=model_selection,
+            sample_size=sample_size, array_check=array_check, backend=backend)
 
+        self.__initialized__ = 0  # Unlock parameter setting
         self.partition_estimator = partition_estimator
         self.partitions = partitions
         self.folds = folds
+        self.__initialized__ = 1  # Protect against param resets
 
     def add_meta(self, estimator, **kwargs):
         """Add meta estimator.
@@ -373,12 +396,9 @@ class Subsemble(BaseEnsemble):
             ensemble instance with layer instantiated.
         """
         if meta:
-            cls = 'full'
-            indexer = FullIndex()
+            idx = FullIndex()
         else:
             # Parse arguments for the indexer
-            cls = 'subset'
-
             p = partitions if partitions is not None else self.partitions
             e = partition_estimator if partition_estimator is not None \
                 else self.partition_estimator
@@ -392,14 +412,8 @@ class Subsemble(BaseEnsemble):
             if 'raise_on_exception' not in kwargs_idx:
                 kwargs_idx['raise_on_exception'] = self.raise_on_exception
 
-            indexer = idx(*args, **kwargs_idx)
+            idx = idx(*args, **kwargs_idx)
 
-        return self._add(cls=cls,
-                         meta=meta,
-                         estimators=estimators,
-                         preprocessing=preprocessing,
-                         indexer=indexer,
-                         proba=proba,
-                         verbose=self.verbose,
-                         propagate_features=propagate_features,
-                         **kwargs)
+        return super(Subsemble, self).add(
+            estimators=estimators, preprocessing=preprocessing, indexer=idx,
+            proba=proba, propagate_features=propagate_features, **kwargs)

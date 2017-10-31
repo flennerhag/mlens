@@ -1,233 +1,142 @@
-"""
+"""ML-Ensemble
+
+:author: Sebastian Flennerhag
+:license: MIT
+:copyright: 2017
+
 Functions for base computations
 """
+from __future__ import division
 
 import os
-import numpy as np
-from time import sleep
-from scipy.sparse import issparse
-from copy import deepcopy
-
-from ..externals.joblib import delayed
-from ..utils import pickle_load, pickle_save
-from ..utils.exceptions import (ParallelProcessingError,
-                                ParallelProcessingWarning)
-
-try:
-    from time import perf_counter as time_
-except ImportError:
-    from time import time as time_
-
 import warnings
+from copy import deepcopy
+from scipy.sparse import issparse
+import numpy as np
+
+from ..utils import pickle_load, pickle_save, load as _load
+from ..utils.exceptions import MetricWarning
 
 
-# Default params
-IVALS = (0.01, 120)
-
-
-###############################################################################
-# Base estimation jobs
-
-def fit(inst, X, y, P, dir, parallel):
-    """Fit layer through given attribute."""
-    # Set estimator and transformer lists to loop over, and collect
-    # estimator column ids for the prediction matrix
-    inst._format_instance_list()
-    inst._get_col_id()
-
-    # Auxiliary variables
-    preprocess = inst.t is not None
-    pred_method = inst.layer._predict_attr
-
-    if preprocess:
-        parallel(delayed(fit_trans)(dir=dir,
-                                    case=case,
-                                    inst=instance_list,
-                                    x=X,
-                                    y=y,
-                                    idx=tri)
-                 for case, tri, _, instance_list in inst.t)
-
-    parallel(delayed(fit_est)(dir=dir,
-                              case=case,
-                              inst_name=inst_name,
-                              inst=instance,
-                              x=X,
-                              y=y,
-                              pred=P if tei is not None else None,
-                              idx=(tri, tei, inst.c[case, inst_name]),
-                              name=inst.layer.name,
-                              raise_on_exception=inst.layer.raise_on_exception,
-                              preprocess=preprocess,
-                              ivals=IVALS,
-                              attr=pred_method,
-                              scorer=inst.layer.scorer)
-             for case, tri, tei, instance_list in inst.e
-             for inst_name, instance in instance_list)
-    assemble(inst)
-
-
-def predict(inst, X, P, parallel):
-    """Predict full X array using fitted layer."""
-    inst._check_fitted()
-    prep, ests = inst._retrieve('full')
-
-    parallel(delayed(predict_est)(tr_list=deepcopy(prep[case])
-                                  if prep is not None else [],
-                                  est=est,
-                                  x=X,
-                                  pred=P,
-                                  col=col,
-                                  attr=inst.layer._predict_attr)
-             for case, (_, est, (_, col)) in ests)
-
-
-def transform(inst, X, P, parallel):
-    """Transform training data with fold-estimators, as in ``fit`` call."""
-    inst._check_fitted()
-    prep, ests = inst._retrieve('fold')
-
-    parallel(delayed(predict_fold_est)(tr_list=deepcopy(prep[case])
-                                       if prep is not None else [],
-                                       est=est,
-                                       x=X,
-                                       pred=P,
-                                       idx=idx,
-                                       attr=inst.layer._predict_attr)
-             for case, (est_name, est, idx) in ests)
-
-###############################################################################
-# Estimation functions
-
-
-def predict_est(tr_list, est, x, pred, col, attr):
-    """Method for predicting with fitted transformers and estimators."""
-    x, _ = _slice_array(x, None, None)
-
-    for tr_name, tr in tr_list:
-        x = tr.transform(x)
-
-    p = getattr(est, attr)(x)
-
-    if len(p.shape) == 1:
-        pred[:, col] = p
+def load(path, name, raise_on_exception=True):
+    """Utility for loading from cache"""
+    if isinstance(path, str):
+        f = os.path.join(path, name)
+        obj = _load(f, raise_on_exception)
+    elif isinstance(path, list):
+        obj = [tup[1] for tup in path if tup[0] == name]
+        if not obj:
+            raise ValueError(
+                "No preprocessing pipeline in cache. Auxiliary Transformer "
+                "have not cached pipelines, or cached to another sub-cache.")
+        elif not len(obj) == 1:
+            raise ValueError(
+                "Could not load unique preprocessing pipeline. "
+                "Transformer and/or Learner names are not unique")
+        obj = obj[0]
     else:
-        pred[:, col:(col + p.shape[1])] = p
+        raise ValueError("Expected str or list. Got %r" % path)
+    return obj
 
 
-def predict_fold_est(tr_list, est, x, pred, idx, attr):
-    """Method for predicting with transformers and estimators from fit call."""
-    tei, col = idx[0], idx[1]
-    n = x.shape[0]
-
-    x, _ = _slice_array(x, None, tei)
-
-    for tr_name, tr in tr_list:
-        x = tr.transform(x)
-
-    p = getattr(est, attr)(x)
-    _assign_predictions(pred, p, tei, col, n)
+def save(path, name, obj):
+    """Utility for saving to cache"""
+    if isinstance(path, str):
+        f = os.path.join(path, name)
+        pickle_save(obj, f)
+    elif isinstance(path, list):
+        path.append((name, obj))
 
 
-def fit_trans(dir, case, inst, x, y, idx):
-    """Fit transformers and write to cache."""
-    x, y = _slice_array(x, y, idx)
+def prune_files(path, name):
+    """Utility for safely selecting only relevant files"""
+    if isinstance(path, str):
+        files = [os.path.join(path, f)
+                 for f in os.listdir(path)
+                 if name == '.'.join(f.split('.')[:-3])]
+        files = [pickle_load(f) for f in sorted(files)]
+    elif isinstance(path, list):
+        files = [tup[1] for tup in sorted(path, key=lambda x: x[0])
+                 if name == '.'.join(tup[0].split('.')[:-2])]
+    else:
+        raise ValueError(
+            "Expected name of cache or cache list. Got %r" % path)
+    return files
 
+
+def replace(source_files):
+    """Utility function to replace empty files list"""
+    replace_files = [deepcopy(o) for o in source_files]
+    for o in replace_files:
+        o.name = o.name[:-1] + '0'
+        o.index = (o.index[0], 0)
+        o.out_index = None
+        o.in_index = None
+
+    # Set a vacuous data list
+    replace_data = [(o.name, None) for o in replace_files]
+    return replace_files, replace_data
+
+
+def mold_objects(learners, transformers):
+    """Utility for enforcing compatible setup"""
     out = []
-    for tr_name, tr in inst:
-        # Fit transformer
-        tr.fit(x, y)
-
-        # If more than one step, transform input for next step.
-        if len(inst) > 1:
-            x, y = _transform(tr, x, y)
-
-        out.append((tr_name, tr))
-
-    # Write transformer list to cache
-    f = os.path.join(dir, '%s__t' % case)
-    pickle_save(out, f)
+    for objects in [learners, transformers]:
+        if objects:
+            if not isinstance(objects, list):
+                objects = [objects]
+        out.append(objects)
+    return out
 
 
-def fit_est(dir, case, inst_name, inst, x, y, pred, idx, raise_on_exception,
-            preprocess, name, ivals, attr, scorer=None):
-    """Fit estimator and write to cache along with predictions."""
-    # Have to be careful in prepping data for estimation.
-    # We need to slice memmap and convert to a proper array - otherwise
-    # estimators can store results memmaped to the cache, which will
-    # prevent the garbage collector from releasing memmaps from memory
-    n = x.shape[0]
-    xtemp, ytemp = _slice_array(x, y, idx[0])
+def set_output_columns(
+        objects, n_partitions, multiplier, n_left_concats, target=None):
+    """Set output columns on objects.
 
-    # Load transformers
-    if preprocess:
-        f = os.path.join(dir, '%s__t' % case)
-        tr_list = _load_trans(f, case, ivals, raise_on_exception)
-    else:
-        tr_list = []
+    Parameters
+    ----------
+    objects: list
+        list of objects to set output columns on
 
-    # Transform input (triggers copying)
-    for tr_name, tr in tr_list:
-        xtemp, ytemp = _transform(tr, xtemp, ytemp)
+    multiplier: int
+        number of columns claimed by each estimator.
+        Typically 1, but can also be ``n_classes`` if
+        making probability predictions
 
-    # Fit estimator
-    inst.fit(xtemp, ytemp)
+    n_left_concats: int
+        number of columns to leave empty for left-concat
 
-    # Predict if asked
-    if idx[1]:
-        tei = idx[1]
-        col = idx[2]
+    target: int, optional
+        target number of columns expected to be populated.
+        Allows a check to ensure that all columns have been
+        assigned.
+    """
+    col_index = n_left_concats
+    col_map = list()
+    sorted_learners = {obj.name:
+                       obj for obj in objects}
+    for _, obj in sorted(sorted_learners.items()):
+        col_dict = dict()
 
-        xtemp, ytemp = _slice_array(x, y, tei)
+        for partition_index in range(n_partitions):
+            col_dict[partition_index] = col_index
+            col_index += multiplier
+        col_map.append([obj, col_dict])
 
-        for tr_name, tr in tr_list:
-            xtemp = tr.transform(xtemp)
+    if (target) and (col_index != target):
+        # Note that since col_index is incremented at the end,
+        # the largest index_value we have col_index - 1
+        raise ValueError(
+            "Mismatch feature size in prediction array (%i) "
+            "and max column index implied by learner "
+            "predictions sizes (%i)" %
+            (target, col_index - 1))
 
-        p = getattr(inst, attr)(xtemp)
-
-        # Assign predictions to matrix
-        _assign_predictions(pred, p, tei, col, n)
-
-        # Score predictions if applicable
-        s = _score_predictions(ytemp, p, scorer, name, inst_name)
-
-        idx = idx[1:]  # format as (tei, col)
-    else:
-        idx = (None, idx[2])  # format as (None, col), where None => all obs
-        s = None
-
-    f = os.path.join(dir, '%s__%s__e' % (case, inst_name))
-    pickle_save((inst_name, inst, idx, s), f)
+    for obj, col_dict in col_map:
+        obj.output_columns = col_dict
 
 
-###############################################################################
-# Helpers
-def assemble(inst):
-    """Store fitted transformer and estimators in the layer."""
-    inst.layer.preprocessing_ = _assemble(inst.dir, inst.t, 't')
-    inst.layer.estimators_, s = _assemble(inst.dir, inst.e, 'e')
-
-    if inst.layer.scorer is not None and inst.layer.cls is not 'full':
-        inst.layer.scores_ = inst._build_scores(s)
-
-
-def construct_args(func, job):
-    """Helper to construct argument list from a ``job`` instance."""
-    fargs = func.__code__.co_varnames
-
-    # Strip undesired variables
-    args = [a for a in fargs if a not in {'parallel', 'X', 'P', 'self'}]
-
-    kwargs = {a: getattr(job, a) for a in args if a in job.__slots__}
-
-    if 'X' in fargs:
-        kwargs['X'] = job.predict_in
-    if 'P' in fargs:
-        kwargs['P'] = job.predict_out
-    return kwargs
-
-
-def _slice_array(x, y, idx, r=0):
+def slice_array(x, y, idx, r=0):
     """Build training array index and slice data."""
     if idx == 'all':
         idx = None
@@ -266,11 +175,16 @@ def _slice_array(x, y, idx, r=0):
     return x, y
 
 
-def _assign_predictions(pred, p, tei, col, n):
+def assign_predictions(pred, p, tei, col, n):
     """Assign predictions to memmaped prediction array."""
     if tei == 'all':
-        # Assign to all data
-        pred[:, col] = p
+        tei = None
+
+    if tei is None:
+        if len(p.shape) == 1:
+            pred[:, col] = p
+        else:
+            pred[:, col:(col + p.shape[1])] = p
     else:
         r = n - pred.shape[0]
 
@@ -289,47 +203,19 @@ def _assign_predictions(pred, p, tei, col, n):
             pred[(idx, slice(col, col + p.shape[1]))] = p
 
 
-def _score_predictions(y, p, scorer, name, inst_name):
+def score_predictions(y, p, scorer, name, inst_name):
+    """Try-Except wrapper around Learner scoring"""
     s = None
     if scorer is not None:
         try:
             s = scorer(y, p)
         except Exception as exc:
             warnings.warn("[%s] Could not score %s. Details:\n%r" %
-                          (name, inst_name, exc),
-                          ParallelProcessingWarning)
+                          (name, inst_name, exc), MetricWarning)
     return s
 
 
-def _assemble(dir, instance_list, suffix):
-    """Utility for loading fitted instances."""
-    if suffix is 't':
-        if instance_list is None:
-            return
-
-        return [(tup[0],
-                 pickle_load(os.path.join(dir, '%s__%s' % (tup[0], suffix))))
-                for tup in instance_list]
-    else:
-        # We iterate over estimators to split out the estimator info and the
-        # scoring info (if any)
-        ests_ = []
-        scores_ = []
-        for tup in instance_list:
-            for etup in tup[-1]:
-                f = os.path.join(dir, '%s__%s__%s' % (tup[0], etup[0], suffix))
-                loaded = pickle_load(f)
-
-                # split out the scores, the final element in the l tuple
-                ests_.append((tup[0], loaded[:-1]))
-
-                case = '%s___' % tup[0] if tup[0] is not None else '___'
-                scores_.append((case + etup[0], loaded[-1]))
-
-        return ests_, scores_
-
-
-def _transform(tr, x, y):
+def transform(tr, x, y):
     """Try transforming with X and y. Else, transform with only X."""
     try:
         x = tr.transform(x)
@@ -339,44 +225,48 @@ def _transform(tr, x, y):
     return x, y
 
 
-def _load_trans(dir, case, ivals, raise_on_exception):
-    """Try loading transformers, and handle exception if not ready yet."""
-    s = ivals[0]
-    lim = ivals[1]
-    try:
-        # Assume file exists
-        return pickle_load(dir)
-    except (OSError, IOError) as exc:
-        # We would expect an OSError, but Python 2.7 we get an IOError
-        msg = str(exc)
-        error_msg = ("The file %s cannot be found after %i seconds of "
-                     "waiting. Check that time to fit transformers is "
-                     "sufficiently fast to complete fitting before "
-                     "fitting estimators. Consider reducing the "
-                     "preprocessing intensity in the ensemble, or "
-                     "increase the '__lim__' attribute to wait extend "
-                     "period of waiting on transformation to complete."
-                     " Details:\n%r")
+def check_params(lpar, rpar):
+    """Check parameter overlap"""
+    for par in lpar:
+        par1 = lpar[par]
+        par2 = rpar[par]
 
-        # Wait and check if transformer is readied.
-        ts = time_()
-        while not os.path.exists(dir):
+        try:
+            val = par1 == par2
+            if hasattr(val, 'all'):
+                val = val.all()
+            if val:
+                continue
+        except ValueError:
+            # Failed param check, ignore
+            continue
 
-            sleep(s)
+        # Check for nested parameters
+        if hasattr(par1, 'get_params'):
+            par1 = [par1]
+            par2 = [par2]
 
-            if time_() - ts > lim:
-                # If timeout limit is reached, raise error
-                if raise_on_exception:
-                    raise ParallelProcessingError(error_msg % (dir, lim, msg))
+        if isinstance(par1, list):
 
-                warnings.warn("Transformer %s not found in cache (%s). "
-                              "Will check every %.1f seconds for %i seconds "
-                              "before aborting. " % (case, dir, s, lim),
-                              ParallelProcessingWarning)
+            # Prune named tuples
+            if (isinstance(par1[0], tuple)
+                    and hasattr(par1[0][1], 'get_params')):
+                par1 = [p1[1] for p1 in par1]
+                par2 = [p2[1] for p2 in par2]
 
-                # If not raise_on_exception, we set it to True now to ensure
-                # a second timeout aborts the job
-                raise_on_exception = True
-                ts = time_()
+            if hasattr(par1[0], 'get_params'):
+                if all([check_params(par1[i].get_params(deep=True),
+                                     par2[i].get_params(deep=True))
+                        for i in range(len(par1))]):
+                    continue
+        return False
+    return True
 
-        return pickle_load(dir)
+
+def check_stack(new_items, stack):
+    """Check if new items can safely be stacked onto old items"""
+    names = [st.name for st in stack]
+    for item in new_items:
+        if item.name in names:
+            raise ValueError("Name (%s) already exists in stack. "
+                             "Rename before attempting to push." % item.name)

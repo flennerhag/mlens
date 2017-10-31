@@ -13,30 +13,13 @@ from .exceptions import (NotFittedError, LayerSpecificationWarning,
                          ParallelProcessingWarning)
 
 
-def check_is_fitted(estimator, attr):
-    """Check that ensemble has been fitted.
-
-    Parameters
-    ----------
-    estimator : estimator instance
-        ensemble instance to check.
-
-    attr : str
-        attribute to assert existence of.
-    """
-    msg = ("This %s instance is not fitted yet. Call 'fit' with "
-           "appropriate arguments before using this method.")
-    if not hasattr(estimator, attr):
-        raise NotFittedError(msg % type(estimator).__name__)
-
-
-def check_ensemble_build(inst, attr='layers'):
+def check_ensemble_build(inst, attr='stack'):
     """Check that layers have been instantiated."""
     if not hasattr(inst, attr):
         # No layer container. This should not happen!
 
         msg = ("No layer class attached to instance (%s). (Cannot find a "
-               "'LayerContainer' class instance as attribute [%s].)")
+               "'Sequential' class instance as attribute [%s].)")
 
         raise AttributeError(msg % (inst.__class__.__name__, attr))
 
@@ -85,9 +68,16 @@ def assert_valid_estimator(instance):
                         "estimator class, but the class itself." % instance)
 
 
+def assert_valid_pipeline(pipeline):
+    """Quick check to ensure the pipeline is an mlens Pipeline"""
+    cls = str(pipeline.__class__).split("'")[1].lower()
+    if not cls.endswith('pipeline') and not cls.startswith('mlens'):
+        raise ValueError("Expect mlens Pipeline instance. Got %r" % pipeline)
+
+
 def assert_correct_format(estimators, preprocessing):
     """Initial check to assert layer can be constructed."""
-    if (preprocessing is None) or (isinstance(preprocessing, list)):
+    if (preprocessing is None) or (not isinstance(preprocessing, dict)):
         if isinstance(estimators, dict):
             # Either no or uniform preprocessing, estimators should be list
             msg = ("Preprocessing is either 'None' or 'list': 'estimators' "

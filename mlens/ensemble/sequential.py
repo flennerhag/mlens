@@ -10,7 +10,7 @@ Sequential Ensemble class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import INDEXERS
+from ..index import INDEXERS
 from ..utils import kwarg_parser
 
 
@@ -83,14 +83,21 @@ class SequentialEnsemble(BaseEnsemble):
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
         documentation. To change global backend, set
-        ``mlens.config.BACKEND``
+        ``mlens.config._BACKEND``
 
-    Attributes
-    ----------
-    scores\_ : dict
-        if ``scorer`` was passed to instance, ``scores_`` contains dictionary
-        with cross-validated scores assembled during ``fit`` call. The fold
-        structure used for scoring is determined by ``folds``.
+    model_selection: bool (default=False)
+        Whether to use the ensemble in model selection mode. If ``True``,
+        this will alter the ``transform`` method. When calling ``transform``
+        on new data, the ensemble will call ``predict``, while calling
+        ``transform`` with the training data reproduces predictions from the
+        ``fit`` call. Hence the ensemble can be used as a pure transformer
+        in a preprocessing pipeline passed to the :class:`Evaluator`, as
+        training folds are faithfully reproduced as during a ``fit``call and
+        test folds are transformed with the ``predict`` method.
+
+    sample_size: int (default=20)
+        size of training set sample
+        (``[min(sample_size, X.size[0]), min(X.size[1], sample_size)]``)
 
     Examples
     --------
@@ -105,10 +112,10 @@ class SequentialEnsemble(BaseEnsemble):
     >>> ensemble = SequentialEnsemble()
     >>>
     >>> # Add a subsemble with 5 partitions as first layer
-    >>> ensemble.add('subset', [SVR(), Lasso()], n_partitions=10, n_splits=10)
+    >>> ensemble.add('subsemble', [SVR(), Lasso()], partitions=10, folds=10)
     >>>
     >>> # Add a super learner as second layer
-    >>> ensemble.add('stack', [SVR(), Lasso()], n_splits=20)
+    >>> ensemble.add('stack', [SVR(), Lasso()], folds=20)
     >>>
     >>> # Specify a meta estimator
     >>> ensemble.add_meta(SVR())
@@ -119,21 +126,16 @@ class SequentialEnsemble(BaseEnsemble):
     6.5628...
     """
 
-    def __init__(self,
-                 shuffle=False,
-                 random_state=None,
-                 scorer=None,
-                 raise_on_exception=True,
-                 array_check=2,
-                 verbose=False,
-                 n_jobs=-1,
-                 backend=None,
-                 layers=None):
+    def __init__(
+            self, shuffle=False, random_state=None, scorer=None,
+            raise_on_exception=True, array_check=2, verbose=False, n_jobs=-1,
+            backend=None, model_selection=False, sample_size=20, layers=None):
         super(SequentialEnsemble, self).__init__(
-                shuffle=shuffle, random_state=random_state,
-                scorer=scorer, raise_on_exception=raise_on_exception,
-                verbose=verbose, n_jobs=n_jobs, layers=layers,
-                array_check=array_check, backend=backend)
+            shuffle=shuffle, random_state=random_state, scorer=scorer,
+            raise_on_exception=raise_on_exception, verbose=verbose,
+            n_jobs=n_jobs, layers=layers, array_check=array_check,
+            model_selection=model_selection, sample_size=sample_size,
+            backend=backend)
 
     def add_meta(self, estimator, **kwargs):
         """Meta Learner.
@@ -162,7 +164,7 @@ class SequentialEnsemble(BaseEnsemble):
             layer class. Accepted types are:
 
                 * 'blend' : blend ensemble
-                * 'subset' : subsemble
+                * 'subsemble' : subsemble
                 * 'stack' : super learner
 
         estimators: dict of lists or list or instance
@@ -230,15 +232,14 @@ class SequentialEnsemble(BaseEnsemble):
             raise NotImplementedError("Layer class not implemented. Select "
                                       "one of %r." % sorted(INDEXERS))
 
+        if cls == 'subsemble' and 'partition_estimator' in kwargs:
+            cls = 'clusteredsubsemble'
+
         # instantiate the indexer
         indexer = INDEXERS[cls]
         kwargs_idx, kwargs = kwarg_parser(indexer.__init__, kwargs)
         indexer = indexer(**kwargs_idx)
 
-        return self._add(estimators=estimators,
-                         cls=cls,
-                         meta=meta,
-                         indexer=indexer,
-                         preprocessing=preprocessing,
-                         verbose=self.verbose,
-                         **kwargs)
+        return super(SequentialEnsemble, self).add(
+            estimators=estimators, indexer=indexer,
+            preprocessing=preprocessing, **kwargs)

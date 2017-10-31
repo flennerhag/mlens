@@ -13,32 +13,17 @@ class NotFittedError(ValueError, AttributeError):
     """
 
 
+class NotInitializedError(ValueError, AttributeError):
+
+    """Error class for an instance that has not been properly initialized.
+
+    Raised when required methods and attributes have not been initialized.
+    """
+
+
 class FitFailedWarning(RuntimeWarning):
 
     """Warning for a failed estimator 'fit' call."""
-
-
-class FitFailedError(RuntimeError, TypeError):
-
-    """Error for failed estimator 'fit' call.
-
-    Inherits type error to accommodate Scikit-learn expectation of a
-    ``TypeError`` on failed array checks in estimators.
-    """
-
-
-class PredictFailedError(RuntimeError, TypeError):
-
-    """Error for a failed estimator 'predict' call.
-
-    Inherits type error to accommodate Scikit-learn expectation of a
-    ``TypeError`` on failed array checks in estimators.
-    """
-
-
-class PredictFailedWarning(RuntimeWarning):
-
-    """Warning for a failed estimator 'predict' call."""
 
 
 class LayerSpecificationError(TypeError, ValueError):
@@ -82,7 +67,20 @@ class InputDataWarning(UserWarning):
     """
 
 
+class MetricWarning(UserWarning):
+
+    """Warning to notify that scoring do not behave as expected.
+
+    Raised if scoring fails or if aggregating scores fails.
+    """
+
+
 ###############################################################################
+class DeprecationWarning(UserWarning):
+
+    """Warning to notify the user of a deprecated feature"""
+
+
 class EfficiencyWarning(UserWarning):
 
     """Warning used to notify the user of inefficient computation.

@@ -10,7 +10,7 @@ Super Learner class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..base import FoldIndex, FullIndex
+from ..index import FoldIndex, FullIndex
 
 
 class SuperLearner(BaseEnsemble):
@@ -78,6 +78,11 @@ class SuperLearner(BaseEnsemble):
     --------
     :class:`BlendEnsemble`, :class:`Subsemble`
 
+
+    .. note :: All parameters can be overriden in the :attr:`add` method unless
+        otherwise specified. Notably, the ``backend`` and ``n_jobs`` cannot
+        be altered in the :attr:`add` method.
+
     Parameters
     ----------
     folds : int (default = 2)
@@ -85,11 +90,14 @@ class SuperLearner(BaseEnsemble):
         specified on a layer-specific basis in the :attr:`add` method.
 
     shuffle : bool (default = False)
-        whether to shuffle data before before processing each layer.
-        For greater control, specify ``shuffle`` when adding the layer.
+        whether to shuffle data before before processing each layer. This
+        parameter can be overridden in the :attr:`add` method if different test
+        sizes is desired for each layer.
 
     random_state : int (default = None)
-        random seed if shuffling inputs.
+        random seed for shuffling inputs. Note that the seed here is used to
+        generate a unique seed for each layer. Can be overridden in the
+        :attr:`add` method.
 
     scorer : object (default = None)
         scoring function. If a function is provided, base estimators will be
@@ -132,19 +140,28 @@ class SuperLearner(BaseEnsemble):
         For verbosity in the layers themselves, use ``fit_params``.
 
     n_jobs : int (default = -1)
-        number of CPU cores to use for fitting and prediction.
+        Degree of parallel processing. Set to -1 for maximum parallelism and
+        1 for sequential processing. Cannot be overriden in the :attr:`add` method.
 
     backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation. To set global backend, set ``mlens.config.BACKEND``.
+        documentation. To set global backend, set ``mlens.config._BACKEND``.
+        Cannot be overriden in the :attr:`add` method.
 
-    Attributes
-    ----------
-    scores\_ : dict
-        if ``scorer`` was passed to instance, ``scores_`` contains dictionary
-        with cross-validated scores assembled during ``fit`` call. The fold
-        structure used for scoring is determined by ``folds``.
+    model_selection: bool (default=False)
+        Whether to use the ensemble in model selection mode. If ``True``,
+        this will alter the ``transform`` method. When calling ``transform``
+        on new data, the ensemble will call ``predict``, while calling
+        ``transform`` with the training data reproduces predictions from the
+        ``fit`` call. Hence the ensemble can be used as a pure transformer
+        in a preprocessing pipeline passed to the :class:`Evaluator`, as
+        training folds are faithfully reproduced as during a ``fit``call and
+        test folds are transformed with the ``predict`` method.
+
+    sample_size: int (default=20)
+        size of training set sample
+        (``[min(sample_size, X.size[0]), min(X.size[1], sample_size)]``)
 
     Examples
     --------
@@ -186,8 +203,7 @@ class SuperLearner(BaseEnsemble):
     ...                        'sc': [('can name some or all ests', Lasso())]}
     >>>
     >>> ensemble = SuperLearner()
-    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR(),
-    ...                                                            meta=True)
+    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR(), meta=True)
     >>>
     >>> ensemble.fit(X, y)
     >>> preds = ensemble.predict(X)
@@ -195,24 +211,20 @@ class SuperLearner(BaseEnsemble):
     7.841329...
     """
 
-    def __init__(self,
-                 folds=2,
-                 shuffle=False,
-                 random_state=None,
-                 scorer=None,
-                 raise_on_exception=True,
-                 array_check=2,
-                 verbose=False,
-                 n_jobs=-1,
-                 backend=None,
-                 layers=None):
+    def __init__(
+            self, folds=2, shuffle=False, random_state=None, scorer=None,
+            raise_on_exception=True, array_check=2, verbose=False, n_jobs=-1,
+            backend='threading', model_selection=False, sample_size=20, layers=None):
         super(SuperLearner, self).__init__(
-                shuffle=shuffle, random_state=random_state,
-                scorer=scorer, raise_on_exception=raise_on_exception,
-                verbose=verbose, n_jobs=n_jobs, layers=layers,
-                array_check=array_check, backend=backend)
+            shuffle=shuffle, random_state=random_state, scorer=scorer,
+            raise_on_exception=raise_on_exception, verbose=verbose,
+            n_jobs=n_jobs, layers=layers, backend=backend,
+            array_check=array_check, model_selection=model_selection,
+            sample_size=sample_size)
 
+        self.__initialized__ = 0  # Unlock parameter setting
         self.folds = folds
+        self.__initialized__ = 1  # Protect against param resets
 
     def add_meta(self, estimator, **kwargs):
         """Meta Learner.
@@ -230,8 +242,7 @@ class SuperLearner(BaseEnsemble):
         return self.add(estimators=estimator, meta=True, **kwargs)
 
     def add(self, estimators, preprocessing=None,
-            folds=None, proba=False, meta=False,
-            propagate_features=None, **kwargs):
+            proba=False, meta=False, propagate_features=None, **kwargs):
         """Add layer to ensemble.
 
         Parameters
@@ -288,10 +299,6 @@ class SuperLearner(BaseEnsemble):
             The lists for each dictionary entry can be any of ``option_1``,
             ``option_2`` and ``option_3``.
 
-        folds : int, optional
-            Use if a different number of folds is desired than what the
-            ensemble was instantiated with.
-
         proba : bool
             whether layer should predict class probabilities. Note: setting
             ``proba=True`` will attempt to call an the estimators
@@ -319,22 +326,13 @@ class SuperLearner(BaseEnsemble):
         self : instance
             ensemble instance with layer instantiated.
         """
-        c = folds if folds is not None else self.folds
+        c = kwargs.pop('folds', self.folds)
 
         if meta:
             idx = FullIndex()
-            cls = 'full'
         else:
             idx = FoldIndex(c, raise_on_exception=self.raise_on_exception)
-            cls = 'stack'
 
-        return self._add(
-                estimators=estimators,
-                cls=cls,
-                meta=meta,
-                indexer=idx,
-                preprocessing=preprocessing,
-                proba=proba,
-                verbose=self.verbose,
-                propagate_features=propagate_features,
-                **kwargs)
+        return super(SuperLearner, self).add(
+            estimators=estimators, indexer=idx, preprocessing=preprocessing,
+            proba=proba, propagate_features=propagate_features, **kwargs)

@@ -1,11 +1,53 @@
+"""ML-Ensemble
+
+:author: Sebastian Flennerhag
+:license: MIT
+:copyright: 2017
+
+Global backend configurations.
+
+Variables
+---------
+
+1. MLENS_DTYPE: data type of prediction arrays. Must be a numpy dtype.
+   Default is ``float32``.
+
+2. MLENS_TMPDIR: path to directory where temprorary caches will be hosted.
+   Default is to use system ``tmp`` structure.
+
+3. MLENS_PREFIX: cache prefix. Default is ``'.mlens_tmp_cache_'``
+
+4. MLENS_BACKEND: global default backend. Default is ``'threading'``
+
+5. MLENS_START_METHOD: global start method (if ``backend='multiprocessing'``)
+   Default is ``'fork'``
+
+6. MLENS_VERBSE: verbose import. Set to ``Y`` for verbose.
+
+7. MLENS_IVALS: load exception handling interval. Default is ``(0.01, 120)``.
+
+Usage
+-----
+
+Environmental variables can be set by ::
+
+    export MLENS_[VARIABLE]=VALUE
+
+For changing defaults during a session, use
+``set_[variable]`` and ``get_[variable]``, where ``[variable]`` is replaced
+with the lower case name of the environmental variable to change.
+
+Changing global configurations in-session is experimental: Please report any
+unexpected behavior.
 """
-Global configurations.
-"""
+# pylint: disable=protected-access
+# pylint: disable=global-statement
+# pylint: disable=not-callable
+
 from __future__ import print_function
 
 import os
 import sys
-import numpy
 import shutil
 import tempfile
 import warnings
@@ -13,17 +55,55 @@ import sysconfig
 import subprocess
 from multiprocessing import current_process
 
+import numpy
+
 ###############################################################################
 # Variables
 
-DTYPE = getattr(numpy, os.environ.get('MLENS_DTYPE', 'float32'))
-TMPDIR = os.environ.get('MLENS_TMPDIR', tempfile.gettempdir())
-PREFIX = os.environ.get('MLENS_PREFIX', ".mlens_tmp_cache_")
-BACKEND = os.environ.get('MLENS_BACKEND', 'threading')
-START_METHOD = os.environ.get('MLENS_START_METHOD', '')
+_DTYPE = getattr(numpy, os.environ.get('MLENS_DTYPE', 'float32'))
+_TMPDIR = os.environ.get('MLENS_TMPDIR', tempfile.gettempdir())
+_PREFIX = os.environ.get('MLENS_PREFIX', ".mlens_tmp_cache_")
+_BACKEND = os.environ.get('MLENS_BACKEND', 'threading')
+_START_METHOD = os.environ.get('MLENS_START_METHOD', '')
+_VERBOSE = os.environ.get('MLENS_VERBOSE', 'Y')
+
+_IVALS = os.environ.get('MLENS_IVALS', '0.01_120').split('_')
+_IVALS = (float(_IVALS[0]), float(_IVALS[1]))
 
 _PY_VERSION = float(sysconfig._PY_VERSION_SHORT)
 
+
+###############################################################################
+# dispatcjh configs
+
+def get_ivals():
+    """Return _IVALS"""
+    return _IVALS
+
+
+def get_dtype():
+    """Return dtype"""
+    return _DTYPE
+
+
+def get_prefix():
+    """Return cache prefix"""
+    return _PREFIX
+
+
+def get_backend():
+    """Return backend"""
+    return _BACKEND
+
+
+def get_start_method():
+    """Return start method"""
+    return _START_METHOD
+
+
+def get_tmpdir():
+    """Return start method"""
+    return _TMPDIR
 
 ###############################################################################
 # Configuration calls
@@ -37,8 +117,8 @@ def set_tmpdir(tmp):
     tmp : str
         directory path
     """
-    global TMPDIR
-    TMPDIR = tmp
+    global _TMPDIR
+    _TMPDIR = tmp
 
 
 def set_prefix(prefix):
@@ -49,8 +129,8 @@ def set_prefix(prefix):
     prefix : str
         cache file name prefix
     """
-    global PREFIX
-    PREFIX = prefix
+    global _PREFIX
+    _PREFIX = prefix
 
 
 def set_dtype(dtype):
@@ -61,8 +141,8 @@ def set_dtype(dtype):
     dtype : object
         numpy dtype
     """
-    global DTYPE
-    DTYPE = dtype
+    global _DTYPE
+    _DTYPE = dtype
 
 
 def set_backend(backend):
@@ -73,8 +153,8 @@ def set_backend(backend):
     backend : str
         backend type, one of 'multiprocessing', 'threading', 'sequential'
     """
-    global BACKEND
-    BACKEND = backend
+    global _BACKEND
+    _BACKEND = backend
 
 
 def set_start_method(method):
@@ -85,9 +165,24 @@ def set_start_method(method):
     method : str
         Methods available: 'fork', 'spawn', 'forkserver'.
     """
-    global START_METHOD
-    START_METHOD = method
-    os.environ['JOBLIB_START_METHOD'] = START_METHOD
+    global _START_METHOD
+    _START_METHOD = method
+    os.environ['JOBLIB_START_METHOD'] = _START_METHOD
+
+
+def set_ivals(interval, limit):
+    """Set the parallel backend to use during estimation.
+
+    Parameters
+    ----------
+    interval : int
+        number of seconds between each check
+
+    limit : int
+        number of seconds to wait.
+    """
+    global _IVALS
+    _IVALS = (interval, limit)
 
 
 def __get_default_start_method(method):
@@ -114,9 +209,9 @@ def clear_cache(tmp):
     tmp : str
         the directory to check for residual caches in.
     """
-    global PREFIX
+    global _PREFIX
     residuals = [i for i in os.walk(tmp)
-                 if os.path.split(i[0])[-1].startswith(PREFIX)]
+                 if os.path.split(i[0])[-1].startswith(_PREFIX)]
 
     n = len(residuals)
     if n > 0:
@@ -151,20 +246,22 @@ def clear_cache(tmp):
 
 def print_settings():
     """Print package settings on system."""
-    if BACKEND == 'threading':
+    if _VERBOSE != 'Y':
+        return
+    if _BACKEND == 'threading':
         msg = "[MLENS] backend: %s"
-        arg = BACKEND,
+        arg = _BACKEND,
     else:
         msg = "[MLENS] backend: %s | start method: %s"
-        arg = (BACKEND, START_METHOD)
+        arg = (_BACKEND, _START_METHOD)
 
     print(msg % arg, file=sys.stderr)
 
 
 if current_process().name == 'MainProcess':
-    START_METHOD = __get_default_start_method(START_METHOD)
-    set_start_method(START_METHOD)
+    _START_METHOD = __get_default_start_method(_START_METHOD)
+    set_start_method(_START_METHOD)
 
     print_settings()
 
-    clear_cache(TMPDIR)
+    clear_cache(_TMPDIR)

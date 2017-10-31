@@ -22,6 +22,8 @@ try:
 except ImportError:
     import pickle
 
+from ...config import get_start_method
+
 from ._multiprocessing_helpers import mp
 
 from .format_stack import format_outer_frames
@@ -114,7 +116,9 @@ def parallel_backend(backend, n_jobs=-1, **backend_params):
 # 'fork' to 'forkserver' or 'spawn' to avoid this issue albeit at the cost
 # of causing semantic changes and some additional pool instantiation overhead.
 if hasattr(mp, 'get_context'):
-    method = os.environ.get('JOBLIB_START_METHOD', '').strip() or None
+    method = get_start_method().strip() or None
+    if method is None:
+        method = os.environ.get('JOBLIB_START_METHOD', '').strip() or None
     DEFAULT_MP_CONTEXT = mp.get_context(method=method)
 else:
     DEFAULT_MP_CONTEXT = None
@@ -336,7 +340,7 @@ class Parallel(Logger):
               RAMdisk filesystem available by default on modern Linux
               distributions,
             - the default system temporary folder that can be
-              overridden with TMP, TMPDIR or TEMP environment
+              overridden with TMP, _TMPDIR or TEMP environment
               variables, typically /tmp under Unix operating systems.
 
             Only active when backend="multiprocessing".
@@ -631,7 +635,7 @@ class Parallel(Logger):
         # learn to use logger better.
         if not self.verbose:
             return
-        if self.verbose < 50:
+        if self.verbose > 50:
             writer = sys.stderr.write
         else:
             writer = sys.stdout.write

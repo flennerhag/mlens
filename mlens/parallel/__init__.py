@@ -2,23 +2,24 @@
 
 :author: Sebastian Flennerhag
 :copyright: 2017
-:licence: MIT
+:license: MIT
 """
-
-from .stack import Stacker
-from .blend import Blender
-from .subset import SubStacker
-from .single_run import SingleRun
-from .evaluation import Evaluation
-from .estimation import BaseEstimator
-from .manager import ParallelProcessing, ParallelEvaluation
+from .backend import ParallelProcessing, ParallelEvaluation
+from .learner import Learner, EvalLearner, Transformer, EvalTransformer
+from .layer import Layer
+from .handles import Group, make_group, Pipeline
+from .wrapper import run, get_backend
 
 __all__ = ['ParallelProcessing',
            'ParallelEvaluation',
-           'Stacker',
-           'Blender',
-           'SubStacker',
-           'SingleRun',
-           'Evaluation',
-           'BaseEstimator'
+           'Layer',
+           'Group',
+           'Pipeline'
+           'Learner',
+           'Transformer',
+           'EvalLearner',
+           'EvalTransformer',
+           'make_group',
+           'run',
+           'get_backend',
            ]

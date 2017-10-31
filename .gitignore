@@ -64,15 +64,19 @@ instance/
 # Sphinx documentation
 docs/_build/
 docs/_build_html/
+.buildinfo
 
 # PyBuilder
 target/
 
 # IPython Notebook
-.ipynb_checkpoints
+*.ipynb_checkpoints
 
 # pyenv
-.python-version
+*.python-version
+
+# VIM
+*.swp
 
 # celery beat schedule file
 celerybeat-schedule
@@ -104,4 +108,6 @@ dev/
 check_build_log.txt
 
 # doc builds
-_make_html
+build/
+examples/
+

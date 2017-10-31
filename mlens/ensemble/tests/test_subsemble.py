@@ -3,48 +3,15 @@
 
 """
 import numpy as np
-from mlens.utils.dummy import OLS, ECM
-from mlens.base import SubsetIndex
-
-from mlens.parallel.subset import _expand_instance_list, _get_col_idx
+from mlens.testing.dummy import OLS, ECM
+from mlens.testing import Data
 
 from mlens.ensemble import Subsemble, SuperLearner
 
-X = np.arange(24).reshape((12, 2))
-y = X[:, 0] * X[:, 1]
-
-estimators = [('ols-%i' % i, OLS(i)) for i in range(2)]
-indexer = SubsetIndex(2, 3, X=X)
-
-
-def ground_truth():
-    """Ground truth for subset test.
-    """
-    e = _expand_instance_list(estimators, indexer)
-
-    P = np.zeros((12, 2 * 2))
-    F = np.zeros((12, 2 * 2))
-
-    cols = _get_col_idx(e, 2, 1, 0)
-
-    for name, tri, tei, est_list in e:
-        for est_name, est in est_list:
-            if tei is None:
-                est.fit(X[tri[0]:tri[1]], y[tri[0]:tri[1]])
-                p = est.predict(X)
-                P[:, cols[(name, est_name)]] = p
-                continue
-
-            ti = np.hstack([np.arange(t0, t1) for t0, t1 in tri])
-            te = np.hstack([np.arange(t0, t1) for t0, t1 in tei])
-            col = cols[(name, est_name)]
-
-            est.fit(X[ti], y[ti])
-            p = est.predict(X[te])
-            F[te, col] = p
-    return F, P
-
-F, P = ground_truth()
+data = Data('subsemble', False, False, partitions=2, folds=3)
+X, y = data.get_data((30, 4), 3)
+data.indexer.fit(X)
+(F, wf), (P, wp) = data.ground_truth(X, y, data.indexer.partitions)
 
 
 def test_subset_fit():
@@ -54,13 +21,12 @@ def test_subset_fit():
     g = meta.predict(P)
 
     ens = Subsemble()
-    ens.add(estimators, partitions=2, folds=3, dtype=np.float64)
+    ens.add(ECM, partitions=2, folds=3, dtype=np.float64)
     ens.add_meta(OLS(), dtype=np.float64)
 
     ens.fit(X, y)
 
     pred = ens.predict(X)
-
     np.testing.assert_array_equal(pred, g)
 
 

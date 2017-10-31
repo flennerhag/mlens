@@ -10,14 +10,14 @@ try:
 except ImportError:
     from mlens.externals.fixes import redirect as redirect_stdout
 
-from mlens.ensemble.base import Layer, LayerContainer
-from mlens.utils.dummy import OLS, LogisticRegression, Scale, InitMixin
-from mlens.utils.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \
-    ECM, ECM_PROBA
-from mlens.utils.dummy import Data, LayerGenerator
+from mlens.ensemble.base import Layer, Sequential
+from mlens.utils.dummy import OLS, LogisticRegression, Scale
+from mlens.testing.dummy import ESTIMATORS, PREPROCESSING, ESTIMATORS_PROBA, \
+    ECM, ECM_PROBA, InitMixin
+from mlens.testing.dummy import Data, EstimatorContainer
 
 from mlens.utils import assert_correct_format
-from mlens.utils.formatting import _assert_format
+from mlens.utils.formatting import _assert_format, _format_instances
 
 from mlens.utils.exceptions import NotFittedError
 from mlens.externals.sklearn.base import BaseEstimator
@@ -195,8 +195,8 @@ def test_estimator_lists():
     assert_correct_format(ECM, None)
     assert_correct_format(ECM_PROBA, None)
 
-    assert _assert_format(ESTIMATORS)
-    assert _assert_format(ESTIMATORS_PROBA)
+    assert _assert_format(_format_instances(ESTIMATORS))
+    assert _assert_format(_format_instances(ESTIMATORS_PROBA))
     assert _assert_format(ECM)
     assert _assert_format(ECM_PROBA)
     assert _assert_format(PREPROCESSING)
@@ -205,49 +205,53 @@ def test_estimator_lists():
 def test_get_layers():
     """[Utils] testing: test dummy estimator and preprocessing formatting."""
     for p in [False, True]:
-        for cls in ['stack', 'blend', 'subset']:
-            layer = LayerGenerator().get_layer(cls, p, True)
-            lc = LayerGenerator().get_layer_container(cls, p, True)
+        for cls in ['stack', 'blend', 'subsemble']:
+            layer = EstimatorContainer().get_layer(cls, p, True)
+            lc = EstimatorContainer().get_sequential(cls, p, True)
 
             assert isinstance(layer, Layer)
-            assert isinstance(lc, LayerContainer)
+            assert isinstance(lc, Sequential)
 
 
 def test_ground_truth():
     """[Utils] testing: test ground truth for stacking."""
 
-    gf = np.array([[ 17.        ,  11.        , -42.        ],
-                   [ 29.        ,  15.        , -30.        ],
-                   [ 39.64705882,  17.64705882,  -6.35294118],
-                   [ 52.35294118,  22.35294118,   6.35294118],
-                   [ 63.        ,  25.        ,  30.        ],
-                   [ 75.        ,  29.        ,  42.        ]])
+    gf = np.array([[ 11.        ,  17.        , -14.        , -42.        ],
+                   [ 15.        ,  29.        , -10.        , -30.        ],
+                   [ 17.64705882,  39.64705882,  -2.35294118,  -6.35294118],
+                   [ 22.35294118,  52.35294118,   2.35294118,   6.35294118],
+                   [ 25.        ,  63.        ,  10.        ,  30.        ],
+                   [ 29.        ,  75.        ,  14.        ,  42.        ]])
 
-    gwf = np.array([[ -5.        ,  11.        ],
-                    [ -7.        ,   9.        ],
-                    [ -1.52941176,   7.88235294],
-                    [ -3.52941176,   5.88235294],
-                    [ -3.        ,   9.        ],
-                    [ -5.        ,   7.        ],
-                    [  3.        ,   3.        ],
-                    [  3.17647059,   3.17647059],
-                    [  3.        ,   3.        ]])
+    gwf = np.array([[ -7.        ,   9.        ],
+                   [ -3.52941176,   5.88235294],
+                   [ -5.        ,   7.        ],
+                   [ -5.        ,  11.        ],
+                   [ -1.52941176,   7.88235294],
+                   [ -3.        ,   9.        ],
+                   [  1.        ,   1.        ],
+                   [  1.17647059,   1.17647059],
+                   [  1.        ,   1.        ],
+                   [  3.        ,   3.        ],
+                   [  3.17647059,   3.17647059],
+                   [  3.        ,   3.        ]])
 
-    gp = np.array([[ 14.57142857,   8.57142857, -31.42857143],
-                   [ 27.14285714,  13.14285714, -18.85714286],
-                   [ 39.71428571,  17.71428571,  -6.28571429],
-                   [ 52.28571429,  22.28571429,   6.28571429],
-                   [ 64.85714286,  26.85714286,  18.85714286],
-                   [ 77.42857143,  31.42857143,  31.42857143]])
 
-    gwp = np.array([[-2.        ,  8.28571429],
-                    [-4.        ,  6.28571429],
-                    [ 3.14285714,  3.14285714]])
+    gp = np.array([[  8.57142857,  14.57142857, -11.42857143, -31.42857143],
+                   [ 13.14285714,  27.14285714,  -6.85714286, -18.85714286],
+                   [ 17.71428571,  39.71428571,  -2.28571429,  -6.28571429],
+                   [ 22.28571429,  52.28571429,   2.28571429,   6.28571429],
+                   [ 26.85714286,  64.85714286,   6.85714286,  18.85714286],
+                   [ 31.42857143,  77.42857143,  11.42857143,  31.42857143]])
 
-    t, z = Data('stack', False, True).get_data((6, 2), 2)
+    gwp = np.array([[-4.        ,  6.28571429],
+                    [-2.        ,  8.28571429],
+                    [1.14285714 ,  1.14285714],
+                    [3.14285714 ,  3.14285714]])
 
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
-        (F, wf), (P, wp) = Data('stack', False, True, 3).ground_truth(t, z)
+    data = Data('stack', False, True, folds=3)
+    t, z = data.get_data((6, 2), 2)
+    (F, wf), (P, wp) = data.ground_truth(t, z)
 
     np.testing.assert_array_almost_equal(F, gf)
     np.testing.assert_array_almost_equal(wf, gwf)

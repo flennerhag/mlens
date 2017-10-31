@@ -8,18 +8,7 @@ ML-Ensemble, a Python library for memory efficient parallelized ensemble
 learning.
 """
 # Initialize configurations
-import mlens.config
-from mlens.config import clear_cache
+# pylint: disable=wildcard-import
+from .config import *
 
-__version__ = "0.1.6.1"
-
-__all__ = ['base',
-           'utils',
-           'metrics',
-           'parallel',
-           'ensemble',
-           'externals',
-           'visualization',
-           'preprocessing',
-           'model_selection',
-          ]
+__version__ = "0.2.0"

@@ -21,7 +21,7 @@ install:
 
 script:
   - set -e
-  - nosetests -s -v --with-coverage --exclude mlens/visualization --exclude mlens/externals
+  - nosetests -sv --with-coverage --exclude mlens/visualization --exclude mlens/externals
 
 after_success:
   - coveralls

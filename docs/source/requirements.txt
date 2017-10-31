@@ -1,0 +1,10 @@
+scipy>=0.17
+numpy>=1.11
+numpydoc >= 0.6
+sphinx-gallery == 0.1.12
+matplotlib >= 2.0.2
+seaborn >= 0.8.0
+pandas >= 0.20.0
+scikit-learn == 0.18.2
+sphinx == 1.6.4
+sphinx_rtd_theme == 0.2.4

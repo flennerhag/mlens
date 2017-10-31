@@ -1,5 +1,44 @@
-"""
-Global configurations.
+"""ML-Ensemble
+
+:author: Sebastian Flennerhag
+:license: MIT
+:copyright: 2017
+
+Global backend configurations.
+
+Variables
+---------
+
+1. MLENS_DTYPE: data type of prediction arrays. Must be a numpy dtype.
+   Default is ``float32``.
+
+2. MLENS_TMPDIR: path to directory where temprorary caches will be hosted.
+   Default is to use system ``tmp`` structure.
+
+3. MLENS_PREFIX: cache prefix. Default is ``'.mlens_tmp_cache_'``
+
+4. MLENS_BACKEND: global default backend. Default is ``'threading'``
+
+5. MLENS_START_METHOD: global start method (if ``backend='multiprocessing'``)
+   Default is ``'fork'``
+
+6. MLENS_VERBSE: verbose import. Set to ``Y`` for verbose.
+
+7. MLENS_IVALS: load exception handling interval. Default is ``(0.01, 120)``.
+
+Usage
+-----
+
+Environmental variables can be set by ::
+
+    export MLENS_[VARIABLE]=VALUE
+
+For changing defaults during a session, use
+``set_[variable]`` and ``get_[variable]``, where ``[variable]`` is replaced
+with the lower case name of the environmental variable to change.
+
+Changing global configurations in-session is experimental: Please report any
+unexpected behavior.
 """
 # pylint: disable=protected-access
 # pylint: disable=global-statement

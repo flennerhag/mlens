@@ -4,8 +4,7 @@
 :copyright: 2017
 :license: MIT
 
-Class for parallel tuning a set of estimators that share a common
-preprocessing pipeline.
+Model selection suite for tuning and benchmarking a set of estimators.
 """
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
@@ -81,6 +80,8 @@ def benchmark(X, y, scorer, cv, estimators,
 
         If ``verbose>=20``, prints to ``sys.stderr``, else ``sys.stdout``.
 
+    .. versionadded:: 0.2.0
+
     Returns
     -------
     results : dict
@@ -96,9 +97,9 @@ class BaseEval(IndexMixin, BaseBackend):
 
     """Base Evaluation class."""
 
-    def __init__(self, **kwargs):
-        self.verbose = kwargs.pop('verbose', False)
-        self.array_check = kwargs.pop('array_check', False)
+    def __init__(self, verbose=False, array_check=2, **kwargs):
+        self.verbose = verbose
+        self.array_check = array_check
         self._transformers = None
         self._learners = None
         super(BaseEval, self).__init__(**kwargs)
@@ -192,11 +193,21 @@ class Benchmark(BaseEval):
 
     """Benchmark engine
 
-    Simple benchmark engine for running no iteration jobs
+    Benchmark engine without hyper-parameter grid search.
+
+    .. versionadded:: 0.2.0
+
+    Parameters
+    ----------
+    verbose: bool, int, optional
+        Verbosity during estimation.
+
+    **kwargs: optional
+        Optional keyword argument to :class:`BaseBackend`.
     """
 
-    def __init__(self, **kwargs):
-        super(Benchmark, self).__init__(**kwargs)
+    def __init__(self, verbose=False, **kwargs):
+        super(Benchmark, self).__init__(verbose=verbose, **kwargs)
         self.results = None
         self.indexer = None
 
@@ -298,6 +309,8 @@ class Evaluator(BaseEval):
     evaluations can be made on the pre-made folds. Current implementation
     relies on a randomized grid search, so parameter grids must be specified as
     SciPy distributions (or a class that accepts a ``rvs`` method).
+
+    .. versionchanged:: 0.2.0
 
     Parameters
     ----------

@@ -11,7 +11,7 @@ from __future__ import division
 
 from ..index import INDEXERS
 from ..utils import check_ensemble_build, check_inputs, IdTrain
-from ..utils.exceptions import DepreciationWarning
+from ..utils.exceptions import DeprecationWarning
 from ..ensemble import BaseEnsemble
 from ..externals.sklearn.validation import check_random_state
 
@@ -42,7 +42,7 @@ class EnsembleTransformer(BaseEnsemble):
     and then fit different meta learners (or higher-order layers) in a call
     to ``evaluate``.
 
-    .. note:: will be depreciated in 0.2.2.
+    .. note:: will be deprecated in 0.2.2.
 
     See Also
     --------

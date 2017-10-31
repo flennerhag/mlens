@@ -24,7 +24,7 @@ Schedulers for global setups:
       Dependents on 0, 2:
          OutputMixin.__setup_3__output_columns
 
-Note that schedulers are experimental and may change without a depreciation
+Note that schedulers are experimental and may change without a deprecation
 cycle.
 """
 from abc import abstractmethod

@@ -34,6 +34,11 @@ from ..externals.sklearn.validation import check_random_state
 
 
 ###############################################################################
+def _dtype(a, b=None):
+    """Utility for getting a dtype"""
+    return getattr(a, 'dtype', getattr(b, 'dtype', None))
+
+
 def dump_array(array, name, path):
     """Dump array for memmapping."""
     # First check if the array is on file
@@ -538,12 +543,12 @@ class ParallelProcessing(BaseProcessor):
                 self._partial_process(task, parallel, **kwargs)
 
                 if task.name in return_names:
-                    out.append(self.get_preds(getattr(task, 'dtype', None)))
+                    out.append(self.get_preds(dtype=_dtype(task)))
 
                 self.job.update()
 
         if return_final:
-            out = self.get_preds(dtype=getattr(task, 'dtype', None))
+            out = self.get_preds(dtype=_dtype(task))
         return out
 
     def _partial_process(self, task, parallel, **kwargs):
@@ -582,19 +587,18 @@ class ParallelProcessing(BaseProcessor):
         """Generate prediction array either in-memory or persist to disk."""
         shape = task.shape(job)
         if threading:
-            self.job.predict_out = np.empty(
-                shape, dtype=getattr(task, 'dtype', config.get_dtype()))
+            self.job.predict_out = np.empty(shape, dtype=_dtype(task))
         else:
             f = os.path.join(self.job.dir, '%s_out_array.mmap' % task.name)
             try:
                 self.job.predict_out = np.memmap(
-                    filename=f, dtype=task.dtype, mode='w+', shape=shape)
+                    filename=f, dtype=_dtype(task), mode='w+', shape=shape)
             except Exception as exc:
-                raise OSError("Cannot create prediction matrix of shape ("
-                              "%i, %i), size %i MBs, for %s.\n Details:\n%r" %
-                              (shape[0], shape[1],
-                               8 * shape[0] * shape[1] / (1024 ** 2),
-                               task.name, exc))
+                raise OSError(
+                    "Cannot create prediction matrix of shape ("
+                    "%i, %i), size %i MBs, for %s.\n Details:\n%r" %
+                    (shape[0], shape[1], 8 * shape[0] * shape[1] / (1024 ** 2),
+                     task.name, exc))
 
     def get_preds(self, dtype=None, order='C'):
         """Return prediction matrix.

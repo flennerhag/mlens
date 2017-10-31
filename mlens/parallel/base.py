@@ -355,8 +355,7 @@ class BaseStacker(BaseEstimator):
     @property
     def __fitted__(self):
         """Fitted status"""
-        if not self.stack:
-            # all on an empty list yields True
+        if not self.stack or not self._check_static_params():
             return False
         return all([g.__fitted__ for g in self.stack])
 
@@ -376,6 +375,6 @@ class BaseStacker(BaseEstimator):
     @verbose.setter
     def verbose(self, verbose):
         """Set verbosity"""
+        self._verbose = verbose
         for g in self.stack:
-            for obj in g:
-                obj.verbose = verbose
+            g.verbose = verbose

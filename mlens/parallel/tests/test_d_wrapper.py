@@ -4,7 +4,7 @@ Test of the fit, predict and transform wrappers on the learners
 """
 import numpy as np
 from mlens.testing import Data, EstimatorContainer
-from mlens.parallel import Learner, Transformer, Pipeline, run as _run
+from mlens.parallel import Group, Learner, Transformer, Pipeline, run as _run
 from mlens.utils.dummy import OLS, Scale
 from mlens.externals.sklearn.base import clone
 
@@ -23,8 +23,9 @@ est = EstimatorContainer()
 def scorer(p, y): return np.mean(p - y)
 
 
-data = Data('stack', True, False)
+data = Data('stack', False, True, True)
 X, y = data.get_data((25, 4), 3)
+(F, wf), (P, wp) = data.ground_truth(X, y,)
 
 
 if SKLEARN:
@@ -165,42 +166,28 @@ def test_tr_subsemble():
 
 def test_run_fit():
     """[Parallel | Wrapper] test fit with auxiliary"""
-    tr = Transformer(Pipeline(Scale(), return_y=True),
-                     name='pr', indexer=data.indexer)
-    lr = Learner(OLS(),
-                 indexer=data.indexer, name='lr', preprocess='pr',
-                 scorer=scorer)
+    lr, tr = EstimatorContainer().get_learner('stack', False, True)
+    group = Group(learners=lr, transformers=tr, dtype=np.float64)
 
-    out = _run([tr, lr], 'fit', X, y)
-    assert out is None
+    A = _run(group, 'fit', X, y, return_preds=True)
+    np.testing.assert_array_equal(A, F)
 
 
 def test_run_transform():
     """[Parallel | Wrapper] test transform with auxiliary"""
-    tr = Transformer(Pipeline(Scale(), return_y=True), indexer=data.indexer)
-    lr = Learner(OLS(), indexer=data.indexer, scorer=scorer)
+    lr, tr = EstimatorContainer().get_learner('stack', False, True)
+    group = Group(learners=lr, transformers=tr, dtype=np.float64)
 
-    # Indirect stack
-    X_ = _run(tr, 'fit', X, y, return_preds=True)
-    A = _run(lr, 'fit', X_, y, return_preds=True)
-
-    # Direct stack
-    B = _run([tr, lr], 'transform', X, y, map=False)
-
-    np.testing.assert_array_equal(A, B)
+    _run(group, 'fit', X, y)
+    A = _run(group, 'transform', X)
+    np.testing.assert_array_equal(A, F)
 
 
 def test_run_predict():
     """[Parallel | Wrapper] test predict with auxiliary"""
-    tr = Transformer(Pipeline(Scale(), return_y=True),
-                     name='pr', indexer=data.indexer)
-    lr = Learner(OLS(), indexer=data.indexer, name='lr', scorer=scorer)
+    lr, tr = EstimatorContainer().get_learner('stack', False, True)
+    group = Group(learners=lr, transformers=tr, dtype=np.float64)
 
-    _run([tr, lr], 'fit', X, y, map=False)
-    B = _run([tr, lr], 'predict', X, y, map=False)
-
-    X1 = _run(tr, 'transform', X)
-    X2 = _run(tr, 'predict', X)
-    A = OLS().fit(X1, y).predict(X2)
-
-    np.testing.assert_array_equal(A.astype(np.float32), B.ravel())
+    _run(group, 'fit', X, y)
+    A = _run(group, 'predict', X)
+    np.testing.assert_array_equal(A, P)

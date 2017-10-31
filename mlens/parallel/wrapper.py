@@ -165,9 +165,7 @@ def get_backend(instance):
     if _backend:
         instance = _backend
 
-    runnable = all([issubclass(instance.__class__, BaseParallel),
-                    issubclass(instance.__class__, OutputMixin)])
-    if runnable:
+    if issubclass(instance.__class__, BaseParallel):
         return instance
 
     raise ParallelProcessingError(
@@ -179,6 +177,8 @@ def set_flags(backend, flags):
     resets = list()
     if 'layer' in backend.__class__.__name__.lower():
         updates = [backend] + backend.learners
+    elif 'group' in backend.__class__.__name__.lower():
+        updates = backend.learners
     elif not isinstance(backend, list):
         updates = [backend]
     else:
@@ -237,16 +237,15 @@ def run(caller, job, X, y=None, map=True, **kwargs):
 
         out = mgr.map(caller, job, X, y, **kwargs)
 
-    Run allows dynamic parameter changing and resets, for instance running
-    a learner with ``proba=True`` on that previously had ``proba=False``.
+    :func:`run` handles temporary parameter changes, for instance running
+    a learner with ``proba=True`` that has ``proba=False`` as default.
     Similarly, instances destined to not produce output can be forced to
     yield predictions by passing ``return_preds=True`` as a keyword argument.
 
-    .. note:: Currently, :fun:`run` does not allow a :class:`Learner` to have a
-    preprocessing dependency. To achieve the same output, do::
+    .. note:: To run a learner with a ``preprocessing`` dependency, the
+        instances need to be wrapped in a :class:`Group` ::
 
-        caller([transformer, learner], map=False)
-
+            run(Group(learner, transformer), 'predict', X, y)
 
     Parameters
     ----------
@@ -282,9 +281,9 @@ def run(caller, job, X, y=None, map=True, **kwargs):
 
     try:
         verbose = max(getattr(caller, 'verbose', 0) - 4, 0)
-        backend = getattr(caller, 'backend', config.get_backend())
-        n_jobs = getattr(backend, 'n_jobs', -1)
-        with ParallelProcessing(backend, n_jobs, verbose) as mgr:
+        _backend = getattr(caller, 'backend', config.get_backend())
+        n_jobs = getattr(caller, 'n_jobs', -1)
+        with ParallelProcessing(_backend, n_jobs, verbose) as mgr:
             if map:
                 out = mgr.map(caller, job, X, y, **kwargs)
             else:

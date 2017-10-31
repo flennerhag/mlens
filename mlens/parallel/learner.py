@@ -412,12 +412,15 @@ class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
 
     """Base estimator class
 
-    Common API for estimation objects.
+    Common API for job generators. A class that inherits the base
+    need to set a ``__subtype__`` in the constructor. The sub-type should be
+    the class that runs estimations and must implement a ``__call__``,
+    ``fit``, ``transform`` and ``predict`` method.
     """
 
     __meta_class__ = ABCMeta
 
-    # Reset subtype class attribute in any class that inherits
+    # Reset subtype class attribute in any class that inherits the base
     __subtype__ = None
 
     def __init__(self, name, estimator, indexer=None, verbose=False, **kwargs):
@@ -438,11 +441,13 @@ class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
         if self.indexer:
             self.set_indexer(self.indexer)
 
-        self.cache_name = self.name
         self.estimator = estimator
         self.verbose = verbose
+        self.cache_name = None
         self.output_columns = None
         self.feature_span = None
+
+        self.__static__.extend(['estimator', 'name', 'indexer'])
 
     def __iter__(self):
         yield self
@@ -529,6 +534,15 @@ class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
             output array to populate. Must be writeable. Only pass if
             predictions are desired.
         """
+        # We use a derived cache_name during estimation: if the name of the
+        # instance or the name of the preprocessing dependency changes, this
+        # allows us to pick up on that.
+        if hasattr(self, 'preprocess'):
+            self.cache_name = '%s.%s' % (
+                self.preprocess, self.name) if self.preprocess else self.name
+        else:
+            self.cache_name = self.name
+
         if self.__subtype__ is None:
             raise ParallelProcessingError(
                 "Class incorrectly constructed. Need to set class attribute "
@@ -826,11 +840,6 @@ class Learner(ProbaMixin, _BaseEstimator):
         # Protect preprocess against later changes
         self.__static__.append('preprocess')
 
-    def gen_fit(self, X, y, P=None):
-        self.cache_name = '%s.%s' % (
-            self.preprocess, self.name) if self.preprocess else self.name
-        return super(Learner, self).gen_fit(X, y, P)
-
     @property
     def scorer(self):
         """Copy of scorer"""
@@ -903,8 +912,9 @@ class EvalTransformer(Transformer):
     See :class:`Transformer` for more details.
     """
 
-    def __init__(self, *args, **kwargs):
-        super(EvalTransformer, self).__init__(*args, **kwargs)
+    def __init__(self, estimator, indexer=None, name=None, **kwargs):
+        super(EvalTransformer, self).__init__(
+            estimator, indexer=indexer, name=name, **kwargs)
         self.output_columns = {0: 0}  # For compatibility with SubTransformer
         self.__only_all__ = False
         self.__only_sub__ = True

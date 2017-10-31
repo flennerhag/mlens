@@ -6,17 +6,18 @@
 
 Handles for mlens.parallel objects.
 """
+from .base import BaseEstimator
 from .learner import Learner, Transformer
 from ._base_functions import mold_objects, transform
 from ..utils import format_name, check_instances
 from ..utils.formatting import _check_instances
-from ..externals.sklearn.base import BaseEstimator, clone
+from ..externals.sklearn.base import clone, BaseEstimator as _BaseEstimator
 
 GLOBAL_GROUP_NAMES = list()
 GLOBAL_PIPELINE_NAMES = list()
 
 
-class Pipeline(BaseEstimator):
+class Pipeline(_BaseEstimator):
 
     """Transformer pipeline
 
@@ -36,7 +37,7 @@ class Pipeline(BaseEstimator):
         name of pipeline.
 
     return_y: bool (default=False)
-        If True, both X and y will be returned in a transform call.
+        If True, both X and y will be returned in a :method:`transform` call.
     """
 
     def __init__(self, pipeline, name=None, return_y=False):
@@ -106,8 +107,8 @@ class Pipeline(BaseEstimator):
         """Transform pipeline.
 
         Note that the :class:`Pipeline` accepts both X and y arguments, and
-        can return both X and y, depending on the transformers. The
-        pipeline itself does no checks on the input.
+        can return both X and y, depending on the transformers.
+        Pipeline itself does not checks the input.
 
         Parameters
         ----------
@@ -123,7 +124,7 @@ class Pipeline(BaseEstimator):
             Preprocessed input data
 
         y: array-like of shape [n_samples, ], optional
-            Preprocessed targets
+            Original or preprocessed targets, depending on the transformers.
         """
         return self._run(False, True, X, y)
 
@@ -172,25 +173,38 @@ class Group(BaseEstimator):
     a set of transformers that all share the same cross-validation strategy.
     All instances will share *the same* indexer. Allows cloning.
 
+    Acceptable caller to :class:`ParallelProcessing`.
+
     Parameters
     ----------
-    indexer: inst
+    indexer: inst, optional
         A :mod:`mlens.index` indexer to build learner and transformers on.
+        If not passed, the first indexer of the learners will be enforced
+        on all instances.
 
     learners: list, inst, optional
-        :class:`Learner` instance(s) to build on indexer.
+        :class:`Learner` instance(s) attached to indexer. Note that
+        :class:`Group` overrides previous ``indexer`` parameter settings.
 
     transformers: list, inst, optional
-        :class:`Transformer` instance(s) to build on indexer.
+        :class:`Transformer` instance(s) attached to indexer. Note that
+        :class:`Group` overrides previous ``indexer`` parameter settings.
 
     name: str, optional
         name of group
+
+    **kwargs: optional
+        Optional keyword arguments to :class:`BaseParallel` backend.
     """
 
-    def __init__(self, indexer, learners=None, transformers=None, name=None):
+    def __init__(self, indexer=None, learners=None, transformers=None,
+                 name=None, **kwargs):
+        name = format_name(name, 'group', GLOBAL_GROUP_NAMES)
+        super(Group, self).__init__(name=name, **kwargs)
 
-        self.name = format_name(name, 'group', GLOBAL_GROUP_NAMES)
         learners, transformers = mold_objects(learners, transformers)
+        if not indexer:
+            indexer = learners[0].indexer
 
         # Enforce common indexer
         self.indexer = indexer
@@ -200,15 +214,28 @@ class Group(BaseEstimator):
         self.learners = learners
         self.transformers = transformers
 
+        self.__static__.extend(['indexer', 'learners', 'transformers'])
+
     def __iter__(self):
+        # We update optional backend kwargs that might have been passed
+        # to ensure these are passed to the instances
+        backend_kwargs = {
+            param: getattr(self, param)
+            for param in ['dtype', 'verbose', 'raise_on_exception']
+            if hasattr(self, param)
+        }
         for tr in self.transformers:
+            tr.set_params(**backend_kwargs)
             yield tr
         for lr in self.learners:
+            lr.set_params(**backend_kwargs)
             yield lr
 
     @property
     def __fitted__(self):
         """Fitted status"""
+        if not self._check_static_params():
+            return False
         return all([o.__fitted__ for o in self.learners + self.transformers])
 
     def get_params(self, deep=True):

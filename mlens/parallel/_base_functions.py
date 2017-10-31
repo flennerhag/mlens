@@ -79,7 +79,7 @@ def replace(source_files):
 
 
 def mold_objects(learners, transformers):
-    """Utility for enforcing list"""
+    """Utility for enforcing compatible setup"""
     out = []
     for objects in [learners, transformers]:
         if objects:

@@ -4,7 +4,8 @@
 :copyright: 2017
 :license: MIT
 
-Learner classes
+Computational graph nodes. Job generator classes spawning jobs and executing
+estimation on cross-validation sub-graphs.
 """
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-arguments
@@ -96,6 +97,7 @@ class SubLearner(object):
         self.score_ = None
         self.index = tuple(index)
 
+        self.path = parent._path
         self.attr = parent.attr
         self.preprocess = parent.preprocess
         self.scorer = parent.scorer
@@ -118,12 +120,14 @@ class SubLearner(object):
         else:
             self.processing_index = ''
 
-    def __call__(self, path):
+    def __call__(self):
         """Launch job"""
-        return getattr(self, self.job)(path)
+        return getattr(self, self.job)()
 
-    def fit(self, path):
+    def fit(self, path=None):
         """Fit sub-learner"""
+        if not path:
+            path = self.path
         t0 = time()
         transformers = self._load_preprocess(path)
 
@@ -146,8 +150,10 @@ class SubLearner(object):
             f = "stdout" if self.verbose < 10 - 3 else "stderr"
             print_time(t0, msg, file=f)
 
-    def predict(self, path):
+    def predict(self, path=None):
         """Predict with sublearner"""
+        if not path:
+            path = self.path
         t0 = time()
         transformers = self._load_preprocess(path)
 
@@ -157,7 +163,7 @@ class SubLearner(object):
             f = "stdout" if self.verbose < 10 - 3 else "stderr"
             print_time(t0, msg, file=f)
 
-    def transform(self, path):
+    def transform(self, path=None):
         """Predict with sublearner"""
         return self.predict(path)
 
@@ -231,6 +237,7 @@ class SubTransformer(object):
 
         self.transform_time_ = None
 
+        self.path = parent._path
         self.verbose = parent.verbose
         self.name = parent.cache_name
         self.name_index = '.'.join(
@@ -239,18 +246,16 @@ class SubTransformer(object):
         if not parent.__no_output__:
             self.output_columns = parent.output_columns[index[0]]
 
-    def __call__(self, path):
+    def __call__(self):
         """Launch job"""
-        return getattr(self, self.job)(path)
+        return getattr(self, self.job)()
 
-    def predict(self, path=None):
+    def predict(self):
         """Dump transformers for prediction"""
-        # pylint: disable=unused-argument
         self._transform()
 
-    def transform(self, path=None):
+    def transform(self):
         """Dump transformers for prediction"""
-        # pylint: disable=unused-argument
         self._transform()
 
     def _transform(self):
@@ -270,8 +275,9 @@ class SubTransformer(object):
             f = "stdout" if self.verbose < 10 - 3 else "stderr"
             print_time(t0, msg, file=f)
 
-    def fit(self, path):
+    def fit(self, path=None):
         """Fit transformers"""
+        path = path if path else self.path
         t0 = time()
         xtemp, ytemp = slice_array(
             self.in_array, self.targets, self.in_index)
@@ -321,8 +327,9 @@ class EvalSubLearner(SubLearner):
         self.train_pred_time_ = None
         self.test_pred_time_ = None
 
-    def fit(self, path):
+    def fit(self, path=None):
         """Evaluate sub-learner"""
+        path = path if path else self.path
         if self.scorer is None:
             raise ValueError("Cannot generate CV-scores without a scorer")
         t0 = time()
@@ -393,13 +400,15 @@ class Cache(object):
     """Cache wrapper for IndexedEstimator
     """
 
-    def __init__(self, obj, verbose):
+    def __init__(self, obj, path, verbose):
         self.obj = obj
+        self.path = path
         self.name = obj.name
         self.verbose = verbose
 
-    def __call__(self, path):
+    def __call__(self, path=None):
         """Cache estimator to path"""
+        path = path if path else self.path
         save(path, self.name, self.obj)
         if self.verbose:
             msg = "{:<30} {}".format(self.name, "cached")
@@ -408,9 +417,9 @@ class Cache(object):
 
 
 ###############################################################################
-class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
+class BaseNode(OutputMixin, IndexMixin, BaseEstimator):
 
-    """Base estimator class
+    """Base computational node inherited by job generators.
 
     Common API for job generators. A class that inherits the base
     need to set a ``__subtype__`` in the constructor. The sub-type should be
@@ -424,9 +433,10 @@ class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
     __subtype__ = None
 
     def __init__(self, name, estimator, indexer=None, verbose=False, **kwargs):
-        super(_BaseEstimator, self).__init__(name, **kwargs)
+        super(BaseNode, self).__init__(name, **kwargs)
 
         # Variables
+        self._path = None
         self._data_ = None
         self._times_ = None
         self._learner_ = None
@@ -455,7 +465,7 @@ class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
     def __call__(self, args, arg_type='main', parallel=None):
         """Caller for producing jobs"""
         job = args['job']
-        path = args['dir']
+        self._path = args['dir']
         _threading = self.backend == 'threading'
 
         if not self.__indexer__:
@@ -482,11 +492,11 @@ class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
         if not parallel:
             return generator
 
-        parallel(delayed(subtask, not _threading)(path)
+        parallel(delayed(subtask, not _threading)()
                  for subtask in generator)
 
         if self.__collect__:
-            self.collect(path)
+            self.collect()
 
     def _gen_pred(self, job, X, P, generator):
         """Generator for predicting with fitted learner
@@ -626,21 +636,23 @@ class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
         """
         return self._gen_pred('predict', X, P, self.learner)
 
-    def collect(self, path):
+    def collect(self, path=None):
         """Load fitted estimator from cache
 
         Parameters
         ----------
-        path: str, list
+        path: str, list, optional
             path to cache.
         """
+        if not path:
+            path = self._path
         if self.__collect__:
-            self.clear()
             (learner_files,
              learner_data,
              sublearner_files,
              sublearner_data) = self._collect(path)
 
+            self.clear()
             self._learner_ = learner_files
             self._sublearners_ = sublearner_files
             self._data_ = sublearner_data
@@ -655,12 +667,13 @@ class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
         self._learner_ = None
         self._data_ = None
         self._times_ = None
+        self._path = None
 
     def set_indexer(self, indexer):
         """Set indexer and auxiliary attributes
 
-        Paramters
-        ---------
+        Parameters
+        ----------
         indexer: obj
             indexer to build instance with.
         """
@@ -780,7 +793,7 @@ class _BaseEstimator(OutputMixin, IndexMixin, BaseEstimator):
         return Data(out)
 
 
-class Learner(ProbaMixin, _BaseEstimator):
+class Learner(ProbaMixin, BaseNode):
 
     """Learner
 
@@ -851,7 +864,7 @@ class Learner(ProbaMixin, _BaseEstimator):
         self._scorer = scorer
 
 
-class Transformer(_BaseEstimator):
+class Transformer(BaseNode):
 
     """Preprocessing handler.
 
@@ -859,6 +872,10 @@ class Transformer(_BaseEstimator):
 
     Parameters
     __________
+    indexer : obj, None
+        indexer to use for generating fits.
+        Set to ``None`` to fit only on all data.
+
     estimator : obj
         transformation pipeline to construct learner from
 
@@ -897,7 +914,7 @@ class Transformer(_BaseEstimator):
         if self.__no_output__:
             def gen():
                 for o in generator:
-                    yield Cache(o, self.verbose)
+                    yield Cache(o, self._path, self.verbose)
 
             return gen()
         else:

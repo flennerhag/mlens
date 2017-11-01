@@ -116,7 +116,6 @@ class Layer(OutputMixin, IndexMixin, BaseStacker):
                              "Add learners before calling" % self.name)
 
         job = args['job']
-        path = args['dir']
         _threading = self.backend == 'threading'
 
         if job != 'fit' and not self.__fitted__:
@@ -138,7 +137,7 @@ class Layer(OutputMixin, IndexMixin, BaseStacker):
                            file=f, end=e2)
                 t1 = time()
 
-            parallel(delayed(subtransformer, not _threading)(path)
+            parallel(delayed(subtransformer, not _threading)()
                      for transformer in self.transformers
                      for subtransformer in transformer(args, 'auxiliary'))
 
@@ -149,7 +148,7 @@ class Layer(OutputMixin, IndexMixin, BaseStacker):
             safe_print(msg.format('Learners ...'), file=f, end=e2)
             t1 = time()
 
-        parallel(delayed(sublearner, not _threading)(path)
+        parallel(delayed(sublearner, not _threading)()
                  for learner in self.learners
                  for sublearner in learner(args, 'main'))
 
@@ -157,14 +156,14 @@ class Layer(OutputMixin, IndexMixin, BaseStacker):
             print_time(t1, 'done', file=f)
 
         if job == 'fit':
-            self.collect(path)
+            self.collect()
 
         if self.verbose:
             msg = "done" if self.verbose == 1 \
                 else (msg + " {}").format(self.name, "done")
             print_time(t0, msg, file=f)
 
-    def collect(self, path):
+    def collect(self, path=None):
         """Collect cache estimators"""
         for transformer in self.transformers:
             transformer.collect(path)

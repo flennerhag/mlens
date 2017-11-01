@@ -1,5 +1,4 @@
 # Minimal makefile for Sphinx documentation
-#
 
 # You can set these variables from the command line.
 SPHINXOPTS    =
@@ -22,38 +21,20 @@ help:
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 # Install necessary modules
-# TODO: should we load these as mockups?
 install:
 			pip install -U sphinx-gallery numpydoc matplotlib seaborn
 
-# Update API docs
-api:
-	rm -rf module
-	sphinx-apidoc -ef -o module ../../mlens/   ../../mlens/externals
-
 # Populate parent dir
 arange:
-	cp -r build/html ../docs
+	cp -r build/html/ ../
 	rm -r build
-	-rm -rf tutorials
-
-clean-build:
-	rm -rf tutorials
 
 # Make docs
 docs:
-	make api
 	make html
 	make arange
-	make clean-build
-
-html-noplot:
-	$(SPHINXBUILD) -D plot_gallery=0 -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
-	@echo
-	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
 # Clear all in docs except source
 clean-cache:
 	make clean
-	rm -rf tutorials
 	bash clean-html.sh

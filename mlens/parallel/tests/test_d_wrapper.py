@@ -4,7 +4,7 @@ Test of the fit, predict and transform wrappers on the learners
 """
 import numpy as np
 from mlens.testing import Data, EstimatorContainer
-from mlens.parallel import Group, Learner, Transformer, Pipeline, run as _run
+from mlens.parallel import Group, Learner, Pipeline, run as _run
 from mlens.utils.dummy import OLS, Scale
 from mlens.externals.sklearn.base import clone
 

@@ -7,27 +7,24 @@
 Global backend configurations.
 
 Variables
----------
 
-1. MLENS_DTYPE: data type of prediction arrays. Must be a numpy dtype.
+1. ``DTYPE``: data type of prediction arrays. Must be a numpy dtype.
    Default is ``float32``.
 
-2. MLENS_TMPDIR: path to directory where temprorary caches will be hosted.
+2. ``TMPDIR``: path to directory where temprorary caches will be hosted.
    Default is to use system ``tmp`` structure.
 
-3. MLENS_PREFIX: cache prefix. Default is ``'.mlens_tmp_cache_'``
+3. ``PREFIX``: cache prefix. Default is ``'.mlens_tmp_cache_'``
 
-4. MLENS_BACKEND: global default backend. Default is ``'threading'``
+4. ``BACKEND``: global default backend. Default is ``'threading'``
 
-5. MLENS_START_METHOD: global start method (if ``backend='multiprocessing'``)
+5. ``START_METHOD``: global start method (if ``backend='multiprocessing'``)
    Default is ``'fork'``
 
-6. MLENS_VERBSE: verbose import. Set to ``Y`` for verbose.
+6. ``VERBOSE``: verbose import. Set to ``Y`` for verbose. Needs to be
+   set before import (i.e. ``export MLENS_VERBOSE=0``).
 
-7. MLENS_IVALS: load exception handling interval. Default is ``(0.01, 120)``.
-
-Usage
------
+7. ``IVALS``: load exception handling interval. Default is ``(0.01, 120)``.
 
 Environmental variables can be set by ::
 

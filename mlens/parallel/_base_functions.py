@@ -80,6 +80,7 @@ def replace(source_files):
 
 def mold_objects(learners, transformers):
     """Utility for enforcing compatible setup"""
+    # TODO: either make something of this function or remove it
     out = []
     for objects in [learners, transformers]:
         if objects:

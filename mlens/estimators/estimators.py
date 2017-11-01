@@ -4,7 +4,9 @@
 :copyright: 2017
 :license: MIT
 
-Front-end classes
+Scikit-learn estimators of computational graph nodes. Estimator classes are
+full Scikit-learn estimators that can be used in conjunction with other
+standard estimators.
 """
 from ..parallel import Layer, make_group
 from ..parallel.base import ParamMixin

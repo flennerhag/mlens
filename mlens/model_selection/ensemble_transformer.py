@@ -42,7 +42,9 @@ class EnsembleTransformer(BaseEnsemble):
     and then fit different meta learners (or higher-order layers) in a call
     to ``evaluate``.
 
-    .. note:: will be deprecated in 0.2.2.
+    Note
+    ----
+    Will be deprecated in 0.2.2.
 
     See Also
     --------
@@ -50,20 +52,20 @@ class EnsembleTransformer(BaseEnsemble):
 
     Parameters
     ----------
-    shuffle : bool (default = True)
+    shuffle : bool, default = True
         whether to shuffle data before generating folds.
 
-    random_state : int (default = None)
+    random_state : int, default = None
         random seed if shuffling inputs.
 
-    raise_on_exception : bool (default = True)
+    raise_on_exception : bool, default = True
         whether to issue warnings on soft exceptions or raise error.
         Examples include lack of layers, bad inputs, and failed fit of an
         estimator in a layer. If set to ``False``, warnings are issued instead
         but estimation continues unless exception is fatal. Note that this
         can result in unexpected behavior unless the exception is anticipated.
 
-    sample_dim : int (default = 20)
+    sample_dim : int, default = 20
         dimensionality of training set to sample. During a call to `fit`, a
         random sample of size [sample_dim, sample_dim] will be sampled from the
         training data, along with the dimensions of the training data. If in a
@@ -72,38 +74,24 @@ class EnsembleTransformer(BaseEnsemble):
         the predictions from the call to ``fit``, as opposed to using the
         base learners fitted on the full training data.
 
-    raise_on_exception : bool (default = True)
+    raise_on_exception : bool, default = True
         whether to issue warnings on soft exceptions or raise error.
         Examples include lack of layers, bad inputs, and failed fit of an
         estimator in a layer. If set to ``False``, warnings are issued instead
         but estimation continues unless exception is fatal. Note that this
         can result in unexpected behavior unless the exception is anticipated.
 
-    array_check : int (default = 2)
-        level of strictness in checking input arrays.
+    array_check : int, default = 2
+        level of strictness in checking input arrays. For ``0`` not checks are
+        made. For `1``, will check ``X`` and ``y`` for inconsistencies and
+        warn when format looks suspicious, but retain original format. With
+        ``2``, Scikit-learn's array checks are imposed, which converts
+        ``X`` and ``y`` to numpy arrays and raises error if conversion fails.
 
-            - ``array_check = 0`` will not check ``X`` or ``y``
-
-            - ``array_check = 1`` will check ``X`` and ``y`` for
-              inconsistencies and warn when format looks suspicious,
-              but retain original format.
-
-            - ``array_check = 2`` will impose Scikit-learn array checks,
-              which converts ``X`` and ``y`` to numpy arrays and raises
-              an error if conversion fails.
-
-    verbose : int or bool (default = False)
-        level of verbosity.
-
-            * ``verbose = 0`` silent (same as ``verbose = False``)
-
-            * ``verbose = 1`` messages at start and finish (same as
-              ``verbose = True``)
-
-            * ``verbose = 2`` messages for each layer
-
-        If ``verbose >= 50`` prints to ``sys.stdout``, else ``sys.stderr``.
-        For verbosity in the layers themselves, use ``fit_params``.
+    verbose : int or bool, default = False
+        level of verbosity. ``0`` (or ``False``) is silent, ``1`` (or ``True``)
+        outputs messages at start and finish. ``2`` print messages for
+        each layer.
 
     n_jobs : int (default = -1)
         number of CPU cores to use for fitting and prediction.
@@ -111,11 +99,8 @@ class EnsembleTransformer(BaseEnsemble):
     backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation. To change global backend, set
-        ``mlens.config._BACKEND``
-
-    .. deprecated:: 0.2.0
-        use the ``model_selection`` parameter on regular ensembles instead.
+        documentation. To change global backend, call
+        :func:`mlens.config.set_backend()`.
 
     Examples
     --------

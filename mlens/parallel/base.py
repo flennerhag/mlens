@@ -43,8 +43,9 @@ class ParamMixin(_BaseEstimator, object):
     Mixin for protecting static parameters from changes after fitting.
 
     .. Note::
-   To use this mixin the instance inheriting it must set
-   ``__static__=list()`` and ``_static_fit_params_=dict()``  in ``__init__``.
+       To use this mixin the instance inheriting it must set
+       ``__static__=list()`` and ``_static_fit_params_=dict()``
+       in ``__init__``.
     """
 
     def _store_static_params(self):
@@ -68,9 +69,9 @@ class IndexMixin(object):
 
     Mixin for handling indexers.
 
-    .. Note::
-   To use this mixin the instance inheriting it must set the
-   ``indexer`` or ``indexers`` attribute in ``__init__`` (not both).
+    .. note::
+       To use this mixin the instance inheriting it must set the
+        ``indexer`` or ``indexers`` attribute in ``__init__`` (not both).
     """
 
     @property
@@ -115,7 +116,7 @@ class OutputMixin(IndexMixin):
     Mixin class for interfacing with ParallelProcessing when outputs are
     desired.
 
-    .. Note::
+    .. note::
        To use this mixin the instance inheriting it must set the
        ``feature_span`` attribute and ``__no_output__`` flag in ``__init__``.
     """
@@ -166,9 +167,9 @@ class ProbaMixin(object):
     """"Probability Mixin
 
     Mixin for probability features on objects
-    interfacing with :class:`ParallelProcessing`
+    interfacing with :class:`~mlens.parallel.backend.ParallelProcessing`
 
-    .. Note::
+    .. note::
        To use this mixin the instance inheriting it must set the ``proba``
        and the ``_classes(=None)``attribute in ``__init__``.
     """
@@ -230,7 +231,8 @@ class BaseParallel(BaseBackend):
     backend : str or object (default = 'threading')
         backend infrastructure to use during call to
         :class:`mlens.externals.joblib.Parallel`. See Joblib for further
-        documentation. To set global backend, see ``mlens.config.set_backend``.
+        documentation. To set global backend,
+        see :func:`~mlens.config.set_backend`.
 
     raise_on_exception : bool (default = True)
         whether to issue warnings on soft exceptions or raise error.
@@ -243,9 +245,8 @@ class BaseParallel(BaseBackend):
         level of verbosity.
 
     n_jobs : int (default = -1)
-        Degree of concurrency in estimation. Set to -1 to maximize
-        paralellization, while 1 runs on a single process (or thread
-        equivalent). Cannot be overriden in the :attr:`add` method.
+        Degree of concurrency in estimation. Set to -1 to maximize,
+        1 runs on a single process (or thread).
 
     dtype : obj (default = np.float32)
         data type to use, must be compatible with a numpy array dtype.

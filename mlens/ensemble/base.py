@@ -341,11 +341,11 @@ class BaseEnsemble(BaseEstimator):
         self.scorer = scorer
         self.array_check = array_check
         self._model_selection = model_selection
-        self.model_selection = model_selection
-        self.sample_size = sample_size
         self.verbose = verbose
         self.layers = layers if layers else list()
-        self._id_train = None if not model_selection else IdTrain(sample_size)
+
+        self.sample_size = sample_size
+        self.model_selection = model_selection
 
         self._backend = Sequential(verbose=verbose, **kwargs)
         self.raise_on_exception = self._backend.raise_on_exception
@@ -550,7 +550,7 @@ class BaseEnsemble(BaseEstimator):
 
         if self.model_selection:
             if y is None:
-                raise ValueError(
+                raise TypeError(
                     "In model selection mode, y is a required argument.")
 
             # Need to modify the transform method to account for blending

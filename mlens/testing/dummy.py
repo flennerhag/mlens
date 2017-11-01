@@ -517,20 +517,19 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
         'main': {'X': X, 'y': y, 'P': P} if job == 'fit' else {'X': X, 'P': P}
         }
 
-#    transformer.__fitted__
     if transformer:
         transformer.setup(X, y, job)
         for obj in transformer(args, 'auxiliary'):
-            obj(path)
+            obj()
 
     learner.setup(X, y, job)
     for obj in learner(args, 'main'):
-        obj(path)
+        obj()
 
     if job == 'fit':
-        learner.collect(path)
+        learner.collect()
         if transformer:
-            transformer.collect(path)
+            transformer.collect()
 
     if isinstance(path, str):
         try:
@@ -587,13 +586,13 @@ def run_layer(job, layer, X, y, F, wf=None):
         if layer.transformers:
             for transformer in layer.transformers:
                 for subtransformer in transformer(args, 'auxiliary'):
-                    subtransformer(path)
+                    subtransformer()
         for learner in layer.learners:
             for sublearner in learner(args, 'main'):
-                sublearner(path)
+                sublearner()
 
         if job == 'fit':
-            layer.collect(path)
+            layer.collect()
 
     else:
         args = (X, y) if job == 'fit' else (X,)

@@ -3,6 +3,8 @@
 :author: Sebastian Flennerhag
 :copyright: 2017
 :license: MIT
+
+Metric utilities and functions.
 """
 
 from ..externals.sklearn.scorer import make_scorer

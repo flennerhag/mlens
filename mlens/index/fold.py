@@ -72,20 +72,17 @@ class FoldIndex(BaseIndex):
     >>>
     >>> print("No overlap between train set and test set.")
     Data set: array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-
     TRAIN IDX:     array([3, 4, 5, 6, 7, 8, 9]) | TEST IDX: array([0, 1, 2])
     TRAIN IDX:     array([0, 1, 2, 6, 7, 8, 9]) | TEST IDX: array([3, 4, 5])
     TRAIN IDX:  array([0, 1, 2, 3, 4, 5, 8, 9]) | TEST IDX:    array([6, 7])
     TRAIN IDX:  array([0, 1, 2, 3, 4, 5, 6, 7]) | TEST IDX:    array([8, 9])
-
     TRAIN SET:     array([3, 4, 5, 6, 7, 8, 9]) | TEST SET: array([0, 1, 2])
     TRAIN SET:     array([0, 1, 2, 6, 7, 8, 9]) | TEST SET: array([3, 4, 5])
     TRAIN SET:  array([0, 1, 2, 3, 4, 5, 8, 9]) | TEST SET:    array([6, 7])
     TRAIN SET:  array([0, 1, 2, 3, 4, 5, 6, 7]) | TEST SET:    array([8, 9])
-
     No overlap between train set and test set.
 
-    Passing ``folds = 1`` without raising exception.
+    Passing ``folds = 1`` without raising exception:
 
     >>> import numpy as np
     >>> from mlens.index import FoldIndex
@@ -100,7 +97,6 @@ class FoldIndex(BaseIndex):
     /../mlens/base/indexer.py:167: UserWarning: 'folds' is 1, will return
     full index as both training set and test set.
     warnings.warn("'folds' is 1, will return full index as "
-
     Data set: array([0, 1, 2])
     TRAIN IDX: array([0, 1, 2]) | TEST IDX: array([0, 1, 2])
     """

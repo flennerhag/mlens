@@ -55,7 +55,34 @@ def _split(f, s, a_p='', a_s='', b_p='', b_s='', reverse=False):
 class Data(_dict):
 
     """Wrapper class around dict to get pretty prints
+
+    :class:`Data` is an ordered dictionary that implements a dedicated
+    pretty print method for a nested dictionary. Printing a :class:`Data`
+    dictionary provides a human-readable table. The input dictionary is
+    expected to have two levels: the first level gives the columns and the
+    second level the rows. Rows names are parsed as
+    ``[OUTER]/[MIDDLE].[INNER]--[IDX]``, where IDX has to be an integer. All
+    entries are optional.
+
+    .. seealso::
+        :func:`assemble_data`, :func:`assemble_table`
+
+    Warning
+    -------
+    :class:`Data` is an internal class that expects a particular functions.
+    This class cannot be used as a general drop-in replacement for the standard
+    ``dict`` class.
+
+    Examples
+    --------
+    >>> from mlens.metrics import Data
+    >>> d = [('row-idx-1.row-idx-2.0.0', {'column-1': 0.1, 'column-2': 0.1})]
+    >>> data = Data(d)
+    >>> print(data)
+                            column-a  column-b
+    row-idx-1  row-idx-2        0.10      0.20
     """
+
     def __init__(self, data=None, padding=2, decimals=2):
         if isinstance(data, list):
             data = assemble_data(data)
@@ -68,7 +95,27 @@ class Data(_dict):
 
 
 def assemble_table(data, padding=2, decimals=2):
-    """Construct data table from input dict"""
+    """Construct data table from input dict
+
+    Given a nested dictionary formed by :func:`assemble_data`,
+    :func:`assemble_table` returns a string that prints the contents of
+    the input in tabular format. The input dictionary is
+    expected to have two levels: the first level gives the columns and the
+    second level the rows. Rows names are parsed as
+    ``[OUTER]/[MIDDLE].[INNER]--[IDX]``, where IDX must be an integer. All
+    entries are optional.
+
+    .. seealso::
+        :class:`Data`, :func:`assemble_data`
+
+    Examples
+    --------
+    >>> from mlens.metrics import assemble_data, assemble_table
+    >>> d = [('row-idx-1.row-idx-2.a.b', {'column-1': 0.1, 'column-2': 0.1})]
+    >>> print(assemble_table(assemble_data(d)))
+                            column-2-m  column-2-s  column-1-m  column-1-s
+    row-idx-1  row-idx-2          0.10        0.00        0.10        0.00
+    """
     buffer = 0
     row_glossary = ['layer', 'case', 'est', 'part']
 
@@ -155,7 +202,24 @@ def assemble_table(data, padding=2, decimals=2):
 
 
 def assemble_data(data_list):
-    """Build a data dictionary out of a list of datum"""
+    """Build a data dictionary out of a list of entries and data dicts
+
+    Given a list named tuples of dictionaries, :func:`assemble_data`
+    returns a nested ordered dictionary with data keys as outer keys and
+    tuple names as inner keys. The returned dictionary can be printed in
+    tabular format by :func:`assemble_table`.
+
+    .. seealso::
+        :class:`Data`, :func:`assemble_table`
+
+    Examples
+    --------
+    >>> from mlens.metrics import assemble_data, assemble_table
+    >>> d = [('row-idx-1.row-idx-2.a.b', {'column-1': 0.1, 'column-2': 0.1})]
+    >>> print(assemble_table(assemble_data(d)))
+                            column-2-m  column-2-s  column-1-m  column-1-s
+    row-idx-1  row-idx-2          0.10        0.00        0.10        0.00
+    """
     data = _dict()
     tmp = _dict()
 

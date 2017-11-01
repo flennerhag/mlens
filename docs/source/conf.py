@@ -23,14 +23,10 @@ import glob
 import shutil
 import subprocess
 from mlens import __version__
-import sphinx_gallery
 import sphinx_rtd_theme
 
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.append(sys.path[-1] + '/mlens')
-
-from custom_directives import IncludeDirective, GalleryItemDirective, CustomGalleryItemDirective
-
 
 # -- General configuration ------------------------------------------------
 
@@ -50,16 +46,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
               'sphinx.ext.napoleon',
               'sphinx.ext.intersphinx',
-              'sphinx_gallery.gen_gallery'
               ]
-
-# Sphinx-Gallery
-sphinx_gallery_conf = {'examples_dirs': ['tutorials_source'],
-                       'gallery_dirs': ['tutorials'],
-                       'filename_pattern': '',
-                       'backreferences_dir': False,
-                       'download_section_examples': False,
-                       }
 
 # Intersphinx options
 intersphinx_mapping = {'http://scikit-learn.org/stable/': None,
@@ -105,7 +92,6 @@ language = None
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'landing']
-exclude_patterns += sphinx_gallery_conf['examples_dirs']
 exclude_patterns += ['*/index.rst']
 
 # The name of the Pygments (syntax highlighting) style to use.
@@ -206,12 +192,3 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
-
-def setup(app):
-    # Custom CSS
-    app.add_stylesheet('css/pytorch_theme.css')
-    app.add_stylesheet('https://fonts.googleapis.com/css?family=Lato')
-    # Custom directives
-    app.add_directive('includenodoc', IncludeDirective)
-    app.add_directive('galleryitem', GalleryItemDirective)
-    app.add_directive('customgalleryitem', CustomGalleryItemDirective)

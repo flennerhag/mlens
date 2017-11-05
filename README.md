@@ -12,6 +12,9 @@
 [![Code Health](https://landscape.io/github/flennerhag/mlens/master/landscape.svg?style=flat)](https://landscape.io/github/flennerhag/mlens/master)
 [![Coverage Status](https://coveralls.io/repos/github/flennerhag/mlens/badge.svg?branch=master)](https://coveralls.io/github/flennerhag/mlens?branch=master)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+[![Discuss](https://img.shields.io/badge/discuss-google_group-blue.svg)](https://groups.google.com/forum/#!forum/ml-ensemble)
+[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/mlens)
+[![DOI](https://zenodo.org/badge/78573084.svg)](https://zenodo.org/badge/latestdoi/78573084)
 
 **A Python library for high performance ensemble learning**.
 
@@ -147,6 +150,34 @@ git clone https://github.com/flennerhag/mlens.git; cd mlens;
 python install setup.py
 ```
 
+## Citation
+
+If you use ML-Ensemble for scientific publication, please consider citing us:
+
+```
+@misc{flennerhag:2017mlens,
+  author = {Flennerhag, Sebastian},
+  title  = {ML-Ensemble},
+  month  = nov,
+  year   = 2017,
+  doi    = {10.5281/zenodo.1042144},
+  url    = {https://dx.doi.org/10.5281/zenodo.1042144}
+}
+```
+
+## Questions
+
+For issues, please see the [issue tracker](https://github.com/flennerhag/mlens/issues).
+For quick questions or discussions, reach out on either the
+[gitter channel](https://gitter.im/mlens) or the [Google group](https://groups.google.com/forum/#!forum/ml-ensemble).
+
+
+## Contribute
+
+ML-Ensemble is an open-source project that welcome any contribution, small as large.
+For minor fixes, submit a PR with a description of the commit(s). For more substantial contributions
+please reach out first to ensure your contribution doesn't rely on code that is being
+phased out. To join the slack channel, send a request to the [Google group](https://groups.google.com/forum/#!forum/ml-ensemble).  
 
 ## License
 

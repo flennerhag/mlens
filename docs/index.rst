@@ -3,7 +3,9 @@
 ML-Ensemble
 ===========
 
-**A Python library for memory efficient parallelized ensemble learning**.
+*A Python library for memory efficient parallelized ensemble learning*
+
+**NOTE:** This site hosts documentation for version 0.1.6. Visit `ml-ensemble.com`_ for up-to-date documentation.
 
 ML-Ensemble is a library for building `Scikit-learn`_ compatible ensemble
 estimator. By leveraging API elements from deep learning libraries like Keras_
@@ -171,6 +173,7 @@ ensemble output. Output is summarized for easy comparison of performance. ::
 
 ML Ensemble is licenced under :ref:`MIT <license>` and is hosted on Github_.
 
+.. _ml-ensemble.com: http://ml-ensemble.com
 .. _issue: https://github.com/flennerhag/mlens/issues
 .. _Github: https://github.com/flennerhag/mlens
 .. _Scikit-learn: http://scikit-learn.org/stable/

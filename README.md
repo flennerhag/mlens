@@ -12,6 +12,9 @@
 [![Code Health](https://landscape.io/github/flennerhag/mlens/master/landscape.svg?style=flat)](https://landscape.io/github/flennerhag/mlens/master)
 [![Coverage Status](https://coveralls.io/repos/github/flennerhag/mlens/badge.svg?branch=master)](https://coveralls.io/github/flennerhag/mlens?branch=master)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+[![Discuss](https://img.shields.io/badge/discuss-google_group-blue.svg)](https://groups.google.com/forum/#!forum/ml-ensemble)
+[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/mlens)
+[![](https://zenodo.org/badge/doi/10.5281/zenodo.594432.svg)](https://zenodo.org/record/594432#.VwWISmNh23c)
 
 **A Python library for high performance ensemble learning**.
 
@@ -147,6 +150,39 @@ git clone https://github.com/flennerhag/mlens.git; cd mlens;
 python install setup.py
 ```
 
+
+## Citation
+
+If you use ML-Ensemble for scientific publications, please considering citing us
+with the following DOI:
+
+```
+@misc{flennerhag:2017mlens,
+  author       = {Flennerhag, Sebastian},
+  title        = {ML-Ensemble},
+  month        = nov,
+  year         = 2017,
+  doi          = {10.5281/zenodo.49235},
+  url          = {http://dx.doi.org/10.5281/zenodo.49235}
+}
+```
+
+
+
+## Questions
+
+For issues or more substantive questions, please see the [issue tracker](https://github.com/flennerhag/mlens/issues).
+For quick questions or discussion, reach on on either the
+[gitter channel](https://gitter.im/mlens) or to the [Google group](https://groups.google.com/forum/#!forum/ml-ensemble).
+
+
+## Contribute
+
+ML-Ensemble is an open-source project that welcome all contributions, small as large.
+For simpler fixes such as typos, code clean-up or extensions to docs, submit a 
+PR with a description of the commits. For more substantial contributions
+please reach out first to ensure your contribution won't rely on deprecated
+code. To join, send a request to the [Google group](https://groups.google.com/forum/#!forum/ml-ensemble).  
 
 ## License
 

@@ -12,8 +12,12 @@
 [![Code Health](https://landscape.io/github/flennerhag/mlens/master/landscape.svg?style=flat)](https://landscape.io/github/flennerhag/mlens/master)
 [![Coverage Status](https://coveralls.io/repos/github/flennerhag/mlens/badge.svg?branch=master)](https://coveralls.io/github/flennerhag/mlens?branch=master)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+[![DOI](https://zenodo.org/badge/78573084.svg)](https://zenodo.org/badge/latestdoi/78573084)
+[![Discuss](https://img.shields.io/badge/discuss-google_group-blue.svg)](https://groups.google.com/forum/#!forum/ml-ensemble)
+[![Gitter chat](https://badges.gitter.im/mlens/mlens.svg)](https://gitter.im/mlens?utm_source=badge&utm_medium=badge&utm_campaign=mlens-badge&utm_content=body_badge)
 
-**A Python library for high performance ensemble learning**.
+
+**A Python library for high performance ensemble learning**
 
 ML-Ensemble combines a Scikit-learn high-level API with a low-level
 computational graph framework to build memory efficient, 
@@ -28,24 +32,22 @@ For tutorials and full documentation, visit the project
 
 An ensemble is built on top of a computational graph,
 allowing users great design freedom. Ensembles can be built with recursion,
-dynamic evaluation (e.g. ``if-else``) and much more. 
-
-A high-level API packages common ensemble architectures into 
-Scikit-learn estimators.
+dynamic evaluation (e.g. ``if-else``) and much more. A high-level API wraps common
+ensemble architectures into Scikit-learn estimators.
 
 <div align="center">
 <img src="docs/source/_static/img/network.png" width="60%"><br><br>
 </div>
-*A standard computational graph of a ready-made ensemble*
 
-### Memory Efficient Parallelized Learning
+*Example computational graph of a layer in an ensemble*
+
+### Memory efficient parallelized learning
 
 ML-Ensemble is optimized for speed and minimal memory consumption. No
 serialization of data takes place, regardless of whether multithreading or
 multiprocessing is used. Additionally, multithreading is pickle-free. 
 
-
-### Easy of Use
+### Easy of use
 
 Ready-made ensembles are built by adding layers to an instance. No matter how
 complex the ensemble, to train it call the ``fit`` method:
@@ -91,7 +93,7 @@ estimators = {'pipeline-1': list_of_estimators_1,
 ensemble.add(estimators, preprocessing)
 ```
 
-### Dedicated Diagnostics
+### Dedicated diagnostics
 
 ML Ensemble implements a dedicated diagnostics and model selection suite
 for intuitive and speedy ensemble evaluation. The ``Evaluator``
@@ -147,6 +149,34 @@ git clone https://github.com/flennerhag/mlens.git; cd mlens;
 python install setup.py
 ```
 
+## Citation
+
+If you use ML-Ensemble for scientific publication, please consider citing us:
+
+```
+@misc{flennerhag:2017mlens,
+  author = {Flennerhag, Sebastian},
+  title  = {ML-Ensemble},
+  month  = nov,
+  year   = 2017,
+  doi    = {10.5281/zenodo.1042144},
+  url    = {https://dx.doi.org/10.5281/zenodo.1042144}
+}
+```
+
+## Questions
+
+For issues, please see the [issue tracker](https://github.com/flennerhag/mlens/issues).
+For quick questions or discussions, reach out on either the
+[gitter channel](https://gitter.im/mlens) or the [Google group](https://groups.google.com/forum/#!forum/ml-ensemble).
+
+
+## Contribute
+
+ML-Ensemble is an open-source project that welcome any contribution, small as large.
+For minor fixes, submit a PR with a description of the commit(s). For more substantial contributions
+please reach out first to ensure your contribution doesn't rely on code that is being
+phased out. To join the slack channel, send a request to the [Google group](https://groups.google.com/forum/#!forum/ml-ensemble).  
 
 ## License
 

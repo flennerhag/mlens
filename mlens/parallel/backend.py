@@ -608,7 +608,7 @@ class ParallelProcessing(BaseProcessor):
         return self.process(caller=caller, out=out, **kwargs)
 
     def stack(self, caller, job, X, y=None, path=None, return_preds=False,
-              wart_start=False, split=True, **kwargs):
+              warm_start=False, split=True, **kwargs):
         """Stacked parallel task mapping.
 
         Run stacked tasks in caller in parallel.
@@ -668,7 +668,7 @@ class ParallelProcessing(BaseProcessor):
             Prediction array(s).
         """
         out = self.initialize(
-            job=job, X=X, y=y, path=path, warm_start=wart_start,
+            job=job, X=X, y=y, path=path, warm_start=warm_start,
             return_preds=return_preds, split=split, stack=True)
         return self.process(caller=caller, out=out, **kwargs)
 
@@ -754,9 +754,10 @@ class ParallelProcessing(BaseProcessor):
             p_out[:, :task.n_feature_prop] = p_in[r:, task.propagate_features]
         else:
             # Need to populate propagated features using scipy sparse hstack
-            self.job.predict_out = hstack([p_in[r:, task.propagate_features],
-                                           p_out[:, task.n_feature_prop:]]
-                                          ).tolil()
+            self.job.predict_out = hstack(
+                [p_in[r:, task.propagate_features],
+                 p_out[:, task.n_feature_prop:]]
+            ).tolil()
 
     def _gen_prediction_array(self, task, job, threading):
         """Generate prediction array either in-memory or persist to disk."""

@@ -19,7 +19,7 @@ from .wrapper import run, get_backend
 
 __all__ = ['ParallelProcessing',
            'ParallelEvaluation',
-           'job',
+           'Job',
            'Layer',
            'Group',
            'Pipeline',

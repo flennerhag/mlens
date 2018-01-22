@@ -14,6 +14,7 @@ from ..utils.formatting import _check_instances
 from ..externals.sklearn.base import clone, BaseEstimator as _BaseEstimator
 
 GLOBAL_GROUP_NAMES = list()
+GLOBAL_GROUPS_NAMES = list()
 GLOBAL_PIPELINE_NAMES = list()
 
 
@@ -310,8 +311,9 @@ class Groups(BaseEstimator):
         on all instances.
     """
 
-    def __init__(self):
-        super(Groups, self).__init__()
+    def __init__(self, name=None):
+        name = format_name(name, 'groups', GLOBAL_GROUPS_NAMES)
+        super(Groups, self).__init__(name)
         self.groups = list()
 
     def __iter__(self):

@@ -4,7 +4,7 @@ Test of the fit, predict and transform wrappers on the learners
 """
 import numpy as np
 from mlens.testing import Data, EstimatorContainer
-from mlens.parallel import Group, Learner, Pipeline, run as _run
+from mlens.parallel import Groups, Group, Learner, Pipeline, run as _run
 from mlens.utils.dummy import OLS, Scale
 from mlens.externals.sklearn.base import clone
 
@@ -191,3 +191,47 @@ def test_run_predict():
     _run(group, 'fit', X, y)
     A = _run(group, 'predict', X)
     np.testing.assert_array_equal(A, P)
+
+
+def test_groups_fit():
+    """[Parallel | Wrapper] test fit with groups"""
+    lr1, tr1 = EstimatorContainer().get_learner('subsemble', False, True)
+    lr2, tr2 = EstimatorContainer().get_learner('stack', False, True)
+    lr1.name += '1'
+    lr1.preprocess += '1'
+    tr1.name += '1'
+    group1 = Group(learners=lr1, transformers=tr1, dtype=np.float64)
+    group2 = Group(learners=lr2, transformers=tr2, dtype=np.float64)
+    groups = Groups().add(group1, group2)
+    A = _run(groups, 'fit', X, y, return_preds=True)
+    np.testing.assert_array_equal(A[:, :1], F)
+
+
+def test_groups_transform():
+    """[Parallel | Wrapper] test transform with groups"""
+    lr1, tr1 = EstimatorContainer().get_learner('subsemble', False, True)
+    lr2, tr2 = EstimatorContainer().get_learner('stack', False, True)
+    lr1.name += '1'
+    lr1.preprocess += '1'
+    tr1.name += '1'
+    group1 = Group(learners=lr1, transformers=tr1, dtype=np.float64)
+    group2 = Group(learners=lr2, transformers=tr2, dtype=np.float64)
+    groups = Groups().add(group1, group2)
+    _run(groups, 'fit', X, y)
+    A = _run(groups, 'transform', X)
+    np.testing.assert_array_equal(A[:, :1], F)
+
+
+def test_groups_predict():
+    """[Parallel | Wrapper] test predict with groups"""
+    lr1, tr1 = EstimatorContainer().get_learner('subsemble', False, True)
+    lr2, tr2 = EstimatorContainer().get_learner('stack', False, True)
+    lr1.name += '1'
+    lr1.preprocess += '1'
+    tr1.name += '1'
+    group1 = Group(learners=lr1, transformers=tr1, dtype=np.float64)
+    group2 = Group(learners=lr2, transformers=tr2, dtype=np.float64)
+    groups = Groups().add(group1, group2)
+    _run(groups, 'fit', X, y)
+    A = _run(groups, 'predict', X)
+    np.testing.assert_array_equal(A[:, :1], P)

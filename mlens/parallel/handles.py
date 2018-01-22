@@ -17,6 +17,20 @@ GLOBAL_GROUP_NAMES = list()
 GLOBAL_PIPELINE_NAMES = list()
 
 
+def flatten(iterables):
+    """Flatten an iterable of iterables into a single iterable
+
+    Main usage is to flatten a set of independent groups into a single
+    caller
+
+    Parameters
+    ----------
+    iterables: list, tuple, set
+        iterable to flatten.
+    """
+    return [i for iterable in iterables for i in iterable]
+
+
 class Pipeline(_BaseEstimator):
 
     """Transformer pipeline
@@ -265,6 +279,58 @@ class Group(BaseEstimator):
             for k, v in item.get_params(deep=deep).items():
                 out['%s__%s' % (item.name, k)] = v
             out[item.name] = item
+        return out
+
+
+class Groups(BaseEstimator):
+
+    def __init__(self):
+        self.groups = list()
+
+    def __iter__(self):
+        for g in self.groups:
+            for o in g:
+                yield o
+
+    def add(self, *groups):
+        """Add group(s)"""
+        self.groups.extend(list(groups))
+        return self
+
+    def pop(self, idx):
+        """Drop group at index idx"""
+        self.groups.pop(idx)
+        return self
+
+    def replace(self, idx, group):
+        """Replace group at index idx"""
+        self.groups[idx] = group
+        return self
+
+    @property
+    def learners(self):
+        """Learners in groups"""
+        return [l for g in self.groups for l in g.learners]
+
+    @property
+    def transformers(self):
+        """Transformers in groups"""
+        return [t for g in self.groups for t in g.transformers]
+
+    @property
+    def indexers(self):
+        """Indexers in groups"""
+        return [g.indexer for g in self.groups]
+
+    @property
+    def __fitted__(self):
+        """Fitted status"""
+        return all([g.__fitted__ for g in self.groups])
+
+    def get_params(self, deep=True):
+        out = {}
+        for g in self.groups:
+            out.update(g.get_params(deep=deep))
         return out
 
 

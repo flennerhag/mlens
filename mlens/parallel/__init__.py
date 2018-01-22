@@ -14,7 +14,7 @@ as handles for multiple instances and wrappers for standard parallel job calls.
 from .backend import ParallelProcessing, ParallelEvaluation, Job, dump_array
 from .learner import Learner, EvalLearner, Transformer, EvalTransformer
 from .layer import Layer
-from .handles import Group, make_group, Pipeline
+from .handles import Groups, Group, Pipeline, flatten, make_group
 from .wrapper import run, get_backend
 
 __all__ = ['ParallelProcessing',
@@ -22,12 +22,14 @@ __all__ = ['ParallelProcessing',
            'Job',
            'Layer',
            'Group',
+           'Groups',
            'Pipeline',
            'Learner',
            'Transformer',
            'EvalLearner',
            'EvalTransformer',
            'make_group',
+           'flatten',
            'run',
            'get_backend',
            'dump_array'

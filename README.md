@@ -16,7 +16,6 @@
 [![Discuss](https://img.shields.io/badge/discuss-google_group-blue.svg)](https://groups.google.com/forum/#!forum/ml-ensemble)
 [![Gitter chat](https://badges.gitter.im/mlens/mlens.svg)](https://gitter.im/mlens?utm_source=badge&utm_medium=badge&utm_campaign=mlens-badge&utm_content=body_badge)
 
-
 **A Python library for high performance ensemble learning**
 
 ML-Ensemble combines a Scikit-learn high-level API with a low-level

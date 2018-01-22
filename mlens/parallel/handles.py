@@ -14,7 +14,22 @@ from ..utils.formatting import _check_instances
 from ..externals.sklearn.base import clone, BaseEstimator as _BaseEstimator
 
 GLOBAL_GROUP_NAMES = list()
+GLOBAL_GROUPS_NAMES = list()
 GLOBAL_PIPELINE_NAMES = list()
+
+
+def flatten(iterables):
+    """Flatten an iterable of iterables into a single iterable
+
+    Main usage is to flatten a set of independent groups into a single
+    caller
+
+    Parameters
+    ----------
+    iterables: list, tuple, set
+        iterable to flatten.
+    """
+    return [i for iterable in iterables for i in iterable]
 
 
 class Pipeline(_BaseEstimator):
@@ -265,6 +280,86 @@ class Group(BaseEstimator):
             for k, v in item.get_params(deep=deep).items():
                 out['%s__%s' % (item.name, k)] = v
             out[item.name] = item
+        return out
+
+
+class Groups(BaseEstimator):
+
+    """Class for bundling multiple groups into a single object.
+
+    Minimal wrapper for bundling multiple groups into a single
+    :class:`Group`-like instance.  A :class:`Groups` instance is an
+    acceptable caller to :class:`~mlens.parallel.ParallelProcessing`.
+
+    .. versionadded:: 0.2.2
+
+    .. note::
+        All estimators across groups must have unique names. If different
+        cross-validation strategies are used, the user must ensure they
+        are compatible.
+
+    .. seealso::
+        :class:`Group`; to run a :class:`Groups` instance,
+        see :func:`~mlens.parallel.wrapper.run`. For a more sophisticated API,
+        use the :class:`~mlens.parallel.layer.Layer` class.
+
+    Parameters
+    ----------
+    indexer : inst, optional
+        A :obj:`~mlens.index` indexer to build learner and transformers on.
+        If not passed, the first indexer of the learners will be enforced
+        on all instances.
+    """
+
+    def __init__(self, name=None):
+        name = format_name(name, 'groups', GLOBAL_GROUPS_NAMES)
+        super(Groups, self).__init__(name)
+        self.groups = list()
+
+    def __iter__(self):
+        for g in self.groups:
+            for o in g:
+                yield o
+
+    def add(self, *groups):
+        """Add group(s)"""
+        self.groups.extend(list(groups))
+        return self
+
+    def pop(self, idx):
+        """Drop group at index idx"""
+        self.groups.pop(idx)
+        return self
+
+    def replace(self, idx, group):
+        """Replace group at index idx"""
+        self.groups[idx] = group
+        return self
+
+    @property
+    def learners(self):
+        """Learners in groups"""
+        return [l for g in self.groups for l in g.learners]
+
+    @property
+    def transformers(self):
+        """Transformers in groups"""
+        return [t for g in self.groups for t in g.transformers]
+
+    @property
+    def indexers(self):
+        """Indexers in groups"""
+        return [g.indexer for g in self.groups]
+
+    @property
+    def __fitted__(self):
+        """Fitted status"""
+        return all([g.__fitted__ for g in self.groups])
+
+    def get_params(self, deep=True):
+        out = {}
+        for g in self.groups:
+            out.update(g.get_params(deep=deep))
         return out
 
 

@@ -126,7 +126,7 @@ class SubLearner(object):
 
     def fit(self, path=None):
         """Fit sub-learner"""
-        if not path:
+        if path is None:
             path = self.path
         t0 = time()
         transformers = self._load_preprocess(path)
@@ -152,7 +152,7 @@ class SubLearner(object):
 
     def predict(self, path=None):
         """Predict with sublearner"""
-        if not path:
+        if path is None:
             path = self.path
         t0 = time()
         transformers = self._load_preprocess(path)
@@ -644,7 +644,7 @@ class BaseNode(OutputMixin, IndexMixin, BaseEstimator):
         path: str, list, optional
             path to cache.
         """
-        if not path:
+        if path is None:
             path = self._path
         if self.__collect__:
             (learner_files,

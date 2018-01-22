@@ -12,16 +12,9 @@
 [![Code Health](https://landscape.io/github/flennerhag/mlens/master/landscape.svg?style=flat)](https://landscape.io/github/flennerhag/mlens/master)
 [![Coverage Status](https://coveralls.io/repos/github/flennerhag/mlens/badge.svg?branch=master)](https://coveralls.io/github/flennerhag/mlens?branch=master)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-<<<<<<< HEAD
-[![Discuss](https://img.shields.io/badge/discuss-google_group-blue.svg)](https://groups.google.com/forum/#!forum/ml-ensemble)
-[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/mlens)
-[![DOI](https://zenodo.org/badge/78573084.svg)](https://zenodo.org/badge/latestdoi/78573084)
-=======
 [![DOI](https://zenodo.org/badge/78573084.svg)](https://zenodo.org/badge/latestdoi/78573084)
 [![Discuss](https://img.shields.io/badge/discuss-google_group-blue.svg)](https://groups.google.com/forum/#!forum/ml-ensemble)
 [![Gitter chat](https://badges.gitter.im/mlens/mlens.svg)](https://gitter.im/mlens?utm_source=badge&utm_medium=badge&utm_campaign=mlens-badge&utm_content=body_badge)
->>>>>>> 534dc047b64dabb129397643b510d47eeb081107
-
 
 **A Python library for high performance ensemble learning**
 

@@ -284,7 +284,34 @@ class Group(BaseEstimator):
 
 class Groups(BaseEstimator):
 
+    """Class for bundling multiple groups into a single object.
+
+    Minimal wrapper for bundling multiple groups into a single
+    :class:`Group`-like instance.  A :class:`Groups` instance is an
+    acceptable caller to :class:`~mlens.parallel.ParallelProcessing`.
+
+    .. versionadded:: 0.2.2
+
+    .. note::
+        All estimators across groups must have unique names. If different
+        cross-validation strategies are used, the user must ensure they
+        are compatible.
+
+    .. seealso::
+        :class:`Group`; to run a :class:`Groups` instance,
+        see :func:`~mlens.parallel.wrapper.run`. For a more sophisticated API,
+        use the :class:`~mlens.parallel.layer.Layer` class.
+
+    Parameters
+    ----------
+    indexer : inst, optional
+        A :obj:`~mlens.index` indexer to build learner and transformers on.
+        If not passed, the first indexer of the learners will be enforced
+        on all instances.
+    """
+
     def __init__(self):
+        super(Groups, self).__init__()
         self.groups = list()
 
     def __iter__(self):

@@ -228,44 +228,32 @@ def transform(tr, x, y):
 
 def check_params(lpar, rpar):
     """Check parameter overlap"""
-    for par in lpar:
-        par1 = lpar[par]
-        par2 = rpar[par]
+    # Flatten parameters of estimators
+    if hasattr(lpar, 'get_params'):
+        return check_params(lpar.get_params(deep=True),
+                            rpar.get_params(deep=True))
 
-        # Check for nested parameters
-        if hasattr(par1, 'get_params'):
-            par1 = [par1]
-            par2 = [par2]
+    # Flatten sets of parameters
+    if isinstance(lpar, dict):
+        par1, par2 = list(), list()
+        for par in lpar:
+            par1.append(lpar[par])
+            par2.append(rpar[par])
+        lpar, rpar = par1, par2
 
-        if isinstance(par1, list):
-            # Prune named tuples
-            if (isinstance(par1[0], tuple) hasattr(par1[0][1], 'get_params')):
-                par1 = [p[1] for p in par1]
-                par2 = [p[1] for p in par2]
+    if isinstance(lpar, (list, tuple, set)):
+        for p1, p2 in zip(lpar, rpar):
+            if not check_params(p1, p2):
+                return False
+        return True
 
-            if hasattr(par1[0], 'get_params'):
-                par1 = [p.get_params(deep=True) for p in par1]
-                par2 = [p.get_params(deep=True) for p in par2]
-
-            for i in range(len(par1)):
-                if not check_params(par1[i], par2[i]):
-                    return False
-            continue
-
-        # par1 and par2 must be pure params (no nesting)
-        try:
-            val = par1 == par2
-            if hasattr(val, 'all'):
-                val = val.all()
-            if val:
-                continue
-        except ValueError:
-            # Failed param check, ignore
-            continue
-        # If any param fails, check fails
-        return False
-    # All params cleared
-    return True
+    try:
+        val = lpar == rpar
+        if hasattr(val, 'all'):
+            val = val.all()
+        return True if val else False
+    except ValueError:
+        return True
 
 
 def check_stack(new_items, stack):

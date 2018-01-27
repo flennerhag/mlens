@@ -232,6 +232,27 @@ def check_params(lpar, rpar):
         par1 = lpar[par]
         par2 = rpar[par]
 
+        # Check for nested parameters
+        if hasattr(par1, 'get_params'):
+            par1 = [par1]
+            par2 = [par2]
+
+        if isinstance(par1, list):
+            # Prune named tuples
+            if (isinstance(par1[0], tuple) hasattr(par1[0][1], 'get_params')):
+                par1 = [p[1] for p in par1]
+                par2 = [p[1] for p in par2]
+
+            if hasattr(par1[0], 'get_params'):
+                par1 = [p.get_params(deep=True) for p in par1]
+                par2 = [p.get_params(deep=True) for p in par2]
+
+            for i in range(len(par1)):
+                if not check_params(par1[i], par2[i]):
+                    return False
+            continue
+
+        # par1 and par2 must be pure params (no nesting)
         try:
             val = par1 == par2
             if hasattr(val, 'all'):
@@ -241,26 +262,9 @@ def check_params(lpar, rpar):
         except ValueError:
             # Failed param check, ignore
             continue
-
-        # Check for nested parameters
-        if hasattr(par1, 'get_params'):
-            par1 = [par1]
-            par2 = [par2]
-
-        if isinstance(par1, list):
-
-            # Prune named tuples
-            if (isinstance(par1[0], tuple)
-                    and hasattr(par1[0][1], 'get_params')):
-                par1 = [p1[1] for p1 in par1]
-                par2 = [p2[1] for p2 in par2]
-
-            if hasattr(par1[0], 'get_params'):
-                if all([check_params(par1[i].get_params(deep=True),
-                                     par2[i].get_params(deep=True))
-                        for i in range(len(par1))]):
-                    continue
+        # If any param fails, check fails
         return False
+    # All params cleared
     return True
 
 

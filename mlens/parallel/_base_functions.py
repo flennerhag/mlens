@@ -2,7 +2,7 @@
 
 :author: Sebastian Flennerhag
 :license: MIT
-:copyright: 2017
+:copyright: 2017–2018
 
 Functions for base computations
 """
@@ -80,7 +80,7 @@ def replace(source_files):
 
 def mold_objects(learners, transformers):
     """Utility for enforcing compatible setup"""
-    # TODO: either make something of this function or remove it
+    # TODO: remove
     out = []
     for objects in [learners, transformers]:
         if objects:
@@ -98,6 +98,9 @@ def set_output_columns(
     ----------
     objects: list
         list of objects to set output columns on
+
+    n_partitions: int
+        number of partitions created by the indexer.
 
     multiplier: int
         number of columns claimed by each estimator.
@@ -227,13 +230,32 @@ def transform(tr, x, y):
 
 
 def check_params(lpar, rpar):
-    """Check parameter overlap"""
-    # Flatten parameters of estimators
+    """Check parameter overlap
+
+    Routine for checking two sets of parameter collections.
+    :func:`check_params` iterate over items and expand nested parameter
+    collections and test for equivalence of :class:`int`, :class:`float`,
+    :class:`str` and :class:`bool` parameters.
+
+    Parameters
+    ----------
+    lpar: int, float, str, bool, iterable, estimator
+        One of the two collections to compare.
+    lpar: int, float, str, bool, iterable, estimator
+        One of the two collections to compare.
+
+    Returns
+    -------
+    pass: bool
+        True if the two collections have equivalent parameter values, False
+        otherwise.
+    """
+    # Expand estimator parameters
     if hasattr(lpar, 'get_params'):
         return check_params(lpar.get_params(deep=True),
                             rpar.get_params(deep=True))
 
-    # Flatten sets of parameters
+    # Flatten dicts (also OrderedDicts)
     if isinstance(lpar, dict):
         par1, par2 = list(), list()
         for par in lpar:
@@ -241,19 +263,21 @@ def check_params(lpar, rpar):
             par2.append(rpar[par])
         lpar, rpar = par1, par2
 
-    if isinstance(lpar, (list, tuple, set)):
+    # Iterate over flattened parameter collection
+    if isinstance(lpar, (list, set, tuple)):
         for p1, p2 in zip(lpar, rpar):
             if not check_params(p1, p2):
                 return False
         return True
 
-    try:
-        val = lpar == rpar
-        if hasattr(val, 'all'):
-            val = val.all()
-        return True if val else False
-    except ValueError:
-        return True
+    # --- param check ---
+
+    if isinstance(lpar, (int, float, str, bool)):
+        # Only test base parameter classes (never test complex classes)
+        return lpar == rpar
+
+    # If par is not int, float, str or bool, we don't want to fail the check
+    return True
 
 
 def check_stack(new_items, stack):

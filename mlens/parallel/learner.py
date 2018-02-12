@@ -745,13 +745,19 @@ class BaseNode(OutputMixin, IndexMixin, BaseEstimator):
         fitted_params = fitted[0].estimator.get_params(deep=True)
         model_estimator_params = self.estimator.get_params(deep=True)
 
-        if not check_params(fitted_params, model_estimator_params):
-            self.clear()  # Release obsolete estimators
-            return False
+        # NOTE: Currently we just issue a warning if params don't overlap
+        check_params(fitted_params, model_estimator_params)
+        self._check_static_params()
+
+        # NOTE: This check would trigger a FitFailedError if param_check fails
+        # check_params(fitted_params, model_estimator_params):
+        #    self.clear()  # Release obsolete estimators
+        #    return False
 
         # Check that hyper-params hasn't changed
-        if not self._check_static_params():
-            return False
+        # if not self._check_static_params():
+        #     return False
+        # return True
         return True
 
     @property

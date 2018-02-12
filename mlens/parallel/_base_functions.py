@@ -15,7 +15,7 @@ from scipy.sparse import issparse
 import numpy as np
 
 from ..utils import pickle_load, pickle_save, load as _load
-from ..utils.exceptions import MetricWarning
+from ..utils.exceptions import MetricWarning, ParameterChangeWarning
 
 
 def load(path, name, raise_on_exception=True):
@@ -237,16 +237,22 @@ def check_params(lpar, rpar):
     collections and test for equivalence of :class:`int`, :class:`float`,
     :class:`str` and :class:`bool` parameters.
 
+    .. versionadded:: 0.2.0
+
+    .. versionchanged:: 0.2.2
+        Changed into a warning to prevent overly aggressive fails.
+
     Parameters
     ----------
-    lpar: int, float, str, bool, iterable, estimator
-        One of the two collections to compare.
-    lpar: int, float, str, bool, iterable, estimator
-        One of the two collections to compare.
+    lpar : int, float, str, bool, iterable, estimator
+        Default comparison set.
+
+    rpar : int, float, str, bool, iterable, estimator
+        Comparison set of fitted model.
 
     Returns
     -------
-    pass: bool
+    pass : bool
         True if the two collections have equivalent parameter values, False
         otherwise.
     """
@@ -266,28 +272,30 @@ def check_params(lpar, rpar):
     # Iterate over flattened parameter collection
     if isinstance(lpar, (list, set, tuple)):
         for p1, p2 in zip(lpar, rpar):
-            if not check_params(p1, p2):
-                return False
-        return True
+            check_params(p1, p2)
 
     # --- param check ---
-    if lpar is None:
-        return rpar is None
+    _pass = True
+
+    if (lpar is None) and not (rpar is None):
+        _pass = False
 
     if isinstance(lpar, (str, bool)):
-        return lpar == rpar
+        _pass = lpar == rpar
 
     if isinstance(lpar, (int, float)):
         if np.isnan(lpar):
-            val = np.isnan(rpar)
+            _pass = np.isnan(rpar)
         elif np.isinf(lpar):
-            val = np.isinf(rpar)
+            _pass = np.isinf(rpar)
         else:
-            val = lpar == rpar
-        return val
+            _pass = lpar == rpar
 
-    # If par is not int, float, str or bool, we don't want to fail the check
-    return True
+    if not _pass:
+        warnings.warn(
+            "Parameter value (%r) has changed since model was fitted (%r)." %
+            (lpar, rpar), ParameterChangeWarning)
+    return _pass
 
 
 def check_stack(new_items, stack):

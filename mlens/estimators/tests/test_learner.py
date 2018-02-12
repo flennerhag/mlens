@@ -5,7 +5,7 @@ Test classes.
 import numpy as np
 from mlens.index import FoldIndex
 from mlens.utils.dummy import OLS, Scale
-from mlens.utils.exceptions import NotFittedError
+from mlens.utils.exceptions import NotFittedError, ParameterChangeWarning
 from mlens.testing import Data
 from mlens.estimators import LearnerEstimator, TransformerEstimator, LayerEnsemble
 from mlens.externals.sklearn.base import clone
@@ -82,21 +82,21 @@ def test_learner_params_estimator():
     assert isinstance(out, dict)
 
     est.set_params(estimator__offset=10)
-    np.testing.assert_raises(NotFittedError, est.predict, X)
+    np.testing.assert_warns(ParameterChangeWarning, est.predict, X)
 
 
 def test_learner_params_indexer():
     """[Module | LearnerEstimator] test set params on indexer"""
     est.fit(X, y)
     est.indexer.set_params(folds=3)
-    np.testing.assert_raises(NotFittedError, est.predict, X)
+    np.testing.assert_warns(ParameterChangeWarning, est.predict, X)
 
 
 def test_learner_attr():
     """[Module | LearnerEstimator] test setting attribute"""
     est.fit(X, y)
     est.indexer = FoldIndex(1)
-    np.testing.assert_raises(NotFittedError, est.predict, X)
+    np.testing.assert_warns(ParameterChangeWarning, est.predict, X)
 
 
 if run_sklearn:

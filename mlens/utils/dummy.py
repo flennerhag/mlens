@@ -1,7 +1,7 @@
 """ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
-:copyright: 2017
+:copyright: 2017-2018
 :license: MIT
 
 Collection of dummy estimator classes, Mixins to build transparent layers for
@@ -86,7 +86,6 @@ class OLS(BaseEstimator):
         X = check_array(X, accept_sparse=False)
 
         return np.dot(X, self.coef_.T)
-
 
 
 class LogisticRegression(OLS):

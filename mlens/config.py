@@ -2,7 +2,7 @@
 
 :author: Sebastian Flennerhag
 :license: MIT
-:copyright: 2017
+:copyright: 2017-2018
 
 Global backend configurations.
 

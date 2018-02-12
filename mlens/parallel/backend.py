@@ -1,7 +1,7 @@
 """ML-Ensemble
 
 :author: Sebastian Flennerhag
-:copyright: 2017
+:copyright: 2017-2018
 :license: MIT
 
 Parallel processing backend classes. Manages memory-mapping of data, estimation

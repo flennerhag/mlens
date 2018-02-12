@@ -1,7 +1,7 @@
 """ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
-:copyright: 2017
+:copyright: 2017-2018
 :license: MIT
 
 Helpers to generate test cases
@@ -14,16 +14,16 @@ import shutil
 import warnings
 
 from abc import abstractmethod
-
 import numpy as np
 
+from ..utils.utils import pickle_save, pickle_load
 from ..utils.dummy import OLS, LogisticRegression, Scale
 from ..externals.sklearn.base import clone
 from ..index import INDEXERS
 from ..ensemble.base import Sequential
+from ..estimators import LayerEnsemble
 from ..parallel import (
     ParallelProcessing, Learner, Transformer, Layer, make_group, Pipeline)
-from ..estimators import LayerEnsemble
 
 ##############################################################################
 PREPROCESSING = {'no': [], 'sc': [('scale', Scale())]}
@@ -618,3 +618,12 @@ def run_layer(job, layer, X, y, F, wf=None):
 
         assert P.__class__.__name__ == 'ndarray'
         assert w[0].__class__.__name__ == 'ndarray'
+
+
+def return_pickled(model):
+    """Pickle a model and return the loaded model"""
+    loc = str(np.random.randint(0, 1000000))
+    pickle_save(model, loc)
+    model = pickle_load(loc)
+    os.remove(loc + '.pkl')
+    return model

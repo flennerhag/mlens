@@ -271,10 +271,20 @@ def check_params(lpar, rpar):
         return True
 
     # --- param check ---
+    if lpar is None:
+        return rpar is None
 
-    if isinstance(lpar, (int, float, str, bool)):
-        # Only test base parameter classes (never test complex classes)
+    if isinstance(lpar, (str, bool)):
         return lpar == rpar
+
+    if isinstance(lpar, (int, float)):
+        if np.isnan(lpar):
+            val = np.isnan(rpar)
+        elif np.isinf(lpar):
+            val = np.isinf(rpar)
+        else:
+            val = lpar == rpar
+        return val
 
     # If par is not int, float, str or bool, we don't want to fail the check
     return True

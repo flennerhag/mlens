@@ -23,7 +23,7 @@ maximally parallelized ensemble networks in as few lines of codes as possible.
 ML-Ensemble is thread safe as long as base learners are and can fall back on
 memory mapped multiprocessing for memory-neutral process-based concurrency.
 For tutorials and full documentation, visit the project
- [website](http://www.ml-ensemble.com/). Core features include:
+ [website](http://ml-ensemble.com/).
 
 ## Ensembles as computational graphs
 
@@ -139,7 +139,7 @@ pip install mlens
 
 #### Bleeding edge
 
-For developer version, fork the GitHub repository.
+Fork the GitHub repository:
 
 ```bash
 git clone https://github.com/flennerhag/mlens.git; cd mlens;
@@ -148,7 +148,7 @@ python install setup.py
 
 ## Citation
 
-If you use ML-Ensemble for scientific publication, please consider citing us:
+For scientific publication, ML-Ensemble can be cited as 
 
 ```
 @misc{flennerhag:2017mlens,
@@ -163,23 +163,20 @@ If you use ML-Ensemble for scientific publication, please consider citing us:
 
 ## Questions
 
-For issues, please see the [issue tracker](https://github.com/flennerhag/mlens/issues).
-For quick questions or discussions, reach out on either the
-[gitter channel](https://gitter.im/mlens) or the [Google group](https://groups.google.com/forum/#!forum/ml-ensemble).
+Please see [issue tracker](https://github.com/flennerhag/mlens/issues).
 
 
 ## Contribute
 
 ML-Ensemble is an open-source project that welcome any contribution, small as large.
-For minor fixes, submit a PR with a description of the commit(s). For more substantial contributions
-please reach out first to ensure your contribution doesn't rely on code that is being
-phased out. To join the slack channel, send a request to the [Google group](https://groups.google.com/forum/#!forum/ml-ensemble).  
+Bug fixes and minor improvements can be pulled as is; larger PRs need to be unit tested. 
+We generally follow the [PEP-8](https://www.python.org/dev/peps/pep-0008/) style guide.
 
 ## License
 
 MIT License
 
-Copyright (c) 2017 Sebastian Flennerhag
+Copyright (c) 2017–2018 Sebastian Flennerhag
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

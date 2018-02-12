@@ -7,7 +7,7 @@ from mlens.index import FoldIndex
 from mlens.testing import Data
 from mlens.testing.dummy import ESTIMATORS, PREPROCESSING
 from mlens.utils.dummy import OLS, Scale
-from mlens.utils.exceptions import NotFittedError
+from mlens.utils.exceptions import NotFittedError, ParameterChangeWarning
 from mlens.parallel import make_group
 from mlens.estimators import LearnerEstimator, TransformerEstimator, LayerEnsemble
 from mlens.externals.sklearn.base import clone
@@ -84,7 +84,7 @@ def test_layer_params_estimator():
     assert isinstance(out, dict)
 
     est.set_params(**{'offs-1__estimator__offset': 10})
-    np.testing.assert_raises(NotFittedError, est.predict, X)
+    np.testing.assert_warns(ParameterChangeWarning, est.predict, X)
 
 
 def test_layer_params_indexer():
@@ -92,16 +92,21 @@ def test_layer_params_indexer():
     est.fit(X, y)
 
     est.set_params(**{'null-1__indexer__folds': 3})
-    np.testing.assert_raises(NotFittedError, est.predict, X)
+    np.testing.assert_warns(ParameterChangeWarning, est.predict, X)
 
 
 def test_layer_attr():
     """[Module | LayerEnsemble] test setting attribute"""
+
+    def fitted():
+        est.__fitted__
+
     est.propagate_features = [0]
-    assert not est.__fitted__
+    np.testing.assert_warns(ParameterChangeWarning, fitted)
 
     # If this fails, it is trying to propagate feature but predict_out is None!
     est.fit(X, y)
+    np.testing.assert_no_warnings(fitted)
 
 
 if run_sklearn:

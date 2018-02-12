@@ -88,7 +88,6 @@ class OLS(BaseEstimator):
         return np.dot(X, self.coef_.T)
 
 
-
 class LogisticRegression(OLS):
 
     """No frill Logistic Regressor w. one-vs-rest estimation of P(label).

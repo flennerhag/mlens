@@ -1,7 +1,7 @@
 """ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
-:copyright: 2017
+:copyright: 2017–2018
 :licence: MIT
 
 Class for identifying a training set after an estimator has been fitted. Used

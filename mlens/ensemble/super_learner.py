@@ -1,7 +1,7 @@
 """ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
-:copyright: 2017
+:copyright: 2017–2018
 :licence: MIT
 
 Super Learner class. Fully integrable with Scikit-learn.

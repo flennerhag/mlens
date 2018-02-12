@@ -1,7 +1,7 @@
 """ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
-:copyright: 2017–2018
+:copyright: 2017-2018
 :licence: MIT
 """
 from .estimators import BaseEstimator

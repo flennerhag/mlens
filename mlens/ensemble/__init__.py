@@ -1,7 +1,7 @@
 """ML-Ensemble
 
 :author: Sebastian Flennerhag
-:copyright: 2017–2018
+:copyright: 2017-2018
 :licence: MIT
 
 Graph handles for deep computational graphs and ready-made ensemble classes

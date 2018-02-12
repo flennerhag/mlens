@@ -1,7 +1,7 @@
 """ML-Ensemble
 
 :author: Sebastian Flennerhag
-:copyright: 2017–2018
+:copyright: 2017-2018
 :license: MIT
 
 Scikit-learn estimators of computational graph nodes. Estimator classes are

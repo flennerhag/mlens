@@ -192,7 +192,7 @@ def check_instances(estimators=None, preprocessing=None, namespace=None):
         namespace = list()
     assert_correct_format(estimators, preprocessing)
     preprocessing = _check_instances(preprocessing)
-    if estimators and not isinstance(estimators, (dict, list)):
+    if estimators is not None and not isinstance(estimators, (dict, list)):
         estimators = [estimators]
 
     if preprocessing:

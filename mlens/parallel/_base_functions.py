@@ -2,7 +2,7 @@
 
 :author: Sebastian Flennerhag
 :license: MIT
-:copyright: 2017
+:copyright: 2017-2018
 
 Functions for base computations
 """
@@ -15,7 +15,7 @@ from scipy.sparse import issparse
 import numpy as np
 
 from ..utils import pickle_load, pickle_save, load as _load
-from ..utils.exceptions import MetricWarning
+from ..utils.exceptions import MetricWarning, ParameterChangeWarning
 
 
 def load(path, name, raise_on_exception=True):
@@ -80,7 +80,7 @@ def replace(source_files):
 
 def mold_objects(learners, transformers):
     """Utility for enforcing compatible setup"""
-    # TODO: either make something of this function or remove it
+    # TODO: remove
     out = []
     for objects in [learners, transformers]:
         if objects:
@@ -98,6 +98,9 @@ def set_output_columns(
     ----------
     objects: list
         list of objects to set output columns on
+
+    n_partitions: int
+        number of partitions created by the indexer.
 
     multiplier: int
         number of columns claimed by each estimator.
@@ -227,41 +230,72 @@ def transform(tr, x, y):
 
 
 def check_params(lpar, rpar):
-    """Check parameter overlap"""
-    for par in lpar:
-        par1 = lpar[par]
-        par2 = rpar[par]
+    """Check parameter overlap
 
-        try:
-            val = par1 == par2
-            if hasattr(val, 'all'):
-                val = val.all()
-            if val:
-                continue
-        except ValueError:
-            # Failed param check, ignore
-            continue
+    Routine for checking two sets of parameter collections.
+    :func:`check_params` iterate over items and expand nested parameter
+    collections and test for equivalence of :class:`int`, :class:`float`,
+    :class:`str` and :class:`bool` parameters.
 
-        # Check for nested parameters
-        if hasattr(par1, 'get_params'):
-            par1 = [par1]
-            par2 = [par2]
+    .. versionadded:: 0.2.0
 
-        if isinstance(par1, list):
+    .. versionchanged:: 0.2.2
+        Changed into a warning to prevent overly aggressive fails.
 
-            # Prune named tuples
-            if (isinstance(par1[0], tuple)
-                    and hasattr(par1[0][1], 'get_params')):
-                par1 = [p1[1] for p1 in par1]
-                par2 = [p2[1] for p2 in par2]
+    Parameters
+    ----------
+    lpar : int, float, str, bool, iterable, estimator
+        Default comparison set.
 
-            if hasattr(par1[0], 'get_params'):
-                if all([check_params(par1[i].get_params(deep=True),
-                                     par2[i].get_params(deep=True))
-                        for i in range(len(par1))]):
-                    continue
-        return False
-    return True
+    rpar : int, float, str, bool, iterable, estimator
+        Comparison set of fitted model.
+
+    Returns
+    -------
+    pass : bool
+        True if the two collections have equivalent parameter values, False
+        otherwise.
+    """
+    # Expand estimator parameters
+    if hasattr(lpar, 'get_params'):
+        return check_params(lpar.get_params(deep=True),
+                            rpar.get_params(deep=True))
+
+    # Flatten dicts (also OrderedDicts)
+    if isinstance(lpar, dict):
+        par1, par2 = list(), list()
+        for par in lpar:
+            par1.append(lpar[par])
+            par2.append(rpar[par])
+        lpar, rpar = par1, par2
+
+    # Iterate over flattened parameter collection
+    if isinstance(lpar, (list, set, tuple)):
+        for p1, p2 in zip(lpar, rpar):
+            check_params(p1, p2)
+
+    # --- param check ---
+    _pass = True
+
+    if (lpar is None) and not (rpar is None):
+        _pass = False
+
+    if isinstance(lpar, (str, bool)):
+        _pass = lpar == rpar
+
+    if isinstance(lpar, (int, float)):
+        if np.isnan(lpar):
+            _pass = np.isnan(rpar)
+        elif np.isinf(lpar):
+            _pass = np.isinf(rpar)
+        else:
+            _pass = lpar == rpar
+
+    if not _pass:
+        warnings.warn(
+            "Parameter value (%r) has changed since model was fitted (%r)." %
+            (lpar, rpar), ParameterChangeWarning)
+    return _pass
 
 
 def check_stack(new_items, stack):

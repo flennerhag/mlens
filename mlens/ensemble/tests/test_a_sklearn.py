@@ -3,6 +3,7 @@ Test Scikit-learn
 """
 import numpy as np
 from mlens.ensemble import SuperLearner, Subsemble, BlendEnsemble
+from mlens.testing.dummy import return_pickled
 try:
     from sklearn.utils.estimator_checks import check_estimator
     from sklearn.linear_model import Lasso, LinearRegression
@@ -63,6 +64,9 @@ if has_sklearn:
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
 
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
 
     def test_super_learner_f_m():
         """[SuperLearner] Test scikit-learn comp - mp | p"""
@@ -72,6 +76,11 @@ if has_sklearn:
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
 
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
+
     def test_super_learner_s_t():
         """[SuperLearner] Test scikit-learn comp - th | np"""
         ens = get_ensemble(SuperLearner, 'threading', None)
@@ -79,6 +88,11 @@ if has_sklearn:
         p = ens.predict(X)
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
+
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
 
     def test_super_learner_f_t():
         """[SuperLearner] Test scikit-learn comp - th | p"""
@@ -88,6 +102,11 @@ if has_sklearn:
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
 
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
+
     def test_subsemble_s_m():
         """[Subsemble] Test scikit-learn comp - mp | np"""
         ens = get_ensemble(Subsemble, 'multiprocessing', None)
@@ -95,6 +114,11 @@ if has_sklearn:
         p = ens.predict(X)
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
+
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
 
 
     def test_subsemble_f_m():
@@ -105,6 +129,11 @@ if has_sklearn:
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
 
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
+
     def test_subsemble_s_t():
         """[Subsemble] Test scikit-learn comp - th | np"""
         ens = get_ensemble(Subsemble, 'threading', None)
@@ -112,6 +141,11 @@ if has_sklearn:
         p = ens.predict(X)
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
+
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
 
     def test_subsemble_f_t():
         """[Subsemble] Test scikit-learn comp - th | p"""
@@ -121,6 +155,11 @@ if has_sklearn:
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
 
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
+
     def test_blend_s_m():
         """[BlendEnsemble] Test scikit-learn comp - mp | np"""
         ens = get_ensemble(BlendEnsemble, 'multiprocessing', None)
@@ -128,6 +167,10 @@ if has_sklearn:
         p = ens.predict(X)
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
+
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
 
 
     def test_blend_f_m():
@@ -138,6 +181,11 @@ if has_sklearn:
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
 
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
+
     def test_blend_s_m():
         """[BlendEnsemble] Test scikit-learn comp - th | np"""
         ens = get_ensemble(BlendEnsemble, 'threading', None)
@@ -146,6 +194,11 @@ if has_sklearn:
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
 
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
+
     def test_blend_f_m():
         """[BlendEnsemble] Test scikit-learn comp - th | p"""
         ens = get_ensemble(BlendEnsemble, 'threading', prep)
@@ -153,4 +206,8 @@ if has_sklearn:
         p = ens.predict(X)
         assert p.shape == y.shape
         assert p.dtype == ens.layer_1.dtype
+
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
 

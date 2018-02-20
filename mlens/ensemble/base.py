@@ -1,7 +1,7 @@
 """ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
-:copyright: 2017
+:copyright: 2017-2018
 :licence: MIT
 
 Base classes for ensemble layer management.
@@ -341,7 +341,7 @@ class BaseEnsemble(BaseEstimator):
         self.scorer = scorer
         self.array_check = array_check
         self._model_selection = model_selection
-        self.verbose = verbose
+        self._verbose = verbose
         self.layers = layers if layers else list()
 
         self.sample_size = sample_size
@@ -685,3 +685,14 @@ class BaseEnsemble(BaseEstimator):
     def data(self):
         """Fit data"""
         return self._backend.data
+
+    @property
+    def verbose(self):
+        """Level of printed messages"""
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, value):
+        """Set level of printed messages"""
+        self._verbose = value
+        self._backend.verbose = value

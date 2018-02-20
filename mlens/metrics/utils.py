@@ -1,7 +1,7 @@
 """ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
-:copyright: 2017
+:copyright: 2017-2018
 :licence: MIT
 
 Utility functions for constructing metrics
@@ -22,7 +22,7 @@ def _get_string(obj, dec):
     """Stringify object"""
     try:
         return '{0:.{dec}f}'.format(obj, dec=dec)
-    except TypeError:
+    except (TypeError, ValueError):
         return obj.__str__()
 
 

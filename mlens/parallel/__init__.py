@@ -1,7 +1,7 @@
 """ML-ENSEMBLE
 
 :author: Sebastian Flennerhag
-:copyright: 2017
+:copyright: 2017-2018
 :license: MIT
 
 Computational graph module for memory-neutral parallel processing of
@@ -19,7 +19,7 @@ from .wrapper import run, get_backend
 
 __all__ = ['ParallelProcessing',
            'ParallelEvaluation',
-           'job',
+           'Job',
            'Layer',
            'Group',
            'Pipeline',

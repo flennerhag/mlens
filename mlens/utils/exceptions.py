@@ -26,6 +26,14 @@ class FitFailedWarning(RuntimeWarning):
     """Warning for a failed estimator 'fit' call."""
 
 
+class ParameterChangeWarning(UserWarning):
+
+    """Warning for different params in blueprint estimator and fitted copy.
+
+    .. versionadded:: 0.2.2
+    """
+
+
 class LayerSpecificationError(TypeError, ValueError):
 
     """Error class for incorrectly specified layers."""

@@ -16,6 +16,8 @@ from __future__ import division, print_function, with_statement
 from abc import ABCMeta, abstractmethod
 import warnings
 
+import numpy
+
 from .. import config
 from ..parallel import Layer, ParallelProcessing, make_group
 from ..parallel.base import BaseStacker
@@ -508,7 +510,9 @@ class BaseEnsemble(BaseEstimator):
             # No layers instantiated, but raise_on_exception is False
             return self
 
-        X, y = check_inputs(X, y, self.array_check)
+        #X, y = check_inputs(X, y, self.array_check)
+        X = numpy.array(X)
+        y = numpy.array(y)
 
         if self.model_selection:
             self._id_train.fit(X)
@@ -546,7 +550,9 @@ class BaseEnsemble(BaseEstimator):
             # No layers instantiated, but raise_on_exception is False
             return
 
-        X, y = check_inputs(X, y, check_level=self.array_check)
+        #X, y = check_inputs(X, y, check_level=self.array_check)
+        X = numpy.array(X)
+        y = numpy.array(y)
 
         if self.model_selection:
             if y is None:
@@ -611,7 +617,8 @@ class BaseEnsemble(BaseEstimator):
         if not check_ensemble_build(self._backend):
             # No layers instantiated, but raise_on_exception is False
             return
-        X, _ = check_inputs(X, check_level=self.array_check)
+        #X, _ = check_inputs(X, check_level=self.array_check)
+        X = numpy.array(X)
         return self._backend.predict(X, **kwargs)
 
     def predict_proba(self, X, **kwargs):

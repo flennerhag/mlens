@@ -10,6 +10,8 @@ environment:
       MINICONDA: C:/Miniconda-x64
 
 install:
+  - git submodule init
+  - git submodule update
   - set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda

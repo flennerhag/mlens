@@ -38,7 +38,7 @@ def test_check():
 
 def test_params():
     """[Model Selection] Test raises on bad params."""
-    evl = Evaluator(mape_scorer, verbose=2)
+    evl = Evaluator(mape_scorer, verbose=2, dtype=np.float64)
 
     np.testing.assert_raises(ValueError,
                              evl.fit, X, y,
@@ -51,7 +51,7 @@ def test_params():
 def test_raises():
     """[Model Selection] Test raises on error."""
 
-    evl = Evaluator(bad_scorer, verbose=1)
+    evl = Evaluator(bad_scorer, verbose=1, dtype=np.float64)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
         np.testing.assert_raises(
@@ -62,7 +62,7 @@ def test_raises():
 def test_passes():
     """[Model Selection] Test sets error score on failed scoring."""
 
-    evl = Evaluator(bad_scorer, error_score=0, n_jobs=1, verbose=5)
+    evl = Evaluator(bad_scorer, error_score=0, n_jobs=1, verbose=5, dtype=np.float64)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
         evl = np.testing.assert_warns(FitFailedWarning,
@@ -77,7 +77,7 @@ def test_passes():
 def test_no_prep():
     """[Model Selection] Test run without preprocessing."""
     evl = Evaluator(mape_scorer, cv=5, shuffle=False,
-                    random_state=100, verbose=12)
+                    random_state=100, verbose=12, dtype=np.float64)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
         evl.fit(X, y,
@@ -94,7 +94,7 @@ def test_no_prep():
 def test_w_prep_fit():
     """[Model Selection] Test run with preprocessing, single step."""
     evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100,
-                    verbose=True)
+                    verbose=True, dtype=np.float64)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
 
@@ -119,7 +119,7 @@ def test_w_prep_fit():
 def test_w_prep_list_fit():
     """[Model Selection] Test run with preprocessing as list."""
     evl = Evaluator(
-        mape_scorer, cv=5, shuffle=False, random_state=100, verbose=2)
+        mape_scorer, cv=5, shuffle=False, random_state=100, verbose=2, dtype=np.float64)
 
     with open(os.devnull, 'w') as f, redirect_stdout(f):
 
@@ -130,7 +130,7 @@ def test_w_prep_list_fit():
 
     np.testing.assert_approx_equal(
             evl.results['test_score-m']['pr.ols'],
-            -26.510708862278072)
+            -26.510708862278072, 1)
 
     assert evl.results['params']['pr.ols']['offset'] == 4
 
@@ -138,7 +138,7 @@ def test_w_prep_list_fit():
 def test_w_prep_set_params():
     """[Model Selection] Test run with preprocessing, sep param dists."""
     evl = Evaluator(mape_scorer, cv=5, shuffle=False, random_state=100,
-                    verbose=2)
+                    verbose=2, dtype=np.float64)
 
     params = {'no.ols': {'offset': randint(3, 6)},
               'pr.ols': {'offset': randint(1, 3)},
@@ -158,7 +158,7 @@ def test_w_prep_set_params():
 
     np.testing.assert_approx_equal(
             evl.results['test_score-m']['pr.ols'],
-            -7.2594502123869491)
+            -7.2594502123869491, 1)
     assert evl.results['params']['no.ols']['offset'] == 3
     assert evl.results['params']['pr.ols']['offset'] == 1
 
@@ -167,7 +167,7 @@ def test_bench_equality():
     """[Model Selection] Test benchmark correspondence with eval."""
 
     with open(os.devnull, 'w') as f, redirect_stderr(f):
-        evl = Evaluator(mape_scorer, cv=5)
+        evl = Evaluator(mape_scorer, cv=5, dtype=np.float64)
         evl.fit(X, y, estimators={'pr': [OLS()], 'no': [OLS()]},
                 param_dicts={}, preprocessing={'pr': [Scale()], 'no': []})
 

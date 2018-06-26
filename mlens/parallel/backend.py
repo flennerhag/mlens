@@ -27,7 +27,7 @@ import numpy as np
 from scipy.sparse import issparse, hstack
 
 from .. import config
-from ..externals.joblib import Parallel, dump, load
+from ..externals.joblib.joblib import Parallel, dump, load
 from ..utils import check_initialized
 from ..utils.exceptions import (ParallelProcessingError,
                                 ParallelProcessingWarning)
@@ -363,13 +363,13 @@ class BaseProcessor(object):
                  'n_jobs', 'backend', 'verbose']
 
     @abstractmethod
-    def __init__(self, backend=None, n_jobs=None, verbose=None):
+    def __init__(self, backend=None, n_jobs=-1, verbose=False):
         self.job = None
         self.__initialized__ = 0
 
         self.backend = config.get_backend() if not backend else backend
-        self.n_jobs = -1 if not n_jobs else n_jobs
-        self.verbose = False if not verbose else verbose
+        self.n_jobs = n_jobs
+        self.verbose = verbose
         self.__threading__ = self.backend == 'threading'
 
     def __enter__(self):
@@ -709,7 +709,7 @@ class ParallelProcessing(BaseProcessor):
 
         tf = self.job.dir if not isinstance(self.job.dir, list) else None
         with Parallel(n_jobs=self.n_jobs, temp_folder=tf, max_nbytes=None,
-                      mmap_mode='w+', verbose=self.verbose,
+                      mmap_mode='w+', verbose=0,
                       backend=self.backend) as parallel:
 
             for task in caller:
@@ -849,7 +849,7 @@ class ParallelEvaluation(BaseProcessor):
         # Use context manager to ensure same parallel job during entire process
         tf = self.job.dir if not isinstance(self.job.dir, list) else None
         with Parallel(n_jobs=self.n_jobs, temp_folder=tf, max_nbytes=None,
-                      mmap_mode='w+', verbose=self.verbose,
+                      mmap_mode='w+', verbose=0,
                       backend=self.backend) as parallel:
 
             caller.indexer.fit(self.job.predict_in, self.job.targets, self.job.job)

@@ -153,8 +153,7 @@ class Sequential(BaseStacker):
 
         f, t0 = print_job(self, "Fitting")
 
-        with ParallelProcessing(self.backend, self.n_jobs,
-                                max(self.verbose - 4, 0)) as manager:
+        with ParallelProcessing(self.backend, self.n_jobs) as manager:
             out = manager.stack(self, 'fit', X, y, **kwargs)
 
         if self.verbose:
@@ -261,8 +260,7 @@ class Sequential(BaseStacker):
             data.
         """
         r = kwargs.pop('return_preds', True)
-        with ParallelProcessing(self.backend, self.n_jobs,
-                                max(self.verbose - 4, 0)) as manager:
+        with ParallelProcessing(self.backend, self.n_jobs) as manager:
             out = manager.stack(self, job, X, return_preds=r, **kwargs)
 
         if not isinstance(out, list):

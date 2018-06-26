@@ -19,7 +19,7 @@ Variables
 4. ``BACKEND``: global default backend. Default is ``'threading'``
 
 5. ``START_METHOD``: global start method (if ``backend='multiprocessing'``)
-   Default is ``'fork'``
+   Default is ``'spawn'``
 
 6. ``VERBOSE``: verbose import. Set to ``Y`` for verbose. Needs to be
    set before import (i.e. ``export MLENS_VERBOSE=0``).
@@ -184,11 +184,7 @@ def set_ivals(interval, limit):
 
 def __get_default_start_method(method):
     """Determine default backend."""
-    # Check for environmental variables
-    win = sys.platform.startswith('win') or sys.platform.startswith('cygwin')
-    if method == '':
-        method = 'fork' if not win else 'spawn'
-    return method
+    return 'spawn'
 
 ###############################################################################
 # Handlers

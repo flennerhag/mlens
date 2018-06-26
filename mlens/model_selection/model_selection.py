@@ -23,7 +23,7 @@ from ..metrics import Data, assemble_data
 from ..utils.formatting import _flatten, _check_instances
 from ..utils import (print_time, safe_print,
                      assert_correct_format, check_inputs)
-from ..externals.joblib import delayed
+from ..externals.joblib.joblib import delayed
 from ..externals.sklearn.base import clone
 
 try:
@@ -161,7 +161,6 @@ class BaseEval(IndexMixin, BaseBackend):
     def _run(self, case, parallel, args):
         """Process eval"""
         path = args['dir']
-        _threading = self.backend == 'threading'
 
         if case == 'transformers':
             generator = self._transformers
@@ -170,13 +169,12 @@ class BaseEval(IndexMixin, BaseBackend):
             generator = self._learners
             inp = 'main'
 
-        parallel(delayed(subtask, not _threading)()
+        parallel(delayed(subtask)()
                  for task in generator for subtask in task(args, inp))
 
     def _fit(self, X, y, job):
         X, y = check_inputs(X, y, self.array_check)
-        verbose = max(self.verbose - 2, 0) if self.verbose < 15 else 0
-        with ParallelEvaluation(self.backend, self.n_jobs, verbose) as manager:
+        with ParallelEvaluation(self.backend, self.n_jobs) as manager:
             manager.process(self, job, X, y)
 
     def collect(self, path, case):

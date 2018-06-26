@@ -28,7 +28,7 @@ from ..utils.exceptions import (NotFittedError, FitFailedWarning,
                                 ParallelProcessingError, NotInitializedError)
 
 from ..externals.sklearn.base import clone
-from ..externals.joblib.parallel import delayed
+from ..externals.joblib.joblib.parallel import delayed
 try:
     from time import perf_counter as time
 except ImportError:
@@ -466,7 +466,6 @@ class BaseNode(OutputMixin, IndexMixin, BaseEstimator):
         """Caller for producing jobs"""
         job = args['job']
         self._path = args['dir']
-        _threading = self.backend == 'threading'
 
         if not self.__indexer__:
             raise NotInitializedError(
@@ -492,7 +491,7 @@ class BaseNode(OutputMixin, IndexMixin, BaseEstimator):
         if not parallel:
             return generator
 
-        parallel(delayed(subtask, not _threading)()
+        parallel(delayed(subtask)()
                  for subtask in generator)
 
         if self.__collect__:

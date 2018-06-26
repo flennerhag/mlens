@@ -15,7 +15,7 @@ SEED = 1324
 class TempClass(BaseEnsemble):
 
     def __init__(self):
-        super(TempClass, self).__init__()
+        super(TempClass, self).__init__(dtype=np.float64)
 
 
 def _shuffled(X, y, seed):
@@ -36,8 +36,8 @@ class OLSSparse(OLS):
         return super(OLSSparse, self).predict(X.toarray())
 
 
-X = np.random.rand(10, 50).astype(np.float32)
-y = np.arange(10).astype(np.float32)
+X = np.random.rand(10, 50)
+y = np.arange(10)
 
 first_prop = [1, 2, 3]
 n_first_prop = len(first_prop)
@@ -109,4 +109,4 @@ def test_shuffle():
 
     z = ens4.fit(X, y, return_preds=True)
 
-    np.testing.assert_array_equal(h.astype(np.float32), z)
+    np.testing.assert_array_equal(h, z)

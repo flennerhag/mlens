@@ -142,7 +142,7 @@ pip install mlens
 Fork the GitHub repository:
 
 ```bash
-git clone https://github.com/flennerhag/mlens.git; cd mlens;
+git clone --recursive https://github.com/flennerhag/mlens.git; cd mlens;
 python install setup.py
 ```
 

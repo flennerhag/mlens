@@ -16,7 +16,7 @@ from __future__ import division, print_function
 from .base import OutputMixin, IndexMixin, BaseStacker
 from ..utils import time, print_time, safe_print, format_name
 from ..utils.exceptions import NotFittedError
-from ..externals.joblib import delayed
+from ..externals.joblib.joblib import delayed
 from ..metrics import Data
 
 
@@ -116,7 +116,6 @@ class Layer(OutputMixin, IndexMixin, BaseStacker):
                              "Add learners before calling" % self.name)
 
         job = args['job']
-        _threading = self.backend == 'threading'
 
         if job != 'fit' and not self.__fitted__:
             raise NotFittedError(
@@ -137,7 +136,7 @@ class Layer(OutputMixin, IndexMixin, BaseStacker):
                            file=f, end=e2)
                 t1 = time()
 
-            parallel(delayed(subtransformer, not _threading)()
+            parallel(delayed(subtransformer)()
                      for transformer in self.transformers
                      for subtransformer in transformer(args, 'auxiliary'))
 
@@ -148,7 +147,7 @@ class Layer(OutputMixin, IndexMixin, BaseStacker):
             safe_print(msg.format('Learners ...'), file=f, end=e2)
             t1 = time()
 
-        parallel(delayed(sublearner, not _threading)()
+        parallel(delayed(sublearner)()
                  for learner in self.learners
                  for sublearner in learner(args, 'main'))
 

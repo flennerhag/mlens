@@ -9,7 +9,8 @@ Subsemble class. Fully integrable with Scikit-learn.
 
 from __future__ import division
 
-from .. import config
+import os
+
 from .base import BaseEnsemble
 from ..index import FullIndex, SubsetIndex, ClusteredSubsetIndex
 from ..utils import kwarg_parser
@@ -166,7 +167,7 @@ class Subsemble(BaseEnsemble):
 
     n_jobs : int (default = -1)
         Degree of concurrency in estimation. Set to -1 to maximize
-        paralellization, while 1 runs on a single process (or thread
+        paralellization; 1 runs on a single process (or thread
         equivalent). Cannot be overriden in the :attr:`add` method.
 
         .. note::

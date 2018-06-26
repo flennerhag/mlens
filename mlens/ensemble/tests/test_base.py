@@ -22,7 +22,7 @@ class Tmp(BaseEnsemble):
 
     def __init__(
             self, shuffle=False, random_state=None, scorer=None, verbose=False,
-            layers=None, array_check=2, model_selection=False, sample_size=20):
+            layers=None, array_check=None, model_selection=False, sample_size=20):
         super(Tmp, self).__init__(
             shuffle=shuffle, random_state=random_state, scorer=scorer,
             verbose=verbose, layers=layers, array_check=array_check,

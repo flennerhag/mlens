@@ -20,7 +20,7 @@ from .. import config
 from ..parallel import Layer, ParallelProcessing, make_group
 from ..parallel.base import BaseStacker
 from ..externals.sklearn.validation import check_random_state
-from ..utils import (check_ensemble_build, check_inputs, print_time,
+from ..utils import (check_ensemble_build, print_time,
                      safe_print, IdTrain, format_name)
 from ..utils.exceptions import (
     LayerSpecificationWarning, NotFittedError, NotInitializedError)
@@ -320,10 +320,6 @@ class BaseEnsemble(BaseEstimator):
     verbose: bool, optional
         verbosity
 
-    array_check: int (default=2)
-        severity of array checks. ``2`` mimicks Scikit-learn, ``1`` warns,
-        ``0`` disables.
-
     samples_size: int (default=20)
         size of training set sample
         (``[min(sample_size, X.size[0]), min(X.size[1], sample_size)]``
@@ -334,12 +330,11 @@ class BaseEnsemble(BaseEstimator):
     @abstractmethod
     def __init__(
             self, shuffle=False, random_state=None, scorer=None, verbose=False,
-            layers=None, array_check=2, model_selection=False, sample_size=20,
+            layers=None, array_check=None, model_selection=False, sample_size=20,
             **kwargs):
         self.shuffle = shuffle
         self.random_state = random_state
         self.scorer = scorer
-        self.array_check = array_check
         self._model_selection = model_selection
         self._verbose = verbose
         self.layers = layers if layers else list()
@@ -352,6 +347,11 @@ class BaseEnsemble(BaseEstimator):
         if layers:
             layers_ = clone(layers)
             self._backend.push(*layers_)
+
+        if array_check is not None:
+            warnings.warn(
+                "array checking is deprecated. The array_check argument will be removed in 0.2.4.",
+                DeprecationWarning)
 
     def add(self, estimators, indexer, preprocessing=None, **kwargs):
         """Method for adding a layer.
@@ -508,8 +508,6 @@ class BaseEnsemble(BaseEstimator):
             # No layers instantiated, but raise_on_exception is False
             return self
 
-        X, y = check_inputs(X, y, self.array_check)
-
         if self.model_selection:
             self._id_train.fit(X)
 
@@ -545,8 +543,6 @@ class BaseEnsemble(BaseEstimator):
         if not check_ensemble_build(self._backend):
             # No layers instantiated, but raise_on_exception is False
             return
-
-        X, y = check_inputs(X, y, check_level=self.array_check)
 
         if self.model_selection:
             if y is None:
@@ -611,7 +607,6 @@ class BaseEnsemble(BaseEstimator):
         if not check_ensemble_build(self._backend):
             # No layers instantiated, but raise_on_exception is False
             return
-        X, _ = check_inputs(X, check_level=self.array_check)
         return self._backend.predict(X, **kwargs)
 
     def predict_proba(self, X, **kwargs):

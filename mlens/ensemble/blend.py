@@ -77,19 +77,6 @@ class BlendEnsemble(BaseEnsemble):
         but estimation continues unless exception is fatal. Note that this
         can result in unexpected behavior unless the exception is anticipated.
 
-    array_check : int (default = 2)
-        level of strictness in checking input arrays.
-
-            - ``array_check = 0`` will not check ``X`` or ``y``
-
-            - ``array_check = 1`` will check ``X`` and ``y`` for
-              inconsistencies and warn when format looks suspicious,
-              but retain original format.
-
-            - ``array_check = 2`` will impose Scikit-learn array checks,
-              which converts ``X`` and ``y`` to numpy arrays and raises
-              an error if conversion fails.
-
     verbose : int or bool (default = False)
         level of verbosity.
 
@@ -179,7 +166,7 @@ class BlendEnsemble(BaseEnsemble):
 
     def __init__(
             self, test_size=0.5, shuffle=False, random_state=None, scorer=None,
-            raise_on_exception=True, array_check=2, verbose=False, n_jobs=-1,
+            raise_on_exception=True, array_check=None, verbose=False, n_jobs=-1,
             backend=None, model_selection=False, sample_size=20, layers=None):
         super(BlendEnsemble, self).__init__(
             shuffle=shuffle, random_state=random_state, scorer=scorer,

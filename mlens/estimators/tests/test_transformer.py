@@ -12,6 +12,7 @@ from mlens.externals.sklearn.base import clone
 
 try:
     from sklearn.utils.estimator_checks import check_estimator
+    from sklearn.utils.validation import check_X_y, check_array
     run_sklearn = True
 except ImportError:
     check_estimator = None
@@ -40,6 +41,17 @@ class Tmp(Est):
                 TransformerEstimator: (Scale(), FoldIndex())}[Est]
         super(Tmp, self).__init__(*args)
 
+    def fit(self, X, y, *args, **kwargs):
+        X, y = check_X_y(X, y)
+        return super(Tmp, self).fit(X, y, *args, **kwargs)
+
+    def predict(self, X, *args, **kwargs):
+        X = check_array(X)
+        return super(Tmp, self).predict(X, *args, **kwargs)
+
+    def transform(self, X, *args, **kwargs):
+        X = check_array(X)
+        return super(Tmp, self).transform(X, *args, **kwargs)
 
 # These are simple run tests to ensure parallel wrapper register backend.
 # See parallel for more rigorous tests

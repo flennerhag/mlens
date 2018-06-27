@@ -21,8 +21,7 @@ from ..parallel import ParallelEvaluation
 from ..parallel.base import BaseBackend, IndexMixin
 from ..metrics import Data, assemble_data
 from ..utils.formatting import _flatten, _check_instances
-from ..utils import (print_time, safe_print,
-                     assert_correct_format, check_inputs)
+from ..utils import print_time, safe_print, assert_correct_format
 from ..externals.joblib import delayed
 from ..externals.sklearn.base import clone
 
@@ -113,12 +112,15 @@ class BaseEval(IndexMixin, BaseBackend):
 
     """Base Evaluation class."""
 
-    def __init__(self, verbose=False, array_check=2, **kwargs):
+    def __init__(self, verbose=False, array_check=None, **kwargs):
         self.verbose = verbose
-        self.array_check = array_check
         self._transformers = None
         self._learners = None
         super(BaseEval, self).__init__(**kwargs)
+        if array_check is not None:
+            warnings.warn(
+                "array checking is deprecated. The array_check argument will be removed in 0.2.4.",
+                DeprecationWarning)
 
     def __iter__(self):
         """Provide jobs for ParallelEvaluation manager"""
@@ -174,9 +176,7 @@ class BaseEval(IndexMixin, BaseBackend):
                  for task in generator for subtask in task(args, inp))
 
     def _fit(self, X, y, job):
-        X, y = check_inputs(X, y, self.array_check)
-        verbose = max(self.verbose - 2, 0) if self.verbose < 15 else 0
-        with ParallelEvaluation(self.backend, self.n_jobs, verbose) as manager:
+        with ParallelEvaluation(self.backend, self.n_jobs) as manager:
             manager.process(self, job, X, y)
 
     def collect(self, path, case):
@@ -364,19 +364,6 @@ class Evaluator(BaseEval):
     random_state : int, optional
         seed for creating folds (if shuffled) and parameter draws
 
-    array_check : int, default = 2
-        level of strictness in checking input arrays.
-
-            - ``array_check = 0`` will not check ``X`` or ``y``
-
-            - ``array_check = 1`` will check ``X`` and ``y`` for
-              inconsistencies and warn when format looks suspicious,
-              but retain original format.
-
-            - ``array_check = 2`` will impose Scikit-learn array checks,
-              which converts ``X`` and ``y`` to numpy arrays and raises
-              an error if conversion fails.
-
     n_jobs: int, default = -1
         number of CPU cores to use.
 
@@ -396,8 +383,7 @@ class Evaluator(BaseEval):
 
     def __init__(
             self, scorer, cv=2, shuffle=True, random_state=None,
-            error_score=None, metrics=None, array_check=2, verbose=False,
-            **kwargs):
+            error_score=None, metrics=None, verbose=False, **kwargs):
         super(Evaluator, self).__init__(**kwargs)
 
         check_scorer(scorer)
@@ -411,7 +397,6 @@ class Evaluator(BaseEval):
         self.shuffle = shuffle
         self.error_score = error_score
         self.metrics = [np.mean, np.std] if metrics is None else metrics
-        self.array_check = array_check
         self.random_state = random_state
         self.verbose = verbose
         self._preprocessing = None

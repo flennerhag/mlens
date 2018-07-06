@@ -44,6 +44,23 @@ class FoldIndex(BaseIndex):
     --------
     :class:`BlendIndex`, :class:`SubsetIndex`
 
+    Parameters
+    ----------
+    folds : int (default = 2)
+        Number of splits to create in each partition. ``folds`` can
+        not be 1 if ``n_partition > 1``. Note that if ``folds = 1``,
+        both the train and test set will index the full data.
+
+    X : array-like of shape [n_samples,] , optional
+        the training set to partition. The training label array is also,
+        accepted, as only the first dimension is used. If ``X`` is not
+        passed at instantiation, the ``fit`` method must be called before
+        ``generate``, or ``X`` must be passed as an argument of
+        ``generate``.
+
+    raise_on_exception : bool (default = True)
+        whether to warn on suspicious slices or raise an error.
+
     Examples
     --------
 

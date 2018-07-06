@@ -81,3 +81,21 @@ def check_subsample_index(n_samples, partitions, folds, raise_):
     if s > n_samples:
         raise ValueError("Number of total splits %i is greater than the "
                          "number of samples: %i." % (s, n_samples))
+
+
+def check_sequential_index(burn_in, step_size, trw, tew,
+                           n_samples, raise_on_exception=None):
+    """Check that folds can be constructed from passed arguments."""
+    trw = 0 if trw is None else trw
+    tew = 0 if tew is None else tew
+    names = ['burn_in', 'step_size', 'train_window', 'test_window']
+    for name, i in zip(names, [burn_in, step_size, trw, tew]):
+        if not isinstance(i, Integral):
+            raise ValueError("argument %s must be an integer. "
+                             "type(%s) was passed." % (name, type(i)))
+    if not burn_in > 0:
+        raise ValueError("burn_in must be a positive integer")
+    if burn_in > n_samples:
+        raise ValueError("burn_in larger than number of samples")
+    if step_size > n_samples:
+        raise ValueError("step_size larger than number of samples")

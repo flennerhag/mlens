@@ -13,23 +13,27 @@ from .base import FullIndex, BaseIndex, prune_train, make_tuple, partition
 from .fold import FoldIndex
 from .blend import BlendIndex
 from .subsemble import SubsetIndex, ClusteredSubsetIndex
+from .sequential import SequentialIndex
+
+INDEXERS = {
+    'stack': FoldIndex,
+    'blend': BlendIndex,
+    'subsemble': SubsetIndex,
+    'clusteredsubsemble': ClusteredSubsetIndex,
+    'full': FullIndex,
+    'sequential': SequentialIndex
+}
 
 
-INDEXERS = {'stack': FoldIndex,
-            'blend': BlendIndex,
-            'subsemble': SubsetIndex,
-            'clusteredsubsemble': ClusteredSubsetIndex,
-            'full': FullIndex
-            }
-
-
-__all__ = ['BaseIndex',
-           'BlendIndex',
-           'FoldIndex',
-           'SubsetIndex',
-           'FullIndex',
-           'ClusteredSubsetIndex',
-           'prune_train',
-           'partition',
-           'make_tuple'
-           ]
+__all__ = [
+    'BaseIndex',
+    'BlendIndex',
+    'FoldIndex',
+    'SubsetIndex',
+    'FullIndex',
+    'SequentialIndex',
+    'ClusteredSubsetIndex',
+    'prune_train',
+    'partition',
+    'make_tuple'
+]

@@ -14,8 +14,5 @@ pipelines for next-layer model selection.
 """
 
 from .model_selection import BaseEval, Evaluator, Benchmark, benchmark
-from .ensemble_transformer import EnsembleTransformer
 
-
-__all__ = ['BaseEval', 'Evaluator',
-           'EnsembleTransformer', 'Benchmark', 'benchmark']
+__all__ = ['BaseEval', 'Evaluator', 'Benchmark', 'benchmark']

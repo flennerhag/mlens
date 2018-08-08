@@ -13,6 +13,21 @@ from .exceptions import (NotFittedError, LayerSpecificationWarning,
                          ParallelProcessingWarning)
 
 
+def _get_context(estimator=None):
+    """Get context name for warning messages."""
+    if estimator is not None:
+        if isinstance(estimator, six.string_types):
+            estimator_name = estimator.lower()
+        else:
+            estimator_name = estimator.__class__.__name__.lower()
+
+        estimator_name = "[%s] " % estimator_name
+    else:
+        estimator_name = ""
+
+    return estimator_name
+
+
 def check_ensemble_build(inst, attr='stack'):
     """Check that layers have been instantiated."""
     if not hasattr(inst, attr):

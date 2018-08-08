@@ -10,16 +10,6 @@ from .. import config
 from .base import BaseParallel, OutputMixin
 from .backend import ParallelProcessing
 from ..utils.exceptions import ParallelProcessingError, NotFittedError
-from ..utils.validation import check_inputs as _check_inputs
-
-
-def check_inputs(X, y, check_level):
-    """Wrapper to check inputs"""
-    if y is not None:
-        X, y = _check_inputs(X, y, check_level=check_level)
-    else:
-        X, _ = _check_inputs(X, check_level=check_level)
-    return X, y
 
 
 class EstimatorMixin(object):
@@ -271,9 +261,6 @@ def run(caller, job, X, y=None, map=True, **kwargs):
         desired job and return desired output. Other ``kwargs`` are passed
         to either ``map`` or ``stack``.
     """
-    X, y = check_inputs(X, y, kwargs.pop('array_check', 2))
-
-    # Temporary set of job flags
     flags = set_predict(kwargs)
     flags['__no_output__'] = set_output(kwargs, job, map)
 

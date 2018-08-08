@@ -71,7 +71,7 @@ class OLS(BaseEstimator):
         """Fit coefficient vector."""
         X, y = check_X_y(X, y, accept_sparse=False)
 
-        O = np.linalg.lstsq(X, y)
+        O = np.linalg.lstsq(X, y, rcond=-1)
 
         self.coef_ = O[0] + self.offset
         self.resid_ = O[1]

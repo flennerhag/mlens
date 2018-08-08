@@ -14,7 +14,6 @@ estimation on cross-validation sub-graphs.
 from __future__ import print_function, division
 
 import warnings
-from copy import deepcopy
 from abc import ABCMeta, abstractmethod
 
 from ._base_functions import (
@@ -63,7 +62,7 @@ class IndexedEstimator(object):
     @property
     def estimator(self):
         """Deep copy of estimator"""
-        return deepcopy(self._estimator)
+        return self._estimator
 
     @estimator.setter
     def estimator(self, estimator):
@@ -771,7 +770,7 @@ class BaseNode(OutputMixin, IndexMixin, BaseEstimator):
         # pylint: disable=not-an-iterable
         out = self._return_attr('_learner_')
         for estimator in out:
-            yield deepcopy(estimator)
+            yield estimator
 
     @property
     def sublearners(self):
@@ -779,7 +778,7 @@ class BaseNode(OutputMixin, IndexMixin, BaseEstimator):
         # pylint: disable=not-an-iterable
         out = self._return_attr('_sublearners_')
         for estimator in out:
-            yield deepcopy(estimator)
+            yield estimator
 
     @property
     def raw_data(self):
@@ -862,7 +861,7 @@ class Learner(ProbaMixin, BaseNode):
     @property
     def scorer(self):
         """Copy of scorer"""
-        return deepcopy(self._scorer)
+        return self._scorer
 
     @scorer.setter
     def scorer(self, scorer):

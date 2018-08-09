@@ -705,7 +705,7 @@ class BaseNode(OutputMixin, IndexMixin, BaseEstimator):
             # Full learners are the same as the sub-learners
             learner_files, learner_data = replace(sublearner_files)
         if self.__only_all__:
-            # Sub learners are the same as the sub-learners
+            # Sub learners are the same as the learner
             sublearner_files, sublearner_data = replace(learner_files)
 
         return learner_files, learner_data, sublearner_files, sublearner_data

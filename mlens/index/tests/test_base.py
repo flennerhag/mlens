@@ -14,6 +14,7 @@ from mlens.utils import IdTrain
 from mlens.index import (FoldIndex,
                          BlendIndex,
                          SubsetIndex,
+                         SequentialIndex,
                          ClusteredSubsetIndex,
                          FullIndex)
 
@@ -171,6 +172,79 @@ def test_full_raises_on_empty():
     """[Base] FoldIndex: check raises error on singular array."""
     with np.testing.assert_raises(ValueError):
         FoldIndex(2, np.empty(1))
+
+
+###############################################################################
+def test_seq_index_is_fitted():
+    """[Base] SequentialIndex: check fit methods."""
+    attrs = ['n_samples', 'n_test_samples']
+
+    idx = SequentialIndex()
+    for attr in attrs: assert not getattr(idx, attr)
+    idx.fit(X)
+    for attr in attrs: assert getattr(idx, attr)
+
+    idx = SequentialIndex()
+    for attr in attrs: assert not getattr(idx, attr)
+    for _ in idx.generate(X): pass
+    for attr in attrs: assert getattr(idx, attr)
+
+    idx = SequentialIndex(X=X)
+    for attr in attrs: assert getattr(idx, attr)
+
+
+def test_seq_tuple_shape():
+    """[Base] SequentialIndex: test the tuple shape on generation."""
+    tup = [(tri, tei) for tri, tei in SequentialIndex().generate(X)]
+    assert tup == [((0, 1), (1, 5)),
+                   ((0, 2), (2, 5)),
+                   ((0, 3), (3, 5)),
+                   ((0, 4), (4, 5))]
+
+
+def test_seq_tuple_advanced():
+    """[Base] SequentialIndex: test burn_in, step_size and window_size"""
+    idx = SequentialIndex(step_size=2, burn_in=10, train_window=3, test_window=1)
+    Y = np.arange(20)
+    tup = [(tri, tei) for tri, tei in idx.generate(Y)]
+    assert tup == [
+        ((0, 10), (10, 11)),
+        ((9, 12), (12, 13)),
+        ((11, 14), (14, 15)),
+        ((13, 16), (16, 17)),
+        ((15, 18), (18, 19))]
+
+
+def test_seq_array_shape():
+    """[Base] SequentialIndex: test the array shape on generation."""
+    tr1, te1 = np.array([0]), np.array([1, 2, 3, 4])
+    tr2, te2 = np.array([0, 1]), np.array([2, 3, 4])
+    tr3, te3 = np.array([0, 1, 2]), np.array([3, 4])
+    tr4, te4 = np.array([0, 1, 2, 3]), np.array([4])
+    trs = [tr1, tr2, tr3, tr4]
+    tes = [te1, te2, te3, te4]
+
+    for i, (tri, tei) in enumerate(SequentialIndex(X=X).generate(as_array=True)):
+        np.testing.assert_array_equal(tri, trs[i])
+        np.testing.assert_array_equal(tei, tes[i])
+
+def test_seq_raises_on_floats():
+    """[Base] SequentialIndex: check raises error on floats"""
+    for attr in ['burn_in', 'step_size', 'train_window', 'test_window']:
+        with np.testing.assert_raises(ValueError):
+            SequentialIndex(**{attr: 0.4, 'X': X})
+
+
+def test_seq_raises_on_over_burn_in():
+    """[Base] SequentialIndex: check raises error burn_in > n_samples"""
+    with np.testing.assert_raises(ValueError):
+        SequentialIndex(burn_in=X.shape[0], X=X)
+
+
+def test_seq_raises_on_over_step_size():
+    """[Base] SequentialIndex: check raises error step_size > n_samples"""
+    with np.testing.assert_raises(ValueError):
+        SequentialIndex(step_size=X.shape[0], X=X)
 
 
 ###############################################################################

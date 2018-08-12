@@ -93,9 +93,9 @@ def check_sequential_index(burn_in, step_size, trw, tew,
         if not isinstance(i, Integral):
             raise ValueError("argument %s must be an integer. "
                              "type(%s) was passed." % (name, type(i)))
-    if not burn_in > 0:
+    if not burn_in >= 0:
         raise ValueError("burn_in must be a positive integer")
-    if burn_in > n_samples:
+    if burn_in >= n_samples:
         raise ValueError("burn_in larger than number of samples")
-    if step_size > n_samples:
+    if step_size >= n_samples:
         raise ValueError("step_size larger than number of samples")

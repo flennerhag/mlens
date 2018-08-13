@@ -10,7 +10,6 @@ from __future__ import division
 
 import os
 import warnings
-from copy import deepcopy
 from scipy.sparse import issparse
 import numpy as np
 
@@ -66,7 +65,7 @@ def prune_files(path, name):
 
 def replace(source_files):
     """Utility function to replace empty files list"""
-    replace_files = [deepcopy(o) for o in source_files]
+    replace_files = list(source_files)
     for o in replace_files:
         o.name = o.name[:-1] + '0'
         o.index = (o.index[0], 0)

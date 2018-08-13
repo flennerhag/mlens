@@ -65,7 +65,7 @@ def prune_files(path, name):
 
 def replace(source_files):
     """Utility function to replace empty files list"""
-    replace_files = source_files.copy()
+    replace_files = list(source_files)
     for o in replace_files:
         o.name = o.name[:-1] + '0'
         o.index = (o.index[0], 0)

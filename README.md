@@ -44,7 +44,7 @@ ML-Ensemble is optimized for speed and minimal memory consumption. No
 serialization of data takes place, regardless of whether multithreading or
 multiprocessing is used. Additionally, multithreading is pickle-free. 
 
-### Easy of use
+### Ease of use
 
 Ready-made ensembles are built by adding layers to an instance. No matter how
 complex the ensemble, to train it call the ``fit`` method:

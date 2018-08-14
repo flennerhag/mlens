@@ -3,8 +3,8 @@
 </div>
 <hr>
 
+![Python 3.7](https://img.shields.io/badge/python-3.5-blue.svg)
 ![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)
-![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)
 ![Python 2.7](https://img.shields.io/badge/python-2.7-blue.svg)
 [![PyPI version](https://badge.fury.io/py/mlens.svg)](http://badge.fury.io/py/mlens)
 [![Build Status](https://travis-ci.org/flennerhag/mlens.svg?branch=master)](https://travis-ci.org/flennerhag/mlens)
@@ -44,7 +44,7 @@ ML-Ensemble is optimized for speed and minimal memory consumption. No
 serialization of data takes place, regardless of whether multithreading or
 multiprocessing is used. Additionally, multithreading is pickle-free. 
 
-### Easy of use
+### Ease of use
 
 Ready-made ensembles are built by adding layers to an instance. No matter how
 complex the ensemble, to train it call the ``fit`` method:

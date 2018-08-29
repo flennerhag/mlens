@@ -170,16 +170,16 @@ def slice_array(x, y, idx, r=0):
             y = y[slice(idx[0] - r, idx[1] - r)] if y is not None else y
 
     # Cast as ndarray to avoid passing memmaps to estimators
-    if y is not None:
+    if y is not None and isinstance(y, np.memmap):
         y = y.view(type=np.ndarray)
-    if not issparse(x):
+    if not issparse(x) and isinstance(x, np.memmap):
         x = x.view(type=np.ndarray)
 
     return x, y
 
 
 def assign_predictions(pred, p, tei, col, n):
-    """Assign predictions to memmaped prediction array."""
+    """Assign predictions to prediction array."""
     if tei == 'all':
         tei = None
 

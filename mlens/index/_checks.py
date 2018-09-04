@@ -102,11 +102,11 @@ def check_sequential_index(burn_in, step_size, window, lag,
             raise ValueError(
                 "%s must be a positive integer. Got %r" % (name, i))
 
-    if burn_in > n_samples:
+    if burn_in >= n_samples:
         raise ValueError("burn_in larger than number of samples")
     if step_size >= n_samples:
         raise ValueError("step_size larger than number of samples")
-    if lag > step_size:
-        raise ValueError("lag is larger than step_size (no training fold)")
-    if lag > burn_in:
+    if lag >= n_samples:
+        raise ValueError("lag is larger than number of samples")
+    if lag >= burn_in:
         raise ValueError("lag is larger than burn_in (no training fold)")

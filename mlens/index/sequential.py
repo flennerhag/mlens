@@ -106,7 +106,6 @@ class SequentialIndex(BaseIndex):
         self.window = window
         self.lag = lag
         self.raise_on_exception = raise_on_exception
-
         if X is not None:
             self.fit(X)
 
@@ -149,7 +148,7 @@ class SequentialIndex(BaseIndex):
             elif self.window is None:
                 train_start = 0
             else:
-                train_start = max(idx - self.window, 0)
+                train_start = max(idx - self.window - self.lag, 0)
 
             test_start = idx
             test_stop = min(idx + self.step_size, self.n_samples)

@@ -30,23 +30,23 @@ class SequentialIndex(BaseIndex):
 
     Parameters
     ----------
-    step_size : int
-        number of samples to move fold window. Note that setting
-        step_size = train_window will create non-overlapping training
-        folds, while step_size < train_window will not.
+    step_size : int (default=1)
+        number of samples to use in each test fold. The final window
+        size may be smaller if too few observations remain.
 
-    burn_in : int (default=step_size)
-        number of samples to use for first training fold.
+    burn_in : int (default=None)
+        number of samples to use for first training fold. These observations
+        will be dropped from the output. Defaults to ``step_size``.
 
-    train_window : int (default=None)
-        number of samples to use in each training fold, except first which
-        is determined by ``burn_in``. If ``None``, will use all previous
+    window: int (default=None)
+        number of previous samples to use in each training fold, except first
+        which is determined by ``burn_in``. If ``None``, will use all previous
         observations.
 
-    test_window : int (default=None)
-        number of samples to use in each test fold. If ``None``,
-        will use all remaining samples in the sequence. The final window
-        size may be smaller if too few observations remain.
+    lag: int (default=0)
+        distance between the most recent training point in the training fold and
+        the first test point. For ``lag>0``, the training fold and the test fold
+        will not be contiguous.
 
     X : array-like of shape [n_samples,] , optional
         the training set to partition. The training label array is also,
@@ -55,7 +55,7 @@ class SequentialIndex(BaseIndex):
         ``generate``, or ``X`` must be passed as an argument of
         ``generate``.
 
-    raise_on_exception : bool (default = True)
+    raise_on_exception : bool (default=True)
         whether to warn on suspicious slices or raise an error.
 
     See Also
@@ -99,14 +99,12 @@ class SequentialIndex(BaseIndex):
     No overlap between train set and test set.
     """
 
-    def __init__(self, step_size=1, burn_in=None,
-                 train_window=None, test_window=None,
-                 X=None, raise_on_exception=True):
+    def __init__(self, step_size=1, burn_in=None, window=None, lag=0, X=None, raise_on_exception=True):
         super(SequentialIndex, self).__init__()
         self.step_size = step_size
         self.burn_in = burn_in if burn_in is not None else step_size
-        self.train_window = train_window
-        self.test_window = test_window
+        self.window = window
+        self.lag = lag
         self.raise_on_exception = raise_on_exception
 
         if X is not None:
@@ -129,11 +127,11 @@ class SequentialIndex(BaseIndex):
         instance :
             indexer with stores sample size data.
         """
-        n = X.shape[0]
-        self.n_test_samples = self.n_samples = n
+        self.n_samples = X.shape[0]
         check_sequential_index(
-            self.burn_in, self.step_size, self.train_window,
-            self.test_window, n, self.raise_on_exception)
+            self.burn_in, self.step_size, self.window,
+            self.lag, self.n_samples, self.raise_on_exception)
+        self.n_test_samples = self.n_samples - self.burn_in
         self.__fitted__ = True
         return self
 
@@ -144,20 +142,17 @@ class SequentialIndex(BaseIndex):
         burn_in = True
         while not stop:
 
-            train_stop = idx
+            train_stop = idx - self.lag
             if burn_in:
                 train_start = 0
                 burn_in = False
-            elif self.train_window is None:
+            elif self.window is None:
                 train_start = 0
             else:
-                train_start = max(idx - self.train_window, 0)
+                train_start = max(idx - self.window, 0)
 
-            test_start = train_stop
-            if self.test_window is None:
-                test_stop = self.n_samples
-            else:
-                test_stop = min(idx + self.test_window, self.n_samples)
+            test_start = idx
+            test_stop = min(idx + self.step_size, self.n_samples)
 
             train_index = (train_start, train_stop)
             test_index = (test_start, test_stop)

@@ -83,19 +83,30 @@ def check_subsample_index(n_samples, partitions, folds, raise_):
                          "number of samples: %i." % (s, n_samples))
 
 
-def check_sequential_index(burn_in, step_size, trw, tew,
+def check_sequential_index(burn_in, step_size, window, lag,
                            n_samples, raise_on_exception=None):
     """Check that folds can be constructed from passed arguments."""
-    trw = 0 if trw is None else trw
-    tew = 0 if tew is None else tew
-    names = ['burn_in', 'step_size', 'train_window', 'test_window']
-    for name, i in zip(names, [burn_in, step_size, trw, tew]):
+    names = ['burn_in', 'step_size', 'window', 'lag']
+    for name, i in zip(names, [burn_in, step_size, window, lag]):
+        if i is None and name == 'window':
+            continue
+
         if not isinstance(i, Integral):
             raise ValueError("argument %s must be an integer. "
                              "type(%s) was passed." % (name, type(i)))
-    if not burn_in > 0:
-        raise ValueError("burn_in must be a positive integer")
+
+        if i == 0 and name == 'lag':
+            continue
+
+        if i <= 0:
+            raise ValueError(
+                "%s must be a positive integer. Got %r" % (name, i))
+
     if burn_in > n_samples:
         raise ValueError("burn_in larger than number of samples")
     if step_size > n_samples:
         raise ValueError("step_size larger than number of samples")
+    if lag > step_size:
+        raise ValueError("lag is larger than step_size (no training fold)")
+    if lag > burn_in:
+        raise ValueError("lag is larger than burn_in (no training fold)")

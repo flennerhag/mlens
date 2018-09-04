@@ -66,12 +66,12 @@ class SequentialIndex(BaseIndex):
     --------
 
     >>> import numpy as np
-    >>> from mlens.index import TimeSeriesIndex
+    >>> from mlens.index import SequentialIndex
     >>> X = np.arange(10)
     >>> print("Data set: %r" % X)
     >>> print()
     >>>
-    >>> idx = TimeSeriesIndex(2, X)
+    >>> idx = SequentialIndex(2, X=X)
     >>>
     >>> for train, test in idx.generate(as_array=True):
     ...     print('TRAIN IDX: %32r | TEST IDX: %16r' % (train, test))
@@ -88,13 +88,13 @@ class SequentialIndex(BaseIndex):
     >>>
     >>> print("No overlap between train set and test set.")
     Data set: array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    TRAIN IDX:     array([3, 4, 5, 6, 7, 8, 9]) | TEST IDX: array([0, 1, 2])
-    TRAIN IDX:     array([0, 1, 2, 6, 7, 8, 9]) | TEST IDX: array([3, 4, 5])
-    TRAIN IDX:  array([0, 1, 2, 3, 4, 5, 8, 9]) | TEST IDX:    array([6, 7])
+    TRAIN IDX:                    array([0, 1]) | TEST IDX: array([2, 3, 4, 5, 6, 7, 8, 9])
+    TRAIN IDX:              array([0, 1, 2, 3]) | TEST IDX: array([4, 5, 6, 7, 8, 9])
+    TRAIN IDX:        array([0, 1, 2, 3, 4, 5]) | TEST IDX: array([6, 7, 8, 9])
     TRAIN IDX:  array([0, 1, 2, 3, 4, 5, 6, 7]) | TEST IDX:    array([8, 9])
-    TRAIN SET:     array([3, 4, 5, 6, 7, 8, 9]) | TEST SET: array([0, 1, 2])
-    TRAIN SET:     array([0, 1, 2, 6, 7, 8, 9]) | TEST SET: array([3, 4, 5])
-    TRAIN SET:  array([0, 1, 2, 3, 4, 5, 8, 9]) | TEST SET:    array([6, 7])
+    TRAIN SET:                    array([0, 1]) | TEST SET: array([2, 3, 4, 5, 6, 7, 8, 9])
+    TRAIN SET:              array([0, 1, 2, 3]) | TEST SET: array([4, 5, 6, 7, 8, 9])
+    TRAIN SET:        array([0, 1, 2, 3, 4, 5]) | TEST SET: array([6, 7, 8, 9])
     TRAIN SET:  array([0, 1, 2, 3, 4, 5, 6, 7]) | TEST SET:    array([8, 9])
     No overlap between train set and test set.
     """

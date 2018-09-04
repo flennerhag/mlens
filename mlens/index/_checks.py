@@ -104,7 +104,7 @@ def check_sequential_index(burn_in, step_size, window, lag,
 
     if burn_in > n_samples:
         raise ValueError("burn_in larger than number of samples")
-    if step_size > n_samples:
+    if step_size >= n_samples:
         raise ValueError("step_size larger than number of samples")
     if lag > step_size:
         raise ValueError("lag is larger than step_size (no training fold)")

@@ -139,6 +139,15 @@ def set_output_columns(
         obj.output_columns = col_dict
 
 
+def _safe_slice(array, idx):
+    """Slice an array safely along the row axis"""
+    if array is None:
+        return array
+    elif hasattr(array, 'iloc'):
+        return array.iloc[idx]
+    return array[idx]
+
+
 def slice_array(x, y, idx, r=0):
     """Build training array index and slice data."""
     if idx == 'all':
@@ -153,8 +162,8 @@ def slice_array(x, y, idx, r=0):
                 # of the slice in question to be made
                 simple_slice = False
                 idx = np.hstack([np.arange(t0 - r, t1 - r) for t0, t1 in idx])
-                x = x[idx]
-                y = y[idx] if y is not None else y
+                x = _safe_slice(x, idx)
+                y = _safe_slice(y, idx)
             else:
                 # The tuple is of the form ((a, b),) and can be made
                 # into a simple (a, b) tuple for which basic slicing applies

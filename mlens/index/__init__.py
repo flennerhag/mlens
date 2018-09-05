@@ -13,7 +13,7 @@ from .base import FullIndex, BaseIndex, prune_train, make_tuple, partition
 from .fold import FoldIndex
 from .blend import BlendIndex
 from .subsemble import SubsetIndex, ClusteredSubsetIndex
-from .sequential import SequentialIndex
+from .temporal import TemporalIndex
 
 INDEXERS = {
     'stack': FoldIndex,
@@ -21,7 +21,7 @@ INDEXERS = {
     'subsemble': SubsetIndex,
     'clusteredsubsemble': ClusteredSubsetIndex,
     'full': FullIndex,
-    'sequential': SequentialIndex
+    'temporal': TemporalIndex,
 }
 
 
@@ -31,7 +31,7 @@ __all__ = [
     'FoldIndex',
     'SubsetIndex',
     'FullIndex',
-    'SequentialIndex',
+    'TemporalIndex',
     'ClusteredSubsetIndex',
     'prune_train',
     'partition',

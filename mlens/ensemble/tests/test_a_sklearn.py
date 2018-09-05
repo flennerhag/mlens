@@ -2,7 +2,7 @@
 Test Scikit-learn
 """
 import numpy as np
-from mlens.ensemble import SuperLearner, Subsemble, BlendEnsemble
+from mlens.ensemble import SuperLearner, Subsemble, BlendEnsemble, TemporalEnsemble
 from mlens.testing.dummy import return_pickled
 try:
     from sklearn.utils.estimator_checks import check_estimator
@@ -45,13 +45,13 @@ if has_sklearn:
             'prep2': prep_2,
             'prep3': []}
 
-    def get_ensemble(cls, backend, preprocessing):
+    def get_ensemble(cls, backend, preprocessing, **kwargs):
         """Get ensemble."""
         if preprocessing:
             est = est_prep
         else:
             est = estimators
-        ens = cls(backend=backend)
+        ens = cls(backend=backend, **kwargs)
         ens.add(est, preprocessing)
         ens.add(LinearRegression(), meta=True)
         return ens
@@ -211,3 +211,53 @@ if has_sklearn:
         pp = ens.predict(X)
         np.testing.assert_array_equal(p, pp)
 
+    def test_temporal_s_m():
+        """[TemporalEnsemble] Test scikit-learn comp - mp | np"""
+        ens = get_ensemble(TemporalEnsemble, 'multiprocessing', None, step_size=5, window=10)
+        ens.fit(X, y)
+        p = ens.predict(X)
+        assert p.shape == y.shape
+        assert p.dtype == ens.layer_1.dtype
+
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
+
+    def test_temporal_f_m():
+        """[TemporalEnsemble] Test scikit-learn comp - mp | p"""
+        ens = get_ensemble(TemporalEnsemble, 'multiprocessing', prep, step_size=5, window=10)
+        ens.fit(X, y)
+        p = ens.predict(X)
+        assert p.shape == y.shape
+        assert p.dtype == ens.layer_1.dtype
+
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
+
+    def test_temporal_s_m():
+        """[TemporalEnsemble] Test scikit-learn comp - th | np"""
+        ens = get_ensemble(TemporalEnsemble, 'threading', None, step_size=5, window=10)
+        ens.fit(X, y)
+        p = ens.predict(X)
+        assert p.shape == y.shape
+        assert p.dtype == ens.layer_1.dtype
+
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)
+
+
+    def test_temporal_f_m():
+        """[TemporalEnsemble] Test scikit-learn comp - th | p"""
+        ens = get_ensemble(TemporalEnsemble, 'threading', prep, step_size=5, window=10)
+        ens.fit(X, y)
+        p = ens.predict(X)
+        assert p.shape == y.shape
+        assert p.dtype == ens.layer_1.dtype
+
+        ens = return_pickled(ens)
+        pp = ens.predict(X)
+        np.testing.assert_array_equal(p, pp)

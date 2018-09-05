@@ -4,7 +4,7 @@
 :copyright: 2017-2018
 :licence: MIT
 
-Sequential (time series) indexing.
+Temporal (time series) indexing.
 """
 from __future__ import division
 
@@ -12,10 +12,10 @@ from numbers import Integral
 import numpy as np
 
 from .base import BaseIndex
-from ._checks import check_sequential_index
+from ._checks import check_temporal_index
 
 
-class SequentialIndex(BaseIndex):
+class TemporalIndex(BaseIndex):
 
     """Indexer that generates time series fold over ``X``.
 
@@ -66,12 +66,12 @@ class SequentialIndex(BaseIndex):
     --------
 
     >>> import numpy as np
-    >>> from mlens.index import SequentialIndex
+    >>> from mlens.index import TemporalIndex
     >>> X = np.arange(10)
     >>> print("Data set: %r" % X)
     >>> print()
     >>>
-    >>> idx = SequentialIndex(2, X=X)
+    >>> idx = TemporalIndex(2, X=X)
     >>>
     >>> for train, test in idx.generate(as_array=True):
     ...     print('TRAIN IDX: %32r | TEST IDX: %16r' % (train, test))
@@ -100,7 +100,7 @@ class SequentialIndex(BaseIndex):
     """
 
     def __init__(self, step_size=1, burn_in=None, window=None, lag=0, X=None, raise_on_exception=True):
-        super(SequentialIndex, self).__init__()
+        super(TemporalIndex, self).__init__()
         self.step_size = step_size
         self.burn_in = burn_in if burn_in is not None else step_size
         self.window = window
@@ -127,7 +127,7 @@ class SequentialIndex(BaseIndex):
             indexer with stores sample size data.
         """
         self.n_samples = X.shape[0]
-        check_sequential_index(
+        check_temporal_index(
             self.burn_in, self.step_size, self.window,
             self.lag, self.n_samples, self.raise_on_exception)
         self.n_test_samples = self.n_samples - self.burn_in

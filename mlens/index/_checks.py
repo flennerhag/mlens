@@ -83,7 +83,7 @@ def check_subsample_index(n_samples, partitions, folds, raise_):
                          "number of samples: %i." % (s, n_samples))
 
 
-def check_sequential_index(burn_in, step_size, window, lag,
+def check_temporal_index(burn_in, step_size, window, lag,
                            n_samples, raise_on_exception=None):
     """Check that folds can be constructed from passed arguments."""
     names = ['burn_in', 'step_size', 'window', 'lag']

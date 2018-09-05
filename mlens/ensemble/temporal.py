@@ -10,7 +10,7 @@ Temporal ensemble class. Fully integrable with Scikit-learn.
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..index import SequentialIndex, FullIndex
+from ..index import TemporalIndex, FullIndex
 
 
 class TemporalEnsemble(BaseEnsemble):
@@ -268,7 +268,7 @@ class TemporalEnsemble(BaseEnsemble):
         if meta:
             idx = FullIndex()
         else:
-            idx = SequentialIndex(
+            idx = TemporalIndex(
                 s, b, w, l, raise_on_exception=self.raise_on_exception)
 
         return super(TemporalEnsemble, self).add(

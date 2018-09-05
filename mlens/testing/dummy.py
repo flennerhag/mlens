@@ -486,16 +486,16 @@ def _get_path(backend, is_learner):
     return path
 
 
-def get_learner(case, *args):
+def get_learner(case, *args, **kwargs):
     """Generator function for test"""
-    data = Data(*args, is_learner=True)
+    data = Data(*args, is_learner=True, **kwargs)
     p = getattr(data.indexer, 'partitions', 1)
     X, y = data.get_data((12, 4), 2)
     (F, wf), (H, wh) = data.ground_truth(X, y, p)
     data.indexer.fit(X)
 
     learner, transformer = EstimatorContainer().get_learner(
-        *args, classes=data.classes_)
+        *args, classes=data.classes_, **kwargs)
 
     return {'fit': ('fit', learner, transformer, X, y, F, wf),
             'predict': ('predict', learner, transformer, X, y, H, wh),
@@ -547,9 +547,9 @@ def run_learner(job, learner, transformer, X, y, F, wf=None):
         np.testing.assert_array_equal(w, wf)
 
 
-def get_layer(job, backend, case, proba, preprocess, feature_prop=None):
+def get_layer(job, backend, case, proba, preprocess, feature_prop=None, **kwargs):
     """Generator function for test"""
-    data = Data(case, proba, preprocess)
+    data = Data(case, proba, preprocess, **kwargs)
     p = getattr(data.indexer, 'partitions', 1)
     X, y = data.get_data(shape=(12, 4), m=2)
     (F, wf), (H, wh) = data.ground_truth(X, y, p, feature_prop=feature_prop)
@@ -558,7 +558,7 @@ def get_layer(job, backend, case, proba, preprocess, feature_prop=None):
     prop = range(feature_prop) if feature_prop else None
     layer = EstimatorContainer().get_layer(
         kls=case, proba=proba, preprocessing=preprocess,
-        backend=backend, propagate_features=prop)
+        backend=backend, propagate_features=prop, **kwargs)
 
     return {'fit': ('fit', layer, X, y, F, wf),
             'predict': ('predict', layer, X, y, H, wh),

@@ -213,7 +213,7 @@ if has_sklearn:
 
     def test_temporal_s_m():
         """[TemporalEnsemble] Test scikit-learn comp - mp | np"""
-        ens = get_ensemble(TemporalEnsemble, 'multiprocessing', None, step_size=5, window=10)
+        ens = get_ensemble(TemporalEnsemble, 'multiprocessing', None, step_size=10)
         ens.fit(X, y)
         p = ens.predict(X)
         assert p.shape == y.shape
@@ -226,7 +226,7 @@ if has_sklearn:
 
     def test_temporal_f_m():
         """[TemporalEnsemble] Test scikit-learn comp - mp | p"""
-        ens = get_ensemble(TemporalEnsemble, 'multiprocessing', prep, step_size=5, window=10)
+        ens = get_ensemble(TemporalEnsemble, 'multiprocessing', prep, step_size=10)
         ens.fit(X, y)
         p = ens.predict(X)
         assert p.shape == y.shape
@@ -239,7 +239,7 @@ if has_sklearn:
 
     def test_temporal_s_m():
         """[TemporalEnsemble] Test scikit-learn comp - th | np"""
-        ens = get_ensemble(TemporalEnsemble, 'threading', None, step_size=5, window=10)
+        ens = get_ensemble(TemporalEnsemble, 'threading', None, step_size=10)
         ens.fit(X, y)
         p = ens.predict(X)
         assert p.shape == y.shape
@@ -252,7 +252,7 @@ if has_sklearn:
 
     def test_temporal_f_m():
         """[TemporalEnsemble] Test scikit-learn comp - th | p"""
-        ens = get_ensemble(TemporalEnsemble, 'threading', prep, step_size=5, window=10)
+        ens = get_ensemble(TemporalEnsemble, 'threading', prep, step_size=10)
         ens.fit(X, y)
         p = ens.predict(X)
         assert p.shape == y.shape

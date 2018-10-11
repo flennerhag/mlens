@@ -48,6 +48,7 @@ if check_estimator is not None:
 
         def __init__(self, layers=None):
             self.layers = layers
+        __init__.deprecated_original = __init__
 
         def add(self, e):
             """Pass through."""
@@ -74,7 +75,7 @@ if check_estimator is not None:
 
         def __init__(self):
             super(TestMixin, self).__init__()
-
+        __init__.deprecated_original = __init__
 
 def test_ols_estimators():
     """[Utils] OLS: check estimators."""

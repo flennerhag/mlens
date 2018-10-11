@@ -30,8 +30,8 @@ if has_sklearn:
                   GradientBoostingRegressor(),
                   LinearRegression(),
                   KNeighborsRegressor(),
-                  SVR(),
-                  RandomForestRegressor(),
+                  SVR(gamma='scale'),
+                  RandomForestRegressor(n_estimators=100),
                   ]
 
     est_prep = {'prep1': estimators,

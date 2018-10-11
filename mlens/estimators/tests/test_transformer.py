@@ -3,7 +3,7 @@
 Test classes.
 """
 import numpy as np
-from mlens.index import FoldIndex
+from mlens.index import FullIndex, FoldIndex
 from mlens.utils.dummy import OLS, Scale
 from mlens.utils.exceptions import ParameterChangeWarning
 from mlens.testing import Data
@@ -36,14 +36,20 @@ class Tmp(Est):
     """
 
     def __init__(self):
-        args = {LearnerEstimator: (OLS(), FoldIndex()),
-                LayerEnsemble: (FoldIndex(), OLS()),
-                TransformerEstimator: (Scale(), FoldIndex())}[Est]
+        args = {LearnerEstimator: (OLS(), FullIndex()),
+                LayerEnsemble: (FullIndex(), OLS()),
+                TransformerEstimator: (Scale(), FullIndex())}[Est]
         super(Tmp, self).__init__(*args)
 
+    __init__.deprecated_original = __init__
+
     def fit(self, X, y, *args, **kwargs):
-        X, y = check_X_y(X, y)
+        X,y = check_X_y(X, y)
         return super(Tmp, self).fit(X, y, *args, **kwargs)
+
+    def fit_transform(self, X, y, *args, **kwargs):
+        X,y = check_X_y(X, y)
+        return super(Tmp, self).fit_transform(X, y, *args, **kwargs)
 
     def predict(self, X, *args, **kwargs):
         X = check_array(X)

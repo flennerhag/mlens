@@ -13,7 +13,7 @@ from ..parallel.base import ParamMixin
 from ..parallel.wrapper import EstimatorMixin
 from ..parallel._base_functions import check_stack
 from ..externals.sklearn.base import BaseEstimator as _BaseEstimator
-from ..externals.sklearn.base import clone, TransformerMixin
+from ..externals.sklearn.base import clone
 
 
 class BaseEstimator(EstimatorMixin, ParamMixin, _BaseEstimator):
@@ -26,6 +26,9 @@ class BaseEstimator(EstimatorMixin, ParamMixin, _BaseEstimator):
     def __init__(self):
         self.__static__ = list()
         self._static_fit_params = dict()
+        self._backend = None
+
+    __init__.deprecated_original = __init__
 
     @property
     def __fitted__(self):
@@ -90,9 +93,10 @@ class LearnerEstimator(BaseEstimator):
         self.backend = backend
         self.n_jobs = n_jobs
         self.dtype = dtype
-        self._backend = None
 
         self.__static__.extend(['estimator', 'indexer'])
+
+    __init__.deprecated_original = __init__
 
     def _build(self):
         """Build backend"""
@@ -108,7 +112,7 @@ class LearnerEstimator(BaseEstimator):
         self._store_static_params()
 
 
-class TransformerEstimator(TransformerMixin, BaseEstimator):
+class TransformerEstimator(BaseEstimator):
     """Transformer estimator
 
     Wraps an preprocessing pipeline in a cross-validation strategy.
@@ -147,9 +151,10 @@ class TransformerEstimator(TransformerMixin, BaseEstimator):
         self.backend = backend
         self.n_jobs = n_jobs
         self.dtype = dtype
-        self._backend = None
 
         self.__static__.extend(['preprocessing', 'indexer'])
+
+    __init__.deprecated_original = __init__
 
     def _build(self):
         """Build backend"""
@@ -221,9 +226,10 @@ class LayerEnsemble(BaseEstimator):
         self.backend = backend
         self.n_jobs = n_jobs
         self.dtype = dtype
-        self._backend = None
 
         self.__static__.extend(['groups'])
+
+    __init__.deprecated_original = __init__
 
     def _build(self):
         """Build Backend"""

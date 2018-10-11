@@ -17,8 +17,17 @@ from __future__ import division, print_function
 import numpy as np
 
 from .exceptions import NotFittedError
-from ..externals.sklearn.base import BaseEstimator, TransformerMixin, clone
-from ..externals.sklearn.validation import check_X_y, check_array
+from ..externals.sklearn.base import BaseEstimator, TransformerMixin
+
+try:
+    from sklearn.utils.validation import check_X_y, check_array
+except ImportError:
+
+    def check_X_y(X, y, *args, **kwargs):
+        return X, y
+
+    def check_array(X, *args, **kwargs):
+        return X
 
 
 class OLS(BaseEstimator):
@@ -69,9 +78,10 @@ class OLS(BaseEstimator):
 
     def fit(self, X, y):
         """Fit coefficient vector."""
-        X, y = check_X_y(X, y, accept_sparse=False)
+        X, y = check_X_y(X, y, dtype='float64')
+        y = np.asarray(y, dtype=X.dtype)
 
-        O = np.linalg.lstsq(X, y.astype('float'), rcond=None)
+        O = np.linalg.lstsq(X, y, rcond=None)
 
         self.coef_ = O[0] + self.offset
         self.resid_ = O[1]
@@ -224,6 +234,8 @@ class Scale(BaseEstimator, TransformerMixin):
     def __init__(self, copy=True):
         self.copy = copy
         self.__is_fitted__ = False
+
+    __init__.deprecated_original = __init__
 
     def fit(self, X, y=None):
         """Estimate mean.

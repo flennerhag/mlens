@@ -3,7 +3,7 @@
 Test classes.
 """
 import numpy as np
-from mlens.index import FoldIndex
+from mlens.index import FullIndex, FoldIndex
 from mlens.testing import Data
 from mlens.testing.dummy import ESTIMATORS, PREPROCESSING
 from mlens.utils.dummy import OLS, Scale
@@ -14,6 +14,7 @@ from mlens.externals.sklearn.base import clone
 
 try:
     from sklearn.utils.estimator_checks import check_estimator
+    from sklearn.utils.validation import check_X_y, check_array
     run_sklearn = True
 except ImportError:
     check_estimator = None
@@ -37,11 +38,29 @@ class Tmp(Est):
     """
 
     def __init__(self):
-        args = {LearnerEstimator: (OLS(), FoldIndex()),
+        args = {LearnerEstimator: (OLS(), FullIndex()),
                 LayerEnsemble: (make_group(
-                    FoldIndex(), ESTIMATORS, PREPROCESSING),),
-                TransformerEstimator: (Scale(), FoldIndex())}[Est]
+                    FullIndex(), ESTIMATORS, PREPROCESSING),),
+                TransformerEstimator: (Scale(), FullIndex())}[Est]
         super(Tmp, self).__init__(*args)
+
+    __init__.deprecated_original = __init__
+
+    def fit(self, X, y, *args, **kwargs):
+        X, y = check_X_y(X, y)
+        return super(Tmp, self).fit(X, y, *args, **kwargs)
+
+    def fit_transform(self, X, y, *args, **kwargs):
+        X, y = check_X_y(X, y)
+        return super(Tmp, self).fit_transform(X, y, *args, **kwargs)
+
+    def predict(self, X, *args, **kwargs):
+        X = check_array(X)
+        return super(Tmp, self).predict(X, *args, **kwargs)
+
+    def transform(self, X, *args, **kwargs):
+        X = check_array(X)
+        return super(Tmp, self).transform(X, *args, **kwargs)
 
 
 # These are simple run tests to ensure parallel wrapper register backend.

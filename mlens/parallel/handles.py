@@ -47,7 +47,7 @@ class Pipeline(_BaseEstimator):
 
     def __init__(self, pipeline, name=None, return_y=False):
         self.name = format_name(name, 'pipeline', GLOBAL_PIPELINE_NAMES)
-        self.pipeline = _check_instances(pipeline) if pipeline else None
+        self.pipeline = _check_instances(pipeline)
         self.return_y = return_y
         self._pipeline = None
 

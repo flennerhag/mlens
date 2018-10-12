@@ -90,6 +90,19 @@ estimators = {'pipeline-1': list_of_estimators_1,
 ensemble.add(estimators, preprocessing)
 ```
 
+Ready-made ensemble classes:
+
+| Class name         |  Use case                                                                           |
+| ------------------ | ----------------------------------------------------------------------------------- |
+| SuperLearner       | The standard CV-stacking ensemble.                                                  |
+| BlendEnsemble      | Partitions data into training and test set. Good for large datasets.                | 
+| Subsemble          | Create multiple partitions to exploit local patterns in data.                       | 
+| SequentialEnsemble | Allows you to mix ensemble classes between layers.                                  | 
+| TemporalEnsemble   | Ensemble class for time-series data. Use it to fit models to different time scales. | 
+| ------------------ | ----------------------------------------------------------------------------------- |
+
+To customize ensembles, see [tutorials](http://ml-ensemble.com/info/overview.html).
+
 ### Dedicated diagnostics
 
 ML Ensemble implements a dedicated diagnostics and model selection suite
@@ -146,6 +159,20 @@ git clone https://github.com/flennerhag/mlens.git; cd mlens;
 python install setup.py
 ```
 
+## Getting started and Questions
+
+To get started with ensemble classes, see the beginner's [guide](http://ml-ensemble.com/info/tutorials/start.html). 
+To create your own ensembles, see the low-level mechanics [tutorials](http://ml-ensemble.com/info/overview.html).
+
+If you have any questions not [previously answered](https://github.com/flennerhag/mlens/issues?q=is%3Aissue), 
+don't hesitate to create an [issue](https://github.com/flennerhag/mlens/issues) and we'll get you sorted.
+
+## Contribute
+
+ML-Ensemble is an open-source project that welcome any contribution, small as large.
+Bug fixes and minor improvements can be pulled as is; larger PRs need to be unit tested. 
+We generally follow the [PEP-8](https://www.python.org/dev/peps/pep-0008/) style guide.
+
 ## Citation
 
 For scientific publication, ML-Ensemble can be cited as 
@@ -160,17 +187,6 @@ For scientific publication, ML-Ensemble can be cited as
   url    = {https://dx.doi.org/10.5281/zenodo.1042144}
 }
 ```
-
-## Questions
-
-Please see [issue tracker](https://github.com/flennerhag/mlens/issues).
-
-
-## Contribute
-
-ML-Ensemble is an open-source project that welcome any contribution, small as large.
-Bug fixes and minor improvements can be pulled as is; larger PRs need to be unit tested. 
-We generally follow the [PEP-8](https://www.python.org/dev/peps/pep-0008/) style guide.
 
 ## License
 

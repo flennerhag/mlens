@@ -92,14 +92,13 @@ ensemble.add(estimators, preprocessing)
 
 Ready-made ensemble classes:
 
-| Class name         |  Use case                                                                           |
-| ------------------ | ----------------------------------------------------------------------------------- |
-| SuperLearner       | The standard CV-stacking ensemble.                                                  |
-| BlendEnsemble      | Partitions data into training and test set. Good for large datasets.                | 
-| Subsemble          | Create multiple partitions to exploit local patterns in data.                       | 
-| SequentialEnsemble | Allows you to mix ensemble classes between layers.                                  | 
-| TemporalEnsemble   | Ensemble class for time-series data. Use it to fit models to different time scales. | 
-| ------------------ | ----------------------------------------------------------------------------------- |
+| Class name             |  Use case                                                                           |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| [SuperLearner](http://ml-ensemble.com/docs/ensemble.html#mlens.ensemble.SuperLearner) | The standard CV-stacking ensemble. |
+| [BlendEnsemble](http://ml-ensemble.com/docs/ensemble.html#mlens.ensemble.BlendEnsemble) | Partitions data into training and test set. Good for large datasets. | 
+| [Subsemble](http://ml-ensemble.com/docs/ensemble.html#mlens.ensemble.Subsemble) | Create multiple partitions to exploit local patterns in data. | 
+| [SequentialEnsemble](http://ml-ensemble.com/docs/ensemble.html#mlens.ensemble.SequentialEnsemble) | Allows you to mix ensemble classes between layers. | 
+| [TemporalEnsemble](http://ml-ensemble.com/docs/ensemble.html#mlens.ensemble.TemporalEnsemble) | Ensemble class for time-series data. Use it to fit models to different time scales. | 
 
 To customize ensembles, see [tutorials](http://ml-ensemble.com/info/overview.html).
 

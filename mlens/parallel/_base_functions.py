@@ -250,6 +250,9 @@ def check_params(lpar, rpar):
     .. versionchanged:: 0.2.2
         Changed into a warning to prevent overly aggressive fails.
 
+    .. versionchanged:: 0.2.2
+        None parameter values are not checked. Errors during checks are ignored.
+
     Parameters
     ----------
     lpar : int, float, str, bool, iterable, estimator
@@ -285,24 +288,30 @@ def check_params(lpar, rpar):
     # --- param check ---
     _pass = True
 
-    if (lpar is None) and not (rpar is None):
-        _pass = False
+    if lpar is None or rpar is None:
+        # None parameters are liable to be overwritten - ignore
+        return _pass
 
-    if isinstance(lpar, (str, bool)):
-        _pass = lpar == rpar
-
-    if isinstance(lpar, (int, float)):
-        if np.isnan(lpar):
-            _pass = np.isnan(rpar)
-        elif np.isinf(lpar):
-            _pass = np.isinf(rpar)
-        else:
+    try:
+        if isinstance(lpar, (str, bool)):
             _pass = lpar == rpar
+
+        if isinstance(lpar, (int, float)):
+            if np.isnan(lpar):
+                _pass = np.isnan(rpar)
+            elif np.isinf(lpar):
+                _pass = np.isinf(rpar)
+            else:
+                _pass = lpar == rpar
+    except Exception:
+        # avoid failing a model because we can't make the check we want
+        pass
 
     if not _pass:
         warnings.warn(
             "Parameter value (%r) has changed since model was fitted (%r)." %
             (lpar, rpar), ParameterChangeWarning)
+
     return _pass
 
 

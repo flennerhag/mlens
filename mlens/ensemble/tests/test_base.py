@@ -6,23 +6,15 @@ from mlens.ensemble.base import BaseEnsemble
 from mlens.externals.sklearn.base import clone
 from mlens.testing.dummy import Data, EstimatorContainer
 
-try:
-    from sklearn.utils.estimator_checks import check_estimator
-    SKLEARN = True
-except ImportError:
-    check_estimator = None
-    SKLEARN = False
-
 LEN = 12
 WIDTH = 4
 MOD = 2
-
 
 class Tmp(BaseEnsemble):
 
     def __init__(
             self, shuffle=False, random_state=None, scorer=None, verbose=False,
-            layers=None, array_check=2, model_selection=False, sample_size=20):
+            layers=None, array_check=None, model_selection=False, sample_size=20):
         super(Tmp, self).__init__(
             shuffle=shuffle, random_state=random_state, scorer=scorer,
             verbose=verbose, layers=layers, array_check=array_check,
@@ -63,9 +55,3 @@ def test_set_params_layer():
     layer.set_params(**{'group__ols-3__estimator__offset': 2})
     lr = [l for l in layer.learners][-1]
     assert lr.estimator.offset == 2
-
-
-if SKLEARN:
-    def test_estimator_check():
-        """[Ensemble | BaseEnsemble] Test valid scikit-learn estimator."""
-        check_estimator(Tmp(layers=lc.stack))

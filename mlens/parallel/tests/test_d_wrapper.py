@@ -28,12 +28,6 @@ X, y = data.get_data((25, 4), 3)
 (F, wf), (P, wp) = data.ground_truth(X, y,)
 
 
-if SKLEARN:
-    def test_pipeline():
-        """[Parallel | Pipeline] Test estimator"""
-        check_estimator(Pipeline(Scale()))
-
-
 def test_fit():
     """[Parallel | Learner] Testing fit flags"""
     lr = Learner(OLS(), indexer=data.indexer, name='lr')

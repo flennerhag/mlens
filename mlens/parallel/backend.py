@@ -763,7 +763,7 @@ class ParallelProcessing(BaseProcessor):
         """Generate prediction array either in-memory or persist to disk."""
         shape = task.shape(job)
         if threading:
-            self.job.predict_out = np.empty(shape, dtype=_dtype(task))
+            self.job.predict_out = np.zeros(shape, dtype=_dtype(task))
         else:
             f = os.path.join(self.job.dir, '%s_out_array.mmap' % task.name)
             try:

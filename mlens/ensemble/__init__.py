@@ -13,6 +13,7 @@ from .super_learner import SuperLearner
 from .blend import BlendEnsemble
 from .subsemble import Subsemble
 from .sequential import SequentialEnsemble
+from .temporal import TemporalEnsemble
 from .base import Sequential, BaseEnsemble
 
 __all__ = ['SuperLearner',
@@ -20,4 +21,5 @@ __all__ = ['SuperLearner',
            'Subsemble',
            'SequentialEnsemble',
            'Sequential',
+           'TemporalEnsemble',
            'BaseEnsemble']

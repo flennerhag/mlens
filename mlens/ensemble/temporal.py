@@ -4,79 +4,38 @@
 :copyright: 2017-2018
 :licence: MIT
 
-Super Learner class. Fully integrable with Scikit-learn.
+Temporal ensemble class. Fully integrable with Scikit-learn.
 """
 
 from __future__ import division
 
 from .base import BaseEnsemble
-from ..index import FoldIndex, FullIndex
+from ..index import TemporalIndex, FullIndex
 
 
-class SuperLearner(BaseEnsemble):
+class TemporalEnsemble(BaseEnsemble):
 
-    r"""Super Learner class.
+    r"""Temporal ensemble class.
 
-    The Super Learner (also known as the Stacking Ensemble)is an
-    supervised ensemble algorithm that uses K-fold estimation to map a
-    training set :math:`(X, y)` into a prediction set :math:`(Z, y)`,
-    where the predictions
-    in :math:`Z` are constructed using K-Fold splits of :math:`X` to ensure
-    :math:`Z` reflects test errors, and that applies a user-specified meta
-    learner to predict :math:`y` from :math:`Z`. The algorithm in sudo code
-    follows:
+    The temporal ensemble class uses a time series cross-validation
+    strategy to create training and test folds that preserve temporal
+    ordering in the data. The cross validation strategy is unrolled
+    through time. For instance:
 
-        #. Specify a library :math:`L` of base learners
+    ====  =================  ==========
+    fold  train obs          test obs
+    ====  =================  ==========
+    0     0, 1, 2, 3         4
+    1     0, 1, 2, 3, 4      5
+    2     0, 1, 2, 3, 4, 5   6
+    ====  =================  ==========
 
-        #. Fit all base learners on :math:`X` and store the fitted estimators.
-
-        #. Split :math:`X` into :math:`K` folds, fit every learner in
-           :math:`L` on the training set and predict test set. Repeat until
-           all folds have been predicted.
-
-        #. Construct a matrix :math:`Z` by stacking the predictions per fold.
-
-        #. Fit the meta learner on :math:`Z` and store the learner
-
-    The ensemble can be used for prediction by mapping a new test set :math:`T`
-    into a prediction set :math:`Z'` using the learners fitted in (2),
-    and then mapping :math:`Z'` to :math:`y'` using the fitted meta learner
-    from (5).
-
-    The Super Learner does asymptotically as well as (up to a constant) an
-    Oracle selector. For the theory behind the Super Learner, see
-    [#]_ and [#]_ as well as references therein.
-
-    Stacking K-fold predictions to cover an entire training set is a time
-    consuming method and can be prohibitively costly for large datasets.
-    With large data, other ensembles that fits an ensemble on subsets
-    can achieve similar performance at a fraction of the training time.
-    However, when data is noisy or of high variance,
-    the :class:`SuperLearner` ensure all information is
-    used during fitting.
-
-    References
-    ----------
-    .. [#] van der Laan, Mark J.; Polley, Eric C.; and Hubbard, Alan E.,
-       "Super Learner" (July 2007). U.C. Berkeley Division of Biostatistics
-       Working Paper Series. Working Paper 222.
-       http://biostats.bepress.com/ucbbiostat/paper222
-
-    .. [#] Polley, Eric C. and van der Laan, Mark J.,
-       "Super Learner In Prediction" (May 2010). U.C. Berkeley Division of
-       Biostatistics Working Paper Series. Working Paper 266.
-       http://biostats.bepress.com/ucbbiostat/paper266
-
-    Notes
-    -----
-    This implementation uses the agnostic meta learner approach, where the
-    user supplies the meta learner to be used. For the original Super Learner
-    algorithm (i.e. learn the best linear combination of the base learners),
-    the user can specify a linear regression as the meta learner.
+    Different estimators in the ensemble can operate on different time scales,
+    allow efficient combinations of different temporal patterns in one model.
 
     See Also
     --------
-    :class:`BlendEnsemble`, :class:`Subsemble`
+    :class:`SuperLearner`, :class:`BlendEnsemble`, :class:`SequentialEnsemble`
 
 
     .. note :: All parameters can be overriden in the :attr:`add` method unless
@@ -85,19 +44,23 @@ class SuperLearner(BaseEnsemble):
 
     Parameters
     ----------
-    folds : int (default = 2)
-        number of folds to use during fitting. Note: this parameter can be
-        specified on a layer-specific basis in the :attr:`add` method.
+    step_size : int (default=1)
+        number of samples to use in each test fold. The final window
+        size may be smaller if too few observations remain.
 
-    shuffle : bool (default = False)
-        whether to shuffle data before before processing each layer. This
-        parameter can be overridden in the :attr:`add` method if different test
-        sizes is desired for each layer.
+    burn_in : int (default=None)
+        number of samples to use for first training fold. These observations
+        will be dropped from the output. Defaults to ``step_size``.
 
-    random_state : int (default = None)
-        random seed for shuffling inputs. Note that the seed here is used to
-        generate a unique seed for each layer. Can be overridden in the
-        :attr:`add` method.
+    window: int (default=None)
+        number of previous samples to use in each training fold, except first
+        which is determined by ``burn_in``. If ``None``, will use all previous
+        observations.
+
+    lag: int (default=0)
+        distance between the most recent training point in the training fold and
+        the first test point. For ``lag>0``, the training fold and the test fold
+        will not be contiguous.
 
     scorer : object (default = None)
         scoring function. If a function is provided, base estimators will be
@@ -152,65 +115,50 @@ class SuperLearner(BaseEnsemble):
 
     Examples
     --------
-
-    Instantiate ensembles with no preprocessing: use list of estimators
-
-    >>> from mlens.ensemble import SuperLearner
-    >>> from mlens.metrics.metrics import rmse
-    >>> from sklearn.datasets import load_boston
-    >>> from sklearn.linear_model import Lasso
-    >>> from sklearn.svm import SVR
+    >>> from sklearn.linear_model import LinearRegression
+    >>> from mlens.ensemble import TemporalEnsemble
+    >>> import numpy as np
     >>>
-    >>> X, y = load_boston(True)
+    >>> x = np.linspace(0, 1, 100)
+    >>> y = x[1:]
+    >>> x = x[:-1]
+    >>> x = x.reshape(-1, 1)
     >>>
-    >>> ensemble = SuperLearner()
-    >>> ensemble.add([SVR(), ('can name some or all est', Lasso())])
-    >>> ensemble.add_meta(SVR())
+    >>> ens = TemporalEnsemble(window=1)
+    >>> ens.add(LinearRegression())
     >>>
-    >>> ensemble.fit(X, y)
-    >>> preds = ensemble.predict(X)
-    >>> rmse(y, preds)
-    6.955358...
-
-    Instantiate ensembles with different preprocessing pipelines through dicts.
-
-    >>> from mlens.ensemble import SuperLearner
-    >>> from mlens.metrics.metrics import rmse
-    >>> from sklearn.datasets import load_boston
-    >>> from sklearn. preprocessing import MinMaxScaler, StandardScaler
-    >>> from sklearn.linear_model import Lasso
-    >>> from sklearn.svm import SVR
+    >>> ens.fit(x, y)
+    >>> p = ens.predict(x)
     >>>
-    >>> X, y = load_boston(True)
     >>>
-    >>> preprocessing_cases = {'mm': [MinMaxScaler()],
-    ...                        'sc': [StandardScaler()]}
+    >>> print("{:5} | {:5}".format('pred', 'truth'))
+    >>> for i in range(5, 10):
+    ...     print("{:.3f} | {:.3f}".format(p[i], y[i]))
     >>>
-    >>> estimators_per_case = {'mm': [SVR()],
-    ...                        'sc': [('can name some or all ests', Lasso())]}
-    >>>
-    >>> ensemble = SuperLearner()
-    >>> ensemble.add(estimators_per_case, preprocessing_cases).add(SVR(), meta=True)
-    >>>
-    >>> ensemble.fit(X, y)
-    >>> preds = ensemble.predict(X)
-    >>> rmse(y, preds)
-    7.841329...
+    pred  | truth
+    0.061 | 0.061
+    0.071 | 0.071
+    0.081 | 0.081
+    0.091 | 0.091
+    0.101 | 0.101
     """
 
     def __init__(
-            self, folds=2, shuffle=False, random_state=None, scorer=None,
+            self, step_size=1, burn_in=None, window=None, lag=0, scorer=None,
             raise_on_exception=True, array_check=None, verbose=False, n_jobs=-1,
             backend='threading', model_selection=False, sample_size=20, layers=None):
-        super(SuperLearner, self).__init__(
-            shuffle=shuffle, random_state=random_state, scorer=scorer,
+        super(TemporalEnsemble, self).__init__(
+            shuffle=False, random_state=None, scorer=scorer,
             raise_on_exception=raise_on_exception, verbose=verbose,
             n_jobs=n_jobs, layers=layers, backend=backend,
             array_check=array_check, model_selection=model_selection,
             sample_size=sample_size)
 
         self.__initialized__ = 0  # Unlock parameter setting
-        self.folds = folds
+        self.step_size = step_size
+        self.burn_in = burn_in
+        self.window = window
+        self.lag = lag
         self.__initialized__ = 1  # Protect against param resets
 
     def add_meta(self, estimator, **kwargs):
@@ -313,13 +261,16 @@ class SuperLearner(BaseEnsemble):
         self : instance
             ensemble instance with layer instantiated.
         """
-        c = kwargs.pop('folds', self.folds)
-
+        s = kwargs.pop('step_size', self.step_size)
+        b = kwargs.pop('burn_in', self.burn_in)
+        w = kwargs.pop('window', self.window)
+        l = kwargs.pop('lag', self.lag)
         if meta:
             idx = FullIndex()
         else:
-            idx = FoldIndex(c, raise_on_exception=self.raise_on_exception)
+            idx = TemporalIndex(
+                s, b, w, l, raise_on_exception=self.raise_on_exception)
 
-        return super(SuperLearner, self).add(
+        return super(TemporalEnsemble, self).add(
             estimators=estimators, indexer=idx, preprocessing=preprocessing,
             proba=proba, propagate_features=propagate_features, **kwargs)

@@ -10,7 +10,6 @@ from __future__ import division
 
 import os
 import warnings
-from copy import deepcopy
 from scipy.sparse import issparse
 import numpy as np
 
@@ -66,7 +65,7 @@ def prune_files(path, name):
 
 def replace(source_files):
     """Utility function to replace empty files list"""
-    replace_files = [deepcopy(o) for o in source_files]
+    replace_files = list(source_files)
     for o in replace_files:
         o.name = o.name[:-1] + '0'
         o.index = (o.index[0], 0)
@@ -140,6 +139,15 @@ def set_output_columns(
         obj.output_columns = col_dict
 
 
+def _safe_slice(array, idx):
+    """Slice an array safely along the row axis"""
+    if array is None:
+        return array
+    elif hasattr(array, 'iloc'):
+        return array.iloc[idx]
+    return array[idx]
+
+
 def slice_array(x, y, idx, r=0):
     """Build training array index and slice data."""
     if idx == 'all':
@@ -154,8 +162,8 @@ def slice_array(x, y, idx, r=0):
                 # of the slice in question to be made
                 simple_slice = False
                 idx = np.hstack([np.arange(t0 - r, t1 - r) for t0, t1 in idx])
-                x = x[idx]
-                y = y[idx] if y is not None else y
+                x = _safe_slice(x, idx)
+                y = _safe_slice(y, idx)
             else:
                 # The tuple is of the form ((a, b),) and can be made
                 # into a simple (a, b) tuple for which basic slicing applies
@@ -171,16 +179,16 @@ def slice_array(x, y, idx, r=0):
             y = y[slice(idx[0] - r, idx[1] - r)] if y is not None else y
 
     # Cast as ndarray to avoid passing memmaps to estimators
-    if y is not None:
+    if y is not None and isinstance(y, np.memmap):
         y = y.view(type=np.ndarray)
-    if not issparse(x):
+    if not issparse(x) and isinstance(x, np.memmap):
         x = x.view(type=np.ndarray)
 
     return x, y
 
 
 def assign_predictions(pred, p, tei, col, n):
-    """Assign predictions to memmaped prediction array."""
+    """Assign predictions to prediction array."""
     if tei == 'all':
         tei = None
 
@@ -242,6 +250,9 @@ def check_params(lpar, rpar):
     .. versionchanged:: 0.2.2
         Changed into a warning to prevent overly aggressive fails.
 
+    .. versionchanged:: 0.2.2
+        None parameter values are not checked. Errors during checks are ignored.
+
     Parameters
     ----------
     lpar : int, float, str, bool, iterable, estimator
@@ -277,24 +288,30 @@ def check_params(lpar, rpar):
     # --- param check ---
     _pass = True
 
-    if (lpar is None) and not (rpar is None):
-        _pass = False
+    if lpar is None or rpar is None:
+        # None parameters are liable to be overwritten - ignore
+        return _pass
 
-    if isinstance(lpar, (str, bool)):
-        _pass = lpar == rpar
-
-    if isinstance(lpar, (int, float)):
-        if np.isnan(lpar):
-            _pass = np.isnan(rpar)
-        elif np.isinf(lpar):
-            _pass = np.isinf(rpar)
-        else:
+    try:
+        if isinstance(lpar, (str, bool)):
             _pass = lpar == rpar
+
+        if isinstance(lpar, (int, float)):
+            if np.isnan(lpar):
+                _pass = np.isnan(rpar)
+            elif np.isinf(lpar):
+                _pass = np.isinf(rpar)
+            else:
+                _pass = lpar == rpar
+    except Exception:
+        # avoid failing a model because we can't make the check we want
+        pass
 
     if not _pass:
         warnings.warn(
             "Parameter value (%r) has changed since model was fitted (%r)." %
             (lpar, rpar), ParameterChangeWarning)
+
     return _pass
 
 

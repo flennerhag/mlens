@@ -14,6 +14,7 @@ from mlens.utils import IdTrain
 from mlens.index import (FoldIndex,
                          BlendIndex,
                          SubsetIndex,
+                         TemporalIndex,
                          ClusteredSubsetIndex,
                          FullIndex)
 
@@ -172,6 +173,86 @@ def test_full_raises_on_empty():
     with np.testing.assert_raises(ValueError):
         FoldIndex(2, np.empty(1))
 
+
+###############################################################################
+def test_temp_index_is_fitted():
+    """[Base] TemporalIndex: check fit methods."""
+    attrs = ['n_samples', 'n_test_samples']
+
+    idx = TemporalIndex()
+    for attr in attrs: assert not getattr(idx, attr)
+    idx.fit(X)
+    for attr in attrs: assert getattr(idx, attr)
+
+    idx = TemporalIndex()
+    for attr in attrs: assert not getattr(idx, attr)
+    for _ in idx.generate(X): pass
+    for attr in attrs: assert getattr(idx, attr)
+
+    idx = TemporalIndex(X=X)
+    for attr in attrs: assert getattr(idx, attr)
+
+
+def test_temp_tuple_shape():
+    """[Base] TemporalIndex: test the tuple shape on generation."""
+    tup = [(tri, tei) for tri, tei in TemporalIndex().generate(X)]
+    assert tup == [((0, 1), (1, 2)),
+                   ((0, 2), (2, 3)),
+                   ((0, 3), (3, 4)),
+                   ((0, 4), (4, 5))]
+
+
+def test_temp_tuple_advanced():
+    """[Base] TemporalIndex: test burn_in, step_size and window_size"""
+    idx = TemporalIndex(step_size=2, burn_in=10, window=3, lag=2)
+    Y = np.arange(20)
+    tup = [(tri, tei) for tri, tei in idx.generate(Y)]
+    assert tup == [
+        ((0, 8), (10, 12)),
+        ((7, 10), (12, 14)),
+        ((9, 12), (14, 16)),
+        ((11, 14), (16, 18)),
+        ((13, 16), (18, 20))]
+
+    np.testing.assert_array_equal(
+        Y[tup[-1][1][0]:tup[-1][1][1]], Y[-2:])
+
+
+def test_temp_array_shape():
+    """[Base] TemporalIndex: test the array shape on generation."""
+    tr1, te1 = np.array([0]), np.array([1])
+    tr2, te2 = np.array([0, 1]), np.array([2])
+    tr3, te3 = np.array([0, 1, 2]), np.array([3])
+    tr4, te4 = np.array([0, 1, 2, 3]), np.array([4])
+    trs = [tr1, tr2, tr3, tr4]
+    tes = [te1, te2, te3, te4]
+
+    for i, (tri, tei) in enumerate(TemporalIndex(X=X).generate(as_array=True)):
+        np.testing.assert_array_equal(tri, trs[i])
+        np.testing.assert_array_equal(tei, tes[i])
+
+def test_temp_raises_on_floats():
+    """[Base] TemporalIndex: check raises error on floats"""
+    for attr in ['burn_in', 'step_size', 'window', 'lag']:
+        with np.testing.assert_raises(ValueError):
+            TemporalIndex(**{attr: 0.4, 'X': X})
+
+
+def test_temp_raises_on_over_burn_in():
+    """[Base] TemporalIndex: check raises error burn_in > n_samples"""
+    with np.testing.assert_raises(ValueError):
+        TemporalIndex(burn_in=X.shape[0], X=X)
+
+
+def test_temp_raises_on_over_step_size():
+    """[Base] TemporalIndex: check raises error step_size > n_samples"""
+    with np.testing.assert_raises(ValueError):
+        TemporalIndex(step_size=X.shape[0], X=X)
+
+def test_temp_raises_on_over_lag():
+    """[Base] TemporalIndex: check raises error step_size > n_samples"""
+    with np.testing.assert_raises(ValueError):
+        TemporalIndex(burn_in=2, lag=3, X=X)
 
 ###############################################################################
 def test_blend_index_is_fitted():

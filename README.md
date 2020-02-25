@@ -3,8 +3,7 @@
 </div>
 <hr>
 
-![Python 3.7](https://img.shields.io/badge/python-3.5-blue.svg)
-![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)
+![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)
 ![Python 2.7](https://img.shields.io/badge/python-2.7-blue.svg)
 [![PyPI version](https://badge.fury.io/py/mlens.svg)](http://badge.fury.io/py/mlens)
 [![Build Status](https://travis-ci.org/flennerhag/mlens.svg?branch=master)](https://travis-ci.org/flennerhag/mlens)
@@ -143,7 +142,7 @@ Fork the GitHub repository:
 
 ```bash
 git clone https://github.com/flennerhag/mlens.git; cd mlens;
-python install setup.py
+python setup.py install
 ```
 
 ## Citation
@@ -176,7 +175,7 @@ We generally follow the [PEP-8](https://www.python.org/dev/peps/pep-0008/) style
 
 MIT License
 
-Copyright (c) 2017–2018 Sebastian Flennerhag
+Copyright (c) 2017–2020 Sebastian Flennerhag
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

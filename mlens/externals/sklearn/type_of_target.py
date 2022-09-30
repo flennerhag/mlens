@@ -7,7 +7,11 @@ Imports from the utils.multiclass module of Scikit-learn.
 # License: BSD 3 clause
 
 from __future__ import division
-from collections import Sequence
+from sys import version_info
+if (version_info.major == 3) and (version_info.minor == 10):
+    from collections.abc import Sequence
+else:
+    from collections import Sequence
 
 
 from scipy.sparse import issparse

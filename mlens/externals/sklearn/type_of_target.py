@@ -7,7 +7,7 @@ Imports from the utils.multiclass module of Scikit-learn.
 # License: BSD 3 clause
 
 from __future__ import division
-from collections import Sequence
+from collections.abc import Sequence
 
 
 from scipy.sparse import issparse

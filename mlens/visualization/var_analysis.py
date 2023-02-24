@@ -79,7 +79,7 @@ def pca_comp_plot(X, y=None, figsize=(10, 8),
 
     for dim, frame in [(2, 221), (3, 223)]:
 
-        if dim is 3:
+        if dim == 3:
             # Need to specify projection
             subplot_kwarg = {'projection': '3d'}
 
@@ -94,7 +94,7 @@ def pca_comp_plot(X, y=None, figsize=(10, 8),
             ax[-1].set_title('%s kernel, %i dims' % (kernel, dim))
 
             # Whiten background if dim is 3
-            if dim is 3:
+            if dim == 3:
                 ax[-1].set_facecolor((1, 1, 1))
 
     if show:

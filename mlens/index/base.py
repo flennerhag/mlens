@@ -80,7 +80,7 @@ def partition(n, p):
     >>> _partition(8, 3)
     array([3, 3, 2])
     """
-    sizes = (n // p) * np.ones(p, dtype=np.int)
+    sizes = (n // p) * np.ones(p, dtype=np.int32)
     sizes[:n % p] += 1
     return sizes
 

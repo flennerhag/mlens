@@ -356,7 +356,7 @@ class Data(object):
         t.sort()
 
         weights = []
-        F = np.zeros((len(t), n_ests * subsets * labels), dtype=np.float)
+        F = np.zeros((len(t), n_ests * subsets * labels), dtype=np.float32)
 
         col_id = {}
         col_ass = 0
@@ -417,7 +417,7 @@ class Data(object):
             indexer = self.indexer
             indexer.fit(X)
 
-        P = np.zeros((X.shape[0], n_ests * subsets * labels), dtype=np.float)
+        P = np.zeros((X.shape[0], n_ests * subsets * labels), dtype=np.float32)
 
         weights = list()
         col_id = {}

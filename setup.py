@@ -8,9 +8,9 @@ ML-Ensemble - a library for Ensemble Learning
 """
 
 from setuptools import setup, find_packages
-import mlens
+# import mlens
 
-VERSION = mlens.__version__
+VERSION = '0.3.0'
 
 setup(name='mlens',
       version=VERSION,
